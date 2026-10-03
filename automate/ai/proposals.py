@@ -23,6 +23,7 @@ from automate.backend.dimension_backend import DimensionChecker
 from automate.backend.lean_backend import LeanChecker
 from automate.backend.numerical_backend import NumericalChecker
 from automate.backend.statistical_backend import StatisticalChecker
+from automate.backend.tensor_backend import TensorChecker
 
 
 class ProposalExecutionResult:
@@ -160,6 +161,8 @@ def apply_and_verify_proposal(
         checker = NumericalChecker()
     elif checker_name == "statistical":
         checker = StatisticalChecker()
+    elif checker_name == "tensor":
+        checker = TensorChecker()
     else:
         return ProposalExecutionResult(
             success=False,
