@@ -80,6 +80,25 @@ class NumericalChecker(BaseChecker):
             status = VerificationStatus.FAILED
             edge.status = status
             edge.checker = "numerical"
+            edge.failed_reason = error_msg
+
+        from automate.backend.base import VerificationEvidence
+        evidence = VerificationEvidence(
+            backend=self.name,
+            backend_version=self.version,
+            input_node_ids=edge.input_nodes,
+            output_node_ids=edge.output_nodes,
+            assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
+            side_conditions_checked=edge.side_conditions,
+            generated_obligations=edge.verification_obligations or [{"type": "ode_integration", "method": "RK45"}],
+            command_invocation=f"solve_ivp(ode_sys, {edge.parameters})",
+            passed=passed,
+            status=status,
+            execution_time_ms=elapsed,
+            reproducibility=details.get("reproducibility", {}),
+            metrics=details.get("metrics", {})
+        )
+        edge.evidence = evidence.to_dict()
 
         return VerificationReport(
             status=status,
@@ -89,7 +108,8 @@ class NumericalChecker(BaseChecker):
             passed=passed,
             details=details,
             error_message=error_msg,
-            certificates=certificates
+            certificates=certificates,
+            evidence=evidence
         )
 
     def _simulate_harmonic_oscillator(

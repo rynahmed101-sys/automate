@@ -10,6 +10,34 @@ from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
 
 
+import time
+
+
+class VerificationEvidence(BaseModel):
+    """
+    Structured machine-auditable verification evidence.
+    Keeps proof/test evidence distinct from status.
+    """
+    backend: str
+    backend_version: str
+    input_node_ids: List[str] = Field(default_factory=list)
+    output_node_ids: List[str] = Field(default_factory=list)
+    assumptions_used: List[str] = Field(default_factory=list)
+    side_conditions_checked: List[str] = Field(default_factory=list)
+    generated_obligations: List[Dict[str, Any]] = Field(default_factory=list)
+    command_invocation: Optional[str] = None
+    passed: bool = False
+    status: VerificationStatus = VerificationStatus.UNVERIFIED
+    timestamp: str = Field(default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+    execution_time_ms: float = 0.0
+    reproducibility: Dict[str, Any] = Field(default_factory=dict)
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+    certificate_path: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return self.model_dump()
+
+
 class VerificationReport(BaseModel):
     """
     Standardized machine-readable report returned by any verification backend.
@@ -17,12 +45,13 @@ class VerificationReport(BaseModel):
     status: VerificationStatus
     backend: str = Field(..., description="Backend name: sympy, lean4, numerical, statistical, dimension")
     backend_version: str = Field(default="", description="Version of the solver / theorem prover")
-    execution_time_ms: float = Field(default=0.0, description="Runtime in milliseconds")
-    passed: bool = Field(default=False, description="True if verification succeeded")
-    details: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary verification metadata")
-    error_message: Optional[str] = Field(default=None, description="Diagnostic error trace if failed")
-    proof_script: Optional[str] = Field(default=None, description="Formal proof or verification code used")
-    certificates: List[Dict[str, Any]] = Field(default_factory=list, description="Sub-step micro-proofs")
+    execution_time_ms: float = 0.0
+    passed: bool = False
+    details: Dict[str, Any] = Field(default_factory=dict)
+    error_message: Optional[str] = None
+    proof_script: Optional[str] = None
+    certificates: List[Dict[str, Any]] = Field(default_factory=list)
+    evidence: Optional[VerificationEvidence] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()

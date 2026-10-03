@@ -186,5 +186,18 @@ def report(graph_file: str):
     print_graph_summary(graph)
 
 
+@main.command("export-certificate")
+@click.argument("graph_file", type=click.Path(exists=True))
+@click.option("--output-dir", "-o", default="certificates", help="Directory to save certificate package")
+def export_certificate(graph_file: str, output_dir: str):
+    """Export self-contained, machine-auditable verification certificate package."""
+    content = Path(graph_file).read_text(encoding="utf-8")
+    graph = DerivationGraph.from_json(content)
+    files = graph.export_certificate_package(output_dir)
+    console.print(f"[green][OK] Exported verification certificate package to '{output_dir}':[/green]")
+    for fname, fpath in files.items():
+        console.print(f"  * {fname} -> {fpath}")
+
+
 if __name__ == "__main__":
     main()

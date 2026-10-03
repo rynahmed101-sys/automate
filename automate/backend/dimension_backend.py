@@ -105,13 +105,32 @@ class DimensionChecker(BaseChecker):
                 details["inspected_nodes"][node.id] = repr(dim)
 
         elapsed = (time.perf_counter() - start_time) * 1000
+        status = VerificationStatus.DIMENSIONALLY_CHECKED if passed else VerificationStatus.FAILED
+
+        from automate.backend.base import VerificationEvidence
+        evidence = VerificationEvidence(
+            backend=self.name,
+            backend_version=self.version,
+            input_node_ids=edge.input_nodes,
+            output_node_ids=edge.output_nodes,
+            assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
+            side_conditions_checked=edge.side_conditions,
+            generated_obligations=[{"rule": rule, "dimension_check": details.get("consistency", "homogeneous")}],
+            command_invocation=f"DimensionChecker.verify_edge('{edge.id}')",
+            passed=passed,
+            status=status,
+            execution_time_ms=elapsed,
+            reproducibility={"unit_system": "SI base"},
+            metrics={"dimension_homogeneity": passed}
+        )
 
         return VerificationReport(
-            status=VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED,
+            status=status,
             backend=self.name,
             backend_version=self.version,
             execution_time_ms=elapsed,
             passed=passed,
             details=details,
-            error_message=error_msg
+            error_message=error_msg,
+            evidence=evidence
         )

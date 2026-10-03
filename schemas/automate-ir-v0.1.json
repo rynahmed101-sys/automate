@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://automate.physics/schemas/automate-ir-v0.1.json",
+  "title": "Automate Physics Intermediate Representation (IR) Graph",
+  "description": "Canonical schema for machine-checkable formal physics derivation graphs across symbolic, formal, numerical, and statistical verification backends.",
+  "type": "object",
+  "required": ["id", "name", "nodes", "edges"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the derivation graph"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable title of the theory derivation"
+    },
+    "description": {
+      "type": "string",
+      "description": "High-level description of physical derivation goals and scope"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Extensible metadata dictionary"
+    },
+    "assumptions": {
+      "type": "object",
+      "description": "Dictionary mapping assumption IDs to their formal definitions",
+      "additionalProperties": {
+        "$ref": "#/$defs/assumption"
+      }
+    },
+    "nodes": {
+      "type": "object",
+      "description": "Dictionary mapping node IDs to derivation nodes",
+      "additionalProperties": {
+        "$ref": "#/$defs/derivationNode"
+      }
+    },
+    "edges": {
+      "type": "object",
+      "description": "Dictionary mapping edge IDs to derivation edges",
+      "additionalProperties": {
+        "$ref": "#/$defs/derivationEdge"
+      }
+    }
+  },
+  "$defs": {
+    "verificationStatus": {
+      "type": "string",
+      "enum": [
+        "PARSED",
+        "UNVERIFIED",
+        "STRUCTURALLY_VALID",
+        "DIMENSIONALLY_CHECKED",
+        "SYMBOLIC_CHECKED",
+        "FORMALLY_PROVED",
+        "NUMERICALLY_CHECKED",
+        "STATISTICALLY_CHECKED",
+        "VERIFIED",
+        "CONDITIONAL",
+        "FAILED",
+        "DISPROVED",
+        "TIMEOUT",
+        "NOT_APPLICABLE"
+      ],
+      "description": "Machine-verifiable derivation status state machine"
+    },
+    "nodeKind": {
+      "type": "string",
+      "enum": [
+        "expression",
+        "equation",
+        "proposition",
+        "assumption",
+        "observable",
+        "parameter",
+        "trajectory"
+      ],
+      "description": "Semantic role of the derivation node"
+    },
+    "mathematicalExpression": {
+      "type": "object",
+      "required": ["raw_str"],
+      "properties": {
+        "raw_str": {
+          "type": "string",
+          "description": "Canonical human-readable string expression"
+        },
+        "ast": {
+          "type": "object",
+          "description": "Typed syntax tree representation"
+        },
+        "dimension": {
+          "type": "string",
+          "description": "Physical dimension string (e.g. M*L^2*T^-2)"
+        },
+        "latex": {
+          "type": ["string", "null"],
+          "description": "LaTeX formatted representation"
+        },
+        "sympy_str": {
+          "type": ["string", "null"],
+          "description": "SymPy parseable expression string"
+        },
+        "lean_str": {
+          "type": ["string", "null"],
+          "description": "Lean 4 formal term representation"
+        }
+      }
+    },
+    "derivationNode": {
+      "type": "object",
+      "required": ["id", "expression"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique node identifier"
+        },
+        "expression": {
+          "$ref": "#/$defs/mathematicalExpression"
+        },
+        "node_kind": {
+          "$ref": "#/$defs/nodeKind"
+        },
+        "representations": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Projection strings (e.g. latex, sympy, lean4, ascii)"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Physical domain of applicability"
+        },
+        "assumptions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs of assumptions required by this node"
+        },
+        "source": {
+          "type": "string",
+          "description": "Origin of node: axiom, definition, hypothesis, derived, experimental, computational"
+        },
+        "status": {
+          "$ref": "#/$defs/verificationStatus"
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "derivationCertificate": {
+      "type": "object",
+      "required": ["rule_name"],
+      "properties": {
+        "rule_name": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "proof_code": { "type": ["string", "null"] },
+        "backend_version": { "type": ["string", "null"] },
+        "execution_time_ms": { "type": "number" },
+        "metrics": { "type": "object" },
+        "diagnostics": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "derivationEdge": {
+      "type": "object",
+      "required": ["id", "input_nodes", "output_nodes", "transformation_rule", "justification"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique edge identifier"
+        },
+        "input_nodes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs of prerequisite nodes"
+        },
+        "output_nodes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs of derived nodes"
+        },
+        "transformation_rule": {
+          "type": "string",
+          "description": "Identifier of the mathematical or physical transformation rule"
+        },
+        "justification": {
+          "type": "string",
+          "description": "Mathematical justification or citation"
+        },
+        "checker": {
+          "type": "string",
+          "description": "Verification engine identifier (e.g. sympy, lean4, numerical, statistical, dimension)"
+        },
+        "status": {
+          "$ref": "#/$defs/verificationStatus"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Parameters supplied to the checker"
+        },
+        "side_conditions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Assumption IDs or premises required to apply this transformation"
+        },
+        "verification_obligations": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "Verification obligations generated by this transformation"
+        },
+        "evidence": {
+          "type": ["object", "null"],
+          "description": "Verification evidence recorded by the checker engine"
+        },
+        "failed_reason": {
+          "type": ["string", "null"],
+          "description": "Diagnostic explanation if verification failed"
+        },
+        "certificate": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/derivationCertificate" }
+          ]
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "assumption": {
+      "type": "object",
+      "required": ["id", "description", "formal_predicate"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique assumption identifier"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category: positivity, nondegeneracy, boundary_condition, approximation, limit, smoothness"
+        },
+        "formal_predicate": {
+          "type": "string",
+          "description": "Machine-readable formal predicate string"
+        },
+        "active": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this assumption is currently enabled"
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

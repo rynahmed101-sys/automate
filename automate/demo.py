@@ -106,9 +106,11 @@ def run_harmonic_oscillator_demo(output_dir: str = "output") -> int:
                 out_node.status = report.status
 
     # 5. Assumption Sensitivity Analysis
-    console.print("\n[bold yellow][Step 5][/bold yellow] Performing First-Class Assumption Sensitivity Query:")
+    console.print("\n[bold yellow][Step 5][/bold yellow] Performing First-Class Assumption Queries:")
+    predicate_nodes = graph.find_nodes_requiring_predicate("positivity")
+    console.print(f"  Predicate Query: Nodes requiring [positivity]: {predicate_nodes}")
     asm_to_drop = "asm_pos_mass"
-    console.print(f"  Query: 'What survives if assumption [{asm_to_drop}] is dropped?'")
+    console.print(f"  Sensitivity Query: 'What survives if assumption [{asm_to_drop}] is dropped?'")
     impact = graph.simulate_assumption_removal(asm_to_drop)
     print_assumption_report(impact)
 
@@ -124,7 +126,7 @@ def run_harmonic_oscillator_demo(output_dir: str = "output") -> int:
         console.print("  [dim]* No micro-steps certificate found to expand.[/dim]")
 
     # 7. Generate Visualizations and Reports
-    console.print("\n[bold yellow][Step 7][/bold yellow] Generating Derivation Artifacts:")
+    console.print("\n[bold yellow][Step 7][/bold yellow] Generating Derivation Artifacts & Certificate Package:")
     html_file = out_path / "harmonic_oscillator.html"
     generate_interactive_html(graph, html_file)
     console.print(f"  [green][OK][/green] Interactive HTML Graph: [green]{html_file.resolve()}[/green]")
@@ -135,7 +137,11 @@ def run_harmonic_oscillator_demo(output_dir: str = "output") -> int:
 
     report_file = out_path / "verification_report.json"
     report_file.write_text(json.dumps(reports, indent=2), encoding="utf-8")
-    console.print(f"  [green][OK][/green] Verification Audit Report: [green]{report_file.resolve()}[/green]\n")
+    console.print(f"  [green][OK][/green] Verification Audit Report: [green]{report_file.resolve()}[/green]")
+
+    cert_dir = out_path / "certificates"
+    cert_files = graph.export_certificate_package(cert_dir)
+    console.print(f"  [green][OK][/green] Verifiable Certificate Package: [green]{cert_dir.resolve()}[/green] ({len(cert_files)} files)\n")
 
     # 8. Terminal Summary Table
     print_graph_summary(graph)

@@ -44,32 +44,45 @@ class SymPyChecker(BaseChecker):
         details: Dict[str, Any] = {"rule": rule}
         certificates: List[Dict[str, Any]] = []
 
-        try:
-            if rule == "euler_lagrange":
-                passed, details, certificates, error_msg = self._verify_euler_lagrange(
-                    in_nodes[0], out_nodes[0], edge.parameters
-                )
-            elif rule == "conserve_energy":
-                passed, details, certificates, error_msg = self._verify_energy_conservation(
-                    in_nodes, out_nodes[0], edge.parameters
-                )
-            elif rule == "solve_harmonic_oscillator":
-                passed, details, certificates, error_msg = self._verify_harmonic_solution(
-                    in_nodes[0], out_nodes[0], edge.parameters
-                )
-            elif rule == "algebraic_identity":
-                passed, details, certificates, error_msg = self._verify_algebraic_identity(
-                    in_nodes[0], out_nodes[0]
-                )
-            else:
-                # Default generic symbolic equivalence
-                passed, details, certificates, error_msg = self._verify_algebraic_identity(
-                    in_nodes[0], out_nodes[0]
-                )
+        # Check side conditions against active assumptions
+        active_asms = {aid for aid, a in graph.assumptions.items() if a.active}
+        cond_status = None
+        if edge.side_conditions:
+            valid_conds, missing_conds = edge.validate_side_conditions(active_asms)
+            if not valid_conds:
+                cond_status = VerificationStatus.CONDITIONAL
+                error_msg = f"Missing or inactive required side condition(s): {', '.join(missing_conds)}"
 
-        except Exception as e:
+        if cond_status == VerificationStatus.CONDITIONAL:
             passed = False
-            error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}"
+            status = VerificationStatus.CONDITIONAL
+        else:
+            try:
+                if rule == "euler_lagrange":
+                    passed, details, certificates, error_msg = self._verify_euler_lagrange(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "conserve_energy":
+                    passed, details, certificates, error_msg = self._verify_energy_conservation(
+                        in_nodes, out_nodes[0], edge.parameters
+                    )
+                elif rule == "solve_harmonic_oscillator":
+                    passed, details, certificates, error_msg = self._verify_harmonic_solution(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "algebraic_identity":
+                    passed, details, certificates, error_msg = self._verify_algebraic_identity(
+                        in_nodes[0], out_nodes[0]
+                    )
+                else:
+                    passed, details, certificates, error_msg = self._verify_algebraic_identity(
+                        in_nodes[0], out_nodes[0]
+                    )
+            except Exception as e:
+                passed = False
+                error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}"
+
+            status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
 
         elapsed = (time.perf_counter() - start_time) * 1000
 
@@ -83,9 +96,28 @@ class SymPyChecker(BaseChecker):
                 metrics={"symbolic_zero_tested": True}
             )
 
-        status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
         edge.status = status
         edge.checker = "sympy"
+        if not passed:
+            edge.failed_reason = error_msg
+
+        from automate.backend.base import VerificationEvidence
+        evidence = VerificationEvidence(
+            backend=self.name,
+            backend_version=self.version,
+            input_node_ids=edge.input_nodes,
+            output_node_ids=edge.output_nodes,
+            assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
+            side_conditions_checked=edge.side_conditions,
+            generated_obligations=edge.verification_obligations or [{"rule": rule, "target": "symbolic_equivalence"}],
+            command_invocation=f"SymPyChecker.verify_edge('{edge.id}')",
+            passed=passed,
+            status=status,
+            execution_time_ms=elapsed,
+            reproducibility={"engine": "sympy", "version": self.version},
+            metrics={"zero_tested": passed}
+        )
+        edge.evidence = evidence.to_dict()
 
         return VerificationReport(
             status=status,
@@ -95,7 +127,8 @@ class SymPyChecker(BaseChecker):
             passed=passed,
             details=details,
             error_message=error_msg,
-            certificates=certificates
+            certificates=certificates,
+            evidence=evidence
         )
 
     def _verify_euler_lagrange(

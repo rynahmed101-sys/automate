@@ -6,6 +6,8 @@
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Lean 4: v4.34.1](https://img.shields.io/badge/Lean%204-v4.34.1-purple.svg)](https://lean-lang.org/)
 [![SymPy: Verified](https://img.shields.io/badge/SymPy-1.14-green.svg)](https://www.sympy.org/)
+[![JSON Schema: v0.1](https://img.shields.io/badge/JSON%20Schema-Draft%202020--12-orange.svg)](schemas/automate-ir-v0.1.json)
+[![Tests: 24 Passed](https://img.shields.io/badge/Tests-24%20passed-brightgreen.svg)](tests/)
 
 Automate is an open-source, local-first computational framework that unifies:
 1. **Symbolic Mathematics & Calculus** (SymPy)
@@ -19,7 +21,32 @@ Automate treats physics derivations not as static linear LaTeX documents, but as
 
 ---
 
-## Core Principle: Derivation Graphs
+## Architecture & Ecosystem Strategy
+
+For detailed architectural analysis and open-source ecosystem mappings, see:
+* [Architecture Audit](docs/ARCHITECTURE_AUDIT.md): Comprehensive evaluation of current components, representation gaps, and verification guarantees.
+* [Ecosystem Survey & Strategy](docs/ECOSYSTEM.md): Pragmatic integration roadmap across Lean 4, Mathlib, Physlib, Physics Derivation Graph, SymPy, SciPy, and Z3.
+
+```
+Human / AI
+    ↓
+Physics Intermediate Representation (AST + Assumptions + Dimensions)
+    ↓
+Derivation Graph (DAG)
+    ↓
+Specialized Verification Backends:
+ ├── Dimensional Analysis  → Base SI dimensions [M, L, T, I, Theta, N, J]
+ ├── Computer Algebra      → SymPy (Euler-Lagrange, ODE solution zero-testing)
+ ├── Formal Theorem Prover → Lean 4 (on-shell algebraic invariance & identities)
+ ├── Numerical Simulation  → SciPy (RK45 IVP integration, symplectic drift)
+ └── Statistical Engine    → SciPy (Non-linear regression, chi2 residuals)
+    ↓
+Verifiable Certificate Package (certificate.json, obligations.json, evidence.json)
+```
+
+---
+
+## Canonical Physics Milestone: 1D Simple Harmonic Oscillator
 
 ```
     [ Lagrangian: L = 1/2*m*x_dot^2 - 1/2*k*x^2 ]
@@ -46,18 +73,21 @@ Automate treats physics derivations not as static linear LaTeX documents, but as
     [ Observed Parameter Estimate: omega = 2.000 rad/s ]
 ```
 
-### Verification Status Taxonomy
+### Verification Status Taxonomy & Honest Semantics
 Automate strictly distinguishes between levels of mathematical certainty:
-* `FORMALLY_PROVED`: Verified through a sound interactive theorem prover (Lean 4).
+* `FORMALLY_PROVED`: Verified through a sound interactive theorem prover kernel (Lean 4).
 * `SYMBOLIC_CHECKED`: Verified via computer algebra zero-testing and calculus (SymPy).
 * `NUMERICALLY_CHECKED`: Tested via numerical ODE integration and energy drift bounds (SciPy).
 * `STATISTICALLY_CHECKED`: Validated against empirical observations with parameter estimation and $\chi^2$ residuals (SciPy).
+* `DIMENSIONALLY_CHECKED`: Homogeneous physical dimensions confirmed across all terms.
+* `STRUCTURALLY_VALID`: Acyclic DAG topology and node identifier integrity confirmed.
 * `CONDITIONAL`: Dependent on active or unproven physical assumptions/approximations.
 * `PARSED`: Validated syntax and loaded into canonical IR.
 * `UNVERIFIED`: Not yet checked by any verification backend.
-* `FAILED`: Contradiction detected or proof obligation failed.
+* `FAILED`: Contradiction detected, obligation violated, or checker raised an error.
+* `DISPROVED`: Mathematically disproved or counterexample discovered.
 
-> **Never represent "AI believes this is correct" as PROVED.**
+> **CRITICAL SEMANTIC GUARANTEE**: Never represent "AI believes this is correct" as PROVED. Lean 4 verifies discrete algebraic and on-shell invariance identities without external axioms; SymPy verifies continuous differential variations; SciPy checks empirical and numerical bounds. Each backend is explicitly identified in every derivation certificate.
 
 ---
 
@@ -66,8 +96,9 @@ In Automate, assumptions ($m > 0$, $k > 0$, $x(t) \in C^2(\mathbb{R})$, vanishin
 You can query:
 * *"Which conclusions depend on assumption A?"*
 * *"What survives if assumption A is removed?"*
+* *"Which nodes require the predicate 'positivity'?"*
 
-Dropping an assumption automatically flags all downstream nodes as `CONDITIONAL` or invalidated.
+Dropping an assumption automatically computes the transitive dependency closure, flagging all downstream nodes as invalidated or conditional.
 
 ---
 
@@ -103,7 +134,7 @@ This will:
 7. Perform empirical non-linear parameter estimation and compute reduced $\chi^2$ and 95% confidence intervals.
 8. Perform assumption sensitivity analysis (simulating removal of $m > 0$).
 9. Generate standalone interactive HTML graph (`output/harmonic_oscillator.html`).
-10. Output machine-readable JSON execution log (`output/verification_report.json`).
+10. Export self-contained, machine-auditable verification certificate package (`output/certificates/`).
 
 ---
 
@@ -139,6 +170,20 @@ automate visualize graph.json -o graph.html
 
 # Print formatted verification matrix
 automate report graph.json
+
+# Export self-contained verifiable certificate package
+automate export-certificate graph.json -o certificates/
+```
+
+---
+
+## Testing & Verification
+
+Automate includes an automated test suite covering AST operations, dimensional arithmetic, assumption inheritance, sensitivity simulation, cycle detection, lossless certificate expansion, failure propagation, JSON schema validation, Lean 4 toolchain execution, SymPy calculus, SciPy ODE integration, and non-linear parameter inference:
+
+```powershell
+.venv\Scripts\pytest.exe tests/ -v
+# 24 passed in ~15s
 ```
 
 ---

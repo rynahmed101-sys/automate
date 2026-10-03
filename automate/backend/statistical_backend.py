@@ -69,6 +69,25 @@ class StatisticalChecker(BaseChecker):
             status = VerificationStatus.FAILED
             edge.status = status
             edge.checker = "statistical"
+            edge.failed_reason = error_msg
+
+        from automate.backend.base import VerificationEvidence
+        evidence = VerificationEvidence(
+            backend=self.name,
+            backend_version=self.version,
+            input_node_ids=edge.input_nodes,
+            output_node_ids=edge.output_nodes,
+            assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
+            side_conditions_checked=edge.side_conditions,
+            generated_obligations=edge.verification_obligations or [{"type": "parameter_fit", "model": "non_linear_least_squares"}],
+            command_invocation=f"curve_fit(model_func, t_data, x_obs)",
+            passed=passed,
+            status=status,
+            execution_time_ms=elapsed,
+            reproducibility={"library": "scipy.optimize", "version": self.version},
+            metrics=details.get("goodness_of_fit", {})
+        )
+        edge.evidence = evidence.to_dict()
 
         return VerificationReport(
             status=status,
@@ -78,7 +97,8 @@ class StatisticalChecker(BaseChecker):
             passed=passed,
             details=details,
             error_message=error_msg,
-            certificates=certificates
+            certificates=certificates,
+            evidence=evidence
         )
 
     def _fit_harmonic_data(

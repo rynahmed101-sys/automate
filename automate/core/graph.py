@@ -4,8 +4,11 @@ as directed acyclic graphs with assumption tracking, verification backends, and
 lossless hierarchical transformation expansion.
 """
 
-from typing import Dict, List, Set, Optional, Any, Tuple
+from pathlib import Path
+from typing import Dict, List, Set, Optional, Any, Tuple, Union
 from collections import defaultdict, deque
+from datetime import datetime, timezone
+import json
 import copy
 from pydantic import BaseModel, Field
 
@@ -179,6 +182,172 @@ class DerivationGraph(BaseModel):
             "invalidated_edges": invalidated_edges,
             "survival_ratio": len(surviving_nodes) / max(1, len(self.nodes))
         }
+
+    def find_nodes_requiring_predicate(self, keyword: str) -> List[str]:
+        """
+        Finds all nodes whose transitive inherited assumptions match a given keyword or predicate.
+        Keyword search matches case-insensitively against assumption ID, formal predicate,
+        description, or category.
+        """
+        kw = keyword.lower()
+        matching_assumptions: Set[str] = set()
+        for aid, asm in self.assumptions.items():
+            if (
+                kw in aid.lower()
+                or kw in asm.formal_predicate.lower()
+                or kw in asm.description.lower()
+                or kw in asm.category.lower()
+            ):
+                matching_assumptions.add(aid)
+
+        matching_nodes: List[str] = []
+        for nid in self.nodes:
+            inherited = self.compute_inherited_assumptions(nid)
+            if any(aid in matching_assumptions for aid in inherited):
+                matching_nodes.append(nid)
+        return matching_nodes
+
+    def get_failed_derivations(self) -> List[str]:
+        """
+        Returns IDs of all derivation edges whose verification failed, disproved, or recorded an error.
+        """
+        failed: List[str] = []
+        for eid, edge in self.edges.items():
+            if (
+                edge.status in (VerificationStatus.FAILED, VerificationStatus.DISPROVED)
+                or edge.failed_reason is not None
+            ):
+                failed.append(eid)
+        return failed
+
+    def get_downstream_invalidated_by_failure(self, edge_id: str) -> List[str]:
+        """
+        Given a failed edge, finds all downstream nodes that depend on this edge's output nodes.
+        These downstream nodes are rendered unproven/invalidated due to the upstream failure.
+        """
+        edge = self.edges.get(edge_id)
+        if not edge:
+            return []
+
+        invalidated: Set[str] = set(edge.output_nodes)
+        queue: deque = deque(edge.output_nodes)
+
+        while queue:
+            curr = queue.popleft()
+            for out_edge in self.get_outgoing_edges(curr):
+                for target_nid in out_edge.output_nodes:
+                    if target_nid not in invalidated:
+                        invalidated.add(target_nid)
+                        queue.append(target_nid)
+
+        return sorted(list(invalidated))
+
+    def get_all_invalidated_nodes(self) -> Dict[str, List[str]]:
+        """
+        Maps every failed edge ID to its transitively invalidated downstream nodes.
+        """
+        return {
+            eid: self.get_downstream_invalidated_by_failure(eid)
+            for eid in self.get_failed_derivations()
+        }
+
+    def export_certificate_package(self, output_dir: Union[str, Path]) -> Dict[str, str]:
+        """
+        Exports a self-contained, machine-auditable verification certificate package:
+        1. certificate.json: Overall graph verification summary, verification rate, node/edge statuses.
+        2. assumptions.json: Full dictionary of assumptions and per-node assumption dependencies.
+        3. obligations.json: All verification obligations and side conditions per edge.
+        4. evidence.json: Recorded verification evidence objects, metrics, residuals, proof scripts.
+        5. subgraph_expansion.json: Full micro-step expansions of edges with certificates.
+        """
+        out_path = Path(output_dir)
+        out_path.mkdir(parents=True, exist_ok=True)
+
+        # 1. certificate.json
+        status_counts: Dict[str, int] = defaultdict(int)
+        for e in self.edges.values():
+            status_counts[e.status.value] += 1
+        node_status_counts: Dict[str, int] = defaultdict(int)
+        for n in self.nodes.values():
+            node_status_counts[n.status.value] += 1
+
+        failed_edges = self.get_failed_derivations()
+        is_verified = (len(failed_edges) == 0) and all(
+            e.status.is_verified for e in self.edges.values()
+        )
+
+        cert_data = {
+            "graph_id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "is_fully_verified": is_verified,
+            "total_nodes": len(self.nodes),
+            "total_edges": len(self.edges),
+            "total_assumptions": len(self.assumptions),
+            "edge_status_counts": dict(status_counts),
+            "node_status_counts": dict(node_status_counts),
+            "failed_derivations": failed_edges,
+            "invalidated_nodes": self.get_all_invalidated_nodes(),
+            "metadata": self.metadata
+        }
+
+        # 2. assumptions.json
+        assumptions_data = {
+            "declared_assumptions": {aid: asm.to_dict() for aid, asm in self.assumptions.items()},
+            "node_assumption_dependencies": {
+                nid: sorted(list(self.compute_inherited_assumptions(nid)))
+                for nid in self.nodes
+            }
+        }
+
+        # 3. obligations.json
+        obligations_data = {
+            eid: {
+                "rule": edge.transformation_rule,
+                "justification": edge.justification,
+                "checker": edge.checker,
+                "side_conditions": edge.side_conditions,
+                "verification_obligations": edge.verification_obligations,
+                "status": edge.status.value
+            }
+            for eid, edge in self.edges.items()
+        }
+
+        # 4. evidence.json
+        evidence_data = {
+            eid: {
+                "checker": edge.checker,
+                "status": edge.status.value,
+                "evidence": edge.evidence,
+                "certificate": edge.certificate.model_dump() if edge.certificate else None,
+                "failed_reason": edge.failed_reason
+            }
+            for eid, edge in self.edges.items()
+        }
+
+        # 5. subgraph_expansion.json
+        expansions_data: Dict[str, Any] = {}
+        for eid in self.edges:
+            subgraph = self.expand_edge_certificate(eid)
+            if subgraph:
+                expansions_data[eid] = subgraph.model_dump()
+
+        files = {
+            "certificate.json": out_path / "certificate.json",
+            "assumptions.json": out_path / "assumptions.json",
+            "obligations.json": out_path / "obligations.json",
+            "evidence.json": out_path / "evidence.json",
+            "subgraph_expansion.json": out_path / "subgraph_expansion.json",
+        }
+
+        files["certificate.json"].write_text(json.dumps(cert_data, indent=2), encoding="utf-8")
+        files["assumptions.json"].write_text(json.dumps(assumptions_data, indent=2), encoding="utf-8")
+        files["obligations.json"].write_text(json.dumps(obligations_data, indent=2), encoding="utf-8")
+        files["evidence.json"].write_text(json.dumps(evidence_data, indent=2), encoding="utf-8")
+        files["subgraph_expansion.json"].write_text(json.dumps(expansions_data, indent=2), encoding="utf-8")
+
+        return {k: str(v) for k, v in files.items()}
 
     def expand_edge_certificate(self, edge_id: str) -> Optional["DerivationGraph"]:
         """

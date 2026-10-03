@@ -15,6 +15,10 @@ class DerivationNode(BaseModel):
     """
     id: str = Field(..., description="Unique node ID, e.g. 'node_lagrangian'")
     expression: MathematicalExpression = Field(..., description="Canonical IR expression")
+    node_kind: str = Field(
+        default="expression",
+        description="Node role: 'expression', 'equation', 'proposition', 'assumption', 'observable', 'parameter', 'trajectory'"
+    )
     representations: Dict[str, str] = Field(
         default_factory=dict,
         description="Alternative representations: 'latex', 'sympy', 'lean4', 'ascii'"

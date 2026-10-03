@@ -95,16 +95,33 @@ class LeanChecker(BaseChecker):
                 error_message="Lean 4 compiler not detected in system. Run INSTALL.md instructions."
             )
 
-        # Generate Lean 4 proof obligation
-        lean_code, theorem_name = self._generate_lean_obligation(edge, in_nodes, out_nodes)
+        # Check side conditions against active assumptions
+        active_asms = {aid for aid, a in graph.assumptions.items() if a.active}
+        cond_status = None
+        if edge.side_conditions:
+            valid_conds, missing_conds = edge.validate_side_conditions(active_asms)
+            if not valid_conds:
+                cond_status = VerificationStatus.CONDITIONAL
+                error_msg = f"Missing or inactive required side condition(s): {', '.join(missing_conds)}"
 
-        # Run Lean 4 compiler in sandboxed directory
-        passed, stdout, stderr, returncode = self._run_lean(lean_code)
+        if cond_status == VerificationStatus.CONDITIONAL:
+            passed = False
+            status = VerificationStatus.CONDITIONAL
+            lean_code = ""
+            theorem_name = "unverified"
+            returncode = -1
+            code_hash = ""
+            stdout = ""
+            stderr = error_msg or ""
+        else:
+            # Generate Lean 4 proof obligation
+            lean_code, theorem_name = self._generate_lean_obligation(edge, in_nodes, out_nodes)
+
+            # Run Lean 4 compiler in sandboxed directory
+            passed, stdout, stderr, returncode = self._run_lean(lean_code)
+            code_hash = hashlib.sha256(lean_code.encode("utf-8")).hexdigest()
 
         elapsed = (time.perf_counter() - start_time) * 1000
-
-        # Compute certificate hash
-        code_hash = hashlib.sha256(lean_code.encode("utf-8")).hexdigest()
 
         details = {
             "theorem_name": theorem_name,
@@ -128,11 +145,34 @@ class LeanChecker(BaseChecker):
                 diagnostics=[line for line in stdout.splitlines() if line.strip()]
             )
             error_msg = None
+        elif cond_status == VerificationStatus.CONDITIONAL:
+            status = VerificationStatus.CONDITIONAL
+            edge.status = status
+            edge.failed_reason = error_msg
         else:
             status = VerificationStatus.FAILED
             edge.status = status
             edge.checker = "lean4"
             error_msg = f"Lean 4 formal verification failed with exit code {returncode}:\n{stderr}\n{stdout}"
+            edge.failed_reason = error_msg
+
+        from automate.backend.base import VerificationEvidence
+        evidence = VerificationEvidence(
+            backend=self.name,
+            backend_version=self.version,
+            input_node_ids=edge.input_nodes,
+            output_node_ids=edge.output_nodes,
+            assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
+            side_conditions_checked=edge.side_conditions,
+            generated_obligations=edge.verification_obligations or [{"theorem": theorem_name, "obligation": "Lean 4 Type Checking"}],
+            command_invocation=f"lean {theorem_name}.lean",
+            passed=passed,
+            status=status,
+            execution_time_ms=elapsed,
+            reproducibility={"compiler": "lean", "version": self.version, "hash": code_hash},
+            metrics={"type_checked": passed}
+        )
+        edge.evidence = evidence.to_dict()
 
         return VerificationReport(
             status=status,
@@ -142,7 +182,8 @@ class LeanChecker(BaseChecker):
             passed=passed,
             details=details,
             error_message=error_msg,
-            proof_script=lean_code
+            proof_script=lean_code if lean_code else None,
+            evidence=evidence
         )
 
     def _generate_lean_obligation(

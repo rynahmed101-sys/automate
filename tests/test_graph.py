@@ -77,3 +77,80 @@ def test_lossless_macro_expansion():
     assert len(subgraph.nodes) == 5
     assert len(subgraph.edges) == 4
     assert subgraph.validate_dag() is True
+
+
+def test_failed_derivation_propagation():
+    graph = DerivationGraph(id="failure_test")
+
+    for nid in ["A", "B", "C", "D"]:
+        graph.add_node(DerivationNode(id=nid, expression=MathematicalExpression(raw_str=nid)))
+
+    # A -> B -> C -> D
+    e1 = DerivationEdge(id="e1", input_nodes=["A"], output_nodes=["B"], transformation_rule="r1", justification="j1")
+    e2 = DerivationEdge(
+        id="e2",
+        input_nodes=["B"],
+        output_nodes=["C"],
+        transformation_rule="r2",
+        justification="j2",
+        status=VerificationStatus.FAILED,
+        failed_reason="Algebraic contradiction"
+    )
+    e3 = DerivationEdge(id="e3", input_nodes=["C"], output_nodes=["D"], transformation_rule="r3", justification="j3")
+
+    graph.add_edge(e1)
+    graph.add_edge(e2)
+    graph.add_edge(e3)
+
+    failed_edges = graph.get_failed_derivations()
+    assert failed_edges == ["e2"]
+
+    downstream_invalidated = graph.get_downstream_invalidated_by_failure("e2")
+    # Output of e2 is C; C leads to D, so both C and D are invalidated
+    assert set(downstream_invalidated) == {"C", "D"}
+
+    all_inval = graph.get_all_invalidated_nodes()
+    assert "e2" in all_inval
+    assert set(all_inval["e2"]) == {"C", "D"}
+
+
+def test_export_certificate_package(tmp_path):
+    import json
+    graph = DerivationGraph(id="cert_test", name="Certificate Test")
+
+    n1 = DerivationNode(id="A", expression=MathematicalExpression(raw_str="x"))
+    n2 = DerivationNode(id="B", expression=MathematicalExpression(raw_str="x + 1"))
+    graph.add_node(n1)
+    graph.add_node(n2)
+
+    cert = DerivationCertificate(
+        rule_name="add_one",
+        steps=[{"step": 1, "operation": "add", "expr": "x + 1", "description": "Increment"}]
+    )
+    edge = DerivationEdge(
+        id="e1",
+        input_nodes=["A"],
+        output_nodes=["B"],
+        transformation_rule="add_one",
+        justification="Incrementation",
+        checker="sympy",
+        status=VerificationStatus.SYMBOLIC_CHECKED,
+        certificate=cert
+    )
+    graph.add_edge(edge)
+
+    export_dir = tmp_path / "cert_pkg"
+    files = graph.export_certificate_package(export_dir)
+
+    assert len(files) == 5
+    for expected in ["certificate.json", "assumptions.json", "obligations.json", "evidence.json", "subgraph_expansion.json"]:
+        assert expected in files
+        file_path = tmp_path / "cert_pkg" / expected
+        assert file_path.exists()
+
+    cert_content = json.loads((tmp_path / "cert_pkg" / "certificate.json").read_text(encoding="utf-8"))
+    assert cert_content["graph_id"] == "cert_test"
+    assert cert_content["is_fully_verified"] is True
+    assert cert_content["total_nodes"] == 2
+    assert cert_content["total_edges"] == 1
+

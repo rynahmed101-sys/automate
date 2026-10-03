@@ -80,9 +80,11 @@ def parse_theory_dict(data: Dict[str, Any]) -> DerivationGraph:
             latex=ninfo.get("latex"),
             sympy_str=ninfo.get("sympy")
         )
+        node_kind_val = ninfo.get("node_kind", ninfo.get("kind", "expression"))
         node = DerivationNode(
             id=nid,
             expression=math_expr,
+            node_kind=str(node_kind_val),
             representations=ninfo.get("representations", {}),
             domain=ninfo.get("domain", data.get("domain", "general_physics")),
             assumptions=ninfo.get("assumptions", []),
@@ -106,6 +108,8 @@ def parse_theory_dict(data: Dict[str, Any]) -> DerivationGraph:
             checker=einfo.get("checker", "sympy"),
             status=VerificationStatus(einfo.get("status", "UNVERIFIED")),
             parameters=einfo.get("parameters", {}),
+            side_conditions=einfo.get("side_conditions", []),
+            verification_obligations=einfo.get("verification_obligations", []),
             metadata=einfo.get("metadata", {})
         )
         graph.add_edge(edge)

@@ -23,6 +23,7 @@ assumptions:
 
 nodes:
   node_lagrangian:
+    node_kind: expression
     expression: "1/2 * m * x_dot**2 - 1/2 * k * x**2"
     dimension: "M*L^2*T^-2"
     latex: "\\mathcal{L} = \\frac{1}{2}m\\dot{x}^2 - \\frac{1}{2}kx^2"
@@ -31,6 +32,7 @@ nodes:
     assumptions: ["asm_pos_mass", "asm_pos_k", "asm_smooth_trajectory", "asm_conservative"]
 
   node_eom:
+    node_kind: equation
     expression: "m * x_ddot + k * x = 0"
     dimension: "M*L*T^-2"
     latex: "m\\ddot{x} + kx = 0"
@@ -38,6 +40,7 @@ nodes:
     source: derived
 
   node_conserved_energy:
+    node_kind: equation
     expression: "1/2 * m * x_dot**2 + 1/2 * k * x**2 = E"
     dimension: "M*L^2*T^-2"
     latex: "E = \\frac{1}{2}m\\dot{x}^2 + \\frac{1}{2}kx^2"
@@ -45,6 +48,7 @@ nodes:
     source: derived
 
   node_analytical_solution:
+    node_kind: equation
     expression: "x(t) = A * cos(omega * t + phi)"
     dimension: "L"
     latex: "x(t) = A\\cos(\\omega t + \\phi), \\quad \\omega = \\sqrt{k/m}"
@@ -52,6 +56,7 @@ nodes:
     source: derived
 
   node_numerical_trajectory:
+    node_kind: trajectory
     expression: "numerical_ivp_trajectory(t; m, k, x0, v0)"
     dimension: "L"
     latex: "x_{\\text{num}}(t) \\approx x(t)"
@@ -59,6 +64,7 @@ nodes:
     source: computational
 
   node_empirical_fit:
+    node_kind: observable
     expression: "omega_fit = 2.000 rad/s, R2 = 0.998"
     dimension: "T^-1"
     latex: "\\hat{\\omega} = 2.000 \\pm 0.005 \\text{ rad/s}"
@@ -72,6 +78,10 @@ derivations:
     transformation_rule: "euler_lagrange"
     justification: "Hamilton's Principle of Stationary Action: d/dt(dL/dx_dot) - dL/dx = 0"
     checker: "sympy"
+    side_conditions: ["asm_smooth_trajectory", "asm_conservative"]
+    verification_obligations:
+      - description: "Stationary action Euler-Lagrange variation vanishes on-shell"
+        claim: "d/dt(dL/dv) - dL/dx == 0"
 
   edge_formal_conservation:
     input_nodes: ["node_lagrangian", "node_eom"]
@@ -79,6 +89,10 @@ derivations:
     transformation_rule: "conserve_energy"
     justification: "Noether's Theorem / Jacobi Energy Integral: dE/dt = v*(m*a + k*x) = 0 on-shell"
     checker: "lean4"
+    side_conditions: ["asm_pos_mass", "asm_pos_k", "asm_conservative"]
+    verification_obligations:
+      - description: "Total time derivative of Hamiltonian vanishes under equation of motion"
+        claim: "v * (m * a + k * x) == 0 on-shell"
 
   edge_analytical_solution:
     input_nodes: ["node_eom"]
@@ -86,6 +100,10 @@ derivations:
     transformation_rule: "solve_harmonic_oscillator"
     justification: "General Solution to Second-Order Linear Homogeneous ODE"
     checker: "sympy"
+    side_conditions: ["asm_pos_mass", "asm_pos_k"]
+    verification_obligations:
+      - description: "Harmonic ansatz satisfies ODE with natural frequency omega = sqrt(k/m)"
+        claim: "m * (-omega^2 * x) + k * x == 0"
 
   edge_numerical_simulation:
     input_nodes: ["node_eom"]
@@ -93,6 +111,10 @@ derivations:
     transformation_rule: "numerical_simulation"
     justification: "Runge-Kutta 4(5) Dormand-Prince IVP Integration"
     checker: "numerical"
+    side_conditions: ["asm_pos_mass", "asm_pos_k"]
+    verification_obligations:
+      - description: "Bounded energy drift across integration domain"
+        claim: "max_relative_energy_drift < 1e-4"
     parameters:
       m: 1.0
       k: 4.0
@@ -106,6 +128,10 @@ derivations:
     transformation_rule: "empirical_inference"
     justification: "Non-Linear Least Squares Parameter Estimation & Chi-Square Residual Analysis"
     checker: "statistical"
+    side_conditions: ["asm_pos_mass", "asm_pos_k"]
+    verification_obligations:
+      - description: "Physical frequency recovery within standard error bounds and high goodness of fit"
+        claim: "R^2 > 0.98 and chi2_reduced < 2.0"
     parameters:
       m: 1.0
       k: 4.0

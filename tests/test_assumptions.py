@@ -95,3 +95,78 @@ def test_graph_assumption_inheritance_and_sensitivity():
     assert set(impact["invalidated_nodes"]) == {"N1", "N3", "N4"}
     assert set(impact["invalidated_edges"]) == {"E1", "E2"}
     assert impact["survival_ratio"] == 0.25
+
+
+def test_find_nodes_requiring_predicate():
+    graph = DerivationGraph(id="predicate_test")
+
+    a_pos = Assumption(
+        id="asm_m_pos",
+        description="Mass positivity constraint",
+        category="positivity",
+        formal_predicate="m > 0"
+    )
+    a_smooth = Assumption(
+        id="asm_smooth",
+        description="Smoothness assumption",
+        category="smoothness",
+        formal_predicate="x in C^2"
+    )
+    graph.add_assumption(a_pos)
+    graph.add_assumption(a_smooth)
+
+    n1 = DerivationNode(
+        id="node1",
+        expression=MathematicalExpression(raw_str="L"),
+        assumptions=["asm_m_pos", "asm_smooth"]
+    )
+    n2 = DerivationNode(
+        id="node2",
+        expression=MathematicalExpression(raw_str="EoM"),
+        assumptions=[]
+    )
+    graph.add_node(n1)
+    graph.add_node(n2)
+    graph.add_edge(DerivationEdge(
+        id="e1",
+        input_nodes=["node1"],
+        output_nodes=["node2"],
+        transformation_rule="euler_lagrange",
+        justification="Action"
+    ))
+
+    # Match by category 'positivity'
+    pos_nodes = graph.find_nodes_requiring_predicate("positivity")
+    assert set(pos_nodes) == {"node1", "node2"}
+
+    # Match by formal predicate 'C^2'
+    smooth_nodes = graph.find_nodes_requiring_predicate("C^2")
+    assert set(smooth_nodes) == {"node1", "node2"}
+
+    # Non-existent predicate
+    none_nodes = graph.find_nodes_requiring_predicate("relativistic")
+    assert none_nodes == []
+
+
+def test_side_condition_validation():
+    edge = DerivationEdge(
+        id="test_edge",
+        input_nodes=["A"],
+        output_nodes=["B"],
+        transformation_rule="invert_mass",
+        justification="Division by mass",
+        side_conditions=["asm_m_nonzero", "asm_real"]
+    )
+
+    # All met
+    active = {"asm_m_nonzero", "asm_real", "asm_other"}
+    met, missing = edge.validate_side_conditions(active)
+    assert met is True
+    assert missing == []
+
+    # One missing
+    active_incomplete = {"asm_m_nonzero"}
+    met2, missing2 = edge.validate_side_conditions(active_incomplete)
+    assert met2 is False
+    assert missing2 == ["asm_real"]
+

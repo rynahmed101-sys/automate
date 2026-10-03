@@ -106,6 +106,43 @@ class ObservableNode(BaseModel):
     operator_form: Optional[str] = None
 
 
+class VectorNode(BaseModel):
+    kind: Literal["vector"] = "vector"
+    components: List[Dict[str, Any]]
+    dimension: str = ""
+    coordinate_system: str = "cartesian"
+
+
+class PropositionNode(BaseModel):
+    kind: Literal["proposition"] = "proposition"
+    claim: str = Field(..., description="Proposition claim or theorem statement")
+    hypotheses: List[str] = Field(default_factory=list, description="Explicit premises/hypotheses")
+    formal_statement: Optional[str] = Field(default=None, description="Formal Lean/type statement")
+    proof_obligation: Optional[str] = None
+
+
+class PartialDifferentialEquationNode(BaseModel):
+    kind: Literal["pde"] = "pde"
+    equation: EquationNode
+    independent_vars: List[str] = Field(default_factory=lambda: ["t", "x"])
+    dependent_vars: List[str] = Field(default_factory=lambda: ["psi"])
+    order: int = 2
+    boundary_conditions: List[str] = Field(default_factory=list)
+
+
+from enum import Enum
+
+
+class IRNodeKind(str, Enum):
+    EXPRESSION = "expression"
+    EQUATION = "equation"
+    PROPOSITION = "proposition"
+    ASSUMPTION = "assumption"
+    OBSERVABLE = "observable"
+    PARAMETER = "parameter"
+    TRAJECTORY = "trajectory"
+
+
 class MathematicalExpression(BaseModel):
     """
     Unified expression wrapper storing canonical AST and multiple projections.

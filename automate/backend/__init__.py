@@ -2,7 +2,7 @@
 Verification backends for Automate.
 """
 
-from automate.backend.base import BaseChecker, VerificationReport
+from automate.backend.base import BaseChecker, VerificationReport, VerificationEvidence
 from automate.backend.dimension_backend import DimensionChecker
 from automate.backend.sympy_backend import SymPyChecker
 from automate.backend.lean_backend import LeanChecker
@@ -12,6 +12,7 @@ from automate.backend.statistical_backend import StatisticalChecker
 __all__ = [
     "BaseChecker",
     "VerificationReport",
+    "VerificationEvidence",
     "DimensionChecker",
     "SymPyChecker",
     "LeanChecker",

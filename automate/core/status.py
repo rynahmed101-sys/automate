@@ -14,6 +14,12 @@ class VerificationStatus(str, Enum):
     # Expression has been successfully parsed into canonical IR
     PARSED = "PARSED"
 
+    # Graph structure, acyclicity, and identifier integrity validated
+    STRUCTURALLY_VALID = "STRUCTURALLY_VALID"
+
+    # Dimensional homogeneity verified across base SI dimensions
+    DIMENSIONALLY_CHECKED = "DIMENSIONALLY_CHECKED"
+
     # Step has not yet been subjected to any verification backend
     UNVERIFIED = "UNVERIFIED"
 
@@ -35,10 +41,20 @@ class VerificationStatus(str, Enum):
     # Verification failed (algebraic contradiction, formal proof failure, etc.)
     FAILED = "FAILED"
 
+    # Step mathematically disproved or counterexample discovered
+    DISPROVED = "DISPROVED"
+
+    # Verification exceeded resource or timeout limits
+    TIMEOUT = "TIMEOUT"
+
+    # Step not applicable for formal check
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+
     @property
     def is_verified(self) -> bool:
         """True if the node has passed at least one mathematical verification check."""
         return self in {
+            VerificationStatus.DIMENSIONALLY_CHECKED,
             VerificationStatus.SYMBOLIC_CHECKED,
             VerificationStatus.NUMERICALLY_CHECKED,
             VerificationStatus.STATISTICALLY_CHECKED,
@@ -52,10 +68,12 @@ class VerificationStatus(str, Enum):
             VerificationStatus.FAILED: 0,
             VerificationStatus.UNVERIFIED: 1,
             VerificationStatus.PARSED: 2,
-            VerificationStatus.CONDITIONAL: 3,
-            VerificationStatus.STATISTICALLY_CHECKED: 4,
-            VerificationStatus.NUMERICALLY_CHECKED: 5,
-            VerificationStatus.SYMBOLIC_CHECKED: 6,
-            VerificationStatus.FORMALLY_PROVED: 7,
+            VerificationStatus.STRUCTURALLY_VALID: 3,
+            VerificationStatus.CONDITIONAL: 4,
+            VerificationStatus.DIMENSIONALLY_CHECKED: 5,
+            VerificationStatus.STATISTICALLY_CHECKED: 6,
+            VerificationStatus.NUMERICALLY_CHECKED: 7,
+            VerificationStatus.SYMBOLIC_CHECKED: 8,
+            VerificationStatus.FORMALLY_PROVED: 9,
         }
         return ranks.get(self, 0)
