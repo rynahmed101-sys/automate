@@ -250,3 +250,10 @@ def test_sympy_unsupported_rule_is_rejected():
     assert report.passed is False
     assert report.status == VerificationStatus.FAILED
     assert "Unsupported symbolic transformation rule" in (report.error_message or "")
+
+
+def test_sympy_parser_rejects_python_execution_payload():
+    from automate.backend.sympy_utils import safe_parse_expr
+
+    with pytest.raises((NameError, ValueError, SyntaxError)):
+        safe_parse_expr("__import__('os').system('echo SHOULD_NOT_RUN')")
