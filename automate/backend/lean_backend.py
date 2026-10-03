@@ -1,8 +1,15 @@
 """
 LeanChecker: Formal theorem proving backend using Lean 4.
-Generates Lean 4 proof obligations from the IR, compiles them using the Lean 4 compiler,
-captures proof status, compiler diagnostics, toolchain version, and cryptographic certificates.
-Never pretends an unproved or failed claim is proved.
+
+Generates Lean 4 proof obligations from the derivation graph.
+Rules whose algebraic content can be expressed as ring/linarith identities
+or quadratic conservation laws are attempted formally.
+
+Critical honesty guarantees:
+- Unknown rules return NOT_APPLICABLE, never FORMALLY_PROVED.
+- The previous tautology fallback (a - b = 0 given a = b) has been REMOVED.
+  It was unrelated to the actual graph content and gave false confidence.
+- If a theorem cannot yet be formalized, the status is NOT_APPLICABLE.
 """
 
 import os
@@ -18,6 +25,13 @@ from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge, DerivationCertificate
 from automate.core.graph import DerivationGraph
+
+# Rules that have genuine Lean 4 implementations in this backend
+_SUPPORTED_LEAN_RULES = frozenset({
+    "conserve_energy",
+    "euler_lagrange",
+    "algebraic_identity",
+})
 
 
 class LeanChecker(BaseChecker):
@@ -117,8 +131,27 @@ class LeanChecker(BaseChecker):
                 error_message="Referenced nodes missing from derivation graph."
             )
 
+        rule = edge.transformation_rule
+
+        # --- Unsupported rules: honest NOT_APPLICABLE, never fabricate proof ---
+        if rule not in _SUPPORTED_LEAN_RULES:
+            elapsed = (time.perf_counter() - start_time) * 1000
+            status = VerificationStatus.NOT_APPLICABLE
+            details = {
+                "rule": rule,
+                "lean_status": "NOT_APPLICABLE",
+                "reason": (
+                    f"Rule '{rule}' does not have a Lean 4 formalization in this backend. "
+                    "Supported rules: " + ", ".join(sorted(_SUPPORTED_LEAN_RULES))
+                )
+            }
+            return self._build_report(
+                status=status, passed=False, lean_code="", theorem_name="",
+                details=details, error_msg=None,
+                edge=edge, graph=graph, elapsed=elapsed
+            )
+
         if not self.is_available():
-            # Toolchain not found
             return VerificationReport(
                 status=VerificationStatus.UNVERIFIED,
                 backend=self.name,
@@ -130,6 +163,10 @@ class LeanChecker(BaseChecker):
         # Check side conditions against active assumptions
         active_asms = {aid for aid, a in graph.assumptions.items() if a.active}
         cond_status = None
+        error_msg = None
+        lean_code = ""
+        theorem_name = ""
+
         if edge.side_conditions:
             valid_conds, missing_conds = edge.validate_side_conditions(active_asms)
             if not valid_conds:
@@ -139,60 +176,88 @@ class LeanChecker(BaseChecker):
         if cond_status == VerificationStatus.CONDITIONAL:
             passed = False
             status = VerificationStatus.CONDITIONAL
-            lean_code = ""
-            theorem_name = "unverified"
             returncode = -1
-            code_hash = ""
             stdout = ""
             stderr = error_msg or ""
         else:
             # Generate Lean 4 proof obligation
             lean_code, theorem_name = self._generate_lean_obligation(edge, in_nodes, out_nodes)
 
-            # Run Lean 4 compiler in sandboxed directory
+            # Check if obligation is a NOT_APPLICABLE marker (no valid formalization)
+            if lean_code == "__NOT_APPLICABLE__":
+                elapsed = (time.perf_counter() - start_time) * 1000
+                details = {
+                    "rule": rule,
+                    "lean_status": "NOT_APPLICABLE",
+                    "reason": theorem_name  # contains the reason string
+                }
+                return self._build_report(
+                    status=VerificationStatus.NOT_APPLICABLE, passed=False,
+                    lean_code="", theorem_name="not_applicable",
+                    details=details, error_msg=None,
+                    edge=edge, graph=graph, elapsed=elapsed
+                )
+
             passed, stdout, stderr, returncode = self._run_lean(lean_code)
-            code_hash = hashlib.sha256(lean_code.encode("utf-8")).hexdigest()
 
         elapsed = (time.perf_counter() - start_time) * 1000
+        code_hash = hashlib.sha256(lean_code.encode("utf-8")).hexdigest() if lean_code else ""
 
         details = {
             "theorem_name": theorem_name,
             "lean_version": self.version,
-            "returncode": returncode,
+            "returncode": returncode if cond_status != VerificationStatus.CONDITIONAL else -1,
             "code_hash_sha256": code_hash,
-            "compiler_stdout": stdout,
-            "compiler_stderr": stderr
+            "compiler_stdout": stdout if cond_status != VerificationStatus.CONDITIONAL else "",
+            "compiler_stderr": stderr if cond_status != VerificationStatus.CONDITIONAL else error_msg
         }
 
-        if passed:
+        if cond_status == VerificationStatus.CONDITIONAL:
+            status = VerificationStatus.CONDITIONAL
+        elif passed:
             status = VerificationStatus.FORMALLY_PROVED
+        else:
+            status = VerificationStatus.FAILED
+            error_msg = f"Lean 4 formal verification failed with exit code {returncode}:\n{stderr}\n{stdout}"
+
+        return self._build_report(
+            status=status, passed=passed, lean_code=lean_code,
+            theorem_name=theorem_name, details=details, error_msg=error_msg,
+            edge=edge, graph=graph, elapsed=elapsed
+        )
+
+    def _build_report(
+        self, status, passed, lean_code, theorem_name, details, error_msg,
+        edge, graph, elapsed
+    ) -> VerificationReport:
+        rule = edge.transformation_rule
+        code_hash = hashlib.sha256(lean_code.encode("utf-8")).hexdigest() if lean_code else ""
+
+        if passed and lean_code:
             edge.status = status
             edge.checker = "lean4"
             edge.certificate = DerivationCertificate(
-                rule_name=edge.transformation_rule,
+                rule_name=rule,
                 proof_code=lean_code,
                 backend_version=f"Lean {self.version}",
                 execution_time_ms=elapsed,
                 metrics={"formal_proof_hash": code_hash},
-                diagnostics=[line for line in stdout.splitlines() if line.strip()]
+                diagnostics=[line for line in details.get("compiler_stdout", "").splitlines() if line.strip()]
             )
-            error_msg = None
-        elif cond_status == VerificationStatus.CONDITIONAL:
-            status = VerificationStatus.CONDITIONAL
+        elif status == VerificationStatus.CONDITIONAL:
             edge.status = status
             edge.failed_reason = error_msg
-        else:
-            status = VerificationStatus.FAILED
+        elif not passed:
             edge.status = status
             edge.checker = "lean4"
-            error_msg = f"Lean 4 formal verification failed with exit code {returncode}:\n{stderr}\n{stdout}"
-            edge.failed_reason = error_msg
+            if error_msg:
+                edge.failed_reason = error_msg
 
         from automate.backend.base import VerificationEvidence
         evidence = VerificationEvidence(
             backend=self.name,
             backend_version=self.version,
-            graph_id=graph.id,
+            graph_id=getattr(graph, "id", ""),
             edge_id=edge.id,
             input_node_ids=edge.input_nodes,
             output_node_ids=edge.output_nodes,
@@ -231,6 +296,10 @@ class LeanChecker(BaseChecker):
     ) -> Tuple[str, str]:
         """
         Synthesizes a formally checkable Lean 4 theorem.
+
+        Returns ("__NOT_APPLICABLE__", reason) if no valid formalization exists.
+        This replaces the previous tautology fallback that returned FORMALLY_PROVED
+        for unrelated propositions.
         """
         rule = edge.transformation_rule
 
@@ -288,26 +357,62 @@ end Automate.LagrangianMechanics
 """
             return code, theorem_name
 
-        else:
-            theorem_name = f"derivation_step_{edge.id.replace('-', '_')}"
-            code = f"""-- Automate Generic Algebraic Step
+        elif rule == "algebraic_identity":
+            # Attempt to generate a Lean ring/linarith obligation for the specific expressions.
+            # If the expressions cannot be parsed into a valid theorem, return NOT_APPLICABLE.
+            try:
+                in_expr_str = in_nodes[0].expression.raw_str.strip()
+                out_expr_str = out_nodes[0].expression.raw_str.strip()
+            except Exception:
+                return "__NOT_APPLICABLE__", (
+                    "Could not read expression strings from graph nodes for algebraic_identity rule."
+                )
+
+            # Validate expressions are non-trivial numeric/algebraic
+            if not in_expr_str or not out_expr_str:
+                return "__NOT_APPLICABLE__", (
+                    "Empty expressions in graph nodes; cannot formalize algebraic identity."
+                )
+
+            # Simple case: if the expressions look like integers or rational numbers,
+            # attempt a numeric equality theorem using decide
+            import re
+            def looks_numeric(s: str) -> bool:
+                return bool(re.match(r'^-?\d+(\.\d+)?(/\d+)?$', s.strip()))
+
+            if looks_numeric(in_expr_str) and looks_numeric(out_expr_str):
+                theorem_name = f"algebraic_identity_{edge.id.replace('-', '_')}"
+                code = f"""-- Automate Machine-Generated Lean 4 Proof Obligation
+-- Derivation Edge ID: {edge.id}
+-- Rule: algebraic_identity
+import Init
+
 namespace Automate.Derivations
 
-theorem {theorem_name}
-    (a b : Int)
-    (h : a = b) :
-    a - b = 0 := by
-  rw [h]
-  exact Int.sub_self b
+theorem {theorem_name} : ({in_expr_str} : Int) = {out_expr_str} := by decide
 
 end Automate.Derivations
 """
-            return code, theorem_name
+                return code, theorem_name
+
+            # Non-numeric symbolic algebraic identities cannot yet be automatically
+            # formalized without a Lean 4 meta-programming bridge.
+            return "__NOT_APPLICABLE__", (
+                f"Algebraic identity '{in_expr_str} = {out_expr_str}' cannot yet be automatically "
+                "formalized in Lean 4. This rule requires a symbolic-to-Lean transpiler (not yet implemented). "
+                "Status: NOT_APPLICABLE. Use SymPy backend for symbolic verification."
+            )
+
+        else:
+            # This branch should not be reached because unsupported rules are
+            # filtered in verify_edge(), but guard it explicitly.
+            return "__NOT_APPLICABLE__", (
+                f"Rule '{rule}' does not have a Lean 4 formalization. "
+                "No tautology fallback is used."
+            )
 
     def _run_lean(self, code: str) -> Tuple[bool, str, str, int]:
-        """
-        Executes lean on a temporary file.
-        """
+        """Executes lean on a temporary file."""
         temp_dir = tempfile.mkdtemp(prefix="automate_lean_")
         temp_file = Path(temp_dir) / "ProofObligation.lean"
         try:
@@ -328,3 +433,7 @@ end Automate.Derivations
             return False, "", str(e), -1
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+# Type alias
+Any = object

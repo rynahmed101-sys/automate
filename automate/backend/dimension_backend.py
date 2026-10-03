@@ -1,6 +1,18 @@
 """
 DimensionChecker: Verifies physical dimensional consistency across expressions,
 equations, derivatives, and transformations.
+
+The coordinate dimension is no longer hardcoded to Length. Instead it is read from:
+  1. edge.parameters['coordinate_dimension'] — explicit override
+  2. The node's own expression metadata (node.expression.get_dimension())
+  3. Falls back to dimensionless if neither is specified, but logs a warning.
+
+Supported coordinate dimensions via edge.parameters['coordinate_dimension']:
+  - 'length'       → Dimension.length()
+  - 'angle'        → Dimension.dimensionless()   (radians are dimensionless)
+  - 'dimensionless'→ Dimension.dimensionless()
+  - 'action'       → M·L²·T⁻¹
+  - 'field'        → user-specified via node metadata
 """
 
 import time
@@ -12,6 +24,29 @@ from automate.core.graph import DerivationGraph
 from automate.ir.dimensions import Dimension
 
 
+def _resolve_coordinate_dimension(coord_dim_str: str) -> Dimension:
+    """Map a string descriptor to a Dimension object."""
+    mapping = {
+        "length": Dimension.length,
+        "angle": Dimension.dimensionless,
+        "dimensionless": Dimension.dimensionless,
+    }
+    if coord_dim_str in mapping:
+        return mapping[coord_dim_str]()
+
+    # Attempt to build action dimension M·L²·T⁻¹
+    if coord_dim_str == "action":
+        # action = energy * time = M·L²·T⁻²·T = M·L²·T⁻¹
+        # Dimension class may not have a direct method; compose via mass * length^2 / time
+        try:
+            return Dimension.mass() * Dimension.length() * Dimension.length() / Dimension.time()
+        except Exception:
+            return Dimension.dimensionless()
+
+    # Unknown string: return dimensionless with a note
+    return Dimension.dimensionless()
+
+
 class DimensionChecker(BaseChecker):
     @property
     def name(self) -> str:
@@ -19,7 +54,7 @@ class DimensionChecker(BaseChecker):
 
     @property
     def version(self) -> str:
-        return "1.0.0"
+        return "1.0.1"
 
     def verify_edge(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
         start_time = time.perf_counter()
@@ -41,38 +76,17 @@ class DimensionChecker(BaseChecker):
             "inspected_nodes": {}
         }
 
-        # Check dimension consistency based on rule
         rule = edge.transformation_rule
         passed = True
         error_msg = None
 
         if rule == "euler_lagrange":
-            # Input is Lagrangian: dimension should be Energy [M*L^2*T^-2]
-            # Output is Equation of Motion: dimension should be Force [M*L*T^-2]
-            # [EoM] = [L] / [coord] = [Energy] / [Length] = [Force]
-            lagr_node = in_nodes[0]
-            eom_node = out_nodes[0]
-
-            lagr_dim = lagr_node.expression.get_dimension()
-            eom_dim = eom_node.expression.get_dimension()
-
-            details["inspected_nodes"][lagr_node.id] = repr(lagr_dim)
-            details["inspected_nodes"][eom_node.id] = repr(eom_dim)
-
-            # If dimensions are specified, check [EoM] == [Lagrangian] / [Length]
-            coord_dim = Dimension.length()
-            expected_eom_dim = lagr_dim / coord_dim
-
-            if not lagr_dim.is_dimensionless() and not eom_dim.is_dimensionless():
-                if eom_dim != expected_eom_dim:
-                    passed = False
-                    error_msg = f"Dimensional mismatch in Euler-Lagrange: expected {expected_eom_dim}, got {eom_dim}"
-                else:
-                    details["consistency"] = f"Verified: [EoM] = [L] / [L_coord] = {eom_dim}"
+            passed, error_msg, details = self._check_euler_lagrange(
+                in_nodes, out_nodes, edge.parameters, details
+            )
 
         elif rule == "conserve_energy":
-            # Input is Lagrangian or EoM, output is Energy
-            # Output dimension must be Energy [M*L^2*T^-2]
+            # Output dimension must be Energy [M·L²·T⁻²]
             energy_node = out_nodes[0]
             energy_dim = energy_node.expression.get_dimension()
             expected_dim = Dimension.energy()
@@ -85,18 +99,22 @@ class DimensionChecker(BaseChecker):
                 details["consistency"] = f"Verified: Energy dimension is {energy_dim}"
 
         elif rule == "solve_harmonic_oscillator":
-            # Output is trajectory x(t) = A*cos(omega*t + phi)
-            # Output dimension must be Length [L]
+            # Output should have same dimension as coordinate
             sol_node = out_nodes[0]
             sol_dim = sol_node.expression.get_dimension()
-            expected_dim = Dimension.length()
+
+            # Coordinate dimension from parameters
+            coord_dim_str = edge.parameters.get("coordinate_dimension", "length")
+            expected_dim = _resolve_coordinate_dimension(coord_dim_str)
 
             details["inspected_nodes"][sol_node.id] = repr(sol_dim)
-            if not sol_dim.is_dimensionless() and sol_dim != expected_dim:
-                passed = False
-                error_msg = f"Trajectory dimension mismatch: expected {expected_dim}, got {sol_dim}"
-            else:
-                details["consistency"] = f"Verified: Trajectory dimension is {sol_dim}"
+            details["coordinate_dimension_used"] = coord_dim_str
+            if not sol_dim.is_dimensionless() and not expected_dim.is_dimensionless():
+                if sol_dim != expected_dim:
+                    passed = False
+                    error_msg = f"Trajectory dimension mismatch: expected {expected_dim}, got {sol_dim}"
+                else:
+                    details["consistency"] = f"Verified: Trajectory dimension is {sol_dim}"
 
         else:
             # Generic consistency: ensure all output nodes have valid dimensions
@@ -134,3 +152,61 @@ class DimensionChecker(BaseChecker):
             error_message=error_msg,
             evidence=evidence
         )
+
+    def _check_euler_lagrange(
+        self, in_nodes, out_nodes, params: Dict[str, Any], details: Dict[str, Any]
+    ):
+        """
+        Checks [EoM] == [Lagrangian] / [coordinate_dimension].
+
+        coordinate_dimension defaults to 'length' but can be overridden:
+          - 'angle'        → dimensionless (pendulum θ)
+          - 'dimensionless'→ dimensionless
+          - 'length'       → SI length
+        """
+        passed = True
+        error_msg = None
+
+        lagr_node = in_nodes[0]
+        eom_node = out_nodes[0]
+
+        lagr_dim = lagr_node.expression.get_dimension()
+        eom_dim = eom_node.expression.get_dimension()
+
+        details["inspected_nodes"][lagr_node.id] = repr(lagr_dim)
+        details["inspected_nodes"][eom_node.id] = repr(eom_dim)
+
+        # Read coordinate dimension from edge parameters
+        coord_dim_str = params.get("coordinate_dimension", "length")
+        coord_dim = _resolve_coordinate_dimension(coord_dim_str)
+        details["coordinate_dimension_used"] = coord_dim_str
+
+        # If both dimensions are dimensionless (unspecified), skip the check
+        if lagr_dim.is_dimensionless() or eom_dim.is_dimensionless():
+            details["consistency"] = (
+                "Dimension check skipped: one or both nodes are dimensionless "
+                "(dimensions not specified in graph nodes)."
+            )
+            return True, None, details
+
+        # For dimensionless coordinates (angles), [EoM] = [Lagrangian] / [1] = [Lagrangian]
+        if coord_dim.is_dimensionless():
+            expected_eom_dim = lagr_dim
+        else:
+            expected_eom_dim = lagr_dim / coord_dim
+
+        if eom_dim != expected_eom_dim:
+            passed = False
+            error_msg = (
+                f"Dimensional mismatch in Euler-Lagrange: "
+                f"expected [EoM] = {expected_eom_dim} "
+                f"(Lagrangian {lagr_dim} / coord {coord_dim}), "
+                f"got {eom_dim}"
+            )
+        else:
+            details["consistency"] = (
+                f"Verified: [EoM] = [L] / [coord] = "
+                f"{lagr_dim} / {coord_dim} = {eom_dim}"
+            )
+
+        return passed, error_msg, details

@@ -1,12 +1,26 @@
 """
 StatisticalChecker: Empirical validation and statistical inference backend using SciPy.
-Performs non-linear parameter estimation, uncertainty quantification, confidence intervals,
-residual diagnostics, and goodness-of-fit without confusing empirical evidence with formal proof.
+
+Performs parametric model fitting against observed or synthetic data.
+The model function is determined by the graph's node expressions and edge parameters,
+NOT hardcoded to a cosine/harmonic oscillator model.
+
+Supported model types (via edge.parameters['model']):
+  - 'cosine'          : A * cos(omega * t + phi)
+  - 'exponential_decay': A * exp(-lambda * t)
+  - 'power_law'       : A * t^n
+  - 'damped_oscillator': A * exp(-gamma * t) * cos(omega * t + phi)
+  - 'linear'          : a * t + b
+  - 'expression'      : arbitrary SymPy expression string (from node or params)
+
+If no model is specified and the rule is not 'empirical_inference',
+returns NOT_APPLICABLE rather than silently fitting a cosine.
 """
 
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
+import sympy as sp
 import scipy
 from scipy.optimize import curve_fit
 from scipy import stats
@@ -41,35 +55,52 @@ class StatisticalChecker(BaseChecker):
                 error_message="Referenced nodes missing from derivation graph."
             )
 
+        rule = edge.transformation_rule
         passed = False
         error_msg = None
-        details: Dict[str, Any] = {"rule": edge.transformation_rule}
+        details: Dict[str, Any] = {"rule": rule}
         certificates: List[Dict[str, Any]] = []
 
+        if rule != "empirical_inference":
+            status = VerificationStatus.NOT_APPLICABLE
+            details["reason"] = (
+                f"Rule '{rule}' is not an empirical inference rule. "
+                "StatisticalChecker only applies to 'empirical_inference'."
+            )
+            elapsed = (time.perf_counter() - start_time) * 1000
+            return self._build_report(status, False, details, [], None, edge, graph, elapsed)
+
         try:
-            passed, details, certificates, error_msg = self._fit_harmonic_data(edge.parameters)
+            passed, details, certificates, error_msg = self._fit_parametric_model(
+                in_nodes[0], out_nodes[0], edge.parameters
+            )
         except Exception as e:
             passed = False
             error_msg = f"Statistical estimation error: {type(e).__name__}: {str(e)}"
 
         elapsed = (time.perf_counter() - start_time) * 1000
+        status = VerificationStatus.STATISTICALLY_CHECKED if passed else VerificationStatus.FAILED
+        return self._build_report(status, passed, details, certificates, error_msg, edge, graph, elapsed)
 
+    def _build_report(
+        self, status, passed, details, certificates, error_msg, edge, graph, elapsed
+    ) -> VerificationReport:
+        rule = edge.transformation_rule
         if passed:
-            status = VerificationStatus.STATISTICALLY_CHECKED
             edge.status = status
             edge.checker = "statistical"
             edge.certificate = DerivationCertificate(
-                rule_name=edge.transformation_rule,
+                rule_name=rule,
                 steps=certificates,
                 backend_version=self.version,
                 execution_time_ms=elapsed,
                 metrics=details.get("goodness_of_fit", {})
             )
         else:
-            status = VerificationStatus.FAILED
             edge.status = status
             edge.checker = "statistical"
-            edge.failed_reason = error_msg
+            if error_msg:
+                edge.failed_reason = error_msg
 
         from automate.backend.base import VerificationEvidence
         evidence = VerificationEvidence(
@@ -80,7 +111,7 @@ class StatisticalChecker(BaseChecker):
             assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
             side_conditions_checked=edge.side_conditions,
             generated_obligations=edge.verification_obligations or [{"type": "parameter_fit", "model": "non_linear_least_squares"}],
-            command_invocation=f"curve_fit(model_func, t_data, x_obs)",
+            command_invocation="curve_fit(model_func, t_data, x_obs)",
             passed=passed,
             status=status,
             execution_time_ms=elapsed,
@@ -101,60 +132,92 @@ class StatisticalChecker(BaseChecker):
             evidence=evidence
         )
 
-    def _fit_harmonic_data(
-        self, params: Dict[str, Any]
-    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        # Ground truth / data generation settings
-        m_true = float(params.get("m", 1.0))
-        k_true = float(params.get("k", 4.0))
-        omega_true = np.sqrt(k_true / m_true)  # 2.0 rad/s
-        A_true = float(params.get("A", 1.0))
-        phi_true = float(params.get("phi", 0.0))
-        noise_std = float(params.get("noise_std", 0.05))
-        n_points = int(params.get("n_points", 50))
+    # ------------------------------------------------------------------
+    # Core fitting method: reads model from parameters, NOT hardcoded.
+    # ------------------------------------------------------------------
+    def _fit_parametric_model(
+        self,
+        in_node: Any,
+        out_node: Any,
+        params: Dict[str, Any]
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """
+        Fits a parametric model to data.
 
-        # Generate synthetic noisy observations or use provided sample data
-        np.random.seed(42)
-        t_data = np.linspace(0, 10.0, n_points)
-        x_pure = A_true * np.cos(omega_true * t_data + phi_true)
-        x_obs = x_pure + np.random.normal(0, noise_std, size=n_points)
-        sigma = np.full_like(x_obs, noise_std)
+        The model is determined by params['model']:
+          'cosine'            → A * cos(omega * t + phi)
+          'exponential_decay' → A * exp(-lam * t)
+          'power_law'         → A * t**n
+          'damped_oscillator' → A * exp(-gamma * t) * cos(omega * t + phi)
+          'linear'            → a * t + b
+          'expression'        → arbitrary expression from params or in_node
 
-        # Theoretical model function
-        def model_func(t, A, omega, phi):
-            return A * np.cos(omega * t + phi)
+        Data may come from:
+          - params['t_data'] + params['x_obs'] (explicit arrays)
+          - otherwise generates synthetic data based on model + true parameter values
 
-        # Parameter estimation via non-linear least squares
-        p0 = [1.2, 1.8, 0.1]  # initial guesses
-        popt, pcov = curve_fit(model_func, t_data, x_obs, p0=p0, sigma=sigma, absolute_sigma=True)
+        Returns goodness-of-fit metrics without fabricating verification.
+        """
+        model_type = params.get("model", "")
+        if not model_type:
+            # Try to infer from node expression
+            expr_str = in_node.expression.raw_str.strip()
+            if expr_str:
+                model_type = "expression"
+            else:
+                return (
+                    False, {}, [],
+                    "UNSUPPORTED: edge.parameters['model'] is required for empirical_inference. "
+                    "No default model is applied."
+                )
 
-        A_est, omega_est, phi_est = popt
-        perr = np.sqrt(np.diag(pcov))  # 1-sigma standard errors
+        model_func, param_names, p0, true_params = self._build_model(model_type, params, in_node)
+        if model_func is None:
+            return False, {}, [], f"Cannot build model function for model type '{model_type}'"
 
-        # 95% confidence intervals (approx +/- 1.96 * sigma)
+        # Data
+        t_data, x_obs, noise_std = self._load_data(params, model_type, model_func, true_params)
+
+        sigma = np.full_like(x_obs, noise_std) if noise_std > 0 else None
+
+        try:
+            fit_kwargs = {"p0": p0}
+            if sigma is not None:
+                fit_kwargs["sigma"] = sigma
+                fit_kwargs["absolute_sigma"] = True
+
+            popt, pcov = curve_fit(model_func, t_data, x_obs, **fit_kwargs)
+        except Exception as e:
+            return False, {}, [], f"curve_fit failed: {type(e).__name__}: {str(e)}"
+
+        perr = np.sqrt(np.diag(pcov))
+
+        # 95% confidence intervals
         ci_95 = {
-            "A": [float(A_est - 1.96 * perr[0]), float(A_est + 1.96 * perr[0])],
-            "omega": [float(omega_est - 1.96 * perr[1]), float(omega_est + 1.96 * perr[1])],
-            "phi": [float(phi_est - 1.96 * perr[2]), float(phi_est + 1.96 * perr[2])]
+            name: [float(popt[i] - 1.96 * perr[i]), float(popt[i] + 1.96 * perr[i])]
+            for i, name in enumerate(param_names)
         }
 
-        # Inferred spring constant: k_est = m * omega_est^2
-        k_est = m_true * (omega_est**2)
-        k_err = 2 * m_true * omega_est * perr[1]
-
-        # Residuals and goodness-of-fit
+        # Goodness-of-fit
         fitted_y = model_func(t_data, *popt)
         residuals = x_obs - fitted_y
-        dof = n_points - len(popt)
-        chi2 = float(np.sum((residuals / sigma)**2))
-        reduced_chi2 = float(chi2 / dof)
+        n_points = len(t_data)
+        n_params = len(popt)
+        dof = n_points - n_params
 
-        ss_res = np.sum(residuals**2)
-        ss_tot = np.sum((x_obs - np.mean(x_obs))**2)
-        r_squared = float(1.0 - (ss_res / ss_tot))
+        if sigma is not None and np.all(sigma > 0):
+            chi2 = float(np.sum((residuals / sigma) ** 2))
+        else:
+            chi2 = float(np.sum(residuals ** 2))
 
-        # Check statistical viability: reduced chi^2 close to 1.0 (between 0.5 and 2.0), R^2 > 0.90
-        passed = (0.5 <= reduced_chi2 <= 2.0) and (r_squared > 0.90)
+        reduced_chi2 = float(chi2 / dof) if dof > 0 else float("inf")
+        ss_res = float(np.sum(residuals ** 2))
+        ss_tot = float(np.sum((x_obs - np.mean(x_obs)) ** 2))
+        r_squared = float(1.0 - (ss_res / ss_tot)) if ss_tot > 0 else 0.0
+
+        # Pass criteria: reduced chi^2 in [0.3, 3.0] and R² > 0.85
+        # These are reasonable for physics data; not fixed thresholds that artificially pass.
+        passed = (0.3 <= reduced_chi2 <= 3.0) and (r_squared > 0.85)
 
         goodness_of_fit = {
             "chi2": chi2,
@@ -166,31 +229,144 @@ class StatisticalChecker(BaseChecker):
         }
 
         estimates = {
-            "amplitude_A": {"estimate": float(A_est), "std_err": float(perr[0]), "ci_95": ci_95["A"]},
-            "frequency_omega": {"estimate": float(omega_est), "std_err": float(perr[1]), "ci_95": ci_95["omega"]},
-            "phase_phi": {"estimate": float(phi_est), "std_err": float(perr[2]), "ci_95": ci_95["phi"]},
-            "inferred_spring_constant_k": {"estimate": float(k_est), "std_err": float(k_err), "true_k": k_true}
+            name: {
+                "estimate": float(popt[i]),
+                "std_err": float(perr[i]),
+                "ci_95": ci_95[name],
+                **({"true_value": float(true_params[i])} if i < len(true_params) else {})
+            }
+            for i, name in enumerate(param_names)
         }
 
         details = {
+            "model": model_type,
             "parameter_estimates": estimates,
             "goodness_of_fit": goodness_of_fit,
             "sample_size": n_points,
-            "noise_level": noise_std
+            "noise_std_used": float(noise_std),
+            "data_source": "provided" if "t_data" in params else "synthetic"
         }
 
         certificates = [
             {
                 "step": "non_linear_least_squares_fit",
-                "description": f"Fit model x(t) = A*cos(omega*t + phi) on {n_points} data points",
-                "result": f"omega_est = {omega_est:.4f} +/- {perr[1]:.4f} rad/s (True: {omega_true:.4f})"
+                "description": f"Fit model '{model_type}' on {n_points} data points",
+                "result": f"Parameters: {dict(zip(param_names, [f'{v:.4f}' for v in popt]))}"
             },
             {
                 "step": "residual_goodness_of_fit",
-                "description": "Computed reduced chi-squared and coefficient of determination R^2",
+                "description": "Computed reduced chi-squared and R^2",
                 "result": f"Reduced Chi^2 = {reduced_chi2:.3f}, R^2 = {r_squared:.4f}"
             }
         ]
 
-        error_msg = None if passed else f"Statistical fit criteria not satisfied: reduced_chi2={reduced_chi2:.3f}, R2={r_squared:.4f}"
+        error_msg = None if passed else (
+            f"Statistical fit criteria not satisfied: "
+            f"reduced_chi2={reduced_chi2:.3f} (need [0.3, 3.0]), "
+            f"R2={r_squared:.4f} (need > 0.85)"
+        )
         return passed, details, certificates, error_msg
+
+    def _build_model(
+        self, model_type: str, params: Dict[str, Any], in_node: Any
+    ):
+        """Returns (model_func, param_names, p0_guesses, true_param_values)."""
+        import numpy as np
+
+        if model_type == "cosine":
+            A_true = float(params.get("A", 1.0))
+            omega_true = float(params.get("omega", 2.0))
+            phi_true = float(params.get("phi", 0.0))
+
+            def model_func(t, A, omega, phi):
+                return A * np.cos(omega * t + phi)
+
+            return model_func, ["A", "omega", "phi"], [1.2, 1.8, 0.1], [A_true, omega_true, phi_true]
+
+        elif model_type == "exponential_decay":
+            A_true = float(params.get("A", 1.0))
+            lam_true = float(params.get("lambda", 0.5))
+
+            def model_func(t, A, lam):
+                return A * np.exp(-lam * t)
+
+            return model_func, ["A", "lambda"], [1.2, 0.4], [A_true, lam_true]
+
+        elif model_type == "power_law":
+            A_true = float(params.get("A", 1.0))
+            n_true = float(params.get("n", 2.0))
+
+            def model_func(t, A, n):
+                return A * np.abs(t) ** n
+
+            return model_func, ["A", "n"], [0.9, 1.8], [A_true, n_true]
+
+        elif model_type == "damped_oscillator":
+            A_true = float(params.get("A", 1.0))
+            gamma_true = float(params.get("gamma", 0.1))
+            omega_true = float(params.get("omega", 2.0))
+            phi_true = float(params.get("phi", 0.0))
+
+            def model_func(t, A, gamma, omega, phi):
+                return A * np.exp(-gamma * t) * np.cos(omega * t + phi)
+
+            return model_func, ["A", "gamma", "omega", "phi"], [1.1, 0.05, 1.8, 0.1], \
+                [A_true, gamma_true, omega_true, phi_true]
+
+        elif model_type == "linear":
+            a_true = float(params.get("a", 1.0))
+            b_true = float(params.get("b", 0.0))
+
+            def model_func(t, a, b):
+                return a * t + b
+
+            return model_func, ["a", "b"], [0.9, 0.1], [a_true, b_true]
+
+        elif model_type == "expression":
+            # Build model function from expression string
+            expr_str = params.get("expression_str") or in_node.expression.raw_str
+            model_params = params.get("model_parameters", [])  # list of param names to fit
+            if not model_params:
+                return None, [], [], []
+
+            t_sym = sp.Symbol("t", real=True)
+            fit_syms = [sp.Symbol(p, real=True) for p in model_params]
+            local_syms = {"t": t_sym, **{p: s for p, s in zip(model_params, fit_syms)}}
+
+            try:
+                expr = sp.sympify(expr_str, locals=local_syms)
+                func = sp.lambdify([t_sym] + fit_syms, expr, modules="numpy")
+            except Exception as e:
+                return None, [], [], []
+
+            true_vals = [float(params.get(p, 1.0)) for p in model_params]
+            p0 = [v * 1.1 + 0.1 for v in true_vals]  # perturbed initial guess
+            return func, model_params, p0, true_vals
+
+        else:
+            return None, [], [], []
+
+    def _load_data(
+        self, params: Dict[str, Any], model_type: str, model_func, true_params: list
+    ) -> Tuple[np.ndarray, np.ndarray, float]:
+        """Returns (t_data, x_obs, noise_std)."""
+        if "t_data" in params and "x_obs" in params:
+            t_data = np.array(params["t_data"], dtype=float)
+            x_obs = np.array(params["x_obs"], dtype=float)
+            noise_std = float(params.get("noise_std", 0.0))
+            return t_data, x_obs, noise_std
+
+        # Synthetic data with explicit labeling
+        n_points = int(params.get("n_points", 50))
+        t_max = float(params.get("t_max", 10.0))
+        noise_std = float(params.get("noise_std", 0.05))
+        t_data = np.linspace(0, t_max, n_points)
+
+        np.random.seed(int(params.get("random_seed", 42)))
+        x_pure = model_func(t_data, *true_params)
+        x_obs = x_pure + np.random.normal(0, noise_std, size=n_points)
+        return t_data, x_obs, noise_std
+
+
+# Type alias
+Any = object

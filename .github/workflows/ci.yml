@@ -1,0 +1,86 @@
+name: Automate CI
+
+on:
+  push:
+    branches:
+      - feat/generalized-engine
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml', 'requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run full test suite
+        run: |
+          pytest -q --tb=short --strict-markers
+
+      - name: Run adversarial tests explicitly (anti-circularity)
+        run: |
+          pytest tests/test_adversarial.py -v --tb=short
+
+  lean4:
+    name: Lean 4 proof check
+    runs-on: ubuntu-latest
+    # Lean 4 install is slow; run only on push to main or PR targeting main
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install elan (Lean 4 version manager)
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Install Lean 4.34.1
+        run: |
+          elan toolchain install leanprover/lean4:v4.34.1
+          elan default leanprover/lean4:v4.34.1
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run Lean backend tests (with Lean 4 available)
+        run: |
+          pytest tests/test_adversarial.py::TestLeanBackendNoTautology -v --tb=short
+        env:
+          LEAN_BIN: ${{ env.HOME }}/.elan/bin/lean
