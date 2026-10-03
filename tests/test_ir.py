@@ -89,3 +89,26 @@ def test_physical_constant():
     )
     assert c.value == 299792458.0
     assert c.dimension == "L*T^-1"
+
+
+def test_dimension_parser_rejects_unknown_dimension():
+    from automate.ir.dimensions import Dimension
+    import pytest
+
+    with pytest.raises(ValueError):
+        Dimension.from_string("banana")
+
+
+def test_dimension_parser_rejects_malformed_dimension():
+    from automate.ir.dimensions import Dimension
+    import pytest
+
+    with pytest.raises(ValueError):
+        Dimension.from_string("M^^2")
+
+
+def test_dimension_parser_supports_division():
+    from automate.ir.dimensions import Dimension
+    from automate.ir.dimensions import Dimension as D
+
+    assert Dimension.from_string("M*L/T^2") == D.force()
