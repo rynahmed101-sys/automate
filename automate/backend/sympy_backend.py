@@ -5,7 +5,7 @@ differential equation solutions, and conservation laws.
 """
 
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import sympy as sp
 
 from automate.backend.base import BaseChecker, VerificationReport
