@@ -72,9 +72,21 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_harmonic_solution(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
-                elif rule == "algebraic_identity":
+                elif rule in {"simplify", "algebraic_identity"}:
                     passed, details, certificates, error_msg = self._verify_algebraic_identity(
                         in_nodes[0], out_nodes[0]
+                    )
+                elif rule == "differentiate_both_sides":
+                    passed, details, certificates, error_msg = self._verify_differentiate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "substitute":
+                    passed, details, certificates, error_msg = self._verify_substitute(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "divide_both_sides":
+                    passed, details, certificates, error_msg = self._verify_divide(
+                        in_nodes[0], out_nodes[0], edge.parameters, edge.side_conditions, graph
                     )
                 else:
                     passed = False
@@ -210,6 +222,185 @@ class SymPyChecker(BaseChecker):
             )
             text = text.replace(f"{coordinate}_dot_dot", f"{coordinate}_ddot")
         return safe_parse_expr(text, locals_map=locals_map)
+
+
+    def _parse_relation_sides(
+        self, raw_str: str, locals_map: Dict[str, Any]
+    ) -> Tuple[sp.Expr, Optional[str], Optional[sp.Expr]]:
+        text = raw_str.strip()
+        for relation in ("<=", ">=", "!=", "=", "<", ">"):
+            if relation in text:
+                lhs_text, rhs_text = text.split(relation, 1)
+                return (
+                    safe_parse_expr(lhs_text.strip(), locals_map=locals_map),
+                    relation,
+                    safe_parse_expr(rhs_text.strip(), locals_map=locals_map),
+                )
+        return safe_parse_expr(text, locals_map=locals_map), None, None
+
+    def _verify_differentiate(
+        self, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        local = self._build_context(params)
+        variable_name = str(params.get("wrt", params.get("time_variable", "t")))
+        variable = local.get(variable_name)
+        if variable is None:
+            variable = sp.Symbol(variable_name, real=True)
+            local[variable_name] = variable
+
+        in_lhs, in_relation, in_rhs = self._parse_relation_sides(in_node.expression.raw_str, local)
+        out_lhs, out_relation, out_rhs = self._parse_relation_sides(out_node.expression.raw_str, local)
+
+        if in_relation != out_relation:
+            return False, {}, [], "Differentiation requires input and output to use the same relation type."
+
+        if in_relation == "=":
+            expected_lhs = sp.simplify(sp.diff(in_lhs, variable))
+            expected_rhs = sp.simplify(sp.diff(in_rhs, variable))
+            residual = sp.simplify((out_lhs - expected_lhs) - (out_rhs - expected_rhs))
+            passed = residual == 0
+            details = {
+                "variable": variable_name,
+                "expected_lhs": str(expected_lhs),
+                "expected_rhs": str(expected_rhs),
+                "output_lhs": str(out_lhs),
+                "output_rhs": str(out_rhs),
+                "difference": str(residual),
+            }
+        else:
+            expected = sp.simplify(sp.diff(in_lhs, variable))
+            residual = sp.simplify(out_lhs - expected)
+            passed = residual == 0
+            details = {
+                "variable": variable_name,
+                "expected_derivative": str(expected),
+                "output": str(out_lhs),
+                "difference": str(residual),
+            }
+
+        steps = [{
+            "step": 1,
+            "operation": f"d/d{variable_name}",
+            "expr": str(residual),
+            "latex": sp.latex(residual),
+        }]
+        error = None if passed else f"Differentiation result mismatch: residual {residual}"
+        return passed, details, steps, error
+
+    def _verify_substitute(
+        self, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        local = self._build_context(params)
+        symbol_name = params.get("symbol", params.get("target"))
+        replacement_text = params.get("replacement", params.get("value"))
+        if symbol_name is None or replacement_text is None:
+            return False, {}, [], "Substitution requires parameters 'symbol' and 'replacement'."
+
+        symbol_name = str(symbol_name)
+        target = local.get(symbol_name)
+        if target is None:
+            target = sp.Symbol(symbol_name, real=True)
+            local[symbol_name] = target
+        replacement = safe_parse_expr(str(replacement_text), locals_map=local)
+
+        in_lhs, in_relation, in_rhs = self._parse_relation_sides(in_node.expression.raw_str, local)
+        out_lhs, out_relation, out_rhs = self._parse_relation_sides(out_node.expression.raw_str, local)
+        if in_relation != out_relation:
+            return False, {}, [], "Substitution requires matching input and output relation types."
+
+        expected_lhs = sp.simplify(in_lhs.subs(target, replacement))
+        if in_relation == "=":
+            expected_rhs = sp.simplify(in_rhs.subs(target, replacement))
+            residual = sp.simplify((out_lhs - expected_lhs) - (out_rhs - expected_rhs))
+        else:
+            expected_rhs = None
+            residual = sp.simplify(out_lhs - expected_lhs)
+
+        passed = residual == 0
+        details = {
+            "symbol": symbol_name,
+            "replacement": str(replacement),
+            "difference": str(residual),
+        }
+        steps = [{
+            "step": 1,
+            "operation": "substitute",
+            "expr": str(replacement),
+            "latex": sp.latex(replacement),
+        }, {
+            "step": 2,
+            "operation": "simplify_difference",
+            "expr": str(residual),
+            "latex": sp.latex(residual),
+        }]
+        error = None if passed else f"Substitution result mismatch: residual {residual}"
+        return passed, details, steps, error
+
+    def _verify_divide(
+        self, in_node: Any, out_node: Any, params: Dict[str, Any],
+        side_conditions: List[str], graph: DerivationGraph
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        local = self._build_context(params)
+        divisor_text = params.get("divisor")
+        if divisor_text is None:
+            return False, {}, [], "Division requires parameter 'divisor'."
+        divisor = safe_parse_expr(str(divisor_text), locals_map=local)
+
+        nonzero = sp.ask(sp.Q.nonzero(divisor))
+        if nonzero is not True:
+            divisor_key = str(divisor).replace(" ", "")
+            for aid in side_conditions:
+                asm = graph.assumptions.get(aid)
+                if asm and asm.active:
+                    pred = asm.formal_predicate.replace(" ", "")
+                    if (
+                        f"{divisor_key}!=0" in pred
+                        or f"{divisor_key}>0" in pred
+                        or f"{divisor_key}<0" in pred
+                    ):
+                        nonzero = True
+                        break
+        if nonzero is not True:
+            return False, {
+                "divisor": str(divisor),
+                "nonzero_status": str(nonzero),
+            }, [], "Division requires proof that the divisor is non-zero."
+
+        in_lhs, in_relation, in_rhs = self._parse_relation_sides(in_node.expression.raw_str, local)
+        out_lhs, out_relation, out_rhs = self._parse_relation_sides(out_node.expression.raw_str, local)
+        if in_relation != "=" or out_relation != "=":
+            return False, {}, [], "Divide-both-sides requires input and output equations."
+
+        expected_lhs = sp.simplify(in_lhs / divisor)
+        expected_rhs = sp.simplify(in_rhs / divisor)
+        lhs_error = sp.simplify(out_lhs - expected_lhs)
+        rhs_error = sp.simplify(out_rhs - expected_rhs)
+        passed = lhs_error == 0 and rhs_error == 0
+
+        details = {
+            "divisor": str(divisor),
+            "nonzero_status": True,
+            "input": f"{in_lhs} = {in_rhs}",
+            "expected_output": f"{expected_lhs} = {expected_rhs}",
+            "output": f"{out_lhs} = {out_rhs}",
+            "lhs_difference": str(lhs_error),
+            "rhs_difference": str(rhs_error),
+        }
+        steps = [{
+            "step": 1,
+            "operation": "divide_lhs",
+            "expr": str(expected_lhs),
+            "latex": sp.latex(expected_lhs),
+        }, {
+            "step": 2,
+            "operation": "divide_rhs",
+            "expr": str(expected_rhs),
+            "latex": sp.latex(expected_rhs),
+        }]
+        error = None if passed else (
+            f"Divide-both-sides result mismatch: lhs residual {lhs_error}, rhs residual {rhs_error}"
+        )
+        return passed, details, steps, error
 
     def _verify_euler_lagrange(
         self, lagr_node: Any, eom_node: Any, params: Dict[str, Any]
