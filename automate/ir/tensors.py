@@ -148,16 +148,16 @@ def validate_tensor_sum(terms_indices: List[List[TensorIndex]]) -> IndexValidati
             )
 
     # Compare free indices of all terms to the first term
-    reference_free = set((idx.symbol, idx.position) for idx in term_results[0].free_indices)
+    reference_free = [(idx.symbol, idx.position) for idx in term_results[0].free_indices]
     errors: List[str] = []
 
     for i in range(1, len(term_results)):
-        curr_free = set((idx.symbol, idx.position) for idx in term_results[i].free_indices)
+        curr_free = [(idx.symbol, idx.position) for idx in term_results[i].free_indices]
         if curr_free != reference_free:
             errors.append(
                 f"Free index mismatch between term 1 and term {i+1}. "
-                f"Term 1 free indices: {sorted(list(reference_free))}; "
-                f"Term {i+1} free indices: {sorted(list(curr_free))}."
+                f"Term 1 free indices: {reference_free}; "
+                f"Term {i+1} free indices: {curr_free}."
             )
 
     is_valid = len(errors) == 0
@@ -187,14 +187,14 @@ def validate_tensor_equation(lhs_indices: List[TensorIndex], rhs_indices: List[T
     if errors:
         return IndexValidationResult(is_valid=False, errors=errors)
 
-    lhs_free = set((idx.symbol, idx.position) for idx in lhs_res.free_indices)
-    rhs_free = set((idx.symbol, idx.position) for idx in rhs_res.free_indices)
+    lhs_free = [(idx.symbol, idx.position) for idx in lhs_res.free_indices]
+    rhs_free = [(idx.symbol, idx.position) for idx in rhs_res.free_indices]
 
     if lhs_free != rhs_free:
         errors.append(
             f"Equation index mismatch between LHS and RHS. "
-            f"LHS free indices: {sorted(list(lhs_free))}; "
-            f"RHS free indices: {sorted(list(rhs_free))}."
+            f"LHS free indices: {lhs_free}; "
+            f"RHS free indices: {rhs_free}."
         )
 
     is_valid = len(errors) == 0
