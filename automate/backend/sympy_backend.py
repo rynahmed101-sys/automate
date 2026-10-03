@@ -154,8 +154,8 @@ class SymPyChecker(BaseChecker):
         for relation in ("<=", ">=", "!=", "=", "<", ">"):
             if relation in text:
                 lhs_text, rhs_text = text.split(relation, 1)
-                lhs = safe_parse_expr(lhs_text.strip(), locals_map=locals_map)
-                rhs = safe_parse_expr(rhs_text.strip(), locals_map=locals_map)
+                lhs = SymPyChecker._parse_expression(lhs_text.strip(), locals_map)
+                rhs = SymPyChecker._parse_expression(rhs_text.strip(), locals_map)
                 return sp.simplify(lhs - rhs), relation
         return safe_parse_expr(text, locals_map=locals_map), None
 
