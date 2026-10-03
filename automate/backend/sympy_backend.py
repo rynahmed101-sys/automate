@@ -233,11 +233,11 @@ class SymPyChecker(BaseChecker):
             if relation in text:
                 lhs_text, rhs_text = text.split(relation, 1)
                 return (
-                    safe_parse_expr(lhs_text.strip(), locals_map=locals_map),
+                    self._parse_expression(lhs_text.strip(), locals_map),
                     relation,
-                    safe_parse_expr(rhs_text.strip(), locals_map=locals_map),
+                    self._parse_expression(rhs_text.strip(), locals_map),
                 )
-        return safe_parse_expr(text, locals_map=locals_map), None, None
+        return self._parse_expression(text, locals_map), None, None
 
     def _verify_differentiate(
         self, in_node: Any, out_node: Any, params: Dict[str, Any]
