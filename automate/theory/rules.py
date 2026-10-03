@@ -179,7 +179,7 @@ class RuleRegistry:
             description="Simplifies an algebraic expression into canonical minimal form",
             domain="mathematics",
             implementation_backend="sympy",
-            formal_proof_available=True,
+            formal_proof_available=False,
             symbolic_checker_available=True
         ))
 
