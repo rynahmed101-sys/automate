@@ -220,3 +220,105 @@ def test_ai_context_exposes_rule_capabilities():
     )
     assert divide_rule["symbolic_checker_available"] is True
     assert divide_rule["formal_proof_available"] is False
+
+
+def test_tensor_backend_is_exposed_to_ai_context_and_pipeline():
+    from automate.ai.schemas import DerivationProposal, CandidateNode, ProposalOrigin
+
+    graph = DerivationGraph(id="tensor_ai_graph", name="Tensor Test")
+    graph.add_node(DerivationNode(
+        id="tensor_input",
+        expression=MathematicalExpression(raw_str="T"),
+        node_kind="tensor",
+        domain="differential_geometry",
+    ))
+
+    proposal = DerivationProposal(
+        proposal_id="tensor_proposal",
+        proposal_type="derivation",
+        input_nodes=["tensor_input"],
+        output_nodes=[CandidateNode(
+            id="tensor_output",
+            expression="T^mu_nu",
+            dimension="",
+            node_kind="tensor",
+            domain="differential_geometry",
+        )],
+        rule="index_contract",
+        justification="Contract an upper and lower index",
+        target_checker="tensor",
+        parameters={
+            "indices": [
+                {"symbol": "mu", "position": "upper"},
+                {"symbol": "mu", "position": "lower"},
+            ]
+        },
+        origin=ProposalOrigin(
+            type="ai",
+            provider="test",
+            model="tensor-test",
+        ),
+    )
+
+    result = apply_and_verify_proposal(proposal, graph, dry_run=False)
+
+    assert result.success is True, result.errors
+    assert result.graph_updated is True
+    assert graph.get_edge(result.edge_id).status == VerificationStatus.TENSOR_CHECKED
+    assert "tensor_output" in graph.nodes
+
+
+def test_failed_ai_proposal_does_not_mutate_canonical_graph():
+    from automate.ai.schemas import DerivationProposal, CandidateNode, ProposalOrigin
+
+    graph = DerivationGraph(id="transaction_graph", name="Transactional Test")
+    graph.add_assumption(Assumption(
+        id="asm_pos_mass",
+        description="Mass is positive",
+        formal_predicate="m > 0",
+        active=True,
+    ))
+    graph.add_assumption(Assumption(
+        id="asm_pos_k",
+        description="Spring constant is positive",
+        formal_predicate="k > 0",
+        active=True,
+    ))
+    graph.add_node(DerivationNode(
+        id="eom",
+        expression=MathematicalExpression(
+            raw_str="m * diff(x(t), t, 2) + k * x(t) = 0",
+            dimension="M*L*T^-2",
+        ),
+        domain="classical_mechanics",
+    ))
+
+    proposal = DerivationProposal(
+        proposal_id="bad_transaction",
+        proposal_type="derivation",
+        input_nodes=["eom"],
+        output_nodes=[CandidateNode(
+            id="bad_solution",
+            expression="x(t) = A * cos(3 * t + phi)",
+            dimension="L",
+            node_kind="equation",
+            domain="classical_mechanics",
+        )],
+        rule="solve_harmonic_oscillator",
+        justification="Intentionally wrong frequency",
+        side_conditions=["asm_pos_mass", "asm_pos_k"],
+        target_checker="sympy",
+        parameters={},
+        origin=ProposalOrigin(
+            type="ai",
+            provider="test",
+            model="transaction-test",
+        ),
+    )
+
+    result = apply_and_verify_proposal(proposal, graph, dry_run=False)
+
+    assert result.success is False
+    assert result.graph_updated is False
+    assert "bad_solution" not in graph.nodes
+    assert result.edge_id not in graph.edges
