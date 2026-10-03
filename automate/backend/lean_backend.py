@@ -220,27 +220,7 @@ class LeanChecker(BaseChecker):
 
                 if not semantic_ok:
                     elapsed = (time.perf_counter() - start_time) * 1000
-                    return VerificationReport(
-                        status=VerificationStatus.FAILED,
-                        backend=self.name,
-                        backend_version=self.version,
-                        execution_time_ms=elapsed,
-                        passed=False,
-                        details={"semantic_preflight": semantic_details},
-                        error_message=(
-                            "Formal proof rejected because graph semantic preflight failed: "
-                            + (semantic_error or "unknown semantic mismatch")
-                        ),
-                    )
 
-            # Generate Lean 4 proof obligation
-            lean_code, theorem_name = self._generate_lean_obligation(edge, in_nodes, out_nodes)
-
-            # Run Lean 4 compiler in sandboxed directory
-            passed, stdout, stderr, returncode = self._run_lean(lean_code)
-            code_hash = hashlib.sha256(lean_code.encode("utf-8")).hexdigest()
-
-        elapsed = (time.perf_counter() - start_time) * 1000
                     return VerificationReport(
                         status=VerificationStatus.FAILED,
                         backend=self.name,
