@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional
 import numpy as np
 import scipy
 import sympy as sp
+from automate.backend.sympy_utils import safe_parse_expr
 from scipy.integrate import solve_ivp
 
 from automate.backend.base import BaseChecker, VerificationReport
@@ -133,8 +134,8 @@ class NumericalChecker(BaseChecker):
         }
         try:
             eom_residual = sp.simplify(
-                sp.sympify(lhs_text.strip(), locals=local)
-                - sp.sympify(rhs_text.strip(), locals=local)
+                safe_parse_expr(lhs_text.strip(), locals=local)
+                - safe_parse_expr(rhs_text.strip(), locals=local)
             )
         except Exception as exc:
             return False, {}, [], f"Could not parse equation of motion: {type(exc).__name__}: {exc}"
