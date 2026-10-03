@@ -54,7 +54,7 @@ class TensorChecker(BaseChecker):
         elapsed: float,
         steps: List[Dict[str, Any]],
     ) -> VerificationReport:
-        status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
+        status = VerificationStatus.TENSOR_CHECKED if passed else VerificationStatus.FAILED
         evidence = VerificationEvidence(
             backend="TensorChecker",
             backend_version="1.0.0",
