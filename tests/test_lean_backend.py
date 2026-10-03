@@ -73,3 +73,35 @@ def test_lean_formal_proof_verification():
     assert report.proof_script is not None
     assert edge.certificate is not None
     assert "formal_proof_hash" in edge.certificate.metrics
+
+
+def test_lean_formal_proof_rejects_wrong_graph_eom():
+    checker = LeanChecker()
+    if not checker.is_available():
+        if _lean_required():
+            pytest.fail("Lean 4 compiler is required but was not detected.")
+        pytest.skip("Lean 4 compiler not available in test environment.")
+
+    graph = DerivationGraph(id="lean_bad_eom")
+    graph.add_node(DerivationNode(
+        id="lagr",
+        expression=MathematicalExpression(raw_str="1/2 * m * x_dot**2 - 1/2 * k * x**2")
+    ))
+    graph.add_node(DerivationNode(
+        id="eom",
+        expression=MathematicalExpression(raw_str="m * x_ddot - k * x = 0")
+    ))
+    edge = DerivationEdge(
+        id="edge_bad_formal",
+        input_nodes=["lagr", "eom"],
+        output_nodes=["lagr"],
+        transformation_rule="conserve_energy",
+        justification="Intentionally incorrect EoM",
+        checker="lean4",
+    )
+    graph.add_edge(edge)
+
+    report = checker.verify_edge(edge, graph)
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "semantic preflight" in (report.error_message or "")
