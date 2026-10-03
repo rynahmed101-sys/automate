@@ -190,7 +190,7 @@ class RuleRegistry:
             category="tensors",
             description="Contracts one upper and one lower index using Einstein summation convention",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
             symbolic_checker_available=True
         ))
@@ -201,7 +201,7 @@ class RuleRegistry:
             category="tensors",
             description="Raises a covariant tensor index using the inverse metric g^{mu nu}",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
             symbolic_checker_available=True
         ))
@@ -212,7 +212,7 @@ class RuleRegistry:
             category="tensors",
             description="Lowers a contravariant tensor index using the metric g_{mu nu}",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
             symbolic_checker_available=True
         ))
