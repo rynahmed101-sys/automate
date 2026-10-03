@@ -1,0 +1,113 @@
+theory: harmonic_oscillator
+name: "1D Simple Harmonic Oscillator"
+domain: classical_mechanics
+description: "End-to-end formal derivation of the harmonic oscillator from Lagrangian to Euler-Lagrange EoM, formal Lean 4 energy conservation theorem, numerical trajectory simulation, and empirical parameter inference."
+
+assumptions:
+  asm_pos_mass:
+    description: "Inertial mass m is strictly positive (m > 0)"
+    category: positivity
+    formal_predicate: "m > 0"
+  asm_pos_k:
+    description: "Hooke's spring constant k is strictly positive (k > 0)"
+    category: positivity
+    formal_predicate: "k > 0"
+  asm_smooth_trajectory:
+    description: "Trajectory x(t) is at least twice continuously differentiable in time"
+    category: smoothness
+    formal_predicate: "x in C^2(R)"
+  asm_conservative:
+    description: "Non-conservative forces (friction, dissipation) vanish"
+    category: boundary_condition
+    formal_predicate: "F_diss = 0"
+
+nodes:
+  node_lagrangian:
+    expression: "1/2 * m * x_dot**2 - 1/2 * k * x**2"
+    dimension: "M*L^2*T^-2"
+    latex: "\\mathcal{L} = \\frac{1}{2}m\\dot{x}^2 - \\frac{1}{2}kx^2"
+    domain: classical_mechanics
+    source: definition
+    assumptions: ["asm_pos_mass", "asm_pos_k", "asm_smooth_trajectory", "asm_conservative"]
+
+  node_eom:
+    expression: "m * x_ddot + k * x = 0"
+    dimension: "M*L*T^-2"
+    latex: "m\\ddot{x} + kx = 0"
+    domain: classical_mechanics
+    source: derived
+
+  node_conserved_energy:
+    expression: "1/2 * m * x_dot**2 + 1/2 * k * x**2 = E"
+    dimension: "M*L^2*T^-2"
+    latex: "E = \\frac{1}{2}m\\dot{x}^2 + \\frac{1}{2}kx^2"
+    domain: classical_mechanics
+    source: derived
+
+  node_analytical_solution:
+    expression: "x(t) = A * cos(omega * t + phi)"
+    dimension: "L"
+    latex: "x(t) = A\\cos(\\omega t + \\phi), \\quad \\omega = \\sqrt{k/m}"
+    domain: classical_mechanics
+    source: derived
+
+  node_numerical_trajectory:
+    expression: "numerical_ivp_trajectory(t; m, k, x0, v0)"
+    dimension: "L"
+    latex: "x_{\\text{num}}(t) \\approx x(t)"
+    domain: computational_physics
+    source: computational
+
+  node_empirical_fit:
+    expression: "omega_fit = 2.000 rad/s, R2 = 0.998"
+    dimension: "T^-1"
+    latex: "\\hat{\\omega} = 2.000 \\pm 0.005 \\text{ rad/s}"
+    domain: experimental_physics
+    source: experimental
+
+derivations:
+  edge_euler_lagrange:
+    input_nodes: ["node_lagrangian"]
+    output_nodes: ["node_eom"]
+    transformation_rule: "euler_lagrange"
+    justification: "Hamilton's Principle of Stationary Action: d/dt(dL/dx_dot) - dL/dx = 0"
+    checker: "sympy"
+
+  edge_formal_conservation:
+    input_nodes: ["node_lagrangian", "node_eom"]
+    output_nodes: ["node_conserved_energy"]
+    transformation_rule: "conserve_energy"
+    justification: "Noether's Theorem / Jacobi Energy Integral: dE/dt = v*(m*a + k*x) = 0 on-shell"
+    checker: "lean4"
+
+  edge_analytical_solution:
+    input_nodes: ["node_eom"]
+    output_nodes: ["node_analytical_solution"]
+    transformation_rule: "solve_harmonic_oscillator"
+    justification: "General Solution to Second-Order Linear Homogeneous ODE"
+    checker: "sympy"
+
+  edge_numerical_simulation:
+    input_nodes: ["node_eom"]
+    output_nodes: ["node_numerical_trajectory"]
+    transformation_rule: "numerical_simulation"
+    justification: "Runge-Kutta 4(5) Dormand-Prince IVP Integration"
+    checker: "numerical"
+    parameters:
+      m: 1.0
+      k: 4.0
+      x0: 1.0
+      v0: 0.0
+      t_max: 10.0
+
+  edge_empirical_inference:
+    input_nodes: ["node_analytical_solution"]
+    output_nodes: ["node_empirical_fit"]
+    transformation_rule: "empirical_inference"
+    justification: "Non-Linear Least Squares Parameter Estimation & Chi-Square Residual Analysis"
+    checker: "statistical"
+    parameters:
+      m: 1.0
+      k: 4.0
+      n_points: 50
+      noise_std: 0.05

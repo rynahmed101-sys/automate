@@ -1,0 +1,37 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Lean 4 artifacts
+.lake/
+lake-manifest.json
+*.olean
+*.ilean
+*.c
+*.trace
+
+# Editor & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# Temporary outputs
+temp/
+output/
+*.log
