@@ -82,8 +82,9 @@ def apply_and_verify_proposal(
             errors=val_res.errors
         )
 
-    # 2. Prepare candidate objects on a clone to protect canonical graph
-    working_graph = copy.deepcopy(graph) if dry_run else graph
+    # 2. Always build and verify on an isolated candidate graph.
+    # Nothing reaches the canonical graph until verification succeeds.
+    working_graph = copy.deepcopy(graph)
 
     # Register proposed assumptions
     for asm_data in proposal.proposed_assumptions:
@@ -149,7 +150,7 @@ def apply_and_verify_proposal(
             errors=[dim_report.error_message] if dim_report.error_message else [
                 "Dimensional consistency check failed."
             ],
-            graph_updated=not dry_run,
+            graph_updated=False,
         )
 
     checker_name = proposal.target_checker
@@ -189,6 +190,18 @@ def apply_and_verify_proposal(
         "dimension_check": dim_report.to_dict()
     }
 
+    graph_updated = False
+    if verif_report.passed and not dry_run:
+        # Commit only the newly verified candidate objects.
+        for out_id in out_node_ids:
+            graph.nodes[out_id] = copy.deepcopy(working_graph.nodes[out_id])
+        graph.edges[edge_id] = copy.deepcopy(working_graph.edges[edge_id])
+        for asm_data in proposal.proposed_assumptions:
+            asm_id = asm_data.get("id")
+            if asm_id and asm_id in working_graph.assumptions:
+                graph.assumptions[asm_id] = copy.deepcopy(working_graph.assumptions[asm_id])
+        graph_updated = True
+
     return ProposalExecutionResult(
         success=verif_report.passed,
         proposal_id=proposal.proposal_id,
@@ -196,5 +209,5 @@ def apply_and_verify_proposal(
         status=verif_report.status,
         report=report_data,
         errors=[verif_report.error_message] if verif_report.error_message else [],
-        graph_updated=not dry_run
+        graph_updated=graph_updated
     )
