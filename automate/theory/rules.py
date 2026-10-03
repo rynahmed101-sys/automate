@@ -40,8 +40,8 @@ class RuleDefinition(BaseModel):
         if self.implementation_backend == "statistical":
             return ["statistical"]
         allowed = [self.implementation_backend]
-        if self.symbolic_checker_available and self.implementation_backend == "sympy":
-            allowed = ["sympy"]
+        if self.symbolic_checker_available:
+            allowed.append("sympy")
         if self.formal_proof_available:
             allowed.append("lean4")
         return list(dict.fromkeys(allowed))
