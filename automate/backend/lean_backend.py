@@ -79,10 +79,23 @@ class LeanChecker(BaseChecker):
         env = os.environ.copy()
         if self._lean_path:
             p = Path(self._lean_path)
-            # If inside an elan directory structure (.../elan/bin/lean), infer ELAN_HOME
+            # Keep Elan available when the checker launches Lean from a sandbox.
             if p.parent.name.lower() == "bin" and p.parent.parent.name.lower().endswith("elan"):
                 env.setdefault("ELAN_HOME", str(p.parent.parent))
+                elan_bin = str(p.parent)
+                path_entries = env.get("PATH", "").split(os.pathsep)
+                if elan_bin not in path_entries:
+                    env["PATH"] = elan_bin + os.pathsep + env.get("PATH", "")
         return env
+
+    def _find_lean_toolchain_file(self) -> Optional[Path]:
+        """Find the repository's Elan toolchain declaration from the current working tree."""
+        current = Path.cwd().resolve()
+        for directory in (current, *current.parents):
+            candidate = directory / "lean-toolchain"
+            if candidate.is_file():
+                return candidate
+        return None
 
     def _detect_version(self) -> str:
         if not self._lean_path:
@@ -311,6 +324,14 @@ end Automate.Derivations
         temp_file = Path(temp_dir) / "ProofObligation.lean"
         try:
             temp_file.write_text(code, encoding="utf-8")
+            # Elan's lean shim selects the toolchain from lean-toolchain files
+            # relative to the working directory. Copy the project's declaration
+            # into the sandbox so the isolated compiler invocation resolves the
+            # exact same toolchain as the calling repository.
+            toolchain_file = self._find_lean_toolchain_file()
+            if toolchain_file is not None:
+                shutil.copy2(toolchain_file, Path(temp_dir) / "lean-toolchain")
+
             env = self._get_execution_env()
 
             proc = subprocess.run(
