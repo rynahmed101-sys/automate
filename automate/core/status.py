@@ -23,6 +23,9 @@ class VerificationStatus(str, Enum):
     # Step has not yet been subjected to any verification backend
     UNVERIFIED = "UNVERIFIED"
 
+    # Tensor-index structure verified under Einstein summation semantics
+    TENSOR_CHECKED = "TENSOR_CHECKED"
+
     # Verified algebraically or via computer algebra calculus (e.g. SymPy)
     SYMBOLIC_CHECKED = "SYMBOLIC_CHECKED"
 
@@ -59,6 +62,7 @@ class VerificationStatus(str, Enum):
         return self in {
             VerificationStatus.DIMENSIONALLY_CHECKED,
             VerificationStatus.SYMBOLIC_CHECKED,
+            VerificationStatus.TENSOR_CHECKED,
             VerificationStatus.NUMERICALLY_CHECKED,
             VerificationStatus.STATISTICALLY_CHECKED,
             VerificationStatus.FORMALLY_PROVED,
@@ -75,9 +79,10 @@ class VerificationStatus(str, Enum):
             VerificationStatus.STRUCTURALLY_VALID: 3,
             VerificationStatus.CONDITIONAL: 4,
             VerificationStatus.DIMENSIONALLY_CHECKED: 5,
-            VerificationStatus.STATISTICALLY_CHECKED: 6,
-            VerificationStatus.NUMERICALLY_CHECKED: 7,
-            VerificationStatus.SYMBOLIC_CHECKED: 8,
-            VerificationStatus.FORMALLY_PROVED: 9,
+            VerificationStatus.STATISTICALLY_CHECKED: 7,
+            VerificationStatus.TENSOR_CHECKED: 8,
+            VerificationStatus.NUMERICALLY_CHECKED: 9,
+            VerificationStatus.SYMBOLIC_CHECKED: 10,
+            VerificationStatus.FORMALLY_PROVED: 11,
         }
         return ranks.get(self, 0)
