@@ -275,8 +275,12 @@ class StatisticalChecker(BaseChecker):
             return False, {}, [], "Observed data have zero variance; R-squared is undefined."
         r_squared = float(1.0 - (ss_res / ss_tot))
 
-        pass_chi2 = 0.5 <= reduced_chi2 <= 2.0
-        pass_r2 = r_squared > 0.90
+        chi2_upper_bound = float(params.get("max_reduced_chi2", 2.0))
+        minimum_reduced_chi2 = params.get("min_reduced_chi2")
+        pass_chi2 = reduced_chi2 <= chi2_upper_bound
+        if minimum_reduced_chi2 is not None:
+            pass_chi2 = pass_chi2 and reduced_chi2 >= float(minimum_reduced_chi2)
+        pass_r2 = r_squared > float(params.get("min_r_squared", 0.90))
         passed = pass_chi2 and pass_r2
 
         k_est = m_true * omega_est ** 2
@@ -289,8 +293,12 @@ class StatisticalChecker(BaseChecker):
             "r_squared": r_squared,
             "residual_mean": float(np.mean(residuals)),
             "residual_std": float(np.std(residuals, ddof=1)),
-            "chi2_acceptance_range": [0.5, 2.0],
-            "r_squared_threshold": 0.90,
+            "chi2_acceptance_range": [
+                float(minimum_reduced_chi2) if minimum_reduced_chi2 is not None else None,
+                chi2_upper_bound,
+            ],
+            "r_squared_threshold": float(params.get("min_r_squared", 0.90)),
+            "low_reduced_chi2_is_diagnostic_only": minimum_reduced_chi2 is None,
         }
 
         estimates = {
