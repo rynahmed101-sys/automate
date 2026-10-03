@@ -257,3 +257,91 @@ def test_sympy_parser_rejects_python_execution_payload():
 
     with pytest.raises((NameError, ValueError, SyntaxError)):
         safe_parse_expr("__import__('os').system('echo SHOULD_NOT_RUN')")
+
+
+def _two_node_edge(input_expr, output_expr, rule, parameters=None):
+    graph = DerivationGraph(id=f"transform_{rule}")
+    graph.add_node(DerivationNode(
+        id="input",
+        expression=MathematicalExpression(raw_str=input_expr),
+    ))
+    graph.add_node(DerivationNode(
+        id="output",
+        expression=MathematicalExpression(raw_str=output_expr),
+    ))
+    edge = DerivationEdge(
+        id=f"edge_{rule}",
+        input_nodes=["input"],
+        output_nodes=["output"],
+        transformation_rule=rule,
+        justification="Transformation regression test",
+        parameters=parameters or {},
+    )
+    graph.add_edge(edge)
+    return graph, edge
+
+
+def test_sympy_divide_both_sides_requires_nonzero_divisor():
+    graph, edge = _two_node_edge(
+        "m * x_ddot + k * x = 0",
+        "x_ddot + (k/m) * x = 0",
+        "divide_both_sides",
+        {"divisor": "m"},
+    )
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert report.passed is True
+
+
+def test_sympy_divide_both_sides_rejects_unproven_zero_case():
+    graph, edge = _two_node_edge(
+        "x = 1",
+        "x/y = 1/y",
+        "divide_both_sides",
+        {"divisor": "y"},
+    )
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert report.passed is False
+    assert "non-zero" in (report.error_message or "")
+
+
+def test_sympy_substitute_verification():
+    graph, edge = _two_node_edge(
+        "x**2 + 2*x + 1",
+        "9",
+        "substitute",
+        {"symbol": "x", "replacement": "2"},
+    )
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert report.passed is True
+
+
+def test_sympy_substitute_rejects_wrong_result():
+    graph, edge = _two_node_edge(
+        "x**2 + 2*x + 1",
+        "10",
+        "substitute",
+        {"symbol": "x", "replacement": "2"},
+    )
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert report.passed is False
+
+
+def test_sympy_simplify_verification():
+    graph, edge = _two_node_edge(
+        "(x + 1)**2",
+        "x**2 + 2*x + 1",
+        "simplify",
+    )
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert report.passed is True
+
+
+def test_sympy_differentiate_both_sides_verification():
+    graph, edge = _two_node_edge(
+        "x(t)**2 = t**2",
+        "2*x(t)*x_dot = 2*t",
+        "differentiate_both_sides",
+        {"wrt": "t", "coordinate": "x", "time_variable": "t"},
+    )
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert report.passed is True
