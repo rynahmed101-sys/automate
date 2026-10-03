@@ -193,7 +193,13 @@ class NumericalChecker(BaseChecker):
 
         E_num = 0.5 * m * v_num**2 + 0.5 * k * x_num**2
         E0 = 0.5 * m * v0**2 + 0.5 * k * x0**2
-        energy_drift = float(np.max(np.abs(E_num - E0) / E0))
+        absolute_energy_drift = float(np.max(np.abs(E_num - E0)))
+        if E0 > 0:
+            energy_drift = absolute_energy_drift / E0
+            energy_drift_mode = "relative"
+        else:
+            energy_drift = absolute_energy_drift
+            energy_drift_mode = "absolute_zero_initial_energy"
 
         max_allowed_error = 1e-4
         max_allowed_drift = 1e-4
@@ -208,7 +214,9 @@ class NumericalChecker(BaseChecker):
             "rmse": rmse,
             "velocity_max_abs_error": velocity_max_abs_error,
             "velocity_rmse": velocity_rmse,
-            "energy_drift_relative": energy_drift,
+            "energy_drift_relative": energy_drift if E0 > 0 else None,
+            "energy_drift_absolute": absolute_energy_drift,
+            "energy_drift_mode": energy_drift_mode,
             "initial_energy_joules": float(E0),
             "final_energy_joules": float(E_num[-1]),
             "num_steps": len(t),
@@ -242,7 +250,10 @@ class NumericalChecker(BaseChecker):
             {
                 "step": "energy_conservation_check",
                 "description": "Computed mechanical energy E(t) = 0.5*m*v^2 + 0.5*k*x^2",
-                "result": f"Max relative drift = {energy_drift:.2e} (tolerance < {max_allowed_drift})",
+                "result": (
+                    f"Max {energy_drift_mode} drift = {energy_drift:.2e} "
+                    f"(tolerance < {max_allowed_drift})"
+                ),
             },
         ]
 
