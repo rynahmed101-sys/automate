@@ -27,19 +27,22 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Set up Lean 4
-        uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9
-        with:
-          auto-config: false
-          build: false
-          test: false
-          lint: false
-          use-github-cache: false
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSf https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          elan toolchain install "$(cat lean-toolchain)"
+          lean --version
 
       - name: Verify Lean toolchain
+        shell: bash
         run: |
-          lean --version
+          set -euo pipefail
           test -f lean-toolchain
           test -n "$(cat lean-toolchain)"
+          command -v lean
+          test "$(lean --version | grep -oE 'version [0-9]+\.[0-9]+\.[0-9]+' | head -1 | awk '{print $2}')" = "4.34.1"
 
       - name: Install package and test dependencies
         run: |
