@@ -111,6 +111,15 @@ def validate_ai_proposal(
         schema_errs = [f"{e['loc']}: {e['msg']}" for e in ve.errors()]
         return ProposalValidationResult(False, None, [f"Schema validation error: {'; '.join(schema_errs)}"])
 
+    # 4. Verification backend validation
+    allowed_checkers = {"sympy", "lean4", "numerical", "statistical", "dimension"}
+    if proposal_target := raw_proposal.get("target_checker"):
+        if proposal_target not in allowed_checkers:
+            errors.append(
+                f"Unknown verification backend '{proposal_target}'. "
+                f"Must be one of: {', '.join(sorted(allowed_checkers))}."
+            )
+
     # 4. Semantic rule validation against RuleRegistry
     registry = rule_registry or RuleRegistry()
     rule_def = registry.get(proposal.rule)
