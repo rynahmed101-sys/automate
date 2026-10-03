@@ -113,6 +113,17 @@ class DerivationGraph(BaseModel):
             raise ValueError("Graph contains cycles; cannot produce topological order.")
         return order
 
+    def is_fully_verified(self) -> bool:
+        """
+        True if all derivation edges in the graph have passed verification and there are no failures.
+        """
+        if not self.edges:
+            return False
+        failed_edges = self.get_failed_derivations()
+        return (len(failed_edges) == 0) and all(
+            e.status.is_verified for e in self.edges.values()
+        )
+
     def compute_inherited_assumptions(self, node_id: str) -> Set[str]:
         """
         Computes the complete transitive set of assumptions upon which node_id depends.
@@ -333,12 +344,30 @@ class DerivationGraph(BaseModel):
             if subgraph:
                 expansions_data[eid] = subgraph.model_dump()
 
+        # 6. provenance.json
+        from automate.ai.context import compute_semantic_graph_hash
+        provenance_data = {
+            "graph_semantic_hash": compute_semantic_graph_hash(self),
+            "generated_at": cert_data["generated_at"],
+            "edge_provenance": {
+                eid: {
+                    "checker": edge.checker,
+                    "status": edge.status.value,
+                    "origin": edge.metadata.get("origin", {"type": "analytical_definition"}),
+                    "lean_provenance": edge.evidence.get("reproducibility") if edge.evidence and edge.checker == "lean4" else None
+                }
+                for eid, edge in self.edges.items()
+            }
+        }
+
+        # 7. Write package files
         files = {
             "certificate.json": out_path / "certificate.json",
             "assumptions.json": out_path / "assumptions.json",
             "obligations.json": out_path / "obligations.json",
             "evidence.json": out_path / "evidence.json",
             "subgraph_expansion.json": out_path / "subgraph_expansion.json",
+            "provenance.json": out_path / "provenance.json",
         }
 
         files["certificate.json"].write_text(json.dumps(cert_data, indent=2), encoding="utf-8")
@@ -346,6 +375,19 @@ class DerivationGraph(BaseModel):
         files["obligations.json"].write_text(json.dumps(obligations_data, indent=2), encoding="utf-8")
         files["evidence.json"].write_text(json.dumps(evidence_data, indent=2), encoding="utf-8")
         files["subgraph_expansion.json"].write_text(json.dumps(expansions_data, indent=2), encoding="utf-8")
+        files["provenance.json"].write_text(json.dumps(provenance_data, indent=2), encoding="utf-8")
+
+        # 8. manifest.json with SHA-256 hashes of all artifacts
+        import hashlib
+        manifest = {}
+        for fname, fpath in files.items():
+            manifest[fname] = {
+                "sha256": hashlib.sha256(fpath.read_bytes()).hexdigest(),
+                "size_bytes": fpath.stat().st_size
+            }
+        manifest_file = out_path / "manifest.json"
+        manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        files["manifest.json"] = manifest_file
 
         return {k: str(v) for k, v in files.items()}
 

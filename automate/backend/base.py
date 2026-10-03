@@ -20,6 +20,8 @@ class VerificationEvidence(BaseModel):
     """
     backend: str
     backend_version: str
+    graph_id: Optional[str] = None
+    edge_id: Optional[str] = None
     input_node_ids: List[str] = Field(default_factory=list)
     output_node_ids: List[str] = Field(default_factory=list)
     assumptions_used: List[str] = Field(default_factory=list)

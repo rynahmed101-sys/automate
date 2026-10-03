@@ -142,11 +142,25 @@ def test_export_certificate_package(tmp_path):
     export_dir = tmp_path / "cert_pkg"
     files = graph.export_certificate_package(export_dir)
 
-    assert len(files) == 5
-    for expected in ["certificate.json", "assumptions.json", "obligations.json", "evidence.json", "subgraph_expansion.json"]:
+    assert len(files) == 7
+    expected_files = [
+        "certificate.json",
+        "assumptions.json",
+        "obligations.json",
+        "evidence.json",
+        "subgraph_expansion.json",
+        "provenance.json",
+        "manifest.json"
+    ]
+    for expected in expected_files:
         assert expected in files
         file_path = tmp_path / "cert_pkg" / expected
         assert file_path.exists()
+
+    manifest_content = json.loads((tmp_path / "cert_pkg" / "manifest.json").read_text(encoding="utf-8"))
+    assert "certificate.json" in manifest_content
+    assert "provenance.json" in manifest_content
+    assert "sha256" in manifest_content["certificate.json"]
 
     cert_content = json.loads((tmp_path / "cert_pkg" / "certificate.json").read_text(encoding="utf-8"))
     assert cert_content["graph_id"] == "cert_test"

@@ -51,8 +51,10 @@ class DerivativeNode(BaseModel):
     kind: Literal["derivative"] = "derivative"
     target: Dict[str, Any]
     wrt: List[str]  # e.g. ["t"] or ["t", "t"] for 2nd order
-    deriv_type: Literal["total", "partial", "time_dot"] = "total"
+    deriv_type: Literal["total", "partial", "time_dot", "covariant", "functional", "directional"] = "total"
     order: int = 1
+    connection_symbol: Optional[str] = None  # for covariant derivative, e.g. 'Gamma'
+    direction_vector: Optional[str] = None  # for directional derivative
 
 
 class IntegralNode(BaseModel):
@@ -62,14 +64,98 @@ class IntegralNode(BaseModel):
     lower_bound: Optional[Dict[str, Any]] = None
     upper_bound: Optional[Dict[str, Any]] = None
     definite: bool = False
+    measure: Optional[str] = None  # e.g. 'd^4x sqrt(-g)'
 
 
 class TensorNode(BaseModel):
     kind: Literal["tensor"] = "tensor"
     name: str
-    indices: List[str]  # e.g. ["\mu", "\nu"]
+    indices: List[str] = Field(default_factory=list)  # e.g. ["\mu", "\nu"]
     contravariant: List[bool] = Field(default_factory=list)  # True = upper, False = lower
     components: Optional[List[Any]] = None
+    dimension: str = ""
+    symmetry: Optional[str] = None
+
+    def get_typed_indices(self) -> List[Any]:
+        from automate.ir.tensors import TensorIndex
+        typed = []
+        for i, idx_str in enumerate(self.indices):
+            is_upper = self.contravariant[i] if i < len(self.contravariant) else False
+            typed.append(TensorIndex(
+                symbol=idx_str.lstrip("\\"),
+                position="upper" if is_upper else "lower"
+            ))
+        return typed
+
+
+class ScalarNode(BaseModel):
+    kind: Literal["scalar"] = "scalar"
+    value: Union[int, float, str]
+    dimension: str = ""
+    is_constant: bool = False
+
+
+class FieldNode(BaseModel):
+    kind: Literal["field"] = "field"
+    name: str
+    field_type: Literal["scalar", "vector", "tensor", "spinor"] = "scalar"
+    spacetime_coordinates: List[str] = Field(default_factory=lambda: ["t", "x", "y", "z"])
+    dimension: str = ""
+    indices: List[str] = Field(default_factory=list)
+
+
+class OperatorNode(BaseModel):
+    kind: Literal["operator"] = "operator"
+    name: str
+    symbol: str
+    domain: str = "hilbert_space"
+    is_hermitian: bool = True
+
+
+class FunctionNode(BaseModel):
+    kind: Literal["function"] = "function"
+    name: str
+    args: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class LimitNode(BaseModel):
+    kind: Literal["limit"] = "limit"
+    expression: Dict[str, Any]
+    variable: str
+    target: str
+    direction: Literal["both", "left", "right"] = "both"
+
+
+class SumNode(BaseModel):
+    kind: Literal["sum"] = "sum"
+    summand: Dict[str, Any]
+    index: str
+    lower_bound: str
+    upper_bound: str
+
+
+class ProductNode(BaseModel):
+    kind: Literal["product"] = "product"
+    factor: Dict[str, Any]
+    index: str
+    lower_bound: str
+    upper_bound: str
+
+
+class ActionNode(BaseModel):
+    kind: Literal["action"] = "action"
+    name: str = "S"
+    lagrangian_density: Dict[str, Any] = Field(default_factory=dict)
+    measure: Dict[str, Any] = Field(default_factory=dict)
+    boundary_terms: List[str] = Field(default_factory=list)
+    dimension: str = "M*L^2*T^-1"
+
+
+class MeasureNode(BaseModel):
+    kind: Literal["measure"] = "measure"
+    coordinates: List[str] = Field(default_factory=lambda: ["t", "x", "y", "z"])
+    metric_determinant: str = "sqrt(-g)"
+    dimension: str = "L^4"
 
 
 class EquationNode(BaseModel):
@@ -141,6 +227,9 @@ class IRNodeKind(str, Enum):
     OBSERVABLE = "observable"
     PARAMETER = "parameter"
     TRAJECTORY = "trajectory"
+    ACTION = "action"
+    FIELD_EQUATION = "field_equation"
+    TENSOR = "tensor"
 
 
 class MathematicalExpression(BaseModel):

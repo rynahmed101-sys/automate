@@ -1,38 +1,52 @@
 # Automate
 
 > **Local-First, Machine-Checkable Formal Physics Derivation Engine**
+> Version 0.2.0 • Canonical Mathematical Semantics • Universal AI Interface • Offline Verification
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Lean 4: v4.34.1](https://img.shields.io/badge/Lean%204-v4.34.1-purple.svg)](https://lean-lang.org/)
-[![SymPy: Verified](https://img.shields.io/badge/SymPy-1.14-green.svg)](https://www.sympy.org/)
-[![JSON Schema: v0.1](https://img.shields.io/badge/JSON%20Schema-Draft%202020--12-orange.svg)](schemas/automate-ir-v0.1.json)
-[![Tests: 24 Passed](https://img.shields.io/badge/Tests-24%20passed-brightgreen.svg)](tests/)
+[![Lean 4: v4.15+](https://img.shields.io/badge/Lean%204-v4.15%2B-purple.svg)](https://lean-lang.org/)
+[![SymPy: Verified](https://img.shields.io/badge/SymPy-1.13%2B-green.svg)](https://www.sympy.org/)
+[![JSON Schema: v0.2](https://img.shields.io/badge/JSON%20Schema-v0.2-orange.svg)](schemas/automate-ir-v0.1.json)
+[![Tests: 48 Passed](https://img.shields.io/badge/Tests-48%20passed-brightgreen.svg)](tests/)
 
 Automate is an open-source, local-first computational framework that unifies:
-1. **Symbolic Mathematics & Calculus** (SymPy)
-2. **Formal Interactive Theorem Proving** (Lean 4)
-3. **High-Precision Numerical Simulation** (NumPy, SciPy, mpmath)
-4. **Statistical Inference & Uncertainty Quantification** (SciPy)
-5. **Physical Dimensional Consistency** (SI Base Dimensions)
-6. **Hierarchical, Machine-Auditable Derivation Graphs** with First-Class Assumption Tracking.
+1. **Canonical Mathematical Physics Semantics**: Typed ASTs, relativistic tensors, Einstein summation index algebra, spacetime manifolds, curvature tensors, and action functionals.
+2. **Universal AI Agent Subsystem**: Zero-trust AI proposal validation, offline mock provider, local LLM/OpenAI adapters, and controlled mathematical context generation.
+3. **Symbolic Mathematics & Calculus**: Computer algebra zero-testing, Euler-Lagrange equations, and ODE solutions (SymPy).
+4. **Formal Interactive Theorem Proving**: Machine-checked mathematical physics lemmas and invariance theorems (Lean 4).
+5. **High-Precision Numerical Simulation**: Runge-Kutta 4(5) initial value problem integration and energy conservation drift tracking (SciPy).
+6. **Statistical Inference & Uncertainty Quantification**: Non-linear parameter estimation, covariance matrices, and $\chi^2$ goodness-of-fit (SciPy).
+7. **Physical Dimensional Homogeneity**: Automated SI base dimension consistency verification ($[M, L, T, I, \Theta, N, J]$).
+8. **Machine-Auditable Certificate Packages**: Tamper-evident verification exports with cryptographic SHA-256 manifests.
 
 Automate treats physics derivations not as static linear LaTeX documents, but as **directed acyclic derivation graphs (DAGs)** where every single transformation step is machine-checkable, assumptions are explicitly propagated, and high-level steps can be losslessly expanded into formal micro-proof certificates.
 
 ---
 
-## Architecture & Ecosystem Strategy
+## Direct AI Coding Agent Interface
 
-For detailed architectural analysis and open-source ecosystem mappings, see:
-* [Architecture Audit](docs/ARCHITECTURE_AUDIT.md): Comprehensive evaluation of current components, representation gaps, and verification guarantees.
-* [Ecosystem Survey & Strategy](docs/ECOSYSTEM.md): Pragmatic integration roadmap across Lean 4, Mathlib, Physlib, Physics Derivation Graph, SymPy, SciPy, and Z3.
+Automate 0.2 is purpose-built for direct interaction with autonomous AI coding agents without requiring internet access, cloud accounts, or proprietary APIs.
+
+* **[AI Agent Operations Manual](AUTOMATE_AI.md)**: Complete guide for AI coding assistants to clone, inspect, propose, and verify.
+* **[AI Integration Architecture](AI_INTEGRATION.md)**: Zero-trust security boundary, provider adapters, and candidate ingestion pipelines.
+* **[Schema Catalog & Formats](SCHEMAS.md)**: Specifications for IR, AI context, proposal formats, and certificate packages.
+* **[Security Architecture & Threat Model](SECURITY.md)**: Static pattern interception, sandboxing, and denial-of-service bounds.
+* **[Canonical IR Specification](docs/IR_SPECIFICATION.md)**: Typed expression ASTs, tensor index contraction algebra, and differential geometry primitives.
+* **[Verification Model & Status Taxonomy](docs/VERIFICATION_MODEL.md)**: Honest multidimensional verification semantics without scalar percentage scores.
+
+---
+
+## Core System Architecture
 
 ```
-Human / AI
-    ↓
-Physics Intermediate Representation (AST + Assumptions + Dimensions)
-    ↓
-Derivation Graph (DAG)
+Human / AI Coding Agent
+    ↓  (automate context <theory> --json)
+Controlled Mathematical Context (automate.context.v1)
+    ↓  (automate.proposal.v1)
+Security & Schema Validator (automate/ai/validation.py)
+    ↓  (AI_PROPOSED status)
+Derivation Graph (DAG) + Rule Registry Obligations
     ↓
 Specialized Verification Backends:
  ├── Dimensional Analysis  → Base SI dimensions [M, L, T, I, Theta, N, J]
@@ -41,7 +55,7 @@ Specialized Verification Backends:
  ├── Numerical Simulation  → SciPy (RK45 IVP integration, symplectic drift)
  └── Statistical Engine    → SciPy (Non-linear regression, chi2 residuals)
     ↓
-Verifiable Certificate Package (certificate.json, obligations.json, evidence.json)
+Cryptographically Hashed Certificate Package (manifest.json with SHA-256)
 ```
 
 ---
@@ -82,23 +96,13 @@ Automate strictly distinguishes between levels of mathematical certainty:
 * `DIMENSIONALLY_CHECKED`: Homogeneous physical dimensions confirmed across all terms.
 * `STRUCTURALLY_VALID`: Acyclic DAG topology and node identifier integrity confirmed.
 * `CONDITIONAL`: Dependent on active or unproven physical assumptions/approximations.
-* `PARSED`: Validated syntax and loaded into canonical IR.
+* `AI_PROPOSED`: Hypothesis proposed by an AI agent; strictly unverified until backends evaluate it.
+* `PARSED`: Validated syntax and loaded into canonical IR AST.
 * `UNVERIFIED`: Not yet checked by any verification backend.
 * `FAILED`: Contradiction detected, obligation violated, or checker raised an error.
 * `DISPROVED`: Mathematically disproved or counterexample discovered.
 
-> **CRITICAL SEMANTIC GUARANTEE**: Never represent "AI believes this is correct" as PROVED. Lean 4 verifies discrete algebraic and on-shell invariance identities without external axioms; SymPy verifies continuous differential variations; SciPy checks empirical and numerical bounds. Each backend is explicitly identified in every derivation certificate.
-
----
-
-## Assumptions as First-Class Objects
-In Automate, assumptions ($m > 0$, $k > 0$, $x(t) \in C^2(\mathbb{R})$, vanishing boundary terms) are explicitly tracked throughout the DAG.
-You can query:
-* *"Which conclusions depend on assumption A?"*
-* *"What survives if assumption A is removed?"*
-* *"Which nodes require the predicate 'positivity'?"*
-
-Dropping an assumption automatically computes the transitive dependency closure, flagging all downstream nodes as invalidated or conditional.
+> **CRITICAL SEMANTIC GUARANTEE**: Never represent "AI believes this is correct" as PROVED. Lean 4 verifies discrete algebraic and on-shell invariance identities without external axioms; SymPy verifies continuous differential variations; SciPy checks empirical and numerical bounds. Each backend is explicitly recorded in every derivation certificate.
 
 ---
 
@@ -124,22 +128,32 @@ One single command executes the entire verification pipeline for the 1D Harmonic
 .venv\Scripts\automate.exe demo
 ```
 
-This will:
-1. Parse `examples/harmonic_oscillator.yaml` into canonical Intermediate Representation (IR).
-2. Validate DAG acyclicity and topological ordering.
-3. Verify dimensional consistency across all terms ($[L] = \text{Joules}$, $[F] = \text{Newtons}$).
-4. Symbolically verify Euler-Lagrange equations of motion and ODE general solution with SymPy.
-5. Formally compile and verify the energy conservation theorem in Lean 4.
-6. Execute Runge-Kutta 4(5) numerical simulation and check energy conservation drift ($\Delta E/E_0 < 10^{-6}$).
-7. Perform empirical non-linear parameter estimation and compute reduced $\chi^2$ and 95% confidence intervals.
-8. Perform assumption sensitivity analysis (simulating removal of $m > 0$).
-9. Generate standalone interactive HTML graph (`output/harmonic_oscillator.html`).
-10. Export self-contained, machine-auditable verification certificate package (`output/certificates/`).
-
 ---
 
 ## CLI Reference
 
+### Machine-Readable Agent Commands (`--json`)
+```powershell
+# Discover available verification backends, IR features, and AI providers
+automate capabilities --json
+
+# Extract sanitized mathematical context for an AI agent
+automate context examples/harmonic_oscillator.yaml --json
+
+# Validate an untrusted proposal against security rules and schema
+automate validate proposal.json --theory examples/harmonic_oscillator.yaml --json
+
+# Dry-run or execute an AI derivation step
+automate propose examples/harmonic_oscillator.yaml --request "Solve equation of motion" --dry-run --json
+
+# Run a bounded autonomous research loop
+automate research examples/harmonic_oscillator.yaml --provider mock --max-steps 3 --json
+
+# Dump canonical JSON schemas
+automate schema --name ir
+```
+
+### Human-Readable CLI Commands
 ```powershell
 # Run the canonical end-to-end physics demo
 automate demo
@@ -171,19 +185,19 @@ automate visualize graph.json -o graph.html
 # Print formatted verification matrix
 automate report graph.json
 
-# Export self-contained verifiable certificate package
+# Export self-contained verifiable certificate package with SHA-256 manifest
 automate export-certificate graph.json -o certificates/
 ```
 
 ---
 
-## Testing & Verification
+## Testing & Quality Assurance
 
-Automate includes an automated test suite covering AST operations, dimensional arithmetic, assumption inheritance, sensitivity simulation, cycle detection, lossless certificate expansion, failure propagation, JSON schema validation, Lean 4 toolchain execution, SymPy calculus, SciPy ODE integration, and non-linear parameter inference:
+Automate includes a comprehensive test suite covering typed AST serialization, tensor Einstein summation, field theory actions, differential geometry, AI security validation, mock providers, CLI JSON commands, Lean 4 toolchain execution, SymPy calculus, SciPy ODE integration, and non-linear parameter inference:
 
 ```powershell
-.venv\Scripts\pytest.exe tests/ -v
-# 24 passed in ~15s
+.venv\Scripts\pytest.exe -v
+# 48 passed in ~20s
 ```
 
 ---

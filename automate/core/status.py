@@ -50,6 +50,9 @@ class VerificationStatus(str, Enum):
     # Step not applicable for formal check
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
+    # Step or hypothesis proposed by an AI agent (unverified proposal)
+    AI_PROPOSED = "AI_PROPOSED"
+
     @property
     def is_verified(self) -> bool:
         """True if the node has passed at least one mathematical verification check."""
@@ -66,6 +69,7 @@ class VerificationStatus(str, Enum):
         """Ordinal rank of verification strength for visual sorting."""
         ranks = {
             VerificationStatus.FAILED: 0,
+            VerificationStatus.AI_PROPOSED: 1,
             VerificationStatus.UNVERIFIED: 1,
             VerificationStatus.PARSED: 2,
             VerificationStatus.STRUCTURALLY_VALID: 3,

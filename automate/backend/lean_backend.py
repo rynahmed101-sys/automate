@@ -37,26 +37,58 @@ class LeanChecker(BaseChecker):
         return bool(self._lean_path and os.path.exists(self._lean_path))
 
     def _discover_lean_path(self) -> Optional[str]:
-        # Check standard Automate toolchain locations
-        candidates = [
-            r"F:\elan\bin\lean.exe",
-            r"F:\elan\bin\lean",
-            r"C:\elan\bin\lean.exe",
-            shutil.which("lean.exe"),
-            shutil.which("lean")
+        # 1. Direct environment variable overrides
+        for env_var in ("LEAN_BIN", "LEAN_PATH"):
+            val = os.environ.get(env_var)
+            if val and os.path.exists(val):
+                return val
+
+        # 2. ELAN_HOME environment variable
+        elan_home = os.environ.get("ELAN_HOME")
+        if elan_home:
+            exe_name = "lean.exe" if os.name == "nt" else "lean"
+            candidate = Path(elan_home) / "bin" / exe_name
+            if candidate.exists():
+                return str(candidate)
+
+        # 3. System PATH lookup
+        lean_in_path = shutil.which("lean.exe" if os.name == "nt" else "lean") or shutil.which("lean")
+        if lean_in_path and os.path.exists(lean_in_path):
+            return lean_in_path
+
+        # 4. Standard platform user home location (~/.elan/bin)
+        exe_name = "lean.exe" if os.name == "nt" else "lean"
+        user_elan = Path.home() / ".elan" / "bin" / exe_name
+        if user_elan.exists():
+            return str(user_elan)
+
+        # 5. Known installation prefixes (only checked if present on system)
+        system_candidates = [
+            Path("/usr/local/bin/lean"),
+            Path("/opt/homebrew/bin/lean"),
+            Path("F:/elan/bin/lean.exe"),
+            Path("C:/elan/bin/lean.exe")
         ]
-        for c in candidates:
-            if c and os.path.exists(c):
-                return c
+        for c in system_candidates:
+            if c.exists():
+                return str(c)
+
         return None
+
+    def _get_execution_env(self) -> Dict[str, str]:
+        env = os.environ.copy()
+        if self._lean_path:
+            p = Path(self._lean_path)
+            # If inside an elan directory structure (.../elan/bin/lean), infer ELAN_HOME
+            if p.parent.name.lower() == "bin" and p.parent.parent.name.lower().endswith("elan"):
+                env.setdefault("ELAN_HOME", str(p.parent.parent))
+        return env
 
     def _detect_version(self) -> str:
         if not self._lean_path:
             return "Not Installed"
         try:
-            env = os.environ.copy()
-            if "F:\\elan" in self._lean_path:
-                env["ELAN_HOME"] = r"F:\elan"
+            env = self._get_execution_env()
             res = subprocess.run(
                 [self._lean_path, "--version"],
                 capture_output=True,
@@ -160,6 +192,8 @@ class LeanChecker(BaseChecker):
         evidence = VerificationEvidence(
             backend=self.name,
             backend_version=self.version,
+            graph_id=graph.id,
+            edge_id=edge.id,
             input_node_ids=edge.input_nodes,
             output_node_ids=edge.output_nodes,
             assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
@@ -169,8 +203,14 @@ class LeanChecker(BaseChecker):
             passed=passed,
             status=status,
             execution_time_ms=elapsed,
-            reproducibility={"compiler": "lean", "version": self.version, "hash": code_hash},
-            metrics={"type_checked": passed}
+            reproducibility={
+                "compiler": "lean",
+                "version": self.version,
+                "source_hash": code_hash,
+                "obligation_id": theorem_name,
+                "generated_lean_source": lean_code
+            },
+            metrics={"type_checked": passed, "source_hash": code_hash}
         )
         edge.evidence = evidence.to_dict()
 
@@ -272,9 +312,7 @@ end Automate.Derivations
         temp_file = Path(temp_dir) / "ProofObligation.lean"
         try:
             temp_file.write_text(code, encoding="utf-8")
-            env = os.environ.copy()
-            if self._lean_path and "F:\\elan" in self._lean_path:
-                env["ELAN_HOME"] = r"F:\elan"
+            env = self._get_execution_env()
 
             proc = subprocess.run(
                 [self._lean_path, str(temp_file)],
