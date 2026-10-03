@@ -134,8 +134,8 @@ class NumericalChecker(BaseChecker):
         }
         try:
             eom_residual = sp.simplify(
-                safe_parse_expr(lhs_text.strip(), locals=local)
-                - safe_parse_expr(rhs_text.strip(), locals=local)
+                safe_parse_expr(lhs_text.strip(), locals_map=local)
+                - safe_parse_expr(rhs_text.strip(), locals_map=local)
             )
         except Exception as exc:
             return False, {}, [], f"Could not parse equation of motion: {type(exc).__name__}: {exc}"
