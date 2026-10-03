@@ -31,6 +31,21 @@ class RuleDefinition(BaseModel):
     symbolic_checker_available: bool = Field(default=True)
     citation: Optional[str] = None
 
+    def allowed_checkers(self) -> List[str]:
+        """Return backends that can actually verify this rule's mathematics."""
+        if self.implementation_backend == "tensor":
+            return ["tensor"]
+        if self.implementation_backend == "numerical":
+            return ["numerical"]
+        if self.implementation_backend == "statistical":
+            return ["statistical"]
+        allowed = [self.implementation_backend]
+        if self.symbolic_checker_available and self.implementation_backend == "sympy":
+            allowed = ["sympy"]
+        if self.formal_proof_available:
+            allowed.append("lean4")
+        return list(dict.fromkeys(allowed))
+
     def generate_obligations(self, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
         Synthesizes concrete verification obligations given step parameters.
@@ -110,7 +125,7 @@ class RuleRegistry:
             required_assumptions=["vanishing_boundary_variations"],
             implementation_backend="sympy",
             formal_proof_available=False,
-            symbolic_checker_available=True
+            symbolic_checker_available=False
         ))
 
         # 2. Conservation Laws
@@ -192,7 +207,7 @@ class RuleRegistry:
             domain="differential_geometry",
             implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True
+            symbolic_checker_available=False
         ))
 
         self.register(RuleDefinition(
@@ -203,7 +218,7 @@ class RuleRegistry:
             domain="differential_geometry",
             implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True
+            symbolic_checker_available=False
         ))
 
         self.register(RuleDefinition(
@@ -214,7 +229,7 @@ class RuleRegistry:
             domain="differential_geometry",
             implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True
+            symbolic_checker_available=False
         ))
 
         # 5. Differential Equations & Solutions
@@ -255,7 +270,7 @@ class RuleRegistry:
             rule_id="numerical_simulation",
             name="Numerical IVP Integration",
             category="numerics",
-            description="Numerical integration of equations of motion using Runge-Kutta ODE solver",
+            description="Numerical integration of the supported harmonic-oscillator equation using a Runge-Kutta ODE solver",
             domain="computational_physics",
             implementation_backend="numerical",
             formal_proof_available=False,
@@ -266,7 +281,7 @@ class RuleRegistry:
             rule_id="empirical_inference",
             name="Empirical Parameter Estimation",
             category="statistics",
-            description="Non-linear least squares parameter estimation against observational data",
+            description="Non-linear least squares estimation for the supported harmonic harmonic-oscillator model against observational data",
             domain="experimental_physics",
             implementation_backend="statistical",
             formal_proof_available=False,
