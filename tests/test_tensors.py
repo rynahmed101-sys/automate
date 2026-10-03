@@ -151,3 +151,18 @@ def test_tensor_equation_validation():
     eq_bad = validate_tensor_equation(g_munu.indices, t_mu.indices)
     assert eq_bad.is_valid is False
     assert any("Equation index mismatch between LHS and RHS" in e for e in eq_bad.errors)
+
+
+def test_tensor_free_index_order_is_semantic():
+    mu_lower = TensorIndex(symbol="mu", position="lower")
+    nu_lower = TensorIndex(symbol="nu", position="lower")
+    nu_first = TensorIndex(symbol="nu", position="lower")
+    mu_second = TensorIndex(symbol="mu", position="lower")
+
+    result = validate_tensor_equation(
+        [mu_lower, nu_lower],
+        [nu_first, mu_second],
+    )
+
+    assert result.is_valid is False
+    assert any("Equation index mismatch" in e for e in result.errors)
