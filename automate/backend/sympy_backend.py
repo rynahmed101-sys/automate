@@ -141,10 +141,10 @@ class SymPyChecker(BaseChecker):
         for relation in ("<=", ">=", "!=", "=", "<", ">"):
             if relation in text:
                 lhs_text, rhs_text = text.split(relation, 1)
-                lhs = safe_parse_expr(lhs_text.strip(), locals=locals_map)
-                rhs = safe_parse_expr(rhs_text.strip(), locals=locals_map)
+                lhs = safe_parse_expr(lhs_text.strip(), locals_map=locals_map)
+                rhs = safe_parse_expr(rhs_text.strip(), locals_map=locals_map)
                 return sp.simplify(lhs - rhs), relation
-        return safe_parse_expr(text, locals=locals_map), None
+        return safe_parse_expr(text, locals_map=locals_map), None
 
     @staticmethod
     def _build_context(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -195,17 +195,17 @@ class SymPyChecker(BaseChecker):
         )
         if coordinate:
             text = re.sub(
-                rf"\\bdiff\\(\\s*{re.escape(coordinate)}\\(\\s*{re.escape(time_symbol)}\\s*\\)\\s*,\\s*{re.escape(time_symbol)}\\s*,\\s*2\\s*\\)",
+                rf"\bdiff\(\s*{re.escape(coordinate)}\(\s*{re.escape(time_symbol)}\s*\)\s*,\s*{re.escape(time_symbol)}\s*,\s*2\s*\)",
                 f"{coordinate}_ddot",
                 text,
             )
             text = re.sub(
-                rf"\\bdiff\\(\\s*{re.escape(coordinate)}\\(\\s*{re.escape(time_symbol)}\\s*\\)\\s*,\\s*{re.escape(time_symbol)}\\s*\\)",
+                rf"\bdiff\(\s*{re.escape(coordinate)}\(\s*{re.escape(time_symbol)}\s*\)\s*,\s*{re.escape(time_symbol)}\s*\)",
                 f"{coordinate}_dot",
                 text,
             )
             text = re.sub(
-                rf"\\b{re.escape(coordinate)}\\(\\s*{re.escape(time_symbol)}\\s*\\)",
+                rf"\b{re.escape(coordinate)}\(\s*{re.escape(time_symbol)}\s*\)",
                 coordinate,
                 text,
             )
