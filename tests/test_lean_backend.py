@@ -2,6 +2,8 @@
 Tests for LeanChecker formal verification backend.
 """
 
+import os
+
 import pytest
 from automate.backend.lean_backend import LeanChecker
 from automate.core.graph import DerivationGraph
@@ -11,10 +13,17 @@ from automate.core.status import VerificationStatus
 from automate.ir.ast import MathematicalExpression
 
 
+def _lean_required() -> bool:
+    return os.environ.get("AUTOMATE_REQUIRE_LEAN") == "1"
+
+
 def test_lean_toolchain_detection():
     checker = LeanChecker()
-    # If lean is installed on the system (e.g. F:\elan\bin\lean.exe), verify availability
-    if checker.is_available():
+    if _lean_required():
+        assert checker.is_available(), "Lean 4 must be installed for the enforced CI test matrix."
+        assert "Lean" in checker.version
+        assert "4." in checker.version
+    elif checker.is_available():
         assert "Lean" in checker.version
         assert "4." in checker.version
 
@@ -22,6 +31,8 @@ def test_lean_toolchain_detection():
 def test_lean_formal_proof_verification():
     checker = LeanChecker()
     if not checker.is_available():
+        if _lean_required():
+            pytest.fail("Lean 4 compiler is required but was not detected in this environment.")
         pytest.skip("Lean 4 compiler not available in test environment.")
 
     graph = DerivationGraph(id="lean_test")
