@@ -31,6 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           curl -sSf https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
+          export PATH="$HOME/.elan/bin:$PATH"
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
           elan toolchain install "$(cat lean-toolchain)"
           lean --version
@@ -39,10 +40,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export PATH="$HOME/.elan/bin:$PATH"
           test -f lean-toolchain
           test -n "$(cat lean-toolchain)"
           command -v lean
-          test "$(lean --version | grep -oE 'version [0-9]+\.[0-9]+\.[0-9]+' | head -1 | awk '{print $2}')" = "4.34.1"
+          version="$(lean --version | grep -oE 'version [0-9]+\.[0-9]+\.[0-9]+' | head -1 | awk '{print $2}')"
+          test "$version" = "4.34.1"
 
       - name: Install package and test dependencies
         run: |
