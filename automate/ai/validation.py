@@ -112,7 +112,7 @@ def validate_ai_proposal(
         return ProposalValidationResult(False, None, [f"Schema validation error: {'; '.join(schema_errs)}"])
 
     # 4. Verification backend validation
-    allowed_checkers = {"sympy", "lean4", "numerical", "statistical", "dimension"}
+    allowed_checkers = {"sympy", "lean4", "numerical", "statistical", "dimension", "tensor"}
     if proposal_target := raw_proposal.get("target_checker"):
         if proposal_target not in allowed_checkers:
             errors.append(
