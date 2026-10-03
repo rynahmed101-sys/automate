@@ -179,7 +179,17 @@ class LeanChecker(BaseChecker):
             # theorems. Do not certify a different physical system merely because
             # the generic semantic preflight happened to succeed.
             local = semantic_checker._build_context(edge.parameters)
-            if edge.transformation_rule == "euler_lagrange":
+            formal_scope_supported = (
+                str(edge.parameters.get("coordinate", "x")) == "x"
+                and str(edge.parameters.get("time_variable", "t")) == "t"
+            )
+            if not formal_scope_supported:
+                semantic_ok = False
+                semantic_error = (
+                    "Lean formal scope currently requires coordinate='x' and "
+                    "time_variable='t'."
+                )
+            elif edge.transformation_rule == "euler_lagrange":
                 lagr = semantic_checker._parse_expression(
                     in_nodes[0].expression.raw_str, local
                 )
