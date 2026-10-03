@@ -8,6 +8,7 @@ import time
 from typing import Dict, Any, List, Optional, Tuple
 import sympy as sp
 
+from automate.backend.sympy_utils import safe_parse_expr
 from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge, DerivationCertificate
@@ -139,10 +140,10 @@ class SymPyChecker(BaseChecker):
         for relation in ("<=", ">=", "!=", "=", "<", ">"):
             if relation in text:
                 lhs_text, rhs_text = text.split(relation, 1)
-                lhs = sp.sympify(lhs_text.strip(), locals=locals_map)
-                rhs = sp.sympify(rhs_text.strip(), locals=locals_map)
+                lhs = safe_parse_expr(lhs_text.strip(), locals=locals_map)
+                rhs = safe_parse_expr(rhs_text.strip(), locals=locals_map)
                 return sp.simplify(lhs - rhs), relation
-        return sp.sympify(text, locals=locals_map), None
+        return safe_parse_expr(text, locals=locals_map), None
 
     @staticmethod
     def _build_context(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -180,7 +181,7 @@ class SymPyChecker(BaseChecker):
 
     @staticmethod
     def _parse_expression(raw_str: str, locals_map: Dict[str, Any]) -> sp.Expr:
-        return sp.sympify(raw_str.strip(), locals=locals_map)
+        return safe_parse_expr(raw_str.strip(), locals=locals_map)
 
     def _verify_euler_lagrange(
         self, lagr_node: Any, eom_node: Any, params: Dict[str, Any]
@@ -351,8 +352,8 @@ class SymPyChecker(BaseChecker):
     def _verify_algebraic_identity(
         self, in_node: Any, out_node: Any
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        expr1 = sp.sympify(in_node.expression.raw_str)
-        expr2 = sp.sympify(out_node.expression.raw_str)
+        expr1 = safe_parse_expr(in_node.expression.raw_str)
+        expr2 = safe_parse_expr(out_node.expression.raw_str)
         diff = sp.simplify(expr1 - expr2)
         passed = (diff == 0)
         details = {"diff": str(diff), "equal": passed}
