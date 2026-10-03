@@ -2,7 +2,6 @@
 Tests for NumericalChecker ODE simulation backend.
 """
 
-import pytest
 from automate.backend.numerical_backend import NumericalChecker
 from automate.core.graph import DerivationGraph
 from automate.core.node import DerivationNode
@@ -11,9 +10,8 @@ from automate.core.status import VerificationStatus
 from automate.ir.ast import MathematicalExpression
 
 
-def test_numerical_ode_simulation():
+def _make_edge(rule="numerical_simulation"):
     graph = DerivationGraph(id="num_test")
-
     eom_node = DerivationNode(
         id="eom",
         expression=MathematicalExpression(raw_str="m * x_ddot + k * x = 0")
@@ -24,20 +22,23 @@ def test_numerical_ode_simulation():
     )
     graph.add_node(eom_node)
     graph.add_node(traj_node)
-
     edge = DerivationEdge(
         id="edge_sim",
         input_nodes=["eom"],
         output_nodes=["traj"],
-        transformation_rule="numerical_simulation",
+        transformation_rule=rule,
         justification="RK45 IVP Integration",
         checker="numerical",
-        parameters={"m": 1.0, "k": 4.0, "x0": 1.0, "v0": 0.0, "t_max": 10.0}
+        parameters={"m": 1.0, "k": 4.0, "x0": 1.0, "v0": 0.0, "t_max": 10.0},
     )
     graph.add_edge(edge)
+    return graph, edge
 
-    checker = NumericalChecker()
-    report = checker.verify_edge(edge, graph)
+
+def test_numerical_ode_simulation():
+    graph, edge = _make_edge()
+
+    report = NumericalChecker().verify_edge(edge, graph)
 
     assert report.passed is True
     assert report.status == VerificationStatus.NUMERICALLY_CHECKED
@@ -46,5 +47,17 @@ def test_numerical_ode_simulation():
     metrics = report.details["metrics"]
     assert metrics["max_abs_error"] < 1e-4
     assert metrics["rmse"] < 1e-4
+    assert metrics["velocity_max_abs_error"] < 1e-4
+    assert metrics["velocity_rmse"] < 1e-4
     assert metrics["energy_drift_relative"] < 1e-4
     assert metrics["solver_method"] == "RK45"
+
+
+def test_numerical_unknown_rule_is_rejected():
+    graph, edge = _make_edge(rule="made_up_rule")
+
+    report = NumericalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "Unsupported numerical transformation rule" in (report.error_message or "")
