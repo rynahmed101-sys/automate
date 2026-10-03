@@ -104,57 +104,109 @@ class StatisticalChecker(BaseChecker):
     def _fit_harmonic_data(
         self, params: Dict[str, Any]
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        # Ground truth / data generation settings
+        """
+        Fit the harmonic model to supplied observations or to a deterministic
+        synthetic benchmark when no observations are supplied.
+        """
         m_true = float(params.get("m", 1.0))
         k_true = float(params.get("k", 4.0))
-        omega_true = np.sqrt(k_true / m_true)  # 2.0 rad/s
+        if m_true <= 0 or k_true <= 0:
+            return False, {}, [], "Statistical benchmark requires m > 0 and k > 0."
+
+        omega_true = np.sqrt(k_true / m_true)
         A_true = float(params.get("A", 1.0))
         phi_true = float(params.get("phi", 0.0))
+        seed = int(params.get("seed", 42))
         noise_std = float(params.get("noise_std", 0.05))
-        n_points = int(params.get("n_points", 50))
 
-        # Generate synthetic noisy observations or use provided sample data
-        np.random.seed(42)
-        t_data = np.linspace(0, 10.0, n_points)
-        x_pure = A_true * np.cos(omega_true * t_data + phi_true)
-        x_obs = x_pure + np.random.normal(0, noise_std, size=n_points)
-        sigma = np.full_like(x_obs, noise_std)
+        provided_t = params.get("t_data")
+        provided_x = params.get("x_data")
+        provided_sigma = params.get("sigma_data")
 
-        # Theoretical model function
+        if provided_t is not None or provided_x is not None:
+            if provided_t is None or provided_x is None:
+                return False, {}, [], "Both t_data and x_data must be supplied together."
+            t_data = np.asarray(provided_t, dtype=float)
+            x_obs = np.asarray(provided_x, dtype=float)
+            data_source = "observed"
+            if t_data.ndim != 1 or x_obs.ndim != 1 or len(t_data) != len(x_obs):
+                return False, {}, [], "t_data and x_data must be one-dimensional arrays of equal length."
+            if len(t_data) < 4:
+                return False, {}, [], "At least four observations are required for three fitted parameters."
+            if not (np.all(np.isfinite(t_data)) and np.all(np.isfinite(x_obs))):
+                return False, {}, [], "Observed data must contain only finite values."
+
+            if provided_sigma is None:
+                if noise_std <= 0:
+                    return False, {}, [], "noise_std must be positive when sigma_data is not supplied."
+                sigma = np.full_like(x_obs, noise_std, dtype=float)
+            else:
+                sigma = np.asarray(provided_sigma, dtype=float)
+                if sigma.ndim != 1 or len(sigma) != len(x_obs):
+                    return False, {}, [], "sigma_data must match x_data in shape and length."
+                if not np.all(np.isfinite(sigma)) or np.any(sigma <= 0):
+                    return False, {}, [], "sigma_data must contain only positive finite uncertainties."
+        else:
+            n_points = int(params.get("n_points", 50))
+            if n_points < 4:
+                return False, {}, [], "n_points must be at least four."
+            if noise_std <= 0:
+                return False, {}, [], "noise_std must be positive."
+            t_data = np.linspace(0.0, float(params.get("t_max", 10.0)), n_points)
+            x_pure = A_true * np.cos(omega_true * t_data + phi_true)
+            rng = np.random.default_rng(seed)
+            x_obs = x_pure + rng.normal(0.0, noise_std, size=n_points)
+            sigma = np.full_like(x_obs, noise_std, dtype=float)
+            data_source = "synthetic"
+
         def model_func(t, A, omega, phi):
             return A * np.cos(omega * t + phi)
 
-        # Parameter estimation via non-linear least squares
-        p0 = [1.2, 1.8, 0.1]  # initial guesses
-        popt, pcov = curve_fit(model_func, t_data, x_obs, p0=p0, sigma=sigma, absolute_sigma=True)
+        amplitude_guess = max(float(np.max(np.abs(x_obs))), 1e-6)
+        omega_guess = float(params.get("omega_initial", omega_true))
+        phase_guess = float(params.get("phi_initial", 0.0))
+        p0 = [amplitude_guess, omega_guess, phase_guess]
 
-        A_est, omega_est, phi_est = popt
-        perr = np.sqrt(np.diag(pcov))  # 1-sigma standard errors
+        popt, pcov = curve_fit(
+            model_func,
+            t_data,
+            x_obs,
+            p0=p0,
+            sigma=sigma,
+            absolute_sigma=True,
+            maxfev=int(params.get("maxfev", 20000)),
+        )
 
-        # 95% confidence intervals (approx +/- 1.96 * sigma)
+        A_est, omega_est, phi_est = [float(v) for v in popt]
+        perr = np.sqrt(np.maximum(np.diag(pcov), 0.0))
+        dof = len(x_obs) - len(popt)
+        if dof <= 0:
+            return False, {}, [], "Insufficient degrees of freedom for uncertainty estimation."
+
+        t_critical = float(stats.t.ppf(0.975, dof))
         ci_95 = {
-            "A": [float(A_est - 1.96 * perr[0]), float(A_est + 1.96 * perr[0])],
-            "omega": [float(omega_est - 1.96 * perr[1]), float(omega_est + 1.96 * perr[1])],
-            "phi": [float(phi_est - 1.96 * perr[2]), float(phi_est + 1.96 * perr[2])]
+            "A": [float(A_est - t_critical * perr[0]), float(A_est + t_critical * perr[0])],
+            "omega": [float(omega_est - t_critical * perr[1]), float(omega_est + t_critical * perr[1])],
+            "phi": [float(phi_est - t_critical * perr[2]), float(phi_est + t_critical * perr[2])],
         }
 
-        # Inferred spring constant: k_est = m * omega_est^2
-        k_est = m_true * (omega_est**2)
-        k_err = 2 * m_true * omega_est * perr[1]
-
-        # Residuals and goodness-of-fit
         fitted_y = model_func(t_data, *popt)
         residuals = x_obs - fitted_y
-        dof = n_points - len(popt)
-        chi2 = float(np.sum((residuals / sigma)**2))
+        chi2 = float(np.sum((residuals / sigma) ** 2))
         reduced_chi2 = float(chi2 / dof)
 
-        ss_res = np.sum(residuals**2)
-        ss_tot = np.sum((x_obs - np.mean(x_obs))**2)
+        ss_res = float(np.sum(residuals ** 2))
+        ss_tot = float(np.sum((x_obs - np.mean(x_obs)) ** 2))
+        if ss_tot == 0:
+            return False, {}, [], "Observed data have zero variance; R-squared is undefined."
         r_squared = float(1.0 - (ss_res / ss_tot))
 
-        # Check statistical viability: reduced chi^2 close to 1.0 (between 0.5 and 2.0), R^2 > 0.90
-        passed = (0.5 <= reduced_chi2 <= 2.0) and (r_squared > 0.90)
+        pass_chi2 = 0.5 <= reduced_chi2 <= 2.0
+        pass_r2 = r_squared > 0.90
+        passed = pass_chi2 and pass_r2
+
+        k_est = m_true * omega_est ** 2
+        k_err = abs(2.0 * m_true * omega_est * perr[1])
 
         goodness_of_fit = {
             "chi2": chi2,
@@ -162,35 +214,68 @@ class StatisticalChecker(BaseChecker):
             "degrees_of_freedom": dof,
             "r_squared": r_squared,
             "residual_mean": float(np.mean(residuals)),
-            "residual_std": float(np.std(residuals))
+            "residual_std": float(np.std(residuals, ddof=1)),
+            "chi2_acceptance_range": [0.5, 2.0],
+            "r_squared_threshold": 0.90,
         }
 
         estimates = {
-            "amplitude_A": {"estimate": float(A_est), "std_err": float(perr[0]), "ci_95": ci_95["A"]},
-            "frequency_omega": {"estimate": float(omega_est), "std_err": float(perr[1]), "ci_95": ci_95["omega"]},
-            "phase_phi": {"estimate": float(phi_est), "std_err": float(perr[2]), "ci_95": ci_95["phi"]},
-            "inferred_spring_constant_k": {"estimate": float(k_est), "std_err": float(k_err), "true_k": k_true}
+            "amplitude_A": {
+                "estimate": A_est,
+                "std_err": float(perr[0]),
+                "ci_95": ci_95["A"],
+            },
+            "frequency_omega": {
+                "estimate": omega_est,
+                "std_err": float(perr[1]),
+                "ci_95": ci_95["omega"],
+            },
+            "phase_phi": {
+                "estimate": phi_est,
+                "std_err": float(perr[2]),
+                "ci_95": ci_95["phi"],
+            },
+            "inferred_spring_constant_k": {
+                "estimate": float(k_est),
+                "std_err": k_err,
+                "reference_k": k_true,
+            },
         }
 
         details = {
             "parameter_estimates": estimates,
             "goodness_of_fit": goodness_of_fit,
-            "sample_size": n_points,
-            "noise_level": noise_std
+            "sample_size": int(len(x_obs)),
+            "noise_level": float(np.mean(sigma)),
+            "data_source": data_source,
+            "random_seed": seed if data_source == "synthetic" else None,
+            "confidence_level": 0.95,
+            "uncertainty_distribution": "Student-t",
         }
 
         certificates = [
             {
                 "step": "non_linear_least_squares_fit",
-                "description": f"Fit model x(t) = A*cos(omega*t + phi) on {n_points} data points",
-                "result": f"omega_est = {omega_est:.4f} +/- {perr[1]:.4f} rad/s (True: {omega_true:.4f})"
+                "description": (
+                    f"Fit x(t) = A*cos(omega*t + phi) on {len(x_obs)} observations"
+                ),
+                "result": (
+                    f"omega_est = {omega_est:.4f} +/- "
+                    f"{t_critical * perr[1]:.4f} rad/s"
+                ),
             },
             {
                 "step": "residual_goodness_of_fit",
                 "description": "Computed reduced chi-squared and coefficient of determination R^2",
-                "result": f"Reduced Chi^2 = {reduced_chi2:.3f}, R^2 = {r_squared:.4f}"
-            }
+                "result": (
+                    f"Reduced Chi^2 = {reduced_chi2:.3f}, "
+                    f"R^2 = {r_squared:.4f}"
+                ),
+            },
         ]
 
-        error_msg = None if passed else f"Statistical fit criteria not satisfied: reduced_chi2={reduced_chi2:.3f}, R2={r_squared:.4f}"
+        error_msg = None if passed else (
+            "Statistical fit criteria not satisfied: "
+            f"reduced_chi2={reduced_chi2:.3f}, R2={r_squared:.4f}"
+        )
         return passed, details, certificates, error_msg
