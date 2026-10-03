@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
 from automate.backend.base import BaseChecker, VerificationReport
+import sympy as sp
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge, DerivationCertificate
 from automate.core.graph import DerivationGraph
@@ -174,6 +175,38 @@ class LeanChecker(BaseChecker):
                 semantic_ok, semantic_details, _, semantic_error = semantic_checker._verify_energy_conservation(
                     in_nodes, out_nodes[0], edge.parameters
                 )
+            # The Lean generator currently contains canonical harmonic-oscillator
+            # theorems. Do not certify a different physical system merely because
+            # the generic semantic preflight happened to succeed.
+            local = semantic_checker._build_context(edge.parameters)
+            if edge.transformation_rule == "euler_lagrange":
+                lagr = semantic_checker._parse_expression(
+                    in_nodes[0].expression.raw_str, local
+                )
+                canonical = (
+                    sp.Rational(1, 2) * local["m"] * local["x_dot"]**2
+                    - sp.Rational(1, 2) * local["k"] * local["x"]**2
+                )
+                if sp.simplify(lagr - canonical) != 0:
+                    semantic_ok = False
+                    semantic_error = (
+                        "Lean formal scope is currently limited to the canonical "
+                        "1D harmonic-oscillator Lagrangian."
+                    )
+            elif edge.transformation_rule == "conserve_energy":
+                energy_text = out_nodes[0].expression.raw_str.split("=", 1)[0].strip()
+                energy = semantic_checker._parse_expression(energy_text, local)
+                canonical_energy = (
+                    sp.Rational(1, 2) * local["m"] * local["x_dot"]**2
+                    + sp.Rational(1, 2) * local["k"] * local["x"]**2
+                )
+                if sp.simplify(energy - canonical_energy) != 0:
+                    semantic_ok = False
+                    semantic_error = (
+                        "Lean formal scope is currently limited to canonical "
+                        "harmonic-oscillator mechanical energy."
+                    )
+
             if not semantic_ok:
                 elapsed = (time.perf_counter() - start_time) * 1000
                 return VerificationReport(
