@@ -282,7 +282,7 @@ theorem {theorem_name}
     (h_force : F = - (k * x)) :
     p_dot - F = m * a + k * x := by
   rw [h_momentum, h_force]
-  exact Int.sub_neg (m * a) (k * x)
+  simp [Int.sub_eq_add_neg]
 
 end Automate.LagrangianMechanics
 """
