@@ -160,6 +160,11 @@ class NumericalChecker(BaseChecker):
 
         if m <= 0 or k <= 0:
             return False, {}, [], "Physical parameters require m > 0 and k > 0."
+        numeric_params = {"m": m, "k": k, "x0": x0, "v0": v0, "t_max": t_span[1]}
+        if not all(np.isfinite(value) for value in numeric_params.values()):
+            return False, {}, [], "Numerical parameters must all be finite."
+        if t_span[1] <= 0:
+            return False, {}, [], "t_max must be positive."
 
         omega = np.sqrt(k / m)
 
