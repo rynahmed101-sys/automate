@@ -254,8 +254,7 @@ theorem {theorem_name}
     (m k x v a : Int)
     (h_eom : m * a + k * x = 0) :
     v * (m * a + k * x) = 0 := by
-  rw [h_eom]
-  exact Int.mul_zero v
+  simpa [h_eom]
 
 end Automate.ClassicalMechanics
 """
