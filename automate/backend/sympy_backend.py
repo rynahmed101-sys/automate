@@ -188,11 +188,10 @@ class SymPyChecker(BaseChecker):
              if isinstance(value, sp.AppliedUndef)),
             None,
         )
-        time_symbol = next(
-            (name for name, value in locals_map.items()
-             if isinstance(value, sp.Symbol) and name == "t"),
-            "t",
-        )
+        time_symbol = "t"
+        if coordinate and isinstance(locals_map.get(coordinate), sp.AppliedUndef):
+            if locals_map[coordinate].args:
+                time_symbol = str(locals_map[coordinate].args[0])
         if coordinate:
             text = re.sub(
                 rf"\bdiff\(\s*{re.escape(coordinate)}\(\s*{re.escape(time_symbol)}\s*\)\s*,\s*{re.escape(time_symbol)}\s*,\s*2\s*\)",
