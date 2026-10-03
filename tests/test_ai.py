@@ -176,14 +176,14 @@ def test_apply_and_verify_proposal_pipeline():
 
     # Test dry run first
     dry_result = apply_and_verify_proposal(proposal, graph, dry_run=True)
-    assert dry_result.success is True
+    assert dry_result.success is True, dry_result.errors
     # Original graph must not be mutated in dry run
     assert "node_ai_solution" not in graph.nodes
     assert len(graph.edges) == 0
 
     # Real run
     real_result = apply_and_verify_proposal(proposal, graph, dry_run=False)
-    assert real_result.success is True
+    assert real_result.success is True, real_result.errors
     assert real_result.graph_updated is True
     assert "node_ai_solution" in graph.nodes
     assert len(graph.edges) == 1
