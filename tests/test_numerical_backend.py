@@ -61,3 +61,26 @@ def test_numerical_unknown_rule_is_rejected():
     assert report.passed is False
     assert report.status == VerificationStatus.FAILED
     assert "Unsupported numerical transformation rule" in (report.error_message or "")
+
+
+def test_numerical_rejects_non_harmonic_graph_equation():
+    graph, edge = _make_edge()
+    graph.nodes["eom"].expression.raw_str = "m * x_ddot + 2 * k * x = 0"
+
+    report = NumericalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "only supports the harmonic oscillator equation" in (report.error_message or "")
+
+
+def test_numerical_zero_energy_initial_state_is_finite():
+    graph, edge = _make_edge()
+    edge.parameters.update({"x0": 0.0, "v0": 0.0})
+
+    report = NumericalChecker().verify_edge(edge, graph)
+
+    assert report.passed is True
+    metrics = report.details["metrics"]
+    assert metrics["energy_drift_relative"] is None
+    assert metrics["energy_drift_absolute"] < 1e-12
