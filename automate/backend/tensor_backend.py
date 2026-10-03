@@ -106,6 +106,18 @@ class TensorChecker(BaseChecker):
         start = time.perf_counter()
 
         try:
+            referenced_ids = edge.input_nodes + edge.output_nodes
+            if any(graph.get_node(node_id) is None for node_id in referenced_ids):
+                return self._result(
+                    edge,
+                    graph,
+                    False,
+                    {"rule": edge.transformation_rule},
+                    "Referenced nodes missing from derivation graph.",
+                    (time.perf_counter() - start) * 1000,
+                    [],
+                )
+
             rule = edge.transformation_rule
             if rule == "index_contract":
                 indices = self._indices(edge.parameters.get("indices"), "indices")
