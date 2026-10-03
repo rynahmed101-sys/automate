@@ -144,7 +144,7 @@ class RuleRegistry:
             domain="mathematics",
             reversible=True,
             implementation_backend="sympy",
-            formal_proof_available=True,
+            formal_proof_available=False,
             symbolic_checker_available=True
         ))
 
@@ -168,7 +168,7 @@ class RuleRegistry:
             domain="mathematics",
             reversible=True,
             implementation_backend="sympy",
-            formal_proof_available=True,
+            formal_proof_available=False,
             symbolic_checker_available=True
         ))
 
