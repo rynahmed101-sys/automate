@@ -55,6 +55,9 @@ jobs:
           python -m pip install -e .
           python -m pip install pytest pytest-cov
 
+      - name: Compile Python sources
+        run: python -m compileall -q automate tests
+
       - name: Run test suite
         env:
           AUTOMATE_REQUIRE_LEAN: "1"
