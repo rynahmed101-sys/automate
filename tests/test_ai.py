@@ -339,3 +339,9 @@ def test_ai_rejects_checker_that_cannot_verify_rule():
     result = validate_ai_proposal(raw, graph)
     assert result.is_valid is False
     assert any("cannot verify rule" in e for e in result.errors)
+
+
+def test_rule_capabilities_allow_supported_alternative_backends():
+    registry = RuleRegistry()
+    assert set(registry.get("conserve_energy").allowed_checkers()) == {"sympy", "lean4"}
+    assert registry.get("index_contract").allowed_checkers() == ["tensor"]
