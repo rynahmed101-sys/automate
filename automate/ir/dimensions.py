@@ -69,39 +69,55 @@ class Dimension:
     @classmethod
     def from_string(cls, dim_str: str) -> "Dimension":
         """
-        Parses dimension strings like 'M*L^2*T^-2', 'M*T^-2', 'L', '1', or ''
+        Parse SI-base dimension expressions such as M*L^2*T^-2 or M/L/T.
+        Unknown dimensions and malformed exponents are rejected instead of
+        silently collapsing to dimensionless.
         """
-        if not dim_str or dim_str.strip() in ("", "1", "dimensionless"):
-            return cls.dimensionless()
+        if not isinstance(dim_str, str):
+            raise TypeError("Dimension string must be a string.")
 
         s = dim_str.replace(" ", "")
-        # Split by multiplication or division
-        # Simple parser for products like M * L^2 * T^-2
-        tokens = re.split(r'[*]', s)
+        if not s or s in ("1", "dimensionless"):
+            return cls.dimensionless()
+
+        tokens = re.split(r"([*/])", s)
         exponents: Dict[str, int] = {}
+        sign = 1
+        expect_factor = True
 
         for token in tokens:
-            if not token:
+            if token == "":
                 continue
-            if "/" in token:
-                parts = token.split("/")
-                num = parts[0]
-                den = parts[1]
-                if num and num != "1":
-                    d_num = cls.from_string(num)
-                    for k, v in d_num.exponents.items():
-                        exponents[k] = exponents.get(k, 0) + v
-                if den:
-                    d_den = cls.from_string(den)
-                    for k, v in d_den.exponents.items():
-                        exponents[k] = exponents.get(k, 0) - v
+            if token == "*":
+                if expect_factor:
+                    raise ValueError(f"Malformed dimension expression: {dim_str!r}")
+                expect_factor = True
+                continue
+            if token == "/":
+                if expect_factor:
+                    raise ValueError(f"Malformed dimension expression: {dim_str!r}")
+                sign = -1
+                expect_factor = True
                 continue
 
-            if "^" in token:
-                base, exp = token.split("^")
-                exponents[base] = exponents.get(base, 0) + int(exp)
-            else:
-                exponents[token] = exponents.get(token, 0) + 1
+            match = re.fullmatch(r"([A-Za-z]+)(?:\^(-?\d+))?", token)
+            if not match:
+                raise ValueError(f"Malformed dimension factor: {token!r}")
+
+            base = match.group(1)
+            if base not in cls.BASE_DIMENSIONS:
+                raise ValueError(
+                    f"Unknown base dimension {base!r}. "
+                    f"Expected one of: {', '.join(cls.BASE_DIMENSIONS)}"
+                )
+
+            exponent = int(match.group(2) or "1")
+            exponents[base] = exponents.get(base, 0) + sign * exponent
+            sign = 1
+            expect_factor = False
+
+        if expect_factor:
+            raise ValueError(f"Malformed dimension expression: {dim_str!r}")
 
         return cls(exponents)
 
