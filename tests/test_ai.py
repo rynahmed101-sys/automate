@@ -322,3 +322,20 @@ def test_failed_ai_proposal_does_not_mutate_canonical_graph():
     assert result.graph_updated is False
     assert "bad_solution" not in graph.nodes
     assert result.edge_id not in graph.edges
+
+
+def test_ai_rejects_checker_that_cannot_verify_rule():
+    graph = _create_sample_graph()
+    raw = {
+        "proposal_id": "wrong_backend",
+        "proposal_type": "derivation",
+        "input_nodes": ["node_eom"],
+        "output_nodes": [{"id": "wrong_backend_node", "expression": "x = 1"}],
+        "rule": "solve_harmonic_oscillator",
+        "justification": "Wrong checker test",
+        "target_checker": "dimension",
+        "origin": {"type": "ai"},
+    }
+    result = validate_ai_proposal(raw, graph)
+    assert result.is_valid is False
+    assert any("cannot verify rule" in e for e in result.errors)
