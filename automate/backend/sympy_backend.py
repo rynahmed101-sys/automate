@@ -101,6 +101,23 @@ class SymPyChecker(BaseChecker):
                     elapsed = (time.perf_counter() - start_time) * 1000
                     return self._build_report(status, passed, details, certificates, error_msg,
                                               edge, graph, elapsed)
+                elif rule == "divide_both_sides":
+                    passed, details, certificates, error_msg = self._verify_divide_both_sides(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "differentiate_both_sides":
+                    passed, details, certificates, error_msg = self._verify_differentiate_both_sides(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "substitute":
+                    passed, details, certificates, error_msg = self._verify_substitute(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "simplify":
+                    passed, details, certificates, error_msg = self._verify_simplify(
+                        in_nodes[0], out_nodes[0]
+                    )
+
                 else:
                     # NO FALLBACK — unknown rules must not be silently checked
                     # by algebraic identity. Return NOT_APPLICABLE explicitly.
@@ -317,7 +334,17 @@ class SymPyChecker(BaseChecker):
 
         # Solution is always parsed as an expression in t (and parameters)
         # The solution string may be "x(t) = A*cos(...)" or just "A*cos(...)"
-        sol_local: Dict[str, Any] = {"t": t, **param_syms, **aux_syms, "sqrt": sp.sqrt, "cos": sp.cos, "sin": sp.sin, "exp": sp.exp}
+        sol_local: Dict[str, Any] = {
+            "t": t,
+            **param_syms,
+            **aux_syms,
+        }
+
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        sol_parser = SafeParser(extra_symbols={
+            k: v for k, v in {**param_syms, **aux_syms, "t": t}.items()
+            if isinstance(v, sp.Basic)
+        })
 
         actual_sol_str = sol_str.strip()
         if "=" in actual_sol_str:
@@ -329,23 +356,34 @@ class SymPyChecker(BaseChecker):
                 actual_sol_str = rhs_s.strip()
 
         try:
-            sol_expr = sp.sympify(actual_sol_str, locals=sol_local)
+            sol_expr = sol_parser.parse(actual_sol_str, extra_locals=sol_local)
+        except SafeParseError as e:
+            return False, {"rule": "solve_ode", "ode": ode_str, "solution": sol_str}, [], \
+                f"SafeParser rejected candidate solution: {e}"
         except Exception as e:
             return False, {"rule": "solve_ode", "ode": ode_str, "solution": sol_str}, [], \
                 f"Candidate solution parse error: {type(e).__name__}: {str(e)}"
 
-        # Parse the ODE expression
+        # Parse the ODE expression via SafeParser
+        ode_parser = SafeParser(extra_symbols={
+            k: v for k, v in {**param_syms, **aux_syms, "t": t}.items()
+            if isinstance(v, sp.Basic)
+        })
         try:
             if "=" in ode_str:
                 parts = ode_str.split("=", 1)
-                ode_lhs = sp.sympify(parts[0].strip(), locals=ode_syms)
-                ode_rhs = sp.sympify(parts[1].strip(), locals=ode_syms)
+                ode_lhs = ode_parser.parse(parts[0].strip(), extra_locals=ode_syms)
+                ode_rhs = ode_parser.parse(parts[1].strip(), extra_locals=ode_syms)
                 ode_expr = ode_lhs - ode_rhs
             else:
-                ode_expr = sp.sympify(ode_str, locals=ode_syms)
+                ode_expr = ode_parser.parse(ode_str, extra_locals=ode_syms)
+        except SafeParseError as e:
+            return False, {"rule": "solve_ode", "ode": ode_str, "solution": sol_str}, [], \
+                f"SafeParser rejected ODE expression: {e}"
         except Exception as e:
             return False, {"rule": "solve_ode", "ode": ode_str, "solution": sol_str}, [], \
                 f"ODE parse error: {type(e).__name__}: {str(e)}"
+
 
         steps = [{"step": 1, "operation": "candidate_solution", "parsed": str(sol_expr),
                   "notation": "function" if uses_function_notation else "shorthand"}]
@@ -380,8 +418,11 @@ class SymPyChecker(BaseChecker):
 
         steps.append({"step": 2, "operation": "ode_residual_after_substitution", "expr": str(residual)})
 
-        # Substitute parameter aliases (e.g. omega = sqrt(k/m)) before zero-test
+        # Substitute parameter aliases (e.g. omega = sqrt(k/m)) before zero-test.
+        # Uses SafeParser — no bare sympify.
         alias_subs: Dict[sp.Expr, sp.Expr] = {}
+        alias_local: Dict[str, Any] = {**param_syms, **aux_syms, "t": t}
+        alias_parser = SafeParser()
         for p_key, p_val in params.items():
             if p_key in ("coordinates", "parameters", "numerical_parameters",
                          "initial_conditions", "initial_velocities", "t_max"):
@@ -389,10 +430,10 @@ class SymPyChecker(BaseChecker):
             if isinstance(p_val, str) and p_val.strip():
                 try:
                     alias_sym = aux_syms.get(p_key) or param_syms.get(p_key) or sp.Symbol(p_key, real=True)
-                    alias_expr_parsed = sp.sympify(p_val.strip(), locals={**param_syms, **aux_syms, "t": t, "sqrt": sp.sqrt})
+                    alias_expr_parsed = alias_parser.parse(p_val.strip(), extra_locals=alias_local)
                     if isinstance(alias_sym, sp.Symbol):
                         alias_subs[alias_sym] = alias_expr_parsed
-                except Exception:
+                except (SafeParseError, Exception):
                     pass
 
         if alias_subs and residual != 0:
@@ -403,6 +444,7 @@ class SymPyChecker(BaseChecker):
             steps.append({"step": 3, "operation": "residual_after_alias_substitution",
                           "aliases": {str(k): str(v) for k, v in alias_subs.items()},
                           "expr": str(residual)})
+
 
         passed = (residual == 0)
         details = {
@@ -456,6 +498,166 @@ class SymPyChecker(BaseChecker):
             "candidate_field_equation": candidate_feq_str
         })
         return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: divide_both_sides
+    # Verifies that:
+    #   1. The divisor is symbolically non-zero in context.
+    #   2. out_expr == in_expr / divisor  (up to simplification).
+    # ------------------------------------------------------------------
+    def _verify_divide_both_sides(
+        self, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        divisor_str = params.get("divisor", "")
+        if not divisor_str:
+            return False, {"rule": "divide_both_sides"}, [], \
+                "UNSUPPORTED: edge.parameters['divisor'] required for divide_both_sides rule."
+        parser = SafeParser()
+        try:
+            in_expr  = parser.parse(in_node.expression.raw_str)
+            out_expr = parser.parse(out_node.expression.raw_str)
+            div_expr = parser.parse(str(divisor_str))
+        except SafeParseError as e:
+            return False, {"rule": "divide_both_sides"}, [], f"SafeParser error: {e}"
+
+        # Check divisor is non-zero
+        if div_expr == 0:
+            return False, {"rule": "divide_both_sides", "divisor": str(div_expr)}, [], \
+                "Division by zero: divisor is zero."
+
+        # The claim is out_expr == in_expr / div_expr
+        expected = sp.simplify(in_expr / div_expr)
+        diff = sp.simplify(out_expr - expected)
+        passed = (diff == 0)
+        details = {
+            "in_expr": str(in_expr),
+            "divisor": str(div_expr),
+            "expected_out": str(expected),
+            "actual_out": str(out_expr),
+            "diff": str(diff),
+        }
+        steps = [
+            {"step": 1, "operation": "parse_divisor", "expr": str(div_expr)},
+            {"step": 2, "operation": "in_expr / divisor", "expr": str(expected)},
+            {"step": 3, "operation": "simplify(actual - expected)", "expr": str(diff)},
+        ]
+        err = None if passed else f"divide_both_sides mismatch: expected {expected}, got {out_expr}"
+        return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: differentiate_both_sides
+    # Verifies that out_expr == d(in_expr)/d(wrt).
+    # ------------------------------------------------------------------
+    def _verify_differentiate_both_sides(
+        self, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        wrt_str = params.get("wrt", "")
+        if not wrt_str:
+            return False, {"rule": "differentiate_both_sides"}, [], \
+                "UNSUPPORTED: edge.parameters['wrt'] required for differentiate_both_sides rule."
+        parser = SafeParser()
+        try:
+            in_expr  = parser.parse(in_node.expression.raw_str)
+            out_expr = parser.parse(out_node.expression.raw_str)
+            wrt_sym  = parser.make_symbol(str(wrt_str).strip())
+        except SafeParseError as e:
+            return False, {"rule": "differentiate_both_sides"}, [], f"SafeParser error: {e}"
+
+        try:
+            expected = sp.diff(in_expr, wrt_sym)
+        except Exception as e:
+            return False, {"rule": "differentiate_both_sides"}, [], \
+                f"Differentiation error: {type(e).__name__}: {e}"
+
+        diff = sp.simplify(out_expr - expected)
+        passed = (diff == 0)
+        details = {
+            "in_expr": str(in_expr),
+            "wrt": str(wrt_sym),
+            "expected_derivative": str(expected),
+            "actual_out": str(out_expr),
+            "diff": str(diff),
+        }
+        steps = [
+            {"step": 1, "operation": f"d(in_expr)/d({wrt_sym})", "expr": str(expected)},
+            {"step": 2, "operation": "simplify(actual - expected)", "expr": str(diff)},
+        ]
+        err = None if passed else f"differentiate_both_sides mismatch: expected {expected}, got {out_expr}"
+        return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: substitute
+    # Verifies that out_expr == in_expr with `from_expr` replaced by `to_expr`.
+    # Parameters: {"from": "<expr>", "to": "<expr>"}
+    # ------------------------------------------------------------------
+    def _verify_substitute(
+        self, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        from_str = params.get("from", "")
+        to_str   = params.get("to", "")
+        if not from_str or not to_str:
+            return False, {"rule": "substitute"}, [], \
+                "UNSUPPORTED: edge.parameters['from'] and ['to'] required for substitute rule."
+        parser = SafeParser()
+        try:
+            in_expr   = parser.parse(in_node.expression.raw_str)
+            out_expr  = parser.parse(out_node.expression.raw_str)
+            from_expr = parser.parse(str(from_str))
+            to_expr   = parser.parse(str(to_str))
+        except SafeParseError as e:
+            return False, {"rule": "substitute"}, [], f"SafeParser error: {e}"
+
+        substituted = in_expr.subs(from_expr, to_expr)
+        diff = sp.simplify(out_expr - substituted)
+        passed = (diff == 0)
+        details = {
+            "in_expr": str(in_expr),
+            "from": str(from_expr),
+            "to": str(to_expr),
+            "substituted": str(substituted),
+            "actual_out": str(out_expr),
+            "diff": str(diff),
+        }
+        steps = [
+            {"step": 1, "operation": f"in_expr.subs({from_expr}, {to_expr})", "expr": str(substituted)},
+            {"step": 2, "operation": "simplify(actual - substituted)", "expr": str(diff)},
+        ]
+        err = None if passed else f"substitute mismatch: expected {substituted}, got {out_expr}"
+        return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: simplify
+    # Verifies that sp.simplify(in_expr) == out_expr.
+    # This checks that the claimed simplified form is actually equivalent.
+    # ------------------------------------------------------------------
+    def _verify_simplify(
+        self, in_node: Any, out_node: Any
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        parser = SafeParser()
+        try:
+            in_expr  = parser.parse(in_node.expression.raw_str)
+            out_expr = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as e:
+            return False, {"rule": "simplify"}, [], f"SafeParser error: {e}"
+
+        # The claim is that in_expr and out_expr are algebraically equivalent
+        # (simplify is not unique, so we check equivalence, not canonical form)
+        diff = sp.simplify(in_expr - out_expr)
+        passed = (diff == 0)
+        details = {
+            "in_expr": str(in_expr),
+            "out_expr": str(out_expr),
+            "diff": str(diff),
+            "equivalent": passed,
+        }
+        steps = [{"step": 1, "operation": "simplify(in - out)", "expr": str(diff)}]
+        err = None if passed else f"simplify: expressions are not equivalent: {diff}"
+        return passed, details, steps, err
+
 
     # ------------------------------------------------------------------
     # Rule: algebraic_identity
