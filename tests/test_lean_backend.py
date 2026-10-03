@@ -65,7 +65,7 @@ def test_lean_formal_proof_verification():
 
     report = checker.verify_edge(edge, graph)
 
-    assert report.passed is True
+    assert report.passed is True, report.error_message or str(report.details)
     assert report.status == VerificationStatus.FORMALLY_PROVED
     assert report.backend == "LeanChecker"
     assert "harmonic_oscillator_energy_derivative_vanishes" in report.details["theorem_name"]
