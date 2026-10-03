@@ -48,6 +48,15 @@ class StatisticalChecker(BaseChecker):
 
         try:
             passed, details, certificates, error_msg = self._fit_harmonic_data(edge.parameters)
+            if passed:
+                claim_ok, claim_details, claim_error = self._validate_output_claims(
+                    out_nodes[0].expression.raw_str,
+                    details,
+                )
+                details["output_claim_validation"] = claim_details
+                if not claim_ok:
+                    passed = False
+                    error_msg = claim_error
         except Exception as e:
             passed = False
             error_msg = f"Statistical estimation error: {type(e).__name__}: {str(e)}"
@@ -100,6 +109,71 @@ class StatisticalChecker(BaseChecker):
             certificates=certificates,
             evidence=evidence
         )
+
+    @staticmethod
+    def _validate_output_claims(
+        raw_output: str, details: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], Optional[str]]:
+        """Check explicit numeric output claims against recomputed statistics."""
+        import re
+
+        claims: Dict[str, float] = {}
+        omega_match = re.search(
+            r"omega(?:_fit)?\s*=\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)",
+            raw_output,
+            re.IGNORECASE,
+        )
+        r2_match = re.search(
+            r"r2\s*=\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)",
+            raw_output,
+            re.IGNORECASE,
+        )
+        if omega_match:
+            claims["omega"] = float(omega_match.group(1))
+        if r2_match:
+            claims["r_squared"] = float(r2_match.group(1))
+
+        checks: Dict[str, Any] = {}
+        if not claims:
+            return True, {"claims_present": False}, None
+
+        omega_est = details["parameter_estimates"]["frequency_omega"]["estimate"]
+        omega_err = details["parameter_estimates"]["frequency_omega"]["std_err"]
+        r_squared = details["goodness_of_fit"]["r_squared"]
+
+        if "omega" in claims:
+            tolerance = max(5.0 * omega_err, 1e-3)
+            delta = abs(claims["omega"] - omega_est)
+            checks["omega"] = {
+                "claimed": claims["omega"],
+                "computed": omega_est,
+                "difference": delta,
+                "tolerance": tolerance,
+                "consistent": delta <= tolerance,
+            }
+            if delta > tolerance:
+                return False, {"claims_present": True, "checks": checks}, (
+                    f"Output omega claim {claims['omega']} is inconsistent with "
+                    f"computed omega {omega_est:.6g} +/- {omega_err:.6g}."
+                )
+
+        if "r_squared" in claims:
+            delta = abs(claims["r_squared"] - r_squared)
+            tolerance = 0.02
+            checks["r_squared"] = {
+                "claimed": claims["r_squared"],
+                "computed": r_squared,
+                "difference": delta,
+                "tolerance": tolerance,
+                "consistent": delta <= tolerance,
+            }
+            if delta > tolerance:
+                return False, {"claims_present": True, "checks": checks}, (
+                    f"Output R^2 claim {claims['r_squared']} is inconsistent with "
+                    f"computed R^2 {r_squared:.6g}."
+                )
+
+        return True, {"claims_present": True, "checks": checks}, None
 
     def _fit_harmonic_data(
         self, params: Dict[str, Any]
@@ -242,6 +316,9 @@ class StatisticalChecker(BaseChecker):
             },
         }
 
+        # Bind any explicit numeric claims in the output node to the computed fit.
+        # The caller passes the output node separately, so this method returns the
+        # fit and the top-level verifier performs the claim comparison.
         details = {
             "parameter_estimates": estimates,
             "goodness_of_fit": goodness_of_fit,
