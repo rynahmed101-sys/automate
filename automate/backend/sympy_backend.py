@@ -8,6 +8,7 @@ import time
 import re
 from typing import Dict, Any, List, Optional, Tuple
 import sympy as sp
+from sympy.core.function import AppliedUndef
 
 from automate.backend.sympy_utils import safe_parse_expr
 from automate.backend.base import BaseChecker, VerificationReport
@@ -197,11 +198,11 @@ class SymPyChecker(BaseChecker):
         text = raw_str.strip()
         coordinate = next(
             (name for name, value in locals_map.items()
-             if isinstance(value, sp.AppliedUndef)),
+             if isinstance(value, AppliedUndef)),
             None,
         )
         time_symbol = "t"
-        if coordinate and isinstance(locals_map.get(coordinate), sp.AppliedUndef):
+        if coordinate and isinstance(locals_map.get(coordinate), AppliedUndef):
             if locals_map[coordinate].args:
                 time_symbol = str(locals_map[coordinate].args[0])
         if coordinate:
