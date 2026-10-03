@@ -5,6 +5,7 @@ differential equation solutions, and conservation laws.
 """
 
 import time
+import re
 from typing import Dict, Any, List, Optional, Tuple
 import sympy as sp
 
@@ -181,7 +182,35 @@ class SymPyChecker(BaseChecker):
 
     @staticmethod
     def _parse_expression(raw_str: str, locals_map: Dict[str, Any]) -> sp.Expr:
-        return safe_parse_expr(raw_str.strip(), locals=locals_map)
+        text = raw_str.strip()
+        coordinate = next(
+            (name for name, value in locals_map.items()
+             if isinstance(value, sp.AppliedUndef)),
+            None,
+        )
+        time_symbol = next(
+            (name for name, value in locals_map.items()
+             if isinstance(value, sp.Symbol) and name == "t"),
+            "t",
+        )
+        if coordinate:
+            text = re.sub(
+                rf"\\bdiff\\(\\s*{re.escape(coordinate)}\\(\\s*{re.escape(time_symbol)}\\s*\\)\\s*,\\s*{re.escape(time_symbol)}\\s*,\\s*2\\s*\\)",
+                f"{coordinate}_ddot",
+                text,
+            )
+            text = re.sub(
+                rf"\\bdiff\\(\\s*{re.escape(coordinate)}\\(\\s*{re.escape(time_symbol)}\\s*\\)\\s*,\\s*{re.escape(time_symbol)}\\s*\\)",
+                f"{coordinate}_dot",
+                text,
+            )
+            text = re.sub(
+                rf"\\b{re.escape(coordinate)}\\(\\s*{re.escape(time_symbol)}\\s*\\)",
+                coordinate,
+                text,
+            )
+            text = text.replace(f"{coordinate}_dot_dot", f"{coordinate}_ddot")
+        return safe_parse_expr(text, locals_map=locals_map)
 
     def _verify_euler_lagrange(
         self, lagr_node: Any, eom_node: Any, params: Dict[str, Any]
