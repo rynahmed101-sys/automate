@@ -148,7 +148,12 @@ def apply_and_verify_proposal(
     elif checker_name == "statistical":
         checker = StatisticalChecker()
     else:
-        checker = SymPyChecker()
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            edge_id=edge_id,
+            errors=[f"Unsupported verification backend '{checker_name}'."]
+        )
 
     verif_report = checker.verify_edge(edge, working_graph)
 
