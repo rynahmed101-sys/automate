@@ -86,8 +86,8 @@ class RuleRegistry:
             domain="classical_mechanics",
             inputs=["Lagrangian"],
             outputs=["Equation of Motion"],
-            required_assumptions=["smooth_trajectories", "fixed_endpoints"],
-            side_conditions=["asm_smooth_trajectory", "asm_conservative"],
+            required_assumptions=["asm_smooth_trajectory"],
+            side_conditions=["asm_smooth_trajectory"],
             default_obligations=[{
                 "type": "stationary_action",
                 "claim": "d/dt(dL/dv) - dL/dx == 0",
@@ -123,7 +123,7 @@ class RuleRegistry:
             inputs=["Lagrangian", "Equation of Motion"],
             outputs=["Conserved Energy"],
             required_assumptions=["time_translation_invariance"],
-            side_conditions=["asm_pos_mass", "asm_conservative"],
+            side_conditions=["asm_pos_mass", "asm_pos_k", "asm_conservative"],
             default_obligations=[{
                 "type": "on_shell_invariance",
                 "claim": "v * (m * a + k * x) == 0",
