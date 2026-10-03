@@ -134,9 +134,22 @@ def apply_and_verify_proposal(
     )
     working_graph.add_edge(edge)
 
-    # 4. Invoke verification backend
+    # 4. Enforce dimensional consistency before any substantive verifier.
+    # A symbolic identity can still be physically nonsensical if its units are wrong.
     dim_checker = DimensionChecker()
     dim_report = dim_checker.verify_edge(edge, working_graph)
+    if not dim_report.passed:
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            edge_id=edge_id,
+            status=dim_report.status,
+            report={"dimension_check": dim_report.to_dict()},
+            errors=[dim_report.error_message] if dim_report.error_message else [
+                "Dimensional consistency check failed."
+            ],
+            graph_updated=not dry_run,
+        )
 
     checker_name = proposal.target_checker
     if checker_name == "sympy":
