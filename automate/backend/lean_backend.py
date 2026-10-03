@@ -160,86 +160,86 @@ class LeanChecker(BaseChecker):
             stdout = ""
             stderr = error_msg or ""
         else:
-            # Bind the formal proof obligation to the actual graph mathematics first.
-            # Bind the formal proof obligation to the actual graph mathematics first.
-        # Lean proves the resulting obligation independently; it must not be allowed
-        # to certify a fixed theorem while ignoring a malformed graph node.
-        if edge.transformation_rule in {"euler_lagrange", "conserve_energy"}:
-            from automate.backend.sympy_backend import SymPyChecker
-            
-            semantic_checker = SymPyChecker()
-            if edge.transformation_rule == "euler_lagrange":
-                semantic_ok, semantic_details, _, semantic_error = semantic_checker._verify_euler_lagrange(
-                    in_nodes[0], out_nodes[0], edge.parameters
+                # Bind the formal proof obligation to the actual graph mathematics first.
+                # Bind the formal proof obligation to the actual graph mathematics first.
+            # Lean proves the resulting obligation independently; it must not be allowed
+            # to certify a fixed theorem while ignoring a malformed graph node.
+            if edge.transformation_rule in {"euler_lagrange", "conserve_energy"}:
+                from automate.backend.sympy_backend import SymPyChecker
+                
+                semantic_checker = SymPyChecker()
+                if edge.transformation_rule == "euler_lagrange":
+                    semantic_ok, semantic_details, _, semantic_error = semantic_checker._verify_euler_lagrange(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                else:
+                    semantic_ok, semantic_details, _, semantic_error = semantic_checker._verify_energy_conservation(
+                        in_nodes, out_nodes[0], edge.parameters
+                    )
+                # The Lean generator currently contains canonical harmonic-oscillator
+                # theorems. Do not certify a different physical system merely because
+                # the generic semantic preflight happened to succeed.
+                local = semantic_checker._build_context(edge.parameters)
+                formal_scope_supported = (
+                    str(edge.parameters.get("coordinate", "x")) == "x"
+                    and str(edge.parameters.get("time_variable", "t")) == "t"
                 )
-            else:
-                semantic_ok, semantic_details, _, semantic_error = semantic_checker._verify_energy_conservation(
-                    in_nodes, out_nodes[0], edge.parameters
-                )
-            # The Lean generator currently contains canonical harmonic-oscillator
-            # theorems. Do not certify a different physical system merely because
-            # the generic semantic preflight happened to succeed.
-            local = semantic_checker._build_context(edge.parameters)
-            formal_scope_supported = (
-                str(edge.parameters.get("coordinate", "x")) == "x"
-                and str(edge.parameters.get("time_variable", "t")) == "t"
-            )
-            if not formal_scope_supported:
-                semantic_ok = False
-                semantic_error = (
-                    "Lean formal scope currently requires coordinate='x' and "
-                    "time_variable='t'."
-                )
-            elif edge.transformation_rule == "euler_lagrange":
-                lagr = semantic_checker._parse_expression(
-                    in_nodes[0].expression.raw_str, local
-                )
-                canonical = (
-                    sp.Rational(1, 2) * local["m"] * local["x_dot"]**2
-                    - sp.Rational(1, 2) * local["k"] * local["x"]**2
-                )
-                if sp.simplify(lagr - canonical) != 0:
+                if not formal_scope_supported:
                     semantic_ok = False
                     semantic_error = (
-                        "Lean formal scope is currently limited to the canonical "
-                        "1D harmonic-oscillator Lagrangian."
+                        "Lean formal scope currently requires coordinate='x' and "
+                        "time_variable='t'."
                     )
-            elif edge.transformation_rule == "conserve_energy":
-                energy_text = out_nodes[0].expression.raw_str.split("=", 1)[0].strip()
-                energy = semantic_checker._parse_expression(energy_text, local)
-                canonical_energy = (
-                    sp.Rational(1, 2) * local["m"] * local["x_dot"]**2
-                    + sp.Rational(1, 2) * local["k"] * local["x"]**2
-                )
-                if sp.simplify(energy - canonical_energy) != 0:
-                    semantic_ok = False
-                    semantic_error = (
-                        "Lean formal scope is currently limited to canonical "
-                        "harmonic-oscillator mechanical energy."
+                elif edge.transformation_rule == "euler_lagrange":
+                    lagr = semantic_checker._parse_expression(
+                        in_nodes[0].expression.raw_str, local
                     )
-            
-            if not semantic_ok:
-                elapsed = (time.perf_counter() - start_time) * 1000
-                return VerificationReport(
-                    status=VerificationStatus.FAILED,
-                    backend=self.name,
-                    backend_version=self.version,
-                    execution_time_ms=elapsed,
-                    passed=False,
-                    details={"semantic_preflight": semantic_details},
-                    error_message=(
-                        "Formal proof rejected because graph semantic preflight failed: "
-                        + (semantic_error or "unknown semantic mismatch")
-                    ),
-                )
-            
-        # Generate Lean 4 proof obligation
-            lean_code, theorem_name = self._generate_lean_obligation(edge, in_nodes, out_nodes)
-            
-            # Run Lean 4 compiler in sandboxed directory
-            passed, stdout, stderr, returncode = self._run_lean(lean_code)
-            code_hash = hashlib.sha256(lean_code.encode("utf-8")).hexdigest()
-            
+                    canonical = (
+                        sp.Rational(1, 2) * local["m"] * local["x_dot"]**2
+                        - sp.Rational(1, 2) * local["k"] * local["x"]**2
+                    )
+                    if sp.simplify(lagr - canonical) != 0:
+                        semantic_ok = False
+                        semantic_error = (
+                            "Lean formal scope is currently limited to the canonical "
+                            "1D harmonic-oscillator Lagrangian."
+                        )
+                elif edge.transformation_rule == "conserve_energy":
+                    energy_text = out_nodes[0].expression.raw_str.split("=", 1)[0].strip()
+                    energy = semantic_checker._parse_expression(energy_text, local)
+                    canonical_energy = (
+                        sp.Rational(1, 2) * local["m"] * local["x_dot"]**2
+                        + sp.Rational(1, 2) * local["k"] * local["x"]**2
+                    )
+                    if sp.simplify(energy - canonical_energy) != 0:
+                        semantic_ok = False
+                        semantic_error = (
+                            "Lean formal scope is currently limited to canonical "
+                            "harmonic-oscillator mechanical energy."
+                        )
+                
+                if not semantic_ok:
+                    elapsed = (time.perf_counter() - start_time) * 1000
+                    return VerificationReport(
+                        status=VerificationStatus.FAILED,
+                        backend=self.name,
+                        backend_version=self.version,
+                        execution_time_ms=elapsed,
+                        passed=False,
+                        details={"semantic_preflight": semantic_details},
+                        error_message=(
+                            "Formal proof rejected because graph semantic preflight failed: "
+                            + (semantic_error or "unknown semantic mismatch")
+                        ),
+                    )
+                
+            # Generate Lean 4 proof obligation
+                lean_code, theorem_name = self._generate_lean_obligation(edge, in_nodes, out_nodes)
+                
+                # Run Lean 4 compiler in sandboxed directory
+                passed, stdout, stderr, returncode = self._run_lean(lean_code)
+                code_hash = hashlib.sha256(lean_code.encode("utf-8")).hexdigest()
+                
         elapsed = (time.perf_counter() - start_time) * 1000
             
         details = {
