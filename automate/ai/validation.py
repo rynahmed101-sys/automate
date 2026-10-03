@@ -123,6 +123,13 @@ def validate_ai_proposal(
     # 4. Semantic rule validation against RuleRegistry
     registry = rule_registry or RuleRegistry()
     rule_def = registry.get(proposal.rule)
+    if rule_def:
+        allowed_for_rule = rule_def.allowed_checkers()
+        if proposal.target_checker not in allowed_for_rule:
+            errors.append(
+                f"Checker '{proposal.target_checker}' cannot verify rule '{proposal.rule}'. "
+                f"Allowed checkers: {', '.join(allowed_for_rule)}."
+            )
     if not rule_def:
         errors.append(
             f"Unknown transformation rule '{proposal.rule}'. "
