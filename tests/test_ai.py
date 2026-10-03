@@ -210,3 +210,13 @@ def test_security_validation_rejects_unknown_checker():
     result = validate_ai_proposal(raw, graph)
     assert result.is_valid is False
     assert any("Unknown verification backend" in e for e in result.errors)
+
+
+def test_ai_context_exposes_rule_capabilities():
+    graph = _create_sample_graph()
+    context = build_ai_context(graph)
+    divide_rule = next(
+        r for r in context.available_rules if r["rule_id"] == "divide_both_sides"
+    )
+    assert divide_rule["symbolic_checker_available"] is True
+    assert divide_rule["formal_proof_available"] is False
