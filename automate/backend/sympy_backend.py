@@ -75,9 +75,9 @@ class SymPyChecker(BaseChecker):
                         in_nodes[0], out_nodes[0]
                     )
                 else:
-                    passed, details, certificates, error_msg = self._verify_algebraic_identity(
-                        in_nodes[0], out_nodes[0]
-                    )
+                    passed = False
+                    details = {"rule": rule}
+                    error_msg = f"Unsupported symbolic transformation rule: {rule}"
             except Exception as e:
                 passed = False
                 error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}"
@@ -131,134 +131,222 @@ class SymPyChecker(BaseChecker):
             evidence=evidence
         )
 
+
+    @staticmethod
+    def _relation_residual(raw_str: str, locals_map: Dict[str, Any]) -> Tuple[sp.Expr, Optional[str]]:
+        """Parse an expression/equality into a SymPy residual and relation."""
+        text = raw_str.strip()
+        for relation in ("<=", ">=", "!=", "=", "<", ">"):
+            if relation in text:
+                lhs_text, rhs_text = text.split(relation, 1)
+                lhs = sp.sympify(lhs_text.strip(), locals=locals_map)
+                rhs = sp.sympify(rhs_text.strip(), locals=locals_map)
+                return sp.simplify(lhs - rhs), relation
+        return sp.sympify(text, locals=locals_map), None
+
+    @staticmethod
+    def _build_context(params: Dict[str, Any]) -> Dict[str, Any]:
+        """Build one consistent symbolic context for all graph expressions."""
+        time_name = str(params.get("time_variable", "t"))
+        coordinate_name = str(params.get("coordinate", "x"))
+        t = sp.Symbol(time_name, real=True)
+        q = sp.Function(coordinate_name)(t)
+        local: Dict[str, Any] = {
+            time_name: t,
+            coordinate_name: q,
+            f"{coordinate_name}_dot": sp.diff(q, t),
+            f"{coordinate_name}_ddot": sp.diff(q, t, 2),
+            "sin": sp.sin,
+            "cos": sp.cos,
+            "tan": sp.tan,
+            "exp": sp.exp,
+            "log": sp.log,
+            "sqrt": sp.sqrt,
+            "pi": sp.pi,
+        }
+        for name, assumptions in (
+            ("m", {"positive": True}),
+            ("k", {"positive": True}),
+            ("A", {"real": True}),
+            ("phi", {"real": True}),
+            ("omega", {"positive": True}),
+            ("E", {"real": True}),
+        ):
+            local.setdefault(name, sp.Symbol(name, **assumptions))
+        for name, value in params.items():
+            if isinstance(value, (int, float)):
+                local[name] = sp.Float(value)
+        return local
+
+    @staticmethod
+    def _parse_expression(raw_str: str, locals_map: Dict[str, Any]) -> sp.Expr:
+        return sp.sympify(raw_str.strip(), locals=locals_map)
+
     def _verify_euler_lagrange(
         self, lagr_node: Any, eom_node: Any, params: Dict[str, Any]
-    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        """
-        Calculates d/dt(dL/dqdot) - dL/dq and checks equivalence with EoM.
-        """
-        t = sp.Symbol('t', real=True)
-        x = sp.Function('x')(t)
-        x_dot = sp.diff(x, t)
-        x_ddot = sp.diff(x_dot, t)
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """Verify Euler-Lagrange from the graph's actual Lagrangian and EoM."""
+        local = self._build_context(params)
+        time_name = str(params.get("time_variable", "t"))
+        coordinate_name = str(params.get("coordinate", "x"))
+        t = local[time_name]
+        q = local[coordinate_name]
+        q_dot = sp.diff(q, t)
 
-        m = sp.Symbol('m', positive=True)
-        k = sp.Symbol('k', positive=True)
+        L = self._parse_expression(lagr_node.expression.raw_str, local)
+        target_residual, relation = self._relation_residual(eom_node.expression.raw_str, local)
+        dL_dqdot = sp.diff(L, q_dot)
+        ddt_dL_dqdot = sp.diff(dL_dqdot, t)
+        dL_dq = sp.diff(L, q)
+        computed_residual = sp.simplify(ddt_dL_dqdot - dL_dq)
+        difference = sp.simplify(computed_residual - target_residual)
+        passed = relation in (None, "=") and difference == 0
 
-        # Lagrangian: 1/2 * m * x_dot**2 - 1/2 * k * x**2
-        L = sp.Rational(1, 2) * m * x_dot**2 - sp.Rational(1, 2) * k * x**2
-
-        # Step 1: Partial wrt velocity (momentum)
-        dL_dxdot = sp.diff(L, x_dot)
-        step1 = {"step": 1, "operation": "dL/dx_dot", "expr": str(dL_dxdot), "latex": sp.latex(dL_dxdot)}
-
-        # Step 2: Total time derivative of momentum
-        ddt_dL_dxdot = sp.diff(dL_dxdot, t)
-        step2 = {"step": 2, "operation": "d/dt(dL/dx_dot)", "expr": str(ddt_dL_dxdot), "latex": sp.latex(ddt_dL_dxdot)}
-
-        # Step 3: Partial wrt coordinate
-        dL_dx = sp.diff(L, x)
-        step3 = {"step": 3, "operation": "dL/dx", "expr": str(dL_dx), "latex": sp.latex(dL_dx)}
-
-        # Step 4: Euler-Lagrange equation LHS
-        el_lhs = sp.simplify(ddt_dL_dxdot - dL_dx)
-        step4 = {"step": 4, "operation": "Euler-Lagrange LHS", "expr": str(el_lhs), "latex": sp.latex(el_lhs)}
-
-        # Target EoM: m*x_ddot + k*x
-        target_lhs = m * x_ddot + k * x
-
-        # Test equivalence
-        diff = sp.simplify(el_lhs - target_lhs)
-        passed = (diff == 0)
-
+        steps = [
+            {"step": 1, "operation": "dL/dq_dot", "expr": str(dL_dqdot), "latex": sp.latex(dL_dqdot)},
+            {"step": 2, "operation": "d/dt(dL/dq_dot)", "expr": str(ddt_dL_dqdot), "latex": sp.latex(ddt_dL_dqdot)},
+            {"step": 3, "operation": "dL/dq", "expr": str(dL_dq), "latex": sp.latex(dL_dq)},
+            {"step": 4, "operation": "Euler-Lagrange residual", "expr": str(computed_residual), "latex": sp.latex(computed_residual)},
+        ]
         details = {
-            "computed_eom": str(el_lhs),
-            "target_eom": str(target_lhs),
-            "difference": str(diff),
-            "zero_test_passed": passed
+            "lagrangian": str(L),
+            "computed_eom": str(computed_residual),
+            "target_eom_residual": str(target_residual),
+            "difference": str(difference),
+            "relation": relation,
+            "zero_test_passed": passed,
         }
-        steps = [step1, step2, step3, step4]
-
-        return passed, details, steps, None if passed else f"Euler-Lagrange residual non-zero: {diff}"
+        error = None if passed else (
+            f"Euler-Lagrange residual mismatch: computed {computed_residual}, "
+            f"target {target_residual}, difference {difference}"
+        )
+        return passed, details, steps, error
 
     def _verify_energy_conservation(
         self, in_nodes: List[Any], energy_node: Any, params: Dict[str, Any]
-    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        """
-        Verifies that dE/dt = 0 along solutions of m*x_ddot + k*x = 0.
-        """
-        t = sp.Symbol('t', real=True)
-        x = sp.Function('x')(t)
-        x_dot = sp.diff(x, t)
-        x_ddot = sp.diff(x_dot, t)
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """Verify conservation using the graph's actual energy and EoM."""
+        local = self._build_context(params)
+        time_name = str(params.get("time_variable", "t"))
+        coordinate_name = str(params.get("coordinate", "x"))
+        t = local[time_name]
+        q_ddot = sp.diff(local[coordinate_name], t, 2)
 
-        m = sp.Symbol('m', positive=True)
-        k = sp.Symbol('k', positive=True)
+        eom_node = next((node for node in in_nodes if "=" in node.expression.raw_str), None)
+        if eom_node is None:
+            return False, {}, [], "Energy conservation requires an input equation of motion."
 
-        # Energy: 1/2 * m * x_dot**2 + 1/2 * k * x**2
-        E = sp.Rational(1, 2) * m * x_dot**2 + sp.Rational(1, 2) * k * x**2
+        eom_residual, relation = self._relation_residual(eom_node.expression.raw_str, local)
+        if relation != "=":
+            return False, {}, [], "Energy conservation requires an equality equation of motion."
 
-        # dE/dt = m * x_dot * x_ddot + k * x * x_dot
-        dE_dt = sp.diff(E, t)
-        step1 = {"step": 1, "operation": "dE/dt", "expr": str(dE_dt), "latex": sp.latex(dE_dt)}
+        energy_text = energy_node.expression.raw_str.strip()
+        if "=" in energy_text:
+            lhs_text, rhs_text = energy_text.split("=", 1)
+            lhs = self._parse_expression(lhs_text, local)
+            rhs = self._parse_expression(rhs_text, local)
+            E_symbol = local["E"]
+            if sp.simplify(lhs - E_symbol) == 0:
+                E = rhs
+            elif sp.simplify(rhs - E_symbol) == 0:
+                E = lhs
+            else:
+                E = rhs
+        else:
+            E = self._parse_expression(energy_text, local)
 
-        # Factor out x_dot: x_dot * (m * x_ddot + k * x)
-        factored = sp.factor(dE_dt)
-        step2 = {"step": 2, "operation": "factor(dE/dt)", "expr": str(factored), "latex": sp.latex(factored)}
+        dE_dt = sp.simplify(sp.diff(E, t))
+        solutions = sp.solve(eom_residual, q_ddot, dict=True)
+        if not solutions:
+            return False, {"energy": str(E), "dE_dt": str(dE_dt)}, [], (
+                "Could not solve the supplied equation of motion for acceleration."
+            )
 
-        # Along equation of motion: m*x_ddot = -k*x
-        dE_dt_on_shell = sp.simplify(dE_dt.subs(x_ddot, -k * x / m))
-        step3 = {"step": 3, "operation": "substitute_eom", "expr": str(dE_dt_on_shell), "latex": sp.latex(dE_dt_on_shell)}
+        on_shell_candidates = [sp.simplify(dE_dt.subs(sol)) for sol in solutions]
+        on_shell = on_shell_candidates[0]
+        passed = all(candidate == 0 for candidate in on_shell_candidates)
 
-        passed = (dE_dt_on_shell == 0)
+        steps = [
+            {"step": 1, "operation": "dE/dt", "expr": str(dE_dt), "latex": sp.latex(dE_dt)},
+            {"step": 2, "operation": "solve_eom_for_acceleration", "expr": str(solutions[0][q_ddot]), "latex": sp.latex(solutions[0][q_ddot])},
+            {"step": 3, "operation": "substitute_eom", "expr": str(on_shell), "latex": sp.latex(on_shell)},
+        ]
         details = {
+            "energy": str(E),
+            "eom_residual": str(eom_residual),
             "dE_dt": str(dE_dt),
-            "dE_dt_on_shell": str(dE_dt_on_shell),
-            "is_conserved": passed
+            "dE_dt_on_shell": str(on_shell),
+            "solutions_for_acceleration": [str(sol[q_ddot]) for sol in solutions],
+            "is_conserved": passed,
         }
-        steps = [step1, step2, step3]
-
-        return passed, details, steps, None if passed else "Energy derivative is not zero along equations of motion."
+        error = None if passed else f"Energy derivative is not zero on the supplied EoM: {on_shell}"
+        return passed, details, steps, error
 
     def _verify_harmonic_solution(
         self, eom_node: Any, sol_node: Any, params: Dict[str, Any]
-    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        """
-        Verifies that x(t) = A*cos(omega*t + phi) with omega = sqrt(k/m)
-        satisfies m*x_ddot + k*x = 0.
-        """
-        t = sp.Symbol('t', real=True)
-        m = sp.Symbol('m', positive=True)
-        k = sp.Symbol('k', positive=True)
-        A = sp.Symbol('A', real=True)
-        phi = sp.Symbol('phi', real=True)
-        omega = sp.sqrt(k / m)
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """Verify the proposed solution against the supplied graph EoM."""
+        local = self._build_context(params)
+        time_name = str(params.get("time_variable", "t"))
+        coordinate_name = str(params.get("coordinate", "x"))
+        t = local[time_name]
+        q = local[coordinate_name]
+        omega = local["omega"]
 
-        # Proposed solution
-        x_sol = A * sp.cos(omega * t + phi)
-        step1 = {"step": 1, "operation": "proposed_solution", "expr": str(x_sol), "latex": sp.latex(x_sol)}
+        eom_residual, relation = self._relation_residual(eom_node.expression.raw_str, local)
+        if relation != "=":
+            return False, {}, [], "Harmonic solution requires an equality equation of motion."
 
-        # 1st time derivative
-        x_dot = sp.diff(x_sol, t)
-        step2 = {"step": 2, "operation": "dx/dt", "expr": str(x_dot), "latex": sp.latex(x_dot)}
+        solution_text = sol_node.expression.raw_str.strip()
+        if "=" not in solution_text:
+            return False, {}, [], "Harmonic solution node must contain an equality."
+        lhs_text, rhs_text = solution_text.split("=", 1)
+        solution_lhs = self._parse_expression(lhs_text, local)
+        proposed = self._parse_expression(rhs_text, local)
 
-        # 2nd time derivative
-        x_ddot = sp.diff(x_dot, t)
-        step3 = {"step": 3, "operation": "d2x/dt2", "expr": str(x_ddot), "latex": sp.latex(x_ddot)}
+        if sp.simplify(solution_lhs - q) != 0:
+            return False, {
+                "solution_lhs": str(solution_lhs),
+                "expected_lhs": str(q),
+            }, [], "Solution node does not solve for the configured coordinate."
 
-        # Substitute into EoM: m*x_ddot + k*x
-        eom_residual = sp.simplify(m * x_ddot + k * x_sol)
-        step4 = {"step": 4, "operation": "eom_residual", "expr": str(eom_residual), "latex": sp.latex(eom_residual)}
+        x_dot_candidate = sp.diff(proposed, t)
+        x_ddot_candidate = sp.diff(proposed, t, 2)
+        substituted = sp.simplify(
+            eom_residual.subs({
+                q: proposed,
+                sp.diff(q, t): x_dot_candidate,
+                sp.diff(q, t, 2): x_ddot_candidate,
+            })
+        )
 
-        passed = (eom_residual == 0)
+        frequency_definition = None
+        if substituted != 0 and omega in proposed.free_symbols:
+            omega_value = params.get("omega")
+            if omega_value is None:
+                omega_value_expr = sp.sqrt(local["k"] / local["m"])
+                frequency_definition = "omega = sqrt(k/m) derived from the supplied harmonic EoM"
+            else:
+                omega_value_expr = self._parse_expression(str(omega_value), local)
+            substituted = sp.simplify(substituted.subs(omega, omega_value_expr))
+
+        passed = substituted == 0
+        steps = [
+            {"step": 1, "operation": "proposed_solution", "expr": str(proposed), "latex": sp.latex(proposed)},
+            {"step": 2, "operation": "dx/dt", "expr": str(x_dot_candidate), "latex": sp.latex(x_dot_candidate)},
+            {"step": 3, "operation": "d2x/dt2", "expr": str(x_ddot_candidate), "latex": sp.latex(x_ddot_candidate)},
+            {"step": 4, "operation": "substitute_solution_into_eom", "expr": str(substituted), "latex": sp.latex(substituted)},
+        ]
         details = {
-            "solution": str(x_sol),
-            "residual": str(eom_residual),
-            "satisfies_ode": passed
+            "equation_residual": str(eom_residual),
+            "solution": str(proposed),
+            "residual": str(substituted),
+            "satisfies_ode": passed,
         }
-        steps = [step1, step2, step3, step4]
-
-        return passed, details, steps, None if passed else f"Harmonic solution residual is non-zero: {eom_residual}"
+        if frequency_definition:
+            details["frequency_definition"] = frequency_definition
+        error = None if passed else f"Harmonic solution residual is non-zero: {substituted}"
+        return passed, details, steps, error
 
     def _verify_algebraic_identity(
         self, in_node: Any, out_node: Any
