@@ -74,6 +74,11 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_ode_solution(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                elif rule == "verify_ode_solution":
+                    # Generic ODE verifier — same substitution logic, no SHO-specific assumptions
+                    passed, details, certificates, error_msg = self._verify_ode_solution(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule == "algebraic_identity":
                     passed, details, certificates, error_msg = self._verify_algebraic_identity(
                         in_nodes[0], out_nodes[0]
@@ -97,13 +102,21 @@ class SymPyChecker(BaseChecker):
                     return self._build_report(status, passed, details, certificates, error_msg,
                                               edge, graph, elapsed)
                 else:
-                    # Attempt generic algebraic identity check; document limitation
-                    passed, details, certificates, error_msg = self._verify_algebraic_identity(
-                        in_nodes[0], out_nodes[0]
-                    )
-                    details["rule_note"] = (
-                        f"Rule '{rule}' has no dedicated SymPy verifier; "
-                        "fell back to algebraic identity check."
+                    # NO FALLBACK — unknown rules must not be silently checked
+                    # by algebraic identity. Return NOT_APPLICABLE explicitly.
+                    status = VerificationStatus.NOT_APPLICABLE
+                    details = {
+                        "rule": rule,
+                        "reason": (
+                            f"Rule '{rule}' has no dedicated SymPy verifier and "
+                            "no fallback is permitted. Register a dedicated rule or "
+                            "use the correct checker. Unknown rules must not silently "
+                            "pass algebraic identity checks."
+                        ),
+                    }
+                    elapsed = (time.perf_counter() - start_time) * 1000
+                    return self._build_report(
+                        status, False, details, [], None, edge, graph, elapsed
                     )
             except Exception as e:
                 passed = False
@@ -445,18 +458,27 @@ class SymPyChecker(BaseChecker):
         return passed, details, steps, err
 
     # ------------------------------------------------------------------
-    # Rule: algebraic_identity  (and fallback for unknown rules)
+    # Rule: algebraic_identity
+    # Uses SafeParser — no bare sympify.
     # ------------------------------------------------------------------
     def _verify_algebraic_identity(
         self, in_node: Any, out_node: Any
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        expr1 = sp.sympify(in_node.expression.raw_str)
-        expr2 = sp.sympify(out_node.expression.raw_str)
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        parser = SafeParser()
+        try:
+            expr1 = parser.parse(in_node.expression.raw_str)
+            expr2 = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as e:
+            return False, {"rule": "algebraic_identity"}, [], \
+                f"SafeParser rejected expression: {e}"
         diff = sp.simplify(expr1 - expr2)
         passed = (diff == 0)
         details = {"diff": str(diff), "equal": passed}
         steps = [{"step": 1, "operation": "simplify(expr1 - expr2)", "expr": str(diff)}]
-        return passed, details, steps, None if passed else f"Expressions are not algebraically identical: {diff}"
+        err = None if passed else f"Expressions are not algebraically identical: {diff}"
+        return passed, details, steps, err
+
 
 
 # Type alias used in type hints above
