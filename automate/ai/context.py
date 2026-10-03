@@ -132,7 +132,9 @@ def build_ai_context(graph: DerivationGraph, registry: Optional[RuleRegistry] = 
             "category": r.category,
             "description": r.description,
             "domain": r.domain,
-            "backend": r.implementation_backend
+            "backend": r.implementation_backend,
+            "formal_proof_available": r.formal_proof_available,
+            "symbolic_checker_available": r.symbolic_checker_available,
         }
         for r in reg.list_rules()
     ]
