@@ -8,6 +8,7 @@ import time
 from typing import Dict, Any, List, Optional
 import numpy as np
 import scipy
+import sympy as sp
 from scipy.integrate import solve_ivp
 
 from automate.backend.base import BaseChecker, VerificationReport
@@ -51,17 +52,12 @@ class NumericalChecker(BaseChecker):
         certificates: List[Dict[str, Any]] = []
 
         try:
-            supported_rules = {
-                "euler_lagrange",
-                "solve_harmonic_oscillator",
-                "conserve_energy",
-                "numerical_simulation",
-            }
+            supported_rules = {"numerical_simulation"}
             if rule not in supported_rules:
                 raise ValueError(f"Unsupported numerical transformation rule: {rule}")
 
             passed, details, certificates, error_msg = self._simulate_harmonic_oscillator(
-                edge.parameters
+                in_nodes[0], edge.parameters
             )
         except Exception as e:
             passed = False
@@ -117,10 +113,45 @@ class NumericalChecker(BaseChecker):
         )
 
     def _simulate_harmonic_oscillator(
-        self, params: Dict[str, Any]
+        self, eom_node: Any, params: Dict[str, Any]
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
         m = float(params.get("m", 1.0))
         k = float(params.get("k", 4.0))
+
+        raw_eom = eom_node.expression.raw_str.strip()
+        if "=" not in raw_eom:
+            return False, {}, [], "Numerical simulation requires an equality equation of motion."
+
+        lhs_text, rhs_text = raw_eom.split("=", 1)
+        q = sp.Symbol("x")
+        q_ddot = sp.Symbol("x_ddot")
+        local = {
+            "x": q,
+            "x_ddot": q_ddot,
+            "m": sp.Float(m),
+            "k": sp.Float(k),
+        }
+        try:
+            eom_residual = sp.simplify(
+                sp.sympify(lhs_text.strip(), locals=local)
+                - sp.sympify(rhs_text.strip(), locals=local)
+            )
+        except Exception as exc:
+            return False, {}, [], f"Could not parse equation of motion: {type(exc).__name__}: {exc}"
+
+        expected_residual = m * q_ddot + k * q
+        equivalent = eom_residual == expected_residual
+        if not equivalent:
+            try:
+                ratio = sp.simplify(eom_residual / expected_residual)
+                equivalent = bool(ratio.is_number and ratio != 0)
+            except Exception:
+                equivalent = False
+        if not equivalent:
+            return False, {
+                "supplied_eom_residual": str(eom_residual),
+                "expected_harmonic_residual": str(expected_residual),
+            }, [], "Numerical backend only supports the harmonic oscillator equation m*x_ddot + k*x = 0."
         x0 = float(params.get("x0", 1.0))
         v0 = float(params.get("v0", 0.0))
         t_span = (0.0, float(params.get("t_max", 10.0)))
