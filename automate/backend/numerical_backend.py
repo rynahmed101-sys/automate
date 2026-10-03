@@ -1,6 +1,6 @@
 """
 NumericalChecker: Numerical computation and ODE simulation backend using NumPy, SciPy, and mpmath.
-Validates mathematical equations of motion, trajectories, and conservation laws numerically.
+Validates mathematical equations of motion, trajectories, and conservation laws.
 Stores algorithm, tolerances, versions, and reproducibility information.
 """
 
@@ -51,14 +51,18 @@ class NumericalChecker(BaseChecker):
         certificates: List[Dict[str, Any]] = []
 
         try:
-            if rule in ("euler_lagrange", "solve_harmonic_oscillator", "conserve_energy", "numerical_simulation"):
-                passed, details, certificates, error_msg = self._simulate_harmonic_oscillator(
-                    edge.parameters
-                )
-            else:
-                passed, details, certificates, error_msg = self._simulate_harmonic_oscillator(
-                    edge.parameters
-                )
+            supported_rules = {
+                "euler_lagrange",
+                "solve_harmonic_oscillator",
+                "conserve_energy",
+                "numerical_simulation",
+            }
+            if rule not in supported_rules:
+                raise ValueError(f"Unsupported numerical transformation rule: {rule}")
+
+            passed, details, certificates, error_msg = self._simulate_harmonic_oscillator(
+                edge.parameters
+            )
         except Exception as e:
             passed = False
             error_msg = f"Numerical execution error: {type(e).__name__}: {str(e)}"
@@ -115,7 +119,6 @@ class NumericalChecker(BaseChecker):
     def _simulate_harmonic_oscillator(
         self, params: Dict[str, Any]
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        # Physical parameters
         m = float(params.get("m", 1.0))
         k = float(params.get("k", 4.0))
         x0 = float(params.get("x0", 1.0))
@@ -123,17 +126,15 @@ class NumericalChecker(BaseChecker):
         t_span = (0.0, float(params.get("t_max", 10.0)))
         t_eval = np.linspace(t_span[0], t_span[1], 500)
 
+        if m <= 0 or k <= 0:
+            return False, {}, [], "Physical parameters require m > 0 and k > 0."
+
         omega = np.sqrt(k / m)
 
-        # ODE system: y = [x, v]
-        # dy/dt = [v, -k/m * x]
         def ode_sys(t, y):
             x, v = y
-            dxdt = v
-            dvdt = - (k / m) * x
-            return [dxdt, dvdt]
+            return [v, -(k / m) * x]
 
-        # Solve ODE using Runge-Kutta 45
         sol = solve_ivp(
             ode_sys,
             t_span,
@@ -141,45 +142,48 @@ class NumericalChecker(BaseChecker):
             t_eval=t_eval,
             method="RK45",
             rtol=self.rtol,
-            atol=self.atol
+            atol=self.atol,
         )
 
         if not sol.success:
             return False, {}, [], f"ODE solver failed: {sol.message}"
 
-        x_num = sol.y[0]
-        v_num = sol.y[1]
-        t = sol.t
+        x_num, v_num, t = sol.y[0], sol.y[1], sol.t
 
-        # Analytical solution: x(t) = x0*cos(omega*t) + (v0/omega)*sin(omega*t)
         x_exact = x0 * np.cos(omega * t) + (v0 / omega) * np.sin(omega * t)
         v_exact = -x0 * omega * np.sin(omega * t) + v0 * np.cos(omega * t)
 
-        # Compute trajectory errors
-        abs_err = np.abs(x_num - x_exact)
-        max_abs_error = float(np.max(abs_err))
-        rmse = float(np.sqrt(np.mean(abs_err**2)))
+        x_abs_err = np.abs(x_num - x_exact)
+        v_abs_err = np.abs(v_num - v_exact)
+        max_abs_error = float(np.max(x_abs_err))
+        velocity_max_abs_error = float(np.max(v_abs_err))
+        rmse = float(np.sqrt(np.mean(x_abs_err**2)))
+        velocity_rmse = float(np.sqrt(np.mean(v_abs_err**2)))
 
-        # Compute energy conservation
-        E_num = 0.5 * m * (v_num**2) + 0.5 * k * (x_num**2)
-        E0 = 0.5 * m * (v0**2) + 0.5 * k * (x0**2)
+        E_num = 0.5 * m * v_num**2 + 0.5 * k * x_num**2
+        E0 = 0.5 * m * v0**2 + 0.5 * k * x0**2
         energy_drift = float(np.max(np.abs(E_num - E0) / E0))
 
-        # Check tolerances
         max_allowed_error = 1e-4
         max_allowed_drift = 1e-4
-        passed = (max_abs_error < max_allowed_error) and (energy_drift < max_allowed_drift)
+        passed = (
+            max_abs_error < max_allowed_error
+            and velocity_max_abs_error < max_allowed_error
+            and energy_drift < max_allowed_drift
+        )
 
         metrics = {
             "max_abs_error": max_abs_error,
             "rmse": rmse,
+            "velocity_max_abs_error": velocity_max_abs_error,
+            "velocity_rmse": velocity_rmse,
             "energy_drift_relative": energy_drift,
             "initial_energy_joules": float(E0),
             "final_energy_joules": float(E_num[-1]),
             "num_steps": len(t),
             "solver_method": "RK45",
             "rtol": self.rtol,
-            "atol": self.atol
+            "atol": self.atol,
         }
 
         details = {
@@ -189,22 +193,32 @@ class NumericalChecker(BaseChecker):
                 "algorithm": "Explicit Runge-Kutta method of order 5(4) Dormand-Prince",
                 "software": self.version,
                 "t_span": list(t_span),
-                "grid_points": 500
-            }
+                "grid_points": 500,
+            },
         }
 
         certificates = [
             {
                 "step": "ivp_integration",
                 "description": f"Solved m*d2x/dt2 + k*x = 0 over t in {t_span}",
-                "result": f"RMSE = {rmse:.2e}, Max Error = {max_abs_error:.2e}"
+                "result": f"RMSE = {rmse:.2e}, Max Error = {max_abs_error:.2e}",
+            },
+            {
+                "step": "velocity_validation",
+                "description": "Compared numerical velocity against the closed-form solution.",
+                "result": f"RMSE = {velocity_rmse:.2e}, Max Error = {velocity_max_abs_error:.2e}",
             },
             {
                 "step": "energy_conservation_check",
                 "description": "Computed mechanical energy E(t) = 0.5*m*v^2 + 0.5*k*x^2",
-                "result": f"Max relative drift = {energy_drift:.2e} (tolerance < {max_allowed_drift})"
-            }
+                "result": f"Max relative drift = {energy_drift:.2e} (tolerance < {max_allowed_drift})",
+            },
         ]
 
-        error_msg = None if passed else f"Numerical tolerances exceeded: max_err={max_abs_error:.2e}, drift={energy_drift:.2e}"
+        error_msg = None if passed else (
+            "Numerical tolerances exceeded: "
+            f"x_max_err={max_abs_error:.2e}, "
+            f"v_max_err={velocity_max_abs_error:.2e}, "
+            f"energy_drift={energy_drift:.2e}"
+        )
         return passed, details, certificates, error_msg
