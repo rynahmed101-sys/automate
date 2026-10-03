@@ -158,23 +158,36 @@ class TestSchwarzschildMetric2D:
         nonzero = {k: v for k, v in Gamma.items() if v != 0}
         assert len(nonzero) > 0
 
-    def test_einstein_tensor_satisfies_definition(self):
+    def test_christoffel_tt_component_schwarzschild(self):
         """
-        The 2D t-r sector of Schwarzschild is NOT Ricci-flat by itself
-        (unlike the full 4D metric). We verify that G_{μν} = R_{μν} - (1/2)g_{μν}R
-        is satisfied by construction (definition consistency test).
+        INDEPENDENT TEST — against analytically known Christoffel symbol.
+
+        For the 2D Schwarzschild metric ds² = -(1-2M/r)dt² + (1-2M/r)^{-1}dr²,
+        the t-t Christoffel component is:
+          Γ^r_{tt} = M(r-2M)/r^3      (independently from GR textbooks, e.g. Carroll §5)
+
+        Note: sign conventions may differ; we check the expression form rather than
+        the exact sign to allow for +/- metric signature choice.
+        We verify: |Γ^r_{tt}| is proportional to M and vanishes as M→0.
         """
-        G = self.tg.einstein_tensor()
-        Ricci = self.tg.ricci_tensor()
-        R = self.tg.ricci_scalar()
-        g = self.tg.g
-        n = self.tg.n
-        for i in range(n):
-            for j in range(n):
-                expected = sp.simplify(Ricci[i, j] - sp.Rational(1, 2) * g[i, j] * R)
-                diff = sp.simplify(G[i, j] - expected)
-                assert diff == 0, \
-                    f"Einstein tensor G[{i},{j}] does not satisfy definition. diff={diff}"
+        Gamma = self.tg.christoffel_symbols()
+        M = self.M
+        # Use the same r Symbol as defined in the metric (real, not positive)
+        # to avoid SymPy assumption mismatches in simplification
+        t_coord, r = self.tg.coords  # coords=[t, r] from schwarzschild_2d
+        # Γ^r_{tt} = Γ^{1}_{00} (index 0=t, 1=r)
+        gamma_r_tt = Gamma.get((1, 0, 0), sp.Integer(0))
+        gamma_r_tt_simplified = sp.simplify(gamma_r_tt)
+        # Known result: Γ^r_{tt} = M(r-2M)/r^3 (Carroll, Spacetime and Geometry, eq 5.49)
+        expected = M * (r - 2*M) / r**3
+        diff = sp.trigsimp(sp.expand(gamma_r_tt_simplified - expected))
+        assert diff == 0, (
+            f"Γ^r_{{tt}} mismatch.\n"
+            f"Expected (textbook): {expected}\n"
+            f"Got: {gamma_r_tt_simplified}\n"
+            f"Diff: {diff}"
+        )
+
 
     def test_ricci_tensor_and_scalar_are_finite(self):
         """
@@ -186,14 +199,89 @@ class TestSchwarzschildMetric2D:
         M = self.M
         # R must be a SymPy expression (not zero, not infinity)
         assert R is not None
-        # The result should depend on M and r in some form (non-constant)
-        # In 2D Schwarzschild, R = 4M/r^3 (trace of extrinsic curvature contribution)
         R_simplified = sp.simplify(R)
         assert R_simplified != sp.zoo  # not complex infinity
         # Has some M dependence (result of Christoffel computation)
         r = sp.Symbol("r", real=True)
         assert M in R_simplified.free_symbols or r in R_simplified.free_symbols, \
             f"Ricci scalar should depend on M or r, got: {R_simplified}"
+
+
+class TestPolarCoordinates2D:
+    """
+    Independent tests against analytically known Christoffel symbols
+    for 2D polar coordinates: ds² = dr² + r²dθ²
+
+    Textbook results (see e.g. Misner, Thorne, Wheeler §8.6):
+      Γ^r_{θθ} = -r
+      Γ^θ_{rθ} = Γ^θ_{θr} = 1/r
+      All other Christoffel symbols = 0
+
+    These are NOT computed from the same TensorGeometry instance — they are
+    independently known analytic values used as external ground truth.
+    """
+
+    def setup_method(self):
+        r, theta = sp.symbols("r theta", positive=True)
+        self.r, self.theta = r, theta
+        # 2D polar metric: dr² + r²dθ²
+        g = sp.Matrix([[1, 0], [0, r**2]])
+        self.tg = TensorGeometry(g, [r, theta], simplify=True)
+
+    def test_gamma_r_theta_theta_independent(self):
+        """Γ^r_{θθ} = -r  (textbook, MTW §8.6)"""
+        Gamma = self.tg.christoffel_symbols()
+        r = self.r
+        # coords: 0=r, 1=θ, so Γ^0_{11} = Γ^r_{θθ}
+        val = sp.simplify(Gamma.get((0, 1, 1), sp.Integer(0)))
+        expected = -r
+        assert sp.simplify(val - expected) == 0, \
+            f"Γ^r_{{θθ}}: expected {expected}, got {val}"
+
+    def test_gamma_theta_r_theta_independent(self):
+        """Γ^θ_{rθ} = 1/r  (textbook, MTW §8.6)"""
+        Gamma = self.tg.christoffel_symbols()
+        r = self.r
+        # Γ^1_{01} = Γ^θ_{rθ}
+        val = sp.simplify(Gamma.get((1, 0, 1), sp.Integer(0)))
+        expected = 1/r
+        assert sp.simplify(val - expected) == 0, \
+            f"Γ^θ_{{rθ}}: expected {expected}, got {val}"
+
+    def test_gamma_theta_theta_r_symmetric(self):
+        """Γ^θ_{θr} = 1/r  (same as Γ^θ_{rθ} by symmetry of lower indices)"""
+        Gamma = self.tg.christoffel_symbols()
+        r = self.r
+        # Γ^1_{10} = Γ^θ_{θr}
+        val = sp.simplify(Gamma.get((1, 1, 0), sp.Integer(0)))
+        expected = 1/r
+        assert sp.simplify(val - expected) == 0, \
+            f"Γ^θ_{{θr}}: expected {expected}, got {val}"
+
+    def test_all_other_christoffel_zero(self):
+        """All Christoffel symbols except the 3 known ones must be zero."""
+        Gamma = self.tg.christoffel_symbols()
+        known_nonzero = {(0, 1, 1), (1, 0, 1), (1, 1, 0)}
+        for key, val in Gamma.items():
+            if key not in known_nonzero:
+                simplified = sp.simplify(val)
+                assert simplified == 0, \
+                    f"Unexpected non-zero Christoffel: Γ^{key[0]}_{{{key[1]}{key[2]}}} = {val}"
+
+    def test_ricci_scalar_polar_is_zero(self):
+        """
+        2D polar coordinates are flat space — Ricci scalar must be zero.
+        INDEPENDENT: comparing against R=0 (Euclidean plane is flat).
+        """
+        R = sp.simplify(self.tg.ricci_scalar())
+        assert R == 0, f"Polar coordinate Ricci scalar must be 0 (flat), got: {R}"
+
+    def test_bianchi_identity_polar(self):
+        """Contracted Bianchi identity holds for polar coordinates (flat space)."""
+        passed, details = self.tg.verify_contracted_bianchi_identity()
+        assert passed is True, f"Bianchi failed for polar coords: {details}"
+
+
 
 
 
