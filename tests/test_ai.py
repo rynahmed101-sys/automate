@@ -193,3 +193,20 @@ def test_apply_and_verify_proposal_pipeline():
     assert edge.checker == "sympy"
     assert edge.status in (VerificationStatus.SYMBOLIC_CHECKED, VerificationStatus.AI_PROPOSED)
     assert edge.metadata["origin"]["provider"] == "mock"
+
+
+def test_security_validation_rejects_unknown_checker():
+    graph = _create_sample_graph()
+    raw = {
+        "proposal_id": "bad_checker",
+        "proposal_type": "derivation",
+        "input_nodes": ["node_eom"],
+        "output_nodes": [{"id": "bad_node", "expression": "x = 1"}],
+        "rule": "algebraic_identity",
+        "justification": "Unknown backend test",
+        "target_checker": "mystery_backend",
+        "origin": {"type": "ai"},
+    }
+    result = validate_ai_proposal(raw, graph)
+    assert result.is_valid is False
+    assert any("Unknown verification backend" in e for e in result.errors)
