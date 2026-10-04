@@ -162,6 +162,10 @@ def _ast_stats(tree: ast.AST) -> tuple[int, int]:
 
 
 def _is_safe_binding(value: Any) -> bool:
+    # Explicitly allow only exact objects exported through the parser
+    # allowlist, including SymPy's built-in function classes and constructors.
+    if any(value is allowed for allowed in _ALLOWED_FUNCTIONS.values()):
+        return True
     if isinstance(value, sp.Basic):
         return True
     if isinstance(value, type):
@@ -169,7 +173,7 @@ def _is_safe_binding(value: Any) -> bool:
             return issubclass(value, sp.core.function.UndefinedFunction)
         except TypeError:
             return False
-    return any(value is allowed for allowed in _ALLOWED_FUNCTIONS.values())
+    return False
 
 
 class SafeParser:
