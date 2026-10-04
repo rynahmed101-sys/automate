@@ -63,6 +63,15 @@ def test_lean_formal_proof_verification():
     assert edge.certificate is not None
     assert "formal_proof_hash" in edge.certificate.metrics
 
+    assert "graph_claim_fingerprint_sha256" in report.details
+    assert len(report.details["graph_claim_fingerprint_sha256"]) == 64
+    assert report.details["graph_claim_binding"]["generated_proposition"] is not None
+    assert report.details["graph_claim_binding"]["source_hash_sha256"] == report.details["code_hash_sha256"]
+    assert (
+        edge.certificate.metrics["graph_claim_fingerprint_sha256"]
+        == report.details["graph_claim_fingerprint_sha256"]
+    )
+
 
 
 def test_graph_bound_symbolic_algebraic_identity():
