@@ -86,3 +86,12 @@ def test_unsupported_physical_rule_is_rejected_without_canned_theorem():
 def test_unsupported_math_construct_is_explicitly_rejected():
     with pytest.raises(GraphToLeanTranslationError):
         translate_node_expression("sin(x)")
+
+
+def test_algebraic_identity_rejects_equation_operands():
+    with pytest.raises(GraphToLeanTranslationError, match="expects arithmetic expressions"):
+        translate_edge_claim(
+            "algebraic_identity",
+            ["x = y"],
+            ["y = x"],
+        )
