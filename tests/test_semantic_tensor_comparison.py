@@ -58,7 +58,7 @@ def test_same_dimension_different_index_spaces_do_not_match():
         IndexSpace(name="W", dimension=4),
     ])
     result = semantic_compare(left, right, ctx)
-    assert result["result"] != SemanticResult.SEMANTIC_MATCH.value
+    assert result["result"] == SemanticResult.SEMANTIC_DISCREPANCY.value
 
 
 def test_unsupported_symmetry_is_not_discrepancy():
