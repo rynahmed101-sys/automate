@@ -117,12 +117,34 @@ def _translate_atom(expr: sp.Basic) -> str:
     return _translate_arithmetic(expr)
 
 
+_RELATION_PATTERN = re.compile(r"(?P<op><=|>=|!=|=|<|>)")
+
+
 def _parse_node(raw: str) -> sp.Basic:
     parser = SafeParser()
+    text = raw.strip()
     try:
-        if "=" in raw:
-            return parser.parse_equation(raw)
-        return parser.parse(raw)
+        match = _RELATION_PATTERN.search(text)
+        if match:
+            operator = match.group("op")
+            lhs_text = text[: match.start()].strip()
+            rhs_text = text[match.end() :].strip()
+            if not lhs_text or not rhs_text:
+                raise GraphToLeanTranslationError(
+                    "Relation must contain non-empty left and right expressions."
+                )
+            lhs = parser.parse(lhs_text)
+            rhs = parser.parse(rhs_text)
+            relation_types = {
+                "=": sp.Eq,
+                "!=": sp.Ne,
+                ">": sp.Gt,
+                "<": sp.Lt,
+                ">=": sp.Ge,
+                "<=": sp.Le,
+            }
+            return relation_types[operator](lhs, rhs)
+        return parser.parse(text)
     except SafeParseError as exc:
         raise GraphToLeanTranslationError(
             f"SafeParser rejected graph expression: {exc}"
