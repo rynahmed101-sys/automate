@@ -143,6 +143,30 @@ def _isolated_parse_worker(
     finally:
         send_conn.close()
 
+
+
+def _isolated_parse_equation_worker(
+    send_conn: Any,
+    eq_str: str,
+    extra_locals: Optional[Dict[str, Any]],
+    max_atoms: int,
+    max_depth: int,
+    max_seconds: float,
+) -> None:
+    """Run SafeParser.parse_equation in a killable child process."""
+    try:
+        parser = SafeParser(
+            max_atoms=max_atoms,
+            max_depth=max_depth,
+            max_seconds=max_seconds,
+        )
+        result = parser.parse_equation(eq_str, extra_locals=extra_locals)
+        send_conn.send(("ok", result))
+    except BaseException as exc:
+        send_conn.send(("error", f"{type(exc).__name__}: {exc}"))
+    finally:
+        send_conn.close()
+
 _SAFE_BINARY_OPS: Dict[type[ast.operator], Callable[[Any, Any], Any]] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
@@ -490,6 +514,80 @@ class SafeParser:
 
             raise SafeParseError(
                 "Isolated parser exited without returning a result "
+                f"(exit code {process.exitcode})."
+            )
+        finally:
+            recv_conn.close()
+
+
+
+    def parse_equation_isolated(
+        self,
+        eq_str: str,
+        extra_locals: Optional[Dict[str, Any]] = None,
+        timeout: Optional[float] = None,
+    ) -> sp.Expr:
+        """Parse an equation in a killable child process."""
+        budget = self.max_seconds if timeout is None else float(timeout)
+        if budget <= 0:
+            raise SafeParseError("Isolated parse timeout must be greater than zero.")
+        if not isinstance(eq_str, str):
+            raise SafeParseError(
+                f"Equation must be a string, got {type(eq_str).__name__}."
+            )
+        if extra_locals:
+            self._validate_bindings(extra_locals, "extra_locals")
+
+        ctx = multiprocessing.get_context("spawn")
+        recv_conn, send_conn = ctx.Pipe(duplex=False)
+        process = ctx.Process(
+            target=_isolated_parse_equation_worker,
+            args=(
+                send_conn,
+                eq_str,
+                extra_locals,
+                self.max_atoms,
+                self.max_depth,
+                budget,
+            ),
+            daemon=True,
+        )
+        try:
+            process.start()
+        except Exception as exc:
+            recv_conn.close()
+            send_conn.close()
+            raise SafeParseError(
+                f"Could not start isolated parser process: {type(exc).__name__}: {exc}"
+            ) from exc
+
+        send_conn.close()
+        try:
+            process.join(budget)
+            if process.is_alive():
+                process.terminate()
+                process.join(2.0)
+                if process.is_alive() and hasattr(process, "kill"):
+                    process.kill()
+                    process.join(1.0)
+                raise SafeParseError(
+                    f"Isolated equation parse exceeded hard timeout of {budget}s; "
+                    "worker process was terminated."
+                )
+
+            if recv_conn.poll():
+                status, payload = recv_conn.recv()
+                if status == "ok":
+                    if not isinstance(payload, sp.Basic):
+                        raise SafeParseError(
+                            f"Isolated parser returned unsupported object type "
+                            f"{type(payload).__name__}."
+                        )
+                    return payload
+                raise SafeParseError(f"Isolated equation parser failed: {payload}")
+
+            raise SafeParseError(
+                "Isolated equation parser exited without returning a result "
                 f"(exit code {process.exitcode})."
             )
         finally:
