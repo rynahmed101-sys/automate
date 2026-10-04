@@ -217,33 +217,56 @@ def canonicalize_expression(
 
 
 def semantic_signature(expression: TensorExpression) -> str:
-    """Return an explicit semantic declaration fingerprint.
+    """Return an alpha-normalized semantic declaration fingerprint.
 
-    SymPy canonicalization is responsible for tensor canonicalization, while
-    this independent metadata fingerprint preserves distinctions such as two
-    same-dimensional but different index spaces that a rendered canonical
-    expression may not expose.
+    Dummy/bound index names are not semantic identity, so they are replaced by
+    a binding marker. Free index names remain explicit because free-index
+    identity is part of the equation's interface. Factor/product ordering is
+    normalized here only for the declaration layer; algebraic equivalence is
+    still decided by SymPy's independent canonicalizer.
     """
     if expression.products is None:
         raise ValueError("Semantic comparison requires structured products.")
+
+    occurrences: Dict[str, List[TensorIndex]] = {}
+    for product in expression.products:
+        for quantity in product.factors:
+            for index in quantity.indices:
+                occurrences.setdefault(index.symbol, []).append(index)
+
+    dummy_symbols = {
+        symbol
+        for symbol, indexes_for_symbol in occurrences.items()
+        if (
+            len(indexes_for_symbol) == 2
+            and {index.position for index in indexes_for_symbol} == {"upper", "lower"}
+            and len({index.index_space for index in indexes_for_symbol}) == 1
+        )
+    }
+
     payload = []
     for product in expression.products:
         factors = []
         for quantity in product.factors:
+            indices = []
+            for index in quantity.indices:
+                item = {
+                    "binding": "dummy" if index.symbol in dummy_symbols else "free",
+                    "index_space": index.index_space,
+                    "position": index.position,
+                    "dimension": index.dimension,
+                }
+                if index.symbol not in dummy_symbols:
+                    item["symbol"] = index.symbol
+                indices.append(item)
             factors.append({
                 "name": quantity.name,
                 "symmetry": quantity.symmetry or "none",
-                "indices": [
-                    {
-                        "symbol": index.symbol,
-                        "index_space": index.index_space,
-                        "position": index.position,
-                        "dimension": index.dimension,
-                    }
-                    for index in quantity.indices
-                ],
+                "indices": indices,
             })
+        factors.sort(key=lambda factor: json.dumps(factor, sort_keys=True, separators=(",", ":")))
         payload.append({"factors": factors})
+    payload.sort(key=lambda product: json.dumps(product, sort_keys=True, separators=(",", ":")))
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
@@ -289,11 +312,40 @@ def semantic_compare(
             "independence_class": "INDEPENDENT_ENGINE",
         }
 
-    left_payload = json.dumps({"canonical": left_canonical, "semantics": left_semantics}, separators=(",", ":"), sort_keys=True)
-    right_payload = json.dumps({"canonical": right_canonical, "semantics": right_semantics}, separators=(",", ":"), sort_keys=True)
+    context_payload = [
+        {
+            "name": space.name,
+            "dimension": space.dimension,
+            "metric_name": space.metric_name,
+            "metric_symmetry": space.metric_symmetry,
+            "signature": space.signature,
+        }
+        for space in sorted(context.index_spaces, key=lambda item: item.name)
+    ]
+    context_signature = json.dumps(context_payload, separators=(",", ":"), sort_keys=True)
+
+    left_payload = json.dumps(
+        {
+            "canonical": left_canonical,
+            "semantics": left_semantics,
+            "context": context_signature,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    right_payload = json.dumps(
+        {
+            "canonical": right_canonical,
+            "semantics": right_semantics,
+            "context": context_signature,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
     left_fp = hashlib.sha256(left_payload.encode()).hexdigest()
     right_fp = hashlib.sha256(right_payload.encode()).hexdigest()
-    matched = left_canonical == right_canonical
+    semantics_equal = left_semantics == right_semantics
+    matched = left_canonical == right_canonical and semantics_equal
     return {
         "result": (
             SemanticResult.SEMANTIC_MATCH.value
