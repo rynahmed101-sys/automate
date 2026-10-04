@@ -7,6 +7,11 @@ Ricci scalar, Einstein tensor, geodesic equations, and Bianchi identity verifica
 """
 
 from automate.tensors.algebra import TensorGeometry
+from automate.tensors.cadabra_adapter import (
+    get_cadabra_version,
+    is_cadabra_available,
+    run_cadabra_script,
+)
 from automate.ir.tensors import (
     TensorEquation,
     TensorExpression,
@@ -19,6 +24,9 @@ from automate.ir.tensors import (
 
 __all__ = [
     "TensorGeometry",
+    "get_cadabra_version",
+    "is_cadabra_available",
+    "run_cadabra_script",
     "TensorEquation",
     "TensorExpression",
     "TensorIndex",
