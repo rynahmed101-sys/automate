@@ -71,3 +71,67 @@ def test_translation_fingerprint_changes_with_ir():
         products=[TensorProduct(factors=[TensorQuantity(name="B", indices=[_idx("a")])])],
     )
     assert translate_expression(one)["ir_fingerprint_sha256"] != translate_expression(two)["ir_fingerprint_sha256"]
+
+
+def _product(*factors):
+    return TensorProduct(factors=list(factors))
+
+
+def test_translates_structured_tensor_equation():
+    from automate.ir.tensors import TensorEquation
+    from automate.tensors.cadabra_translation import tensor_equation_to_cadabra, translate_equation
+
+    equation = TensorEquation(
+        lhs=TensorExpression(
+            terms=[[_idx("a", "lower"), _idx("b", "upper"), _idx("b", "lower")]],
+            products=[_product(
+                TensorQuantity(name="R", indices=[_idx("a", "lower"), _idx("b", "upper")]),
+                TensorQuantity(name="v", indices=[_idx("b", "lower")]),
+            )],
+        ),
+        rhs=TensorExpression(
+            terms=[[_idx("a", "lower")]],
+            products=[_product(
+                TensorQuantity(name="w", indices=[_idx("a", "lower")]),
+            )],
+        ),
+    )
+    assert tensor_equation_to_cadabra(equation) == "R_{a}^{b} v_{b} = w_{a}"
+    assert translate_equation(equation)["source"] == "R_{a}^{b} v_{b} = w_{a};"
+
+
+def test_rejects_equation_free_index_mismatch():
+    from automate.ir.tensors import TensorEquation
+    from automate.tensors.cadabra_translation import tensor_equation_to_cadabra
+
+    equation = TensorEquation(
+        lhs=TensorExpression(
+            terms=[[_idx("a", "lower")]],
+            products=[_product(TensorQuantity(name="A", indices=[_idx("a", "lower")]))],
+        ),
+        rhs=TensorExpression(
+            terms=[[_idx("b", "lower")]],
+            products=[_product(TensorQuantity(name="B", indices=[_idx("b", "lower")]))],
+        ),
+    )
+    with pytest.raises(ValueError, match="Equation index mismatch"):
+        tensor_equation_to_cadabra(equation)
+
+
+def test_equation_fingerprint_changes_with_factor_identity():
+    from automate.ir.tensors import TensorEquation
+    from automate.tensors.cadabra_translation import translate_equation
+
+    def make(name):
+        return TensorEquation(
+            lhs=TensorExpression(
+                terms=[[_idx("a", "lower")]],
+                products=[_product(TensorQuantity(name=name, indices=[_idx("a", "lower")]))],
+            ),
+            rhs=TensorExpression(
+                terms=[[_idx("a", "lower")]],
+                products=[_product(TensorQuantity(name="B", indices=[_idx("a", "lower")]))],
+            ),
+        )
+
+    assert translate_equation(make("A"))["ir_fingerprint_sha256"] != translate_equation(make("C"))["ir_fingerprint_sha256"]
