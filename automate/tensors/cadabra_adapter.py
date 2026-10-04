@@ -180,12 +180,35 @@ def _run_cadabra_cli(payload: Dict[str, Any]) -> Dict[str, Any]:
         "error": None if return_code == 0 else f"Cadabra exited with status {return_code}.",
     }
 
+def run_translated_cadabra(
+    translation: Dict[str, Any],
+    *,
+    expected_output: Optional[str] = None,
+    sandbox_limits: Optional[SandboxLimits] = None,
+) -> Dict[str, Any]:
+    """Execute deterministic translator output while binding evidence to its IR fingerprint."""
+    if not isinstance(translation, dict):
+        raise TypeError("translation must be a dictionary returned by a Cadabra translator.")
+    source = translation.get("source")
+    fingerprint = translation.get("ir_fingerprint_sha256")
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError("translation must contain non-empty source.")
+    if not isinstance(fingerprint, str) or len(fingerprint) != 64:
+        raise ValueError("translation must contain a valid 64-character IR fingerprint.")
+    return run_cadabra_script(
+        source,
+        expected_output=expected_output,
+        sandbox_limits=sandbox_limits,
+        claim_fingerprint_sha256=fingerprint,
+    )
+
 
 def run_cadabra_script(
     source: str,
     *,
     expected_output: Optional[str] = None,
     sandbox_limits: Optional[SandboxLimits] = None,
+    claim_fingerprint_sha256: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute a supported Cadabra script and return auditable evidence."""
     input_fingerprint = _sha256_text(source)
@@ -200,6 +223,7 @@ def run_cadabra_script(
         return ExternalEngineEvidence(
             engine="Cadabra2", version=version, execution_status="UNSUPPORTED",
             independence_class="UNVERIFIED", input_fingerprint_sha256=input_fingerprint,
+            claim_fingerprint_sha256=claim_fingerprint_sha256,
             comparison_method=comparison_method, sandbox_target=_TARGET,
             sandbox_limits=limits.model_dump(), error=str(exc),
             notes=["Only bounded source execution is supported."],
@@ -238,6 +262,7 @@ def run_cadabra_script(
             engine="Cadabra2", version=version, execution_status="EXECUTION_FAILED",
             independence_class="CROSS_CHECK_FAILED",
             input_fingerprint_sha256=input_fingerprint,
+            claim_fingerprint_sha256=claim_fingerprint_sha256,
             output_fingerprint_sha256=result.get("output_fingerprint_sha256"),
             comparison_method=comparison_method, sandbox_target=_TARGET,
             sandbox_limits=limits.model_dump(),
