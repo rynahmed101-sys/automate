@@ -163,9 +163,9 @@ class RuleRegistry:
             domain="mathematics",
             reversible=True,
             implementation_backend="sympy",
-            formal_proof_available=True,
+            formal_proof_available=False,
             symbolic_checker_available=True,
-            allowed_checkers=["sympy", "lean4"],
+            allowed_checkers=["sympy"],
         ))
 
         self.register(RuleDefinition(
@@ -189,9 +189,9 @@ class RuleRegistry:
             domain="mathematics",
             reversible=True,
             implementation_backend="sympy",
-            formal_proof_available=True,
+            formal_proof_available=False,
             symbolic_checker_available=True,
-            allowed_checkers=["sympy", "lean4"],
+            allowed_checkers=["sympy"],
         ))
 
         self.register(RuleDefinition(
@@ -201,9 +201,9 @@ class RuleRegistry:
             description="Simplifies an algebraic expression into canonical minimal form",
             domain="mathematics",
             implementation_backend="sympy",
-            formal_proof_available=True,
+            formal_proof_available=False,
             symbolic_checker_available=True,
-            allowed_checkers=["sympy", "lean4"],
+            allowed_checkers=["sympy"],
         ))
 
         # 4. Tensor & Differential Geometry Rules
