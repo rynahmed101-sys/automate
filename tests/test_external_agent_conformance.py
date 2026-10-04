@@ -45,6 +45,11 @@ def test_machine_client_workflow(tmp_path):
         "rule": "solve_harmonic_oscillator",
         "justification": "Machine-readable workflow contract test.",
         "target_checker": "sympy",
+        "parameters": {
+            "coordinates": ["x"],
+            "parameters": {"m": "positive", "k": "positive"},
+            "omega": "sqrt(k/m)"
+        },
         "origin": {
             "type": "ai",
             "provider": "conformance-test",
