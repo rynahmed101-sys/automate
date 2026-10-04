@@ -214,3 +214,44 @@ def test_translated_ir_rejects_empty_source():
             "source": "",
             "ir_fingerprint_sha256": "f" * 64,
         })
+
+
+def test_cadabra_provenance_binds_resolved_executable(monkeypatch, tmp_path):
+    executable = tmp_path / "cadabra2"
+    executable.write_bytes(b"cadabra-test-runtime")
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: str(executable))
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FakeSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            return {
+                "execution_status": "COMPLETED",
+                "stdout": "same",
+                "stderr": "",
+                "output_fingerprint_sha256": "a" * 64,
+            }
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
+    report = adapter.run_cadabra_script("ex := A;", expected_output="same")
+
+    assert report["runtime_identity"] == "resolved-executable-sha256"
+    assert report["executable_path"] == str(executable.resolve())
+    assert len(report["executable_fingerprint_sha256"]) == 64
+    assert report["adapter_version"] == "v1"
+
+
+@pytest.mark.adversarial
+@pytest.mark.trust_boundary
+def test_cadabra_provenance_changes_when_executable_changes(monkeypatch, tmp_path):
+    executable = tmp_path / "cadabra2"
+    executable.write_bytes(b"runtime-one")
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: str(executable))
+    first = adapter._executable_provenance(str(executable))[1]
+
+    executable.write_bytes(b"runtime-two")
+    second = adapter._executable_provenance(str(executable))[1]
+
+    assert first != second
