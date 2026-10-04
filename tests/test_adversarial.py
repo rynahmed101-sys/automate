@@ -411,6 +411,34 @@ class TestLeanBackendNoTautology:
         report = checker.verify_edge(edge, graph)
         assert report.status == VerificationStatus.NOT_APPLICABLE
 
+    def test_lean_canned_theorem_cannot_ignore_graph_claim(self):
+        """A supported rule with the wrong graph shape must be NOT_APPLICABLE."""
+        graph, edge = make_graph(
+            in_expr="1/2 * m * x_dot**2 + 1/2 * k * x**2",
+            out_expr="m * x_ddot + 123 * k * x",
+            rule="euler_lagrange",
+        )
+        checker = LeanChecker()
+        in_nodes = [graph.get_node(nid) for nid in edge.input_nodes]
+        out_nodes = [graph.get_node(nid) for nid in edge.output_nodes]
+        lean_code, reason = checker._generate_lean_obligation(edge, in_nodes, out_nodes)
+        assert lean_code == "__NOT_APPLICABLE__"
+        assert "Graph-to-Lean binding rejected" in reason
+
+    def test_lean_conservation_requires_canonical_energy_claim(self):
+        """The canned conservation theorem cannot certify an unrelated output."""
+        graph, edge = make_graph(
+            in_expr="m * x_ddot + k * x = 0",
+            out_expr="E = 999",
+            rule="conserve_energy",
+        )
+        checker = LeanChecker()
+        in_nodes = [graph.get_node(nid) for nid in edge.input_nodes]
+        out_nodes = [graph.get_node(nid) for nid in edge.output_nodes]
+        lean_code, reason = checker._generate_lean_obligation(edge, in_nodes, out_nodes)
+        assert lean_code == "__NOT_APPLICABLE__"
+        assert "Graph-to-Lean binding rejected" in reason
+
     def test_lean_supported_rules_are_not_fabricated_without_lean(self):
         """
         If Lean 4 is not installed, the checker returns UNVERIFIED,
