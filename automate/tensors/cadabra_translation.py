@@ -56,44 +56,13 @@ def tensor_expression_to_cadabra(expression: TensorExpression) -> str:
 
 
 def cadabra_declarations(expression: TensorExpression) -> List[str]:
-    """Emit conservative Cadabra declarations for index spaces.
+    """Return no implicit Cadabra properties.
 
-    Dimensions are emitted only when known. Symmetry declarations are retained
-    as metadata but are not guessed or expanded into rules.
+    Index spaces and tensor symmetries require domain-specific metadata that
+    cannot safely be inferred from the current IR. The translator therefore
+    emits only the mathematically explicit indexed expression.
     """
     if expression.products is None:
         raise ValueError("Structured tensor products are required for Cadabra translation.")
-    dimensions = {}
-    for product in expression.products:
-        for index in product.indices:
-            if index.dimension is not None:
-                previous = dimensions.get(index.symbol)
-                if previous is not None and previous != index.dimension:
-                    raise ValueError(
-                        f"Index {index.symbol!r} has conflicting dimensions: "
-                        f"{previous} and {index.dimension}."
-                    )
-                dimensions[index.symbol] = index.dimension
+    return []
 
-    declarations = []
-    for symbol in sorted(dimensions):
-        declarations.append(f"{symbol}::Indices.")
-        declarations.append(f"{symbol}::Integer.")
-    return declarations
-
-
-def translate_expression(expression: TensorExpression) -> dict:
-    """Return deterministic Cadabra source plus a canonical IR fingerprint."""
-    source_expression = tensor_expression_to_cadabra(expression)
-    declarations = cadabra_declarations(expression)
-    source = "\n".join(declarations + [f"{{{source_expression}}};"])
-    canonical = expression.model_dump(mode="json")
-    fingerprint = hashlib.sha256(
-        json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
-    return {
-        "engine": "Cadabra2",
-        "source": source,
-        "ir_fingerprint_sha256": fingerprint,
-        "translation": "canonical TensorExpression.products -> Cadabra syntax",
-    }
