@@ -244,15 +244,11 @@ class StatisticalChecker(BaseChecker):
         model_func, param_names, p0, true_params = self._build_model(model_type, params, in_node)
         evaluation_budget = EvaluationBudget(self.max_model_evaluations)
         original_model_func = model_func
+
         def budgeted_model_func(t, *model_params):
             evaluation_budget.consume()
             return original_model_func(t, *model_params)
-        model_func = budgeted_model_func
-        evaluation_budget = EvaluationBudget(self.max_model_evaluations)
-        original_model_func = model_func
-        def budgeted_model_func(t, *model_params):
-            evaluation_budget.consume()
-            return original_model_func(t, *model_params)
+
         model_func = budgeted_model_func
         if model_func is None:
             return False, {}, [], f"Cannot build model function for model type '{model_type}'"
