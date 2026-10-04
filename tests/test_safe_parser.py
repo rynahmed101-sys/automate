@@ -316,3 +316,50 @@ class TestPostParseSymbolCheck:
         bad_expr = bad_sym * 2
         with pytest.raises(SafeParseError, match="disallowed characters"):
             parser._check_expr(bad_expr)
+
+
+# ---------------------------------------------------------------------------
+# I. Structural parser boundary
+# ---------------------------------------------------------------------------
+
+class TestStructuralParserBoundary:
+
+    def test_attribute_access_rejected_structurally(self, parser):
+        with pytest.raises(SafeParseError, match="direct allowlisted"):
+            parser.parse("x.real")
+
+    def test_subscript_access_rejected_structurally(self, parser):
+        with pytest.raises(SafeParseError, match="Syntax node 'Subscript'"):
+            parser.parse("x[0]")
+
+    def test_keyword_arguments_rejected(self, parser):
+        with pytest.raises(SafeParseError, match="Keyword arguments"):
+            parser.parse("Rational(1, q=2)")
+
+    def test_string_literal_rejected(self, parser):
+        with pytest.raises(SafeParseError, match="Only numeric literals"):
+            parser.parse("'not_math'")
+
+    def test_arbitrary_extra_callable_rejected(self, parser):
+        def evil(value):
+            return value
+
+        with pytest.raises(SafeParseError, match="not a permitted SymPy binding"):
+            parser.parse("evil(x)", extra_locals={"evil": evil})
+
+    def test_parser_does_not_call_sympify_on_source(self, monkeypatch):
+        import automate.ir.safe_parser as safe_parser_module
+
+        def fail_sympify(*args, **kwargs):
+            raise AssertionError("untrusted source must never reach sympify")
+
+        monkeypatch.setattr(safe_parser_module.sp, "sympify", fail_sympify)
+        expr = SafeParser().parse("x + 1")
+        assert isinstance(expr, sp.Expr)
+
+    def test_bound_undefined_function_is_allowed(self, parser):
+        t = sp.Symbol("t")
+        x = sp.Function("x")
+        expr = parser.parse("diff(x(t), t, 2)", extra_locals={"x": x, "t": t})
+        assert expr != 0
+        assert isinstance(expr, sp.Expr)
