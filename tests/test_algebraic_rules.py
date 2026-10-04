@@ -61,16 +61,45 @@ def _run(rule: str, in_expr: str, out_expr: str, params: dict):
 
 class TestDivideBothSides:
 
-    def test_divide_linear_by_m_correct(self):
-        """m*a = F  divided by m  →  a = F/m"""
+    def test_divide_linear_by_m_requires_nonzero_proof(self):
+        """Symbolic division requires an explicit trusted nonzero assumption."""
         passed, details, steps, err = _run(
             "divide_both_sides",
             in_expr="m * a",
             out_expr="a",
             params={"divisor": "m"},
         )
-        assert passed, f"Should pass: {err}"
+        assert not passed
+        assert "not proven non-zero" in (err or "")
 
+    def test_divide_linear_by_m_correct_with_assumption(self):
+        """m*a divided by m is valid when the graph proves m > 0."""
+        graph = MagicMock()
+        graph.assumptions = {
+            "asm_m_pos": MagicMock(active=True, formal_predicate="m > 0"),
+        }
+        checker = SymPyChecker()
+        in_node = _make_node("m * a")
+        out_node = _make_node("a")
+        passed, details, steps, err = checker._verify_divide_both_sides(
+            in_node, out_node, {"divisor": "m"}, graph, ["asm_m_pos"]
+        )
+        assert passed, f"Should pass: {err}"
+        assert details["nonzero_proven"] is True
+        assert details["nonzero_source"] == "asm_m_pos"
+
+    def test_divide_linear_by_m_inactive_assumption_rejected(self):
+        graph = MagicMock()
+        graph.assumptions = {
+            "asm_m_pos": MagicMock(active=False, formal_predicate="m > 0"),
+        }
+        checker = SymPyChecker()
+        passed, details, steps, err = checker._verify_divide_both_sides(
+            _make_node("m * a"), _make_node("a"),
+            {"divisor": "m"}, graph, ["asm_m_pos"]
+        )
+        assert not passed
+        assert "not proven non-zero" in (err or "")
     def test_divide_quadratic_correct(self):
         """2*x**2 divided by 2 → x**2"""
         passed, details, steps, err = _run(
