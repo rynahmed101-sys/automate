@@ -574,8 +574,18 @@ class SafeParser:
                     "worker process was terminated."
                 )
 
+            if process.exitcode not in (0, None):
+                raise SafeParseError(
+                    "Isolated parser worker exited unsuccessfully "
+                    f"(exit code {process.exitcode})."
+                )
             if recv_conn.poll():
-                status, payload = recv_conn.recv()
+                try:
+                    status, payload = recv_conn.recv()
+                except EOFError as exc:
+                    raise SafeParseError(
+                        "Isolated parser worker exited without returning a result."
+                    ) from exc
                 if status == "ok_bytes":
                     if not isinstance(payload, bytes):
                         raise SafeParseError("Isolated parser returned an invalid serialized result.")
@@ -661,8 +671,18 @@ class SafeParser:
                     "worker process was terminated."
                 )
 
+            if process.exitcode not in (0, None):
+                raise SafeParseError(
+                    "Isolated equation parser worker exited unsuccessfully "
+                    f"(exit code {process.exitcode})."
+                )
             if recv_conn.poll():
-                status, payload = recv_conn.recv()
+                try:
+                    status, payload = recv_conn.recv()
+                except EOFError as exc:
+                    raise SafeParseError(
+                        "Isolated equation parser worker exited without returning a result."
+                    ) from exc
                 if status == "ok_bytes":
                     if not isinstance(payload, bytes):
                         raise SafeParseError("Isolated equation parser returned an invalid serialized result.")
