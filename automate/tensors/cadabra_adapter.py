@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -193,8 +194,10 @@ def run_translated_cadabra(
     fingerprint = translation.get("ir_fingerprint_sha256")
     if not isinstance(source, str) or not source.strip():
         raise ValueError("translation must contain non-empty source.")
-    if not isinstance(fingerprint, str) or len(fingerprint) != 64:
-        raise ValueError("translation must contain a valid 64-character IR fingerprint.")
+    if not isinstance(fingerprint, str) or re.fullmatch(r"[0-9a-fA-F]{64}", fingerprint) is None:
+        raise ValueError(
+            "translation must contain a valid 64-character hexadecimal IR fingerprint."
+        )
     return run_cadabra_script(
         source,
         expected_output=expected_output,
