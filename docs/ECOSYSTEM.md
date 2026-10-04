@@ -70,7 +70,7 @@
 * **Project**: EinsteinPy
 * **Repository**: `https://github.com/einsteinpy/einsteinpy`
 * **Purpose**: Relativistic geometry and general relativity. Calculation of Christoffel symbols, Riemann curvature tensor, Ricci tensor, Ricci scalar, Einstein tensor, predefined Schwarzschild metric, and geodesic equations.
-* **Version**: `0.4.0`
+* **Version**: `0.4.0` (pinned in Automate dependency metadata)
 * **License**: MIT (Permissive, fully compatible with Apache-2.0).
 * **Integration Method**: External verification oracle via `einsteinpy.symbolic` adapter (`automate/tensors/einsteinpy_adapter.py`).
 * **Vendored or External**: External dependency.
