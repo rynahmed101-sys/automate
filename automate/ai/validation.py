@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from automate.ai.schemas import DerivationProposal
 from automate.core.graph import DerivationGraph
 from automate.theory.rules import RuleRegistry
+from automate.ir.safe_parser import SafeParser, SafeParseError
 
 # Patterns indicative of malicious code or injection attempts
 DANGEROUS_PATTERNS = [
@@ -44,6 +45,7 @@ DANGEROUS_PATTERNS = [
 
 COMPILED_DANGEROUS = [re.compile(p, re.IGNORECASE) for p in DANGEROUS_PATTERNS]
 MAX_PROPOSAL_SIZE_BYTES = 64 * 1024  # 64 KB limit to prevent DoS via giant payload
+MAX_EXPRESSION_PARSE_SECONDS = 2.0
 
 
 class ProposalValidationResult:
@@ -152,6 +154,28 @@ def validate_ai_proposal(
             # Validate basic expression string non-emptiness
             if not out_node.expression or not out_node.expression.strip():
                 errors.append(f"Proposed output node '{out_node.id}' has empty expression.")
+
+    # 6. Parse proposed mathematical output in an isolated process before any
+    # semantic backend sees it. This provides a killable wall-clock boundary for
+    # untrusted AI-generated expressions/equations.
+    parser = SafeParser(max_seconds=MAX_EXPRESSION_PARSE_SECONDS)
+    for out_node in proposal.output_nodes:
+        try:
+            if "=" in out_node.expression and "==" not in out_node.expression:
+                parser.parse_equation_isolated(
+                    out_node.expression,
+                    timeout=MAX_EXPRESSION_PARSE_SECONDS,
+                )
+            else:
+                parser.parse_isolated(
+                    out_node.expression,
+                    timeout=MAX_EXPRESSION_PARSE_SECONDS,
+                )
+        except SafeParseError as exc:
+            errors.append(
+                f"Unsafe mathematical expression in proposed output node "
+                f"'{out_node.id}': {exc}"
+            )
 
     # 6. Check that proposal does not attempt to assign forbidden verification statuses
     raw_status = raw_proposal.get("status")
