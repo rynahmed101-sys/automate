@@ -32,7 +32,7 @@ from automate.tensors.einsteinpy_adapter import (
     is_einsteinpy_available,
     get_einsteinpy_version,
 )
-from automate.tensors.index import TensorExpression, validate_tensor_equation
+from automate.ir.tensors import TensorExpression, TensorEquation
 
 _SUPPORTED_TENSOR_RULES = frozenset({
     "christoffel_symbols",
@@ -130,14 +130,19 @@ class TensorChecker(BaseChecker):
         index_structure = params.get("index_structure")
         if index_structure is not None:
             try:
-                if "left" in index_structure or "right" in index_structure:
-                    left = TensorExpression.model_validate(index_structure["left"])
-                    right = TensorExpression.model_validate(index_structure["right"])
-                    index_signature = validate_tensor_equation(left, right)
+                if "lhs" in index_structure or "rhs" in index_structure:
+                    equation = TensorEquation.model_validate(index_structure)
+                    validation = equation.validate_structure()
+                    if not validation.is_valid:
+                        raise ValueError("; ".join(validation.errors))
+                    index_signature = equation.free_index_signature
                     index_mode = "equation"
                 else:
                     expression = TensorExpression.model_validate(index_structure)
-                    index_signature = expression.validate_index_structure()
+                    validation = expression.validate_structure()
+                    if not validation.is_valid:
+                        raise ValueError("; ".join(validation.errors))
+                    index_signature = expression.free_index_signature
                     index_mode = "expression"
             except Exception as exc:
                 elapsed = (time.perf_counter() - start_time) * 1000
