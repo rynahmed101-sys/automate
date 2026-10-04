@@ -189,6 +189,7 @@ class StatisticalChecker(BaseChecker):
             )
 
         data_source = params.get("data_source")
+        data_id = str(params.get("data_id", "")).strip()
         if data_source != "observed":
             return (
                 False,
@@ -196,6 +197,14 @@ class StatisticalChecker(BaseChecker):
                 [],
                 "UNSUPPORTED: empirical_inference requires data_source='observed'. "
                 "Synthetic or unspecified data cannot receive STATISTICALLY_CHECKED status.",
+            )
+
+        if not data_id:
+            return (
+                False,
+                {"data_source": data_source},
+                [],
+                "UNSUPPORTED: empirical_inference requires a non-empty data_id for reproducible dataset provenance.",
             )
 
         t_data, x_obs, noise_std = self._load_data(params, model_type, model_func, true_params)
@@ -308,7 +317,6 @@ class StatisticalChecker(BaseChecker):
                 "estimate": float(popt[i]),
                 "std_err": float(perr[i]),
                 "ci_95": ci_95[name],
-                **({"true_value": float(true_params[i])} if i < len(true_params) else {})
             }
             for i, name in enumerate(param_names)
         }
@@ -322,7 +330,8 @@ class StatisticalChecker(BaseChecker):
             "data_source": data_source,
             "data_provenance": {
                 "source_type": "observed",
-                "data_id": str(params.get("data_id", "unidentified_observed_dataset")),
+                "data_id": data_id,
+                "provenance_authentication": "caller_declared_not_independently_authenticated",
                 "sha256": data_hash,
                 "n_points": n_points,
             },
