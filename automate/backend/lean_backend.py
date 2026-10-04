@@ -296,6 +296,68 @@ class LeanChecker(BaseChecker):
             evidence=evidence
         )
 
+
+    @staticmethod
+    def _canonical_claim_matches(
+        rule: str,
+        in_nodes: List[Any],
+        out_nodes: List[Any],
+    ) -> tuple[bool, str]:
+        """Bind canned Lean theorem families to their exact graph claim shapes.
+
+        This is intentionally conservative. A graph outside these canonical
+        examples is NOT_APPLICABLE until a genuine graph-to-Lean translator
+        exists.
+        """
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+
+        parser = SafeParser()
+        try:
+            if rule == "euler_lagrange":
+                if len(in_nodes) != 1 or len(out_nodes) != 1:
+                    return False, "Expected exactly one Lagrangian input and one EoM output."
+                expected_lagrangian = parser.parse(
+                    "1/2 * m * x_dot**2 - 1/2 * k * x**2"
+                )
+                expected_eom = parser.parse("m * x_ddot + k * x")
+                actual_lagrangian = parser.parse(in_nodes[0].expression.raw_str)
+                actual_eom = parser.parse(out_nodes[0].expression.raw_str)
+                if sp.simplify(actual_lagrangian - expected_lagrangian) != 0:
+                    return False, "Lagrangian graph claim is outside the canonical Lean theorem family."
+                if sp.simplify(actual_eom - expected_eom) != 0:
+                    return False, "Equation-of-motion graph claim is outside the canonical Lean theorem family."
+                return True, ""
+
+            if rule == "conserve_energy":
+                if len(in_nodes) < 1 or len(out_nodes) != 1:
+                    return False, "Expected EoM input(s) and one conserved-energy output."
+                expected_eom = parser.parse_equation("m * x_ddot + k * x = 0")
+                expected_energy = parser.parse_equation(
+                    "1/2 * m * x_dot**2 + 1/2 * k * x**2 = E"
+                )
+                eom_matches = any(
+                    sp.simplify(parser.parse_equation(node.expression.raw_str) - expected_eom) == 0
+                    for node in in_nodes
+                )
+                energy_matches = (
+                    sp.simplify(
+                        parser.parse_equation(out_nodes[0].expression.raw_str) - expected_energy
+                    ) == 0
+                )
+                if not eom_matches:
+                    return False, "No canonical harmonic-oscillator EoM claim was found in the input graph."
+                if not energy_matches:
+                    return False, "Conserved-energy graph claim is outside the canonical Lean theorem family."
+                return True, ""
+
+        except (SafeParseError, Exception) as exc:
+            return False, (
+                f"Could not establish canonical graph binding for '{rule}': "
+                f"{type(exc).__name__}: {exc}"
+            )
+
+        return True, ""
+
     def _generate_lean_obligation(
         self, edge: DerivationEdge, in_nodes: List[Any], out_nodes: List[Any]
     ) -> Tuple[str, str]:
@@ -307,6 +369,13 @@ class LeanChecker(BaseChecker):
         for unrelated propositions.
         """
         rule = edge.transformation_rule
+
+        bound, binding_reason = self._canonical_claim_matches(rule, in_nodes, out_nodes)
+        if not bound:
+            return "__NOT_APPLICABLE__", (
+                f"Graph-to-Lean binding rejected for rule '{rule}': {binding_reason} "
+                "Use SymPy/numerical verification until a general graph-to-Lean translator is implemented."
+            )
 
         if rule == "conserve_energy":
             theorem_name = "harmonic_oscillator_energy_derivative_vanishes"
