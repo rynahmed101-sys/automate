@@ -89,6 +89,23 @@ class TensorExpression(BaseModel):
                     errors=["TensorExpression products and terms must have equal length."],
                 )
             product_results = [product.validate_structure() for product in self.products]
+            for i, product in enumerate(self.products):
+                expected = [
+                    (index.symbol, index.position, index.dimension)
+                    for index in product.indices
+                ]
+                supplied = [
+                    (index.symbol, index.position, index.dimension)
+                    for index in self.terms[i]
+                ]
+                if expected != supplied:
+                    return IndexValidationResult(
+                        is_valid=False,
+                        errors=[
+                            f"Term {i+1} products and legacy terms disagree on "
+                            "index identity/variance/dimension."
+                        ],
+                    )
             for i, result in enumerate(product_results):
                 if not result.is_valid:
                     return IndexValidationResult(
