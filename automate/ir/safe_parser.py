@@ -248,7 +248,11 @@ class SafeParser:
         if isinstance(node, ast.Constant):
             if isinstance(node.value, bool) or not isinstance(node.value, (int, float, complex)):
                 raise SafeParseError("Only numeric literals are permitted in expressions.")
-            return sp.sympify(node.value)
+            if isinstance(node.value, int):
+                return sp.Integer(node.value)
+            if isinstance(node.value, float):
+                return sp.Float(node.value)
+            return sp.Float(node.value.real) + sp.I * sp.Float(node.value.imag)
 
         if isinstance(node, ast.Name):
             if node.id in safe_locals:
