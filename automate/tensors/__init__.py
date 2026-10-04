@@ -17,6 +17,7 @@ from automate.tensors.cadabra_adapter import (
     get_cadabra_version,
     is_cadabra_available,
     run_cadabra_script,
+    run_translated_cadabra,
 )
 from automate.ir.tensors import (
     TensorEquation,
@@ -39,6 +40,7 @@ __all__ = [
     "get_cadabra_version",
     "is_cadabra_available",
     "run_cadabra_script",
+    "run_translated_cadabra",
     "TensorEquation",
     "TensorExpression",
     "TensorIndex",
