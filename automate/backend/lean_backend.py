@@ -190,7 +190,7 @@ class LeanChecker(BaseChecker):
             stderr = error_msg or ""
         else:
             # Generate Lean 4 proof obligation
-            lean_code, theorem_name = self._generate_lean_obligation(edge, in_nodes, out_nodes)
+            lean_code, theorem_name = self._generate_lean_obligation(edge, in_nodes, out_nodes, graph)
 
             # Check if obligation is a NOT_APPLICABLE marker (no valid formalization)
             if lean_code == "__NOT_APPLICABLE__":
@@ -440,7 +440,11 @@ class LeanChecker(BaseChecker):
         return True, ""
 
     def _generate_lean_obligation(
-        self, edge: DerivationEdge, in_nodes: List[Any], out_nodes: List[Any]
+        self,
+        edge: DerivationEdge,
+        in_nodes: List[Any],
+        out_nodes: List[Any],
+        graph: Optional[DerivationGraph] = None,
     ) -> Tuple[str, str]:
         """
         Synthesizes a formally checkable Lean 4 theorem.
@@ -450,6 +454,14 @@ class LeanChecker(BaseChecker):
         for unrelated propositions.
         """
         rule = edge.transformation_rule
+
+        # Keep direct helper callers backwards-compatible. The live verification
+        # path supplies the real graph so assumptions remain graph-bound.
+        if graph is None:
+            graph = DerivationGraph(id=f"lean_obligation_{edge.id}")
+            for node in [*in_nodes, *out_nodes]:
+                if node.id not in graph.nodes:
+                    graph.add_node(node)
 
         bound, binding_reason = self._canonical_claim_matches(rule, in_nodes, out_nodes)
         if not bound:
