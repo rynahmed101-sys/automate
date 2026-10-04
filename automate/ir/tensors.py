@@ -43,11 +43,15 @@ class TensorIndex(BaseModel):
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, TensorIndex):
-            return self.symbol == other.symbol and self.position == other.position
+            return (
+                self.symbol == other.symbol
+                and self.position == other.position
+                and self.dimension == other.dimension
+            )
         return False
 
     def __hash__(self) -> int:
-        return hash((self.symbol, self.position))
+        return hash((self.symbol, self.position, self.dimension))
 
 
 class TensorExpression(BaseModel):
@@ -64,12 +68,12 @@ class TensorExpression(BaseModel):
         return validate_tensor_sum(self.terms)
 
     @property
-    def free_index_signature(self) -> List[Tuple[str, str]]:
+    def free_index_signature(self) -> List[Tuple[str, str, Optional[int]]]:
         result = self.validate_structure()
         if not result.is_valid:
             raise ValueError("; ".join(result.errors))
         return sorted(
-            (index.symbol, index.position)
+            (index.symbol, index.position, index.dimension)
             for index in result.free_indices
         )
 
@@ -86,12 +90,12 @@ class TensorEquation(BaseModel):
         return validate_tensor_equation(lhs_indices, rhs_indices)
 
     @property
-    def free_index_signature(self) -> List[Tuple[str, str]]:
+    def free_index_signature(self) -> List[Tuple[str, str, Optional[int]]]:
         result = self.validate_structure()
         if not result.is_valid:
             raise ValueError("; ".join(result.errors))
         return sorted(
-            (index.symbol, index.position)
+            (index.symbol, index.position, index.dimension)
             for index in result.free_indices
         )
 
@@ -159,7 +163,15 @@ def validate_einstein_product(indices: List[TensorIndex]) -> IndexValidationResu
     for sym, count in symbol_counts.items():
         positions = symbol_positions[sym]
         if count == 1:
-            free_indices.append(TensorIndex(symbol=sym, position=positions[0], is_dummy=False))
+            free_idx = next(idx for idx in indices if idx.symbol == sym)
+            free_indices.append(
+                TensorIndex(
+                    symbol=sym,
+                    position=positions[0],
+                    dimension=free_idx.dimension,
+                    is_dummy=False,
+                )
+            )
         elif count == 2:
             dimensions = {
                 dimension
@@ -214,11 +226,17 @@ def validate_tensor_sum(terms_indices: List[List[TensorIndex]]) -> IndexValidati
             )
 
     # Compare free indices of all terms to the first term
-    reference_free = set((idx.symbol, idx.position) for idx in term_results[0].free_indices)
+    reference_free = set(
+        (idx.symbol, idx.position, idx.dimension)
+        for idx in term_results[0].free_indices
+    )
     errors: List[str] = []
 
     for i in range(1, len(term_results)):
-        curr_free = set((idx.symbol, idx.position) for idx in term_results[i].free_indices)
+        curr_free = set(
+            (idx.symbol, idx.position, idx.dimension)
+            for idx in term_results[i].free_indices
+        )
         if curr_free != reference_free:
             errors.append(
                 f"Free index mismatch between term 1 and term {i+1}. "
@@ -253,8 +271,14 @@ def validate_tensor_equation(lhs_indices: List[TensorIndex], rhs_indices: List[T
     if errors:
         return IndexValidationResult(is_valid=False, errors=errors)
 
-    lhs_free = set((idx.symbol, idx.position) for idx in lhs_res.free_indices)
-    rhs_free = set((idx.symbol, idx.position) for idx in rhs_res.free_indices)
+    lhs_free = set(
+        (idx.symbol, idx.position, idx.dimension)
+        for idx in lhs_res.free_indices
+    )
+    rhs_free = set(
+        (idx.symbol, idx.position, idx.dimension)
+        for idx in rhs_res.free_indices
+    )
 
     if lhs_free != rhs_free:
         errors.append(
