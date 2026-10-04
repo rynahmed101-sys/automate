@@ -3,7 +3,7 @@
 **Audit date:** 2026-10-04
 **Repository:** `rynahmed101-sys/automate`
 **Intended branch:** `feat/verification-hardening`
-**Verified code commit:** `19904dc3ebd2e639176f47e687f35c64d94fa2a3`
+**Verified code commit:** `72aa7786a94db2c73c49750b9f431649d3096104`
 **Published integration lineage:** `349b258` → recovery merge `ad702127` → upstream hardening `3e2fa552`
 **Integration:** The feature branch contains the recovered local work plus the upstream hardening. No merge to `main` and no history rewrite occurred.
 
@@ -11,7 +11,7 @@
 
 | Checkpoint | Result |
 |---|---|
-| GitHub Actions run #34, exact SHA `19904dc3` | **PASS** |
+| GitHub Actions run #60, exact SHA `72aa7786` | **PASS** |
 | GitHub Actions run #26, exact SHA `9902a82c` | PASS |
 | Python 3.10 full suite | PASS |
 | Python 3.11 full suite | PASS |
