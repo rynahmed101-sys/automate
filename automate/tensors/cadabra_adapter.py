@@ -17,6 +17,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from typing import Any, Dict, Optional
 
 from automate.core.external_engine import ExternalEngineEvidence
@@ -118,7 +119,7 @@ def _run_cadabra_cli(payload: Dict[str, Any]) -> Dict[str, Any]:
                     stderr=stderr_handle,
                     shell=False,
                 )
-                deadline = __import__("time").monotonic() + timeout
+                deadline = time.monotonic() + timeout
                 return_code = None
                 while return_code is None:
                     if __import__("time").monotonic() >= deadline:
@@ -145,7 +146,7 @@ def _run_cadabra_cli(payload: Dict[str, Any]) -> Dict[str, Any]:
 
                     return_code = process.poll()
                     if return_code is None:
-                        __import__("time").sleep(0.02)
+                        time.sleep(0.02)
         except OSError as exc:
             return {
                 "execution_status": "EXECUTION_FAILED",
