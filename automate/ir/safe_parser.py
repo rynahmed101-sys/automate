@@ -228,7 +228,8 @@ def _send_isolated_result(
 
     message = str(payload)[:65536]
     send_conn.send(("error", message))
-\n_SAFE_BINARY_OPS: Dict[type[ast.operator], Callable[[Any, Any], Any]] = {
+
+_SAFE_BINARY_OPS: Dict[type[ast.operator], Callable[[Any, Any], Any]] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
     ast.Mult: operator.mul,
