@@ -11,6 +11,8 @@ Independence Class: DIFFERENT_ENGINE
 from typing import Dict, Any, List, Optional, Tuple
 import hashlib
 import json
+import platform
+import sys
 import sympy as sp
 
 from automate.core.sandbox import SandboxError, SandboxLimits, VerifiedExecutionSandbox
@@ -40,6 +42,20 @@ def is_einsteinpy_available() -> bool:
 def get_einsteinpy_version() -> str:
     """Returns EinsteinPy version string."""
     return _EINSTEINPY_VERSION
+
+
+def _runtime_environment_fingerprint() -> str:
+    payload = {
+        "python_implementation": platform.python_implementation(),
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "einsteinpy_version": _EINSTEINPY_VERSION,
+        "sympy_version": getattr(sp, "__version__", "unknown"),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def _cross_check_geometry_core(
@@ -90,6 +106,7 @@ def _cross_check_geometry_core(
             "all_matched": None,
             "independence_class": "NOT_RUN",
             "metric_fingerprint_sha256": metric_fingerprint,
+            "runtime_environment_fingerprint_sha256": _runtime_environment_fingerprint(),
             "comparison_method": "exact symbolic equality after SymPy simplification",
         }
 
@@ -197,6 +214,7 @@ def _cross_check_geometry_core(
             "engine": "EinsteinPy",
             "version": _EINSTEINPY_VERSION,
             "metric_fingerprint_sha256": metric_fingerprint,
+            "runtime_environment_fingerprint_sha256": _runtime_environment_fingerprint(),
             "comparison_method": "exact symbolic equality after SymPy simplification",
             "execution_status": "FAILED",
             "all_matched": None,
@@ -281,6 +299,7 @@ def cross_check_geometry(
                 "engine": "EinsteinPy",
                 "version": _EINSTEINPY_VERSION,
                 "metric_fingerprint_sha256": metric_fingerprint,
+                "runtime_environment_fingerprint_sha256": _runtime_environment_fingerprint(),
                 "comparison_method": "exact symbolic equality after SymPy simplification",
                 "sandbox_target": "automate.tensors.einsteinpy_adapter:_run_einsteinpy_cross_check",
                 "sandbox_limits": limits.model_dump(),
@@ -297,6 +316,7 @@ def cross_check_geometry(
         "engine": report.get("engine", "EinsteinPy"),
         "version": report.get("version", _EINSTEINPY_VERSION),
         "metric_fingerprint_sha256": report.get("metric_fingerprint_sha256", metric_fingerprint),
+        "runtime_environment_fingerprint_sha256": report.get("runtime_environment_fingerprint_sha256", _runtime_environment_fingerprint()),
         "comparison_method": report.get(
             "comparison_method",
             "exact symbolic equality after SymPy simplification",
