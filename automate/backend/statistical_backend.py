@@ -258,7 +258,7 @@ class StatisticalChecker(BaseChecker):
         # actual observation grid.
         try:
             jacobian, jacobian_symbolic = self._evaluate_symbolic_jacobian(
-                model_type, params, in_node, t_data, param_names
+                model_type, params, in_node, t_data, param_names, popt
             )
             singular_values = np.linalg.svd(jacobian, compute_uv=False)
             relative_rank_tolerance = max(
