@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://automate.physics/schemas/automate-tensor-v1.json",
+  "title": "Automate Canonical Tensor Equation Contract (v1)",
+  "type": "object",
+  "required": [
+    "lhs",
+    "rhs"
+  ],
+  "properties": {
+    "lhs": {
+      "$ref": "#/$defs/TensorExpression"
+    },
+    "rhs": {
+      "$ref": "#/$defs/TensorExpression"
+    }
+  },
+  "$defs": {
+    "TensorIndex": {
+      "type": "object",
+      "required": [
+        "symbol",
+        "position",
+        "is_dummy"
+      ],
+      "properties": {
+        "symbol": {
+          "type": "string"
+        },
+        "dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "position": {
+          "enum": [
+            "upper",
+            "lower"
+          ]
+        },
+        "is_dummy": {
+          "type": "boolean"
+        }
+      }
+    },
+    "TensorQuantity": {
+      "type": "object",
+      "required": [
+        "name",
+        "indices",
+        "dimension"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "indices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TensorIndex"
+          }
+        },
+        "dimension": {
+          "type": "string"
+        },
+        "symmetry": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "latex": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "TensorProduct": {
+      "type": "object",
+      "required": [
+        "factors"
+      ],
+      "properties": {
+        "factors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/TensorQuantity"
+          }
+        }
+      }
+    },
+    "TensorExpression": {
+      "type": "object",
+      "required": [
+        "terms"
+      ],
+      "properties": {
+        "terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/TensorIndex"
+            }
+          }
+        },
+        "products": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/TensorProduct"
+          }
+        }
+      }
+    }
+  }
+}
