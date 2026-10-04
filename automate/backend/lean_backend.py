@@ -520,6 +520,7 @@ end Automate.LagrangianMechanics
             # is selected from the rule name.
             try:
                 from automate.backend.graph_to_lean import (
+                    GRAPH_TO_LEAN_TRANSLATOR_VERSION,
                     GraphToLeanTranslationError,
                     translate_graph_edge_claim,
                 )
@@ -538,6 +539,7 @@ end Automate.LagrangianMechanics
 -- Derivation Edge ID: {edge.id}
 -- Rule: {rule}
 -- Generated directly from the graph by the generic graph-to-Lean translator.
+-- Graph-to-Lean translator version: {GRAPH_TO_LEAN_TRANSLATOR_VERSION}
 -- Translated assumption IDs: {', '.join(claim.assumption_ids) or 'none'}
 -- Unsupported external assumptions: {', '.join(claim.unsupported_assumptions) or 'none'}
 -- Generated proposition: {claim.proposition}
