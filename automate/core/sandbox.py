@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class SandboxError(RuntimeError):
@@ -32,7 +32,8 @@ class SandboxLimits(BaseModel):
     max_input_bytes: int = 16 * 1024 * 1024
     max_output_bytes: int = 4 * 1024 * 1024
 
-    def validate_limits(self) -> None:
+    @model_validator(mode="after")
+    def validate_limits(self) -> "SandboxLimits":
         if not (0 < self.wall_clock_seconds <= 3600):
             raise ValueError("wall_clock_seconds must be in (0, 3600].")
         if not (0 < self.cpu_seconds <= 3600):
@@ -43,6 +44,7 @@ class SandboxLimits(BaseModel):
             raise ValueError("max_input_bytes must be positive.")
         if self.max_output_bytes <= 0:
             raise ValueError("max_output_bytes must be positive.")
+        return self
 
 
 @dataclass
@@ -141,7 +143,7 @@ class VerifiedExecutionSandbox:
 
     def __init__(self, limits: SandboxLimits | None = None):
         self.limits = limits or SandboxLimits()
-        self.limits.validate_limits()
+        self.limits = limits or SandboxLimits()
 
     def run(self, target: str, payload: Any) -> Any:
         if not isinstance(target, str) or ":" not in target:
