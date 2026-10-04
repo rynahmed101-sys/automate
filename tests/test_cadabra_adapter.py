@@ -88,6 +88,7 @@ def test_matching_output_is_different_engine_evidence(monkeypatch):
     assert report["execution_status"] == "COMPLETED"
     assert report["independence_class"] == "DIFFERENT_ENGINE"
     assert report["checks_performed"] == 1
+    assert report["claim_fingerprint_sha256"] is None
 
 
 def test_mismatching_output_is_discrepancy_not_proof_of_falsity(monkeypatch):
@@ -115,6 +116,29 @@ def test_mismatching_output_is_discrepancy_not_proof_of_falsity(monkeypatch):
 
     assert report["execution_status"] == "MATHEMATICAL_DISCREPANCY"
     assert report["independence_class"] == "CROSS_CHECK_FAILED"
+    assert report["claim_fingerprint_sha256"] is None
+
+
+def test_claim_fingerprint_survives_completed_comparison(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FakeSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+        def run(self, target, payload):
+            return {
+                "execution_status": "COMPLETED",
+                "stdout": "same",
+                "stderr": "",
+                "output_fingerprint_sha256": "9" * 64,
+            }
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
+    fingerprint = "a" * 64
+    report = adapter.run_cadabra_script("ex := A;", expected_output="same", claim_fingerprint_sha256=fingerprint)
+    assert report["independence_class"] == "DIFFERENT_ENGINE"
+    assert report["claim_fingerprint_sha256"] == fingerprint
 
 
 def test_sandbox_limits_are_recorded(monkeypatch):
@@ -175,7 +199,7 @@ def test_translated_ir_binds_claim_fingerprint(monkeypatch):
 @pytest.mark.trust_boundary
 def test_translated_ir_rejects_missing_or_malformed_fingerprint(monkeypatch):
     monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
-    with pytest.raises(ValueError, match="valid 64-character IR fingerprint"):
+    with pytest.raises(ValueError, match="valid 64-character hexadecimal IR fingerprint"):
         adapter.run_translated_cadabra({"source": "ex := A_{a};", "ir_fingerprint_sha256": "bad"})
 
 
