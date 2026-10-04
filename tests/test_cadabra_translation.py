@@ -97,7 +97,7 @@ def test_translates_structured_tensor_equation():
         ),
     )
     assert tensor_equation_to_cadabra(equation) == "R_{a}^{b} v_{b} = w_{a}"
-    assert translate_equation(equation)["source"] == "R_{a}^{b} v_{b} = w_{a};"
+    assert translate_equation(equation)["source"] == "ex := R_{a}^{b} v_{b} = w_{a};"
 
 
 def test_rejects_equation_free_index_mismatch():
