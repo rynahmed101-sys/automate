@@ -32,6 +32,7 @@ from automate.tensors.einsteinpy_adapter import (
     is_einsteinpy_available,
     get_einsteinpy_version,
 )
+from automate.tensors.index import TensorExpression, validate_tensor_equation
 
 _SUPPORTED_TENSOR_RULES = frozenset({
     "christoffel_symbols",
@@ -123,6 +124,39 @@ class TensorChecker(BaseChecker):
 
         params = edge.parameters or {}
 
+        # Structured Einstein-index semantics are optional for backwards
+        # compatibility, but when supplied they are validated before any
+        # component calculation is allowed to certify a claim.
+        index_structure = params.get("index_structure")
+        if index_structure is not None:
+            try:
+                if "left" in index_structure or "right" in index_structure:
+                    left = TensorExpression.model_validate(index_structure["left"])
+                    right = TensorExpression.model_validate(index_structure["right"])
+                    index_signature = validate_tensor_equation(left, right)
+                    index_mode = "equation"
+                else:
+                    expression = TensorExpression.model_validate(index_structure)
+                    index_signature = expression.validate_index_structure()
+                    index_mode = "expression"
+            except Exception as exc:
+                elapsed = (time.perf_counter() - start_time) * 1000
+                return VerificationReport(
+                    status=VerificationStatus.FAILED,
+                    backend=self.name,
+                    backend_version=self.version,
+                    execution_time_ms=elapsed,
+                    passed=False,
+                    details={"rule": rule, "index_semantics": "INVALID"},
+                    error_message=(
+                        "Structured tensor index semantics rejected claim: "
+                        f"{type(exc).__name__}: {exc}"
+                    ),
+                )
+        else:
+            index_signature = None
+            index_mode = None
+
         # Hash the exact graph claim and tensor configuration so an external
         # cross-check cannot later be detached from the metric the graph named.
         claim_payload = {
@@ -165,6 +199,19 @@ class TensorChecker(BaseChecker):
         # 5. Rule execution and comparison
         passed = False
         details: Dict[str, Any] = {}
+        if index_signature is not None:
+            details["index_semantics"] = {
+                "status": "VALID",
+                "mode": index_mode,
+                "free_index_signature": [
+                    {
+                        "label": label,
+                        "variance": variance,
+                        "dimension": dimension,
+                    }
+                    for label, variance, dimension in index_signature
+                ],
+            }
         error_msg: Optional[str] = None
         independence_class = "SAME_ENGINE"
 
