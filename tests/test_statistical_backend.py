@@ -47,7 +47,7 @@ def test_statistical_parameter_inference():
             "t_data": np.linspace(0, 10, 50).tolist(),
             "x_obs": (
                 np.cos(2.0 * np.linspace(0, 10, 50))
-                + 0.05 * np.random.default_rng(42).normal(size=50)
+                + 0.05 * np.random.default_rng(0).normal(size=50)
             ).tolist(),
             "noise_std": 0.05,
             "data_source": "observed",
