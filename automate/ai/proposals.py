@@ -166,15 +166,68 @@ def apply_and_verify_proposal(
         checker=proposal.target_checker,
         status=VerificationStatus.AI_PROPOSED,
         parameters=proposal.parameters,
-        side_conditions=proposal.side_conditions,
+        side_conditions=list(dict.fromkeys([
+            *(rule_def.side_conditions if rule_def else []),
+            *proposal.side_conditions,
+        ])),
         verification_obligations=obligations,
         metadata={"origin": proposal.origin.model_dump()}
     )
     working_graph.add_edge(edge)
 
+    # Rule prerequisites come from the trusted registry, not from the proposal.
+    # Only assumptions already declared on the canonical graph can satisfy them;
+    # an AI-proposed assumption cannot certify its own prerequisite.
+    active_assumptions = {
+        aid for aid, assumption in graph.assumptions.items() if assumption.active
+    }
+    valid_conditions, missing_conditions = edge.validate_side_conditions(active_assumptions)
+    if not valid_conditions:
+        error_message = (
+            "Missing or inactive required side condition(s): "
+            f"{', '.join(missing_conditions)}"
+        )
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            edge_id=edge_id,
+            status=VerificationStatus.CONDITIONAL,
+            report={
+                "checker": "Preflight",
+                "passed": False,
+                "status": VerificationStatus.CONDITIONAL.value,
+                "details": {"missing_side_conditions": missing_conditions},
+                "error_message": error_message,
+            },
+            errors=[error_message],
+            graph_updated=False,
+        )
+
     # 5. Dimensional check (on clone)
     dim_checker = DimensionChecker()
     dim_report = dim_checker.verify_edge(edge, working_graph)
+
+    # A dimensional contradiction invalidates the proposed step regardless of
+    # whether its semantic checker can prove the algebraic transformation.
+    if not dim_report.passed:
+        error_message = dim_report.error_message or "Dimensional verification failed."
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            edge_id=edge_id,
+            status=dim_report.status,
+            report={
+                "checker": dim_checker.name,
+                "passed": False,
+                "status": dim_report.status.value,
+                "execution_time_ms": dim_report.execution_time_ms,
+                "details": dim_report.details,
+                "error_message": error_message,
+                "dimension_check": dim_report.to_dict(),
+            },
+            errors=[error_message],
+            graph_updated=False,
+        )
 
     # 6. Semantic verification backend (on clone)
     if checker_name == "sympy":
@@ -240,4 +293,3 @@ def apply_and_verify_proposal(
         errors=[verif_report.error_message] if verif_report.error_message else [],
         graph_updated=graph_updated
     )
-

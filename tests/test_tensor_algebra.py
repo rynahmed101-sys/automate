@@ -7,6 +7,11 @@ All tests use exact symbolic equality — no numerical approximation or hardcode
 
 import pytest
 import sympy as sp
+from automate.backend.tensor_backend import TensorChecker
+from automate.core.edge import DerivationEdge
+from automate.core.graph import DerivationGraph
+from automate.core.node import DerivationNode, MathematicalExpression
+from automate.core.status import VerificationStatus
 from automate.tensors.algebra import TensorGeometry
 
 
@@ -317,3 +322,43 @@ class TestTensorGeometryValidation:
         assert sp.simplify(R - 2) != 0, \
             "Flat metric must NOT have Ricci scalar = 2"
         assert R == 0
+
+
+@pytest.mark.parametrize(
+    ("rule", "claim"),
+    [
+        ("riemann_curvature", "R^i_jkl = arbitrary"),
+        ("ricci_curvature", "R_ij = arbitrary"),
+        ("einstein_tensor", "G_ij = arbitrary"),
+        ("christoffel_symbols", "Gamma^i_jk = arbitrary"),
+        ("geodesic_equations", "x_ddot = arbitrary"),
+        ("index_contract", "T_mu = arbitrary"),
+    ],
+)
+def test_uncompared_tensor_claim_is_not_marked_verified(rule, claim):
+    """Computing a tensor without comparing the proposal is not verification."""
+    graph = DerivationGraph(id="tensor_claim_test")
+    graph.add_node(DerivationNode(
+        id="metric",
+        expression=MathematicalExpression(raw_str="flat_2d"),
+    ))
+    graph.add_node(DerivationNode(
+        id="claim",
+        expression=MathematicalExpression(raw_str=claim),
+    ))
+    edge = DerivationEdge(
+        id="tensor_claim",
+        input_nodes=["metric"],
+        output_nodes=["claim"],
+        transformation_rule=rule,
+        justification="Regression test for claim-bound verification",
+        checker="tensor",
+    )
+    graph.add_edge(edge)
+
+    report = TensorChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.NOT_APPLICABLE
+    assert report.error_message
+    assert edge.certificate is None

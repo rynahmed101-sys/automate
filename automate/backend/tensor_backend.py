@@ -162,6 +162,14 @@ class TensorChecker(BaseChecker):
                 if not passed:
                     error_msg = f"Ricci scalar mismatch: claimed {claimed_R}, computed {actual_R}"
 
+            elif rule == "riemann_curvature":
+                return self._not_applicable(
+                    rule,
+                    "Riemann tensor claims are not compared by TensorChecker yet.",
+                    {},
+                    start_time,
+                )
+
             elif rule == "ricci_curvature":
                 actual_ricci = tg.ricci_tensor()
                 component = params.get("component")
@@ -196,8 +204,13 @@ class TensorChecker(BaseChecker):
                         if not passed:
                             error_msg = "Metric is not Ricci-flat; non-zero Ricci tensor components detected."
                     else:
-                        passed = True
-                        details = {"rule": rule, "note": "Ricci tensor computed successfully."}
+                        return self._not_applicable(
+                            rule,
+                            "Whole-tensor Ricci claims are not compared yet. "
+                            "Provide a component parameter or claim Ricci flatness with '0'.",
+                            {"actual_ricci_tensor": str(actual_ricci)},
+                            start_time,
+                        )
 
             elif rule == "einstein_tensor":
                 actual_einstein = tg.einstein_tensor()
@@ -231,8 +244,13 @@ class TensorChecker(BaseChecker):
                         if not passed:
                             error_msg = "Einstein tensor is non-zero in vacuum."
                     else:
-                        passed = True
-                        details = {"rule": rule, "note": "Einstein tensor computed successfully."}
+                        return self._not_applicable(
+                            rule,
+                            "Whole-tensor Einstein claims are not compared yet. "
+                            "Provide a component parameter or claim a zero tensor with '0'.",
+                            {"actual_einstein_tensor": str(actual_einstein)},
+                            start_time,
+                        )
 
             elif rule == "christoffel_symbols":
                 actual_gamma = tg.christoffel_symbols()
@@ -255,24 +273,38 @@ class TensorChecker(BaseChecker):
                     if not passed:
                         error_msg = f"Christoffel symbol Γ^{key[0]}_{{{key[1]}{key[2]}}} mismatch: diff={diff}"
                 else:
-                    passed = True
-                    details = {"rule": rule, "non_zero_count": len([v for v in actual_gamma.values() if v != 0])}
+                    return self._not_applicable(
+                        rule,
+                        "Whole-array Christoffel claims are not compared yet. "
+                        "Provide a component parameter.",
+                        {
+                            "non_zero_count": len([
+                                value for value in actual_gamma.values() if value != 0
+                            ]),
+                        },
+                        start_time,
+                    )
 
             elif rule in ("index_contract", "raise_index", "lower_index"):
-                # Structural index operations
-                passed = True
-                details = {"rule": rule, "index_operation_verified": True}
+                return self._not_applicable(
+                    rule,
+                    "Typed tensor index operations are not connected to TensorChecker claims yet.",
+                    {},
+                    start_time,
+                )
 
             elif rule == "geodesic_equations":
                 eqs = tg.geodesic_equations()
                 coord_idx = params.get("coordinate_index")
-                if coord_idx is not None and 0 <= coord_idx < len(eqs):
-                    actual_eq = eqs[coord_idx]
-                    details = {"rule": rule, "geodesic_equation": str(actual_eq)}
-                    passed = True
-                else:
-                    details = {"rule": rule, "equations": [str(eq) for eq in eqs]}
-                    passed = True
+                return self._not_applicable(
+                    rule,
+                    "Computed geodesic equations are not compared with the proposed claim yet.",
+                    {
+                        "coordinate_index": coord_idx,
+                        "computed_equations": [str(eq) for eq in eqs],
+                    },
+                    start_time,
+                )
 
             # 6. Multi-Engine Cross-Validation with EinsteinPy
             if self._ep_available and passed:
@@ -331,6 +363,24 @@ class TensorChecker(BaseChecker):
             details=details,
             error_message=error_msg,
             certificate=cert
+        )
+
+    def _not_applicable(
+        self,
+        rule: str,
+        reason: str,
+        details: Dict[str, Any],
+        start_time: float,
+    ) -> VerificationReport:
+        elapsed = (time.perf_counter() - start_time) * 1000
+        return VerificationReport(
+            status=VerificationStatus.NOT_APPLICABLE,
+            backend=self.name,
+            backend_version=self.version,
+            execution_time_ms=elapsed,
+            passed=False,
+            details={"rule": rule, **details},
+            error_message=reason,
         )
 
     def _build_tensor_geometry(

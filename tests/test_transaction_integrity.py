@@ -149,6 +149,52 @@ class TestSymbolicFailureImmutability:
             f"Before: {before}\nAfter: {after}"
         )
 
+    def test_dimensional_contradiction_blocks_semantic_verification(self):
+        """A valid symbolic EoM must not pass when its physical dimensions conflict."""
+        graph = _make_sho_graph()
+        graph.nodes["n_lagrangian"].expression.dimension = "M*L^2*T^-2"
+        before = _snapshot(graph)
+
+        proposal = _make_proposal(
+            rule="euler_lagrange",
+            checker="sympy",
+            expression="m * x_ddot + k * x",
+        )
+        proposal.output_nodes[0].dimension = "M*L^2*T^-2"
+
+        result = apply_and_verify_proposal(proposal, graph, dry_run=False)
+
+        assert not result.success
+        assert result.status == VerificationStatus.FAILED
+        assert result.report["checker"] == "DimensionChecker"
+        assert result.report["dimension_check"]["passed"] is False
+        assert result.errors
+        assert _snapshot(graph) == before
+
+    def test_rule_prerequisites_cannot_be_omitted_or_self_assigned(self):
+        graph = _make_sho_graph()
+        del graph.assumptions["asm_conservative"]
+        before = _snapshot(graph)
+        proposal = _make_proposal(
+            rule="euler_lagrange",
+            checker="numerical",
+            expression="m * x_ddot + k * x",
+        )
+        proposal.side_conditions = []
+        proposal.proposed_assumptions = [{
+            "id": "asm_conservative",
+            "description": "Conservative system",
+            "formal_predicate": "conservative",
+        }]
+
+        result = apply_and_verify_proposal(proposal, graph, dry_run=False)
+
+        assert not result.success
+        assert result.status == VerificationStatus.CONDITIONAL
+        assert result.report["checker"] == "Preflight"
+        assert result.report["details"]["missing_side_conditions"] == ["asm_conservative"]
+        assert _snapshot(graph) == before
+
     def test_wrong_algebraic_identity_does_not_mutate_graph(self):
         """Algebraic identity that is false should not mutate graph."""
         graph = _make_sho_graph()

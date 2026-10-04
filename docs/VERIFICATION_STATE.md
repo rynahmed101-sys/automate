@@ -3,8 +3,72 @@
 **Generated**: 2026-10-04  
 **Audit Target**: `feat/verification-orchestrator` (branched from `feat/verification-hardening` at `1948ef94b57effafb0e8c084e2c9854ab5cdcb6d`)  
 **Base Commit**: `1948ef94b57effafb0e8c084e2c9854ab5cdcb6d`  
-**Previous Audit Report Baseline**: 172 passed, 1 skipped (Commit `172a9aa` / earlier `c6ab3eb`)  
-**Actual Live Test State**: **198 passed, 1 skipped (Total: 199 tests)**
+**Historical Audit Baseline**: 172 passed, 1 skipped (Commit `172a9aa` / earlier `c6ab3eb`)  
+**Latest Reported Live Test State**: **235 passed, 1 skipped**
+
+## Resume Checkpoint (2026-10-04)
+
+The earlier audit below is a historical snapshot and must not be treated as the
+latest verification state. The following newer evidence was supplied when work
+resumed:
+
+| Target | Evidence | Provenance |
+|---|---|---|
+| Local `feat/verification-orchestrator` at `e389d44` | Full test run: **227 passed, 1 skipped** | Previously saved local test result; not rerun in this session |
+| Remote `feat/verification-hardening` at `3e2fa552e058ad0cc963a44723f65ad09f55ac35` | CI run **#5 green** | Previously observed remote CI result; not rechecked in this session |
+
+Parent-side Git inspection reports local `HEAD` at `e389d44`, remote
+`origin/feat/verification-hardening` at `3e2fa55`, merge-base `1948ef9`, and
+divergence of one local commit and eleven remote commits (`HEAD...origin` =
+`1 11`). Thus neither tip contains the other. A non-destructive merge is
+required before any push; no merge, rebase, cherry-pick, or push has yet been
+performed.
+
+The resume instructions identified `.github/github-app.yml` as a user-owned
+file to preserve. Parent-side Git status reported no untracked files, and the
+file was not created or modified during this work. Confirm its presence and
+status before any integration or cleanup.
+
+The resumed code audit found that `apply_and_verify_proposal` recorded a failed
+dimensional precheck but continued to invoke the selected semantic checker. The
+pipeline now returns a failed proposal result immediately when that precheck
+fails. It also now enforces registry-declared rule side conditions, even when an
+AI proposal omits them; only active assumptions already present in the canonical
+graph can satisfy those conditions. An AI-proposed assumption cannot certify
+its own prerequisite. `tests/test_transaction_integrity.py` covers both a
+symbolically valid Euler-Lagrange proposal with an inconsistent output
+dimension and an omitted/inactive rule prerequisite. A further tensor audit
+found component families that returned successful verification after computing
+results without comparing the proposal's claim. Whole-array Ricci, Einstein,
+and Christoffel claims, Riemann claims, geodesic claims, and generic index
+operations now return `NOT_APPLICABLE` until claim comparison is implemented;
+the existing component-level comparisons remain in place. New regression tests
+cover these non-comparable claim paths.
+
+Validation was completed in the isolated worktree by the parent session after
+installing the missing test dependencies:
+
+| Command | Result | Provenance |
+|---|---|---|
+| `pytest tests/test_tensor_algebra.py tests/test_transaction_integrity.py -q --tb=short` | **43 passed** | Parent-side run in this worktree |
+| `pytest -q --tb=short` | **235 passed, 1 skipped** in 87.72s | Parent-side full-suite run in this worktree |
+
+These results validate the current worktree contents as reported by the parent
+session; the exact tested Git SHA was not recorded here. The parent-side
+ancestry inspection confirms that remote commit
+`3e2fa552e058ad0cc963a44723f65ad09f55ac35` is not an ancestor of local `HEAD`;
+the reported merge-base and branch divergence are listed above. The prior
+remote CI run #5 result is historical evidence and was not rerun against these
+changes. Merge the feature histories non-destructively and rerun tests before
+considering a push.
+
+The session's latest source-control overview reports five modified files:
+`automate/ai/proposals.py`, `automate/backend/tensor_backend.py`,
+`docs/VERIFICATION_STATE.md`, `tests/test_tensor_algebra.py`, and
+`tests/test_transaction_integrity.py`. Parent-side Git status reports that all
+five are modified and that there are no untracked files. The overview reports
+no new commits and a diff of +272/-18. The user-owned `.github/github-app.yml`
+was not modified.
 
 ---
 
