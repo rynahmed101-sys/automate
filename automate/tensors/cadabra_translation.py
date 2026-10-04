@@ -107,7 +107,7 @@ def translate_equation(equation: TensorEquation) -> dict:
     ).hexdigest()
     return {
         "engine": "Cadabra2",
-        "source": f"{source_expression};",
+        "source": f"ex := {source_expression};",
         "ir_fingerprint_sha256": fingerprint,
         "translation": "canonical TensorEquation.products -> Cadabra syntax",
     }
