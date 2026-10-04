@@ -9,6 +9,7 @@ class TensorIndex(BaseModel):
     """A single tensor index with explicit variance and optional cardinality."""
     symbol: str = Field(..., description="Index symbol or identifier")
     dimension: Optional[int] = Field(default=None, gt=0)
+    index_space: Optional[str] = Field(default=None, min_length=1)
     position: Literal["upper", "lower"] = Field(default="lower")
     is_dummy: bool = Field(default=False)
 
@@ -25,11 +26,12 @@ class TensorIndex(BaseModel):
                 self.symbol == other.symbol
                 and self.position == other.position
                 and self.dimension == other.dimension
+                and self.index_space == other.index_space
             )
         return False
 
     def __hash__(self) -> int:
-        return hash((self.symbol, self.position, self.dimension))
+        return hash((self.symbol, self.position, self.dimension, self.index_space))
 
 
 class TensorQuantity(BaseModel):
