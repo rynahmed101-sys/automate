@@ -1,0 +1,142 @@
+"""Adversarial and provenance tests for the bounded Cadabra adapter."""
+
+import pytest
+
+from automate.core.sandbox import SandboxLimits
+import automate.tensors.cadabra_adapter as adapter
+
+
+def test_unavailable_cadabra_is_explicit(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: None)
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "Not Installed")
+
+    report = adapter.run_cadabra_script("\\simplify;")
+
+    assert report["execution_status"] == "UNAVAILABLE"
+    assert report["independence_class"] == "NOT_RUN"
+    assert len(report["input_fingerprint_sha256"]) == 64
+
+
+@pytest.mark.adversarial
+@pytest.mark.trust_boundary
+def test_unsupported_external_control_is_not_executed(monkeypatch):
+    called = False
+
+    def fail_if_called(*args, **kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("unsupported Cadabra source reached execution")
+
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "test")
+    monkeypatch.setattr(adapter.VerifiedExecutionSandbox, "run", fail_if_called)
+
+    report = adapter.run_cadabra_script("@import evil.cdb")
+
+    assert report["execution_status"] == "UNSUPPORTED"
+    assert report["independence_class"] == "UNVERIFIED"
+    assert called is False
+
+
+def test_success_without_expected_output_remains_unverified(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "test")
+
+    class FakeSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            return {
+                "execution_status": "COMPLETED",
+                "stdout": "result",
+                "stderr": "",
+                "output_fingerprint_sha256": "a" * 64,
+            }
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
+
+    report = adapter.run_cadabra_script("\\simplify;", sandbox_limits=SandboxLimits())
+
+    assert report["execution_status"] == "COMPLETED"
+    assert report["independence_class"] == "UNVERIFIED"
+
+
+def test_matching_output_is_different_engine_evidence(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FakeSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            return {
+                "execution_status": "COMPLETED",
+                "stdout": "R_{a b} = R_{a b}",
+                "stderr": "",
+                "output_fingerprint_sha256": "b" * 64,
+            }
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
+
+    report = adapter.run_cadabra_script(
+        "\\simplify;",
+        expected_output="R_{a b} = R_{a b}",
+    )
+
+    assert report["execution_status"] == "COMPLETED"
+    assert report["independence_class"] == "DIFFERENT_ENGINE"
+    assert report["checks_performed"] == 1
+
+
+def test_mismatching_output_is_discrepancy_not_proof_of_falsity(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FakeSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            return {
+                "execution_status": "COMPLETED",
+                "stdout": "wrong",
+                "stderr": "",
+                "output_fingerprint_sha256": "c" * 64,
+            }
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
+
+    report = adapter.run_cadabra_script(
+        "\\simplify;",
+        expected_output="right",
+    )
+
+    assert report["execution_status"] == "MATHEMATICAL_DISCREPANCY"
+    assert report["independence_class"] == "CROSS_CHECK_FAILED"
+
+
+def test_sandbox_limits_are_recorded(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FakeSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            assert payload["max_output_bytes"] == limits.max_output_bytes
+            return {
+                "execution_status": "COMPLETED",
+                "stdout": "x",
+                "stderr": "",
+                "output_fingerprint_sha256": "d" * 64,
+            }
+
+    limits = SandboxLimits(max_output_bytes=12345)
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
+
+    report = adapter.run_cadabra_script("x;", sandbox_limits=limits)
+
+    assert report["sandbox_limits"]["max_output_bytes"] == 12345
