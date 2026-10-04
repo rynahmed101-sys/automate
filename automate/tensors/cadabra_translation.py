@@ -71,7 +71,7 @@ def translate_expression(expression: TensorExpression) -> dict:
     """Return deterministic Cadabra source plus a canonical IR fingerprint."""
     source_expression = tensor_expression_to_cadabra(expression)
     declarations = cadabra_declarations(expression)
-    source = "\n".join(declarations + [f"{{{source_expression}}};"])
+    source = "\n".join(declarations + [f"ex := {source_expression};"])
     canonical = expression.model_dump(mode="json")
     fingerprint = hashlib.sha256(
         json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
