@@ -250,6 +250,10 @@ def apply_and_verify_proposal(
 
     verif_report = checker.verify_edge(edge, working_graph)
 
+    # Bind the successful/failed evidence to the exact claim and dependency
+    # state observed on the transactional working graph.
+    working_graph.record_verification_report(edge_id, verif_report)
+
     # Update output node statuses on clone
     for out_id in out_node_ids:
         node = working_graph.get_node(out_id)

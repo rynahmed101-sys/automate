@@ -21,6 +21,11 @@ class DerivationCertificate(BaseModel):
     execution_time_ms: float = 0.0
     metrics: Dict[str, Any] = Field(default_factory=dict)  # tolerances, residuals, chi2
     diagnostics: List[str] = Field(default_factory=list)
+    claim_schema_version: Optional[str] = None
+    claim_fingerprint_sha256: Optional[str] = None
+    dependency_fingerprint_sha256: Optional[str] = None
+    evidence_fingerprint_sha256: Optional[str] = None
+    claim_payload: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DerivationEdge(BaseModel):

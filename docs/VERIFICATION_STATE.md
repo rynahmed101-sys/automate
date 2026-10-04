@@ -88,6 +88,12 @@ Mathlib4 remains actively maintained, with `v4.34.1` listed as the latest stable
 
 EinsteinPy remains the intended cross-engine reference for supported symbolic differential-geometry checks. Its documentation demonstrates symbolic metric, curvature and Weyl-tensor calculations, but version/licensing details must be pinned in project metadata before being used as certificate evidence. citeturn457216search24
 
+## Open-world claim handling
+
+Automate treats verification as an evidence discipline, not a requirement that every proposed claim reduce to an established law. A hypothesis can enter the derivation graph as a hypothesis or exploratory claim without matching a canonical theorem family. The verification kernel records the exact claim identity, its dependency state, and any evidence produced by a backend. Unsupported claims remain unverified rather than being silently rejected as false; established laws are available as reusable verification targets, not as the boundary of what the system is allowed to investigate.
+
+The canonical claim identity deliberately excludes backend-specific tolerances, execution controls, sampled observations, and machine details. Those belong to evidence provenance. This separation allows different backends to examine the same mathematical claim and allows genuinely new claims to accumulate reproducible evidence without pretending that the current knowledge base is complete.
+
 ## Remaining work
 
 1. Expand tensor claim binding and independent EinsteinPy/textbook coverage without marking unsupported whole-tensor or index-operation claims as verified.

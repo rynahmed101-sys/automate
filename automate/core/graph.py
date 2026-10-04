@@ -17,6 +17,12 @@ from automate.core.node import DerivationNode
 from automate.core.edge import DerivationEdge, DerivationCertificate
 from automate.ir.assumptions import Assumption, AssumptionRegistry
 from automate.ir.serialization import dump_json, load_json
+from automate.backend.base import VerificationReport
+from automate.core.claim import (
+    build_claim_identity,
+    build_dependency_fingerprint,
+    compute_evidence_fingerprint,
+)
 
 
 class DerivationGraph(BaseModel):
@@ -31,7 +37,7 @@ class DerivationGraph(BaseModel):
     assumptions: Dict[str, Assumption] = Field(default_factory=dict)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    def add_node(self, node: DerivationNode) -> None:
+    def get_claim_identity(self, edge_id: str):\n        """Return the canonical identity of an edge's mathematical claim."""\n        edge = self.get_edge(edge_id)\n        if edge is None:\n            raise KeyError(f"Edge '{edge_id}' not found in graph.")\n        return build_claim_identity(self, edge)\n\n    def get_dependency_fingerprint(self, edge_id: str) -> str:\n        """Return the current dependency fingerprint for an edge."""\n        edge = self.get_edge(edge_id)\n        if edge is None:\n            raise KeyError(f"Edge '{edge_id}' not found in graph.")\n        return build_dependency_fingerprint(self, edge)\n\n    def get_certificate_staleness(self, edge_id: str) -> Dict[str, Any]:\n        \"\"\"Compare a stored certificate with the graph state it was issued for.\"\"\"\n        edge = self.get_edge(edge_id)\n        if edge is None:\n            raise KeyError(f\"Edge '{edge_id}' not found in graph.\")\n\n        cert = edge.certificate\n        if cert is None:\n            return {\n                \"current\": False,\n                \"reason\": \"NO_CERTIFICATE\",\n                \"claim_current\": False,\n                \"dependency_current\": False,\n            }\n\n        if not cert.claim_fingerprint_sha256 or not cert.dependency_fingerprint_sha256:\n            return {\n                \"current\": None,\n                \"reason\": \"LEGACY_CERTIFICATE_WITHOUT_IDENTITY\",\n                \"claim_current\": None,\n                \"dependency_current\": None,\n                \"stored_claim_fingerprint_sha256\": cert.claim_fingerprint_sha256,\n                \"stored_dependency_fingerprint_sha256\": cert.dependency_fingerprint_sha256,\n            }\n\n        current_claim = self.get_claim_identity(edge_id)\n        current_dependency = self.get_dependency_fingerprint(edge_id)\n        claim_current = cert.claim_fingerprint_sha256 == current_claim.claim_fingerprint_sha256\n        dependency_current = cert.dependency_fingerprint_sha256 == current_dependency\n\n        if not claim_current:\n            reason = \"CLAIM_CHANGED\"\n        elif not dependency_current:\n            reason = \"UPSTREAM_DEPENDENCY_CHANGED\"\n        else:\n            reason = \"CURRENT\"\n\n        return {\n            \"current\": claim_current and dependency_current,\n            \"reason\": reason,\n            \"claim_current\": claim_current,\n            \"dependency_current\": dependency_current,\n            \"stored_claim_fingerprint_sha256\": cert.claim_fingerprint_sha256,\n            \"current_claim_fingerprint_sha256\": current_claim.claim_fingerprint_sha256,\n            \"stored_dependency_fingerprint_sha256\": cert.dependency_fingerprint_sha256,\n            \"current_dependency_fingerprint_sha256\": current_dependency,\n        }\n\n    def is_certificate_current(self, edge_id: str) -> bool:\n        \"\"\"True only when a modern certificate matches both claim and dependencies.\"\"\"\n        state = self.get_certificate_staleness(edge_id)\n        return state[\"current\"] is True\n\n    def record_verification_report(self, edge_id: str, report: VerificationReport) -> DerivationEdge:\n        \"\"\"\n        Persist a verification report as an auditable edge certificate.\n\n        This method does not decide whether a claim is physically true. It only\n        binds the evidence to the exact claim/dependency state that produced it.\n        \"\"\"\n        edge = self.get_edge(edge_id)\n        if edge is None:\n            raise KeyError(f\"Edge '{edge_id}' not found in graph.\")\n\n        identity = self.get_claim_identity(edge_id)\n        dependency_hash = self.get_dependency_fingerprint(edge_id)\n        evidence_payload = report.to_dict()\n        evidence_hash = compute_evidence_fingerprint(evidence_payload)\n        evidence_payload.update({\n            \"claim_schema_version\": identity.schema_version,\n            \"claim_fingerprint_sha256\": identity.claim_fingerprint_sha256,\n            \"dependency_fingerprint_sha256\": dependency_hash,\n            \"evidence_fingerprint_sha256\": evidence_hash,\n            \"claim_identity\": identity.model_dump(),\n        })\n\n        edge.evidence = evidence_payload\n        edge.status = report.status\n        edge.failed_reason = report.error_message if not report.passed else None\n        edge.certificate = DerivationCertificate(\n            rule_name=edge.transformation_rule,\n            steps=report.certificates,\n            proof_code=report.proof_script,\n            backend_version=report.backend_version,\n            execution_time_ms=report.execution_time_ms,\n            metrics=report.details,\n            diagnostics=[report.error_message] if report.error_message else [],\n            claim_schema_version=identity.schema_version,\n            claim_fingerprint_sha256=identity.claim_fingerprint_sha256,\n            dependency_fingerprint_sha256=dependency_hash,\n            evidence_fingerprint_sha256=evidence_hash,\n            claim_payload=identity.canonical_payload,\n        )\n        return edge\n\n    def add_node(self, node: DerivationNode) -> None:
         self.nodes[node.id] = node
 
     def add_edge(self, edge: DerivationEdge) -> None:
@@ -286,6 +292,15 @@ class DerivationGraph(BaseModel):
         is_verified = (len(failed_edges) == 0) and all(
             e.status.is_verified for e in self.edges.values()
         )
+        modern_stale_edges = [
+            eid for eid, edge in self.edges.items()
+            if edge.certificate
+            and edge.certificate.claim_fingerprint_sha256
+            and edge.certificate.dependency_fingerprint_sha256
+            and self.get_certificate_staleness(eid)["current"] is False
+        ]
+        if modern_stale_edges:
+            is_verified = False
 
         cert_data = {
             "graph_id": self.id,
@@ -300,6 +315,9 @@ class DerivationGraph(BaseModel):
             "node_status_counts": dict(node_status_counts),
             "failed_derivations": failed_edges,
             "invalidated_nodes": self.get_all_invalidated_nodes(),
+            "certificate_staleness": {
+                eid: self.get_certificate_staleness(eid) for eid in self.edges
+            },
             "metadata": self.metadata
         }
 
