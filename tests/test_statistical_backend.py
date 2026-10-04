@@ -184,3 +184,16 @@ def test_empirical_inference_records_data_fingerprint_and_sigma_mode():
     assert len(report.details["data_provenance"]["sha256"]) == 64
     assert report.details["goodness_of_fit"]["chi2"] is None
     assert report.details["goodness_of_fit"]["chi2_mode"].startswith("unavailable")
+
+
+def test_fit_initial_guess_does_not_use_reference_parameters():
+    checker = StatisticalChecker()
+    params = {"A": 99.0, "omega": 77.0, "phi": 55.0}
+    _, names, guesses, _ = checker._build_model("cosine", params, None)
+
+    assert names == ["A", "omega", "phi"]
+    assert guesses == [1.2, 1.8, 0.1]
+
+    params["fit_initial_guess"] = {"A": 2.0, "omega": 3.0, "phi": 0.25}
+    _, _, explicit_guesses, _ = checker._build_model("cosine", params, None)
+    assert explicit_guesses == [2.0, 3.0, 0.25]
