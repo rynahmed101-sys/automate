@@ -31,6 +31,7 @@ from __future__ import annotations
 import ast
 import multiprocessing
 import operator
+import pickle
 import re
 import time
 import types
@@ -118,6 +119,9 @@ _MAX_DEPTH = 80
 _MAX_AST_NODES = 4000
 _MAX_PARSE_SECONDS = 10.0
 _MAX_STRING_LENGTH = 4096
+_MAX_RESULT_BYTES = 2 * 1024 * 1024
+_MAX_CPU_SECONDS = 3
+_MAX_ADDRESS_SPACE_BYTES = 512 * 1024 * 1024
 
 
 
@@ -130,6 +134,7 @@ def _isolated_parse_worker(
     max_seconds: float,
 ) -> None:
     """Run SafeParser in a killable child process."""
+    _apply_worker_resource_limits(max_seconds)
     try:
         parser = SafeParser(
             max_atoms=max_atoms,
@@ -137,9 +142,9 @@ def _isolated_parse_worker(
             max_seconds=max_seconds,
         )
         result = parser.parse(expr_str, extra_locals=extra_locals)
-        send_conn.send(("ok", result))
+        _send_isolated_result(send_conn, "ok", result)
     except BaseException as exc:
-        send_conn.send(("error", f"{type(exc).__name__}: {exc}"))
+        _send_isolated_result(send_conn, "error", f"{type(exc).__name__}: {exc}")
     finally:
         send_conn.close()
 
@@ -154,6 +159,7 @@ def _isolated_parse_equation_worker(
     max_seconds: float,
 ) -> None:
     """Run SafeParser.parse_equation in a killable child process."""
+    _apply_worker_resource_limits(max_seconds)
     try:
         parser = SafeParser(
             max_atoms=max_atoms,
@@ -161,13 +167,59 @@ def _isolated_parse_equation_worker(
             max_seconds=max_seconds,
         )
         result = parser.parse_equation(eq_str, extra_locals=extra_locals)
-        send_conn.send(("ok", result))
+        _send_isolated_result(send_conn, "ok", result)
     except BaseException as exc:
-        send_conn.send(("error", f"{type(exc).__name__}: {exc}"))
+        _send_isolated_result(send_conn, "error", f"{type(exc).__name__}: {exc}")
     finally:
         send_conn.close()
 
-_SAFE_BINARY_OPS: Dict[type[ast.operator], Callable[[Any, Any], Any]] = {
+\n\ndef _apply_worker_resource_limits(cpu_seconds: float) -> None:
+    """Apply best-effort POSIX CPU/address-space limits inside the worker only."""
+    try:
+        import math
+        import resource
+    except (ImportError, OSError):
+        return
+
+    try:
+        cpu_limit = max(1, int(math.ceil(cpu_seconds)))
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit))
+    except (AttributeError, OSError, ValueError):
+        pass
+
+    try:
+        resource.setrlimit(
+            resource.RLIMIT_AS,
+            (_MAX_ADDRESS_SPACE_BYTES, _MAX_ADDRESS_SPACE_BYTES),
+        )
+    except (AttributeError, OSError, ValueError):
+        pass
+
+
+def _send_isolated_result(send_conn: Any, status: str, payload: Any) -> None:
+    """Send bounded serialized worker output over the process pipe."""
+    if status == "ok":
+        try:
+            blob = pickle.dumps(payload, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception as exc:
+            blob = None
+            status = "error"
+            payload = f"Could not serialize isolated parser result: {type(exc).__name__}: {exc}"
+
+        if blob is not None:
+            if len(blob) > _MAX_RESULT_BYTES:
+                status = "error"
+                payload = (
+                    "Isolated parser result exceeded the output-size limit of "
+                    f"{_MAX_RESULT_BYTES} bytes."
+                )
+            else:
+                send_conn.send(("ok_bytes", blob))
+                return
+
+    message = str(payload)[:65536]
+    send_conn.send(("error", message))
+\n_SAFE_BINARY_OPS: Dict[type[ast.operator], Callable[[Any, Any], Any]] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
     ast.Mult: operator.mul,
@@ -513,13 +565,25 @@ class SafeParser:
 
             if recv_conn.poll():
                 status, payload = recv_conn.recv()
-                if status == "ok":
-                    if not isinstance(payload, sp.Basic):
+                if status == "ok_bytes":
+                    if not isinstance(payload, bytes):
+                        raise SafeParseError("Isolated parser returned an invalid serialized result.")
+                    if len(payload) > _MAX_RESULT_BYTES:
+                        raise SafeParseError(
+                            f"Isolated parser result exceeded output-size limit of {_MAX_RESULT_BYTES} bytes."
+                        )
+                    try:
+                        result = pickle.loads(payload)
+                    except Exception as exc:
+                        raise SafeParseError(
+                            f"Could not deserialize isolated parser result: {type(exc).__name__}: {exc}"
+                        ) from exc
+                    if not isinstance(result, sp.Basic):
                         raise SafeParseError(
                             f"Isolated parser returned unsupported object type "
-                            f"{type(payload).__name__}."
+                            f"{type(result).__name__}."
                         )
-                    return payload
+                    return result
                 raise SafeParseError(f"Isolated parser failed: {payload}")
 
             raise SafeParseError(
@@ -587,13 +651,25 @@ class SafeParser:
 
             if recv_conn.poll():
                 status, payload = recv_conn.recv()
-                if status == "ok":
-                    if not isinstance(payload, sp.Basic):
+                if status == "ok_bytes":
+                    if not isinstance(payload, bytes):
+                        raise SafeParseError("Isolated equation parser returned an invalid serialized result.")
+                    if len(payload) > _MAX_RESULT_BYTES:
                         raise SafeParseError(
-                            f"Isolated parser returned unsupported object type "
-                            f"{type(payload).__name__}."
+                            f"Isolated equation parser result exceeded output-size limit of {_MAX_RESULT_BYTES} bytes."
                         )
-                    return payload
+                    try:
+                        result = pickle.loads(payload)
+                    except Exception as exc:
+                        raise SafeParseError(
+                            f"Could not deserialize isolated equation result: {type(exc).__name__}: {exc}"
+                        ) from exc
+                    if not isinstance(result, sp.Basic):
+                        raise SafeParseError(
+                            f"Isolated equation parser returned unsupported object type "
+                            f"{type(result).__name__}."
+                        )
+                    return result
                 raise SafeParseError(f"Isolated equation parser failed: {payload}")
 
             raise SafeParseError(
