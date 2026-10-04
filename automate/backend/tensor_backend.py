@@ -122,6 +122,26 @@ class TensorChecker(BaseChecker):
 
         params = edge.parameters or {}
 
+        # Hash the exact graph claim and tensor configuration so an external
+        # cross-check cannot later be detached from the metric the graph named.
+        claim_payload = {
+            "graph_id": getattr(graph, "id", None),
+            "edge_id": edge.id,
+            "rule": rule,
+            "input_nodes": [
+                {"id": n.id, "expression": n.expression.raw_str}
+                for n in in_nodes
+            ],
+            "output_nodes": [
+                {"id": n.id, "expression": n.expression.raw_str}
+                for n in out_nodes
+            ],
+            "parameters": params,
+        }
+        claim_hash = hashlib.sha256(
+            str(sorted(claim_payload.items())).encode("utf-8")
+        ).hexdigest()
+
         # 4. Extract and construct metric tensor
         try:
             tg, metric_matrix, coord_syms = self._build_tensor_geometry(in_nodes[0], params)
@@ -347,12 +367,18 @@ class TensorChecker(BaseChecker):
                 proof_code=f"TensorGeometry({metric_matrix}, {coord_syms})",
                 backend_version=self.version,
                 execution_time_ms=elapsed,
-                metrics={"independence_class": independence_class},
+                metrics={
+                    "independence_class": independence_class,
+                    "claim_fingerprint_sha256": claim_hash,
+                },
                 diagnostics=[f"Independence Class: {independence_class}"]
             )
             edge.certificate = cert
 
         details["independence_class"] = independence_class
+        details["claim_fingerprint_sha256"] = claim_hash
+        if details.get("cross_check", {}).get("available"):
+            details["cross_check"]["claim_fingerprint_sha256"] = claim_hash
 
         return VerificationReport(
             status=status,
