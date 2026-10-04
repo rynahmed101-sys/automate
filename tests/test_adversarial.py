@@ -293,11 +293,24 @@ class TestStatisticalBackendNotApplicable:
 
     def test_cosine_model_explicit_passes(self):
         """Explicit cosine model with matching data must pass."""
+        import numpy as np
+        t = np.linspace(0, 10, 50)
+        x = np.cos(2.0 * t) + 0.05 * np.random.default_rng(7).normal(size=50)
         graph, edge = make_graph(
             in_expr="A * cos(omega * t + phi)",
             out_expr="A=1.0, omega=2.0, phi=0.0",
             rule="empirical_inference",
-            params={"model": "cosine", "A": 1.0, "omega": 2.0, "phi": 0.0, "noise_std": 0.05},
+            params={
+                "model": "cosine",
+                "A": 1.0,
+                "omega": 2.0,
+                "phi": 0.0,
+                "t_data": t.tolist(),
+                "x_obs": x.tolist(),
+                "noise_std": 0.05,
+                "data_source": "observed",
+                "data_id": "adversarial-observed-cosine-v1",
+            },
         )
         checker = StatisticalChecker()
         report = checker.verify_edge(edge, graph)
@@ -306,11 +319,23 @@ class TestStatisticalBackendNotApplicable:
 
     def test_exponential_decay_model(self):
         """Exponential decay model must fit and pass."""
+        import numpy as np
+        t = np.linspace(0, 10, 50)
+        x = np.exp(-0.5 * t) + 0.05 * np.random.default_rng(8).normal(size=50)
         graph, edge = make_graph(
             in_expr="A * exp(-lambda * t)",
             out_expr="A=1.0, lambda=0.5",
             rule="empirical_inference",
-            params={"model": "exponential_decay", "A": 1.0, "lambda": 0.5, "noise_std": 0.05},
+            params={
+                "model": "exponential_decay",
+                "A": 1.0,
+                "lambda": 0.5,
+                "t_data": t.tolist(),
+                "x_obs": x.tolist(),
+                "noise_std": 0.05,
+                "data_source": "observed",
+                "data_id": "adversarial-observed-decay-v1",
+            },
         )
         checker = StatisticalChecker()
         report = checker.verify_edge(edge, graph)
@@ -330,6 +355,8 @@ class TestStatisticalBackendNotApplicable:
                 "t_data": t,
                 "x_obs": x,
                 "noise_std": 0.01,
+                "data_source": "observed",
+                "data_id": "adversarial-observed-cosine-wrong-model-v1",
             },
         )
         checker = StatisticalChecker()
