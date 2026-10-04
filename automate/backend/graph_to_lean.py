@@ -24,6 +24,7 @@ from automate.ir.safe_parser import SafeParser, SafeParseError
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_']*$")
 _MAX_NODES = 160
 _MAX_POWER = 12
+GRAPH_TO_LEAN_TRANSLATOR_VERSION = "1.0"
 
 
 class GraphToLeanTranslationError(ValueError):
@@ -36,6 +37,7 @@ class LeanClaim:
 
     proposition: str
     binders: List[str]
+    translator_version: str
     source_nodes: List[Dict[str, Any]]
     relation: str
     assumption_hypotheses: List[str]
@@ -271,6 +273,7 @@ def translate_edge_claim(
     return LeanClaim(
         proposition=proposition,
         binders=sorted(symbols),
+        translator_version=GRAPH_TO_LEAN_TRANSLATOR_VERSION,
         source_nodes=[
             *[
                 {"role": "input", "raw_expression": raw}
@@ -357,6 +360,7 @@ def translate_graph_edge_claim(
     return LeanClaim(
         proposition=claim.proposition,
         binders=sorted(all_binders),
+        translator_version=claim.translator_version,
         source_nodes=claim.source_nodes,
         relation=claim.relation,
         assumption_hypotheses=hypotheses,
