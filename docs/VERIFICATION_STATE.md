@@ -3,10 +3,10 @@
 **Audit date:** 2026-10-04
 **Repository:** `rynahmed101-sys/automate`
 **Intended branch:** `feat/verification-hardening`
-**Verified code commit:** `ad70212763dd30c7bb48db23644fdc8737e95e23`
-**Upstream merged:** `3e2fa552e058ad0cc963a44723f65ad09f55ac35`
-**Shared base:** `1948ef94b57effafb0e8c084e2c9854ab5cdcb6d`
-**Integration:** local merge commit is a descendant of the remote feature tip. It has not yet been pushed. No merge to `main` or history rewrite occurred.
+**Verified code commit:** `349b258ec5238019d15bdc4c49882bb9e9a1c5ef`
+**Upstream hardening:** `3e2fa552e058ad0cc963a44723f65ad09f55ac35`
+**Integration base:** `1948ef94b57effafb0e8c084e2c9854ab5cdcb6d`
+**Integration:** `349b258` is the published feature-branch tip and is a descendant of the recovery merge `ad702127`, which integrated the local work with the upstream hardening tip. No merge to `main` or history rewrite occurred.
 
 ## Validation evidence
 
