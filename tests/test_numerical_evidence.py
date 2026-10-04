@@ -94,7 +94,10 @@ def test_energy_diagnostic_unavailable_is_not_success(monkeypatch):
         lambda *args, **kwargs: (False, None),
     )
 
-    report = checker.verify_edge(edge, graph)
+    # This diagnostic test targets the backend core directly because the
+    # public verify_edge path intentionally runs in a separate worker process;
+    # parent-side monkeypatches do not cross that security boundary.
+    report = checker._verify_edge_core(edge, graph)
 
     assert report.passed is False
     assert "could not be evaluated" in (report.error_message or "").lower()
