@@ -384,6 +384,20 @@ class TensorChecker(BaseChecker):
                     start_time,
                 )
 
+            if index_signature is not None:
+                details["index_semantics"] = {
+                    "status": "VALID",
+                    "mode": index_mode,
+                    "free_index_signature": [
+                        {
+                            "label": label,
+                            "variance": variance,
+                            "dimension": dimension,
+                        }
+                        for label, variance, dimension in index_signature
+                    ],
+                }
+
             # 6. Multi-Engine Cross-Validation with EinsteinPy
             if self._ep_available and passed:
                 cross_rep = cross_check_geometry(
