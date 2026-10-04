@@ -9,8 +9,9 @@ import copy
 
 import pytest
 
+from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.claim import build_claim_identity, build_dependency_fingerprint, compute_evidence_fingerprint
-from automate.core.edge import DerivationEdge, DerivationCertificate
+from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
 from automate.core.node import DerivationNode
 from automate.core.status import VerificationStatus
@@ -21,19 +22,26 @@ from automate.ir.assumptions import Assumption
 pytestmark = [pytest.mark.adversarial, pytest.mark.trust_boundary]
 
 
-class IdentityChecker:
-    """Minimal report producer used only to seed a certificate."""
+class IdentityChecker(BaseChecker):
+    """Minimal backend used only to seed a known-current certificate."""
+
+    @property
+    def name(self) -> str:
+        return "identity-test"
+
+    @property
+    def version(self) -> str:
+        return "1"
 
     def verify_edge(self, edge, graph):
-        from automate.backend.base import VerificationReport
-
         return VerificationReport(
             status=VerificationStatus.SYMBOLIC_CHECKED,
-            backend="identity-test",
-            backend_version="1",
+            backend=self.name,
+            backend_version=self.version,
             passed=True,
             details={"test_mode": "mutation-seed"},
         )
+
 
 
 def _make_graph() -> tuple[DerivationGraph, DerivationEdge]:
