@@ -258,7 +258,13 @@ class StatisticalChecker(BaseChecker):
         try:
             jacobian = self._numerical_jacobian(model_func, t_data, popt)
             singular_values = np.linalg.svd(jacobian, compute_uv=False)
-            jacobian_rank = int(np.linalg.matrix_rank(jacobian))
+            relative_rank_tolerance = np.sqrt(np.finfo(float).eps)
+            scale = float(singular_values[0]) if len(singular_values) else 0.0
+            jacobian_rank = int(
+                np.count_nonzero(
+                    singular_values > scale * relative_rank_tolerance
+                )
+            ) if scale > 0 else 0
         except Exception as e:
             return (
                 False,
@@ -285,6 +291,11 @@ class StatisticalChecker(BaseChecker):
                         "jacobian_rank": jacobian_rank,
                         "parameter_count": len(popt),
                         "singular_values": [float(v) for v in singular_values],
+                        "relative_smallest_singular_value": (
+                            float(singular_values[-1] / singular_values[0])
+                            if singular_values[0] > 0 else 0.0
+                        ),
+                        "relative_rank_tolerance": relative_rank_tolerance,
                     },
                 },
                 [],
