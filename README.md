@@ -24,6 +24,19 @@ Automate treats physics derivations not as static linear LaTeX documents, but as
 
 ---
 
+## 🌱 Project Workspace
+
+Automate is developed as a verification-first engineering workspace: small steps, explicit evidence, and honest status.
+
+- **[Project Operations](docs/PROJECT_OPERATIONS.md)**: working model, roadmap structure, and verification vocabulary.
+- **GitHub Issues**: bounded bugs, research questions, and implementation tasks.
+- **GitHub Projects**: visual planning and progress tracking when enabled for the repository.
+- **GitHub Actions**: authoritative automated verification.
+- **Pull Requests**: reviewable implementation boundaries.
+- **Wiki / Discussions**: long-form architecture and design conversations when supported by the repository plan.
+
+Current principle: **build carefully, verify honestly, keep the next step visible.** 🌤️
+
 ## Direct AI Coding Agent Interface
 
 Automate 0.2 is purpose-built for direct interaction with autonomous AI coding agents without requiring internet access, cloud accounts, or proprietary APIs.
