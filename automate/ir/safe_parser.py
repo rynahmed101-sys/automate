@@ -182,7 +182,7 @@ def _isolated_parse_equation_worker(
         return
 
     try:
-        cpu_limit = max(1, int(math.ceil(cpu_seconds)))
+        cpu_limit = max(1, int(math.ceil(min(cpu_seconds, _MAX_CPU_SECONDS))))
         resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit))
     except (AttributeError, OSError, ValueError):
         pass
