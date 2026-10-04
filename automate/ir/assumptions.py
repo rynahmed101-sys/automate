@@ -28,6 +28,24 @@ class Assumption(BaseModel):
         return self.model_dump()
 
 
+class AssumptionDependency(BaseModel):
+    """
+    Explicit dependency between declared assumptions.
+
+    If assumption A depends on B, any claim that relies on A also inherits B.
+    This records logical/precondition structure without asserting that the
+    dependency itself is a theorem.
+    """
+    assumption_id: str = Field(..., description="Assumption whose validity depends on other assumptions")
+    depends_on: List[str] = Field(default_factory=list, description="Declared prerequisite assumption IDs")
+    relation: str = Field(default="requires", description="Dependency relation, e.g. 'requires' or 'derived_from'")
+    justification: str = Field(default="", description="Reason this dependency is declared")
+    active: bool = Field(default=True, description="Whether this dependency relation is active")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return self.model_dump()
+
+
 class AssumptionRegistry:
     """
     Global or scoped repository of declared assumptions.
