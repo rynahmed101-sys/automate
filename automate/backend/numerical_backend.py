@@ -127,6 +127,50 @@ class NumericalChecker(BaseChecker):
         return report
 
     def _verify_edge_core(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
+        start_time = time.perf_counter()
+
+        in_nodes = [graph.get_node(nid) for nid in edge.input_nodes]
+        out_nodes = [graph.get_node(nid) for nid in edge.output_nodes]
+
+        if not all(in_nodes) or not all(out_nodes):
+            return VerificationReport(
+                status=VerificationStatus.FAILED,
+                backend=self.name,
+                backend_version=self.version,
+                passed=False,
+                error_message="Referenced nodes missing from derivation graph."
+            )
+
+        rule = edge.transformation_rule
+        passed = False
+        error_msg = None
+        details: Dict[str, Any] = {"rule": rule}
+        certificates: List[Dict[str, Any]] = []
+
+        if rule not in _ODE_RULES:
+            # This backend cannot verify non-ODE rules
+            status = VerificationStatus.NOT_APPLICABLE
+            details["reason"] = (
+                f"Rule '{rule}' does not involve ODE integration; "
+                "numerical backend is not applicable."
+            )
+            elapsed = (time.perf_counter() - start_time) * 1000
+            return self._build_report(
+                status, False, details, [], None, edge, graph, elapsed
+            )
+
+        try:
+            passed, details, certificates, error_msg = self._simulate_ode_from_graph(
+                rule, in_nodes, out_nodes, edge.parameters
+            )
+        except Exception as e:
+            passed = False
+            error_msg = f"Numerical execution error: {type(e).__name__}: {str(e)}"
+
+        elapsed = (time.perf_counter() - start_time) * 1000
+        status = VerificationStatus.NUMERICALLY_CHECKED if passed else VerificationStatus.FAILED
+        return self._build_report(status, passed, details, certificates, error_msg, edge, graph, elapsed)
+
     def _build_report(
         self, status, passed, details, certificates, error_msg, edge, graph, elapsed
     ) -> VerificationReport:
