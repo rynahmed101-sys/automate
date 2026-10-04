@@ -17,6 +17,7 @@ and tags results with their explicit independence_class (DIFFERENT_ENGINE vs SAM
 
 import time
 import hashlib
+import json
 from typing import Dict, Any, List, Optional, Tuple
 import sympy as sp
 
@@ -139,7 +140,12 @@ class TensorChecker(BaseChecker):
             "parameters": params,
         }
         claim_hash = hashlib.sha256(
-            str(sorted(claim_payload.items())).encode("utf-8")
+            json.dumps(
+                claim_payload,
+                sort_keys=True,
+                default=str,
+                separators=(",", ":"),
+            ).encode("utf-8")
         ).hexdigest()
 
         # 4. Extract and construct metric tensor
