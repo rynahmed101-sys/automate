@@ -66,6 +66,9 @@ class TestCrossCheckFlat2D:
         assert rep["independence_class"] == "DIFFERENT_ENGINE"
         assert len(rep["metric_fingerprint_sha256"]) == 64
         assert rep["comparison_method"] == "exact symbolic equality after SymPy simplification"
+        assert rep["execution_status"] == "COMPLETED"
+        assert rep["sandbox"]["bounded_process"] is True
+        assert rep["reproducibility"]["engine"] == "EinsteinPy"
         assert rep["christoffel_matched"] is True
         assert rep["ricci_matched"] is True
         assert rep["ricci_scalar_matched"] is True
@@ -285,7 +288,7 @@ def test_cross_check_exception_is_not_reported_as_independent_agreement(monkeypa
 
     monkeypatch.setattr(adapter, "MetricTensor", ExplodingMetricTensor)
 
-    report = adapter.cross_check_geometry(
+    report = adapter._cross_check_geometry_core(
         metric=metric,
         coords=[x, y],
         native_ricci_scalar=sp.Integer(0),
