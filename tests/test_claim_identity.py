@@ -196,6 +196,26 @@ def test_serialized_graph_reproduces_same_claim_and_dependency_hashes():
     assert restored.get_dependency_fingerprint(edge.id) == dependency_before
 
 
+def test_record_report_preserves_backend_certificate_material():
+    graph, edge = _graph()
+    from automate.core.edge import DerivationCertificate
+
+    edge.certificate = DerivationCertificate(
+        rule_name=edge.transformation_rule,
+        proof_code="backend-specific-proof",
+        metrics={"independence_class": "DIFFERENT_ENGINE"},
+    )
+    report = DummyChecker().verify_edge(edge, graph)
+    graph.record_verification_report(edge.id, report)
+
+    assert edge.certificate is not None
+    assert edge.certificate.proof_code == "backend-specific-proof"
+    assert edge.certificate.metrics["independence_class"] == "DIFFERENT_ENGINE"
+    assert edge.certificate.metrics["claim_fingerprint_sha256"] == (
+        report.claim_fingerprint_sha256
+    )
+
+
 def test_legacy_certificate_is_explicitly_unknown_not_current():
     graph, edge = _graph()
     from automate.core.edge import DerivationCertificate

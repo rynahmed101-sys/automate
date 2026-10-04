@@ -129,20 +129,49 @@ class DerivationGraph(BaseModel):
         edge.evidence = evidence_payload
         edge.status = report.status
         edge.failed_reason = report.error_message if not report.passed else None
-        edge.certificate = DerivationCertificate(
-            rule_name=edge.transformation_rule,
-            steps=report.certificates,
-            proof_code=report.proof_script,
-            backend_version=report.backend_version,
-            execution_time_ms=report.execution_time_ms,
-            metrics=report.details,
-            diagnostics=[report.error_message] if report.error_message else [],
-            claim_schema_version=identity.schema_version,
-            claim_fingerprint_sha256=identity.claim_fingerprint_sha256,
-            dependency_fingerprint_sha256=dependency_hash,
-            evidence_fingerprint_sha256=evidence_hash,
-            claim_payload=identity.canonical_payload,
-        )
+
+        # Preserve backend-specific certificate material when a checker has
+        # already attached one (for example TensorChecker's geometry proof
+        # metadata). The kernel adds its provenance fields without discarding
+        # richer evidence.
+        certificate = edge.certificate
+        if certificate is None:
+            certificate = DerivationCertificate(
+                rule_name=edge.transformation_rule,
+                steps=report.certificates,
+                proof_code=report.proof_script,
+                backend_version=report.backend_version,
+                execution_time_ms=report.execution_time_ms,
+                metrics=report.details,
+                diagnostics=[report.error_message] if report.error_message else [],
+            )
+            edge.certificate = certificate
+        else:
+            certificate.rule_name = edge.transformation_rule
+            if report.certificates:
+                certificate.steps = report.certificates
+            if report.proof_script:
+                certificate.proof_code = report.proof_script
+            if report.backend_version:
+                certificate.backend_version = report.backend_version
+            certificate.execution_time_ms = report.execution_time_ms
+            merged_metrics = dict(certificate.metrics)
+            merged_metrics.update(report.details)
+            certificate.metrics = merged_metrics
+            if report.error_message:
+                certificate.diagnostics = [*certificate.diagnostics, report.error_message]
+
+        certificate.claim_schema_version = identity.schema_version
+        certificate.claim_fingerprint_sha256 = identity.claim_fingerprint_sha256
+        certificate.dependency_fingerprint_sha256 = dependency_hash
+        certificate.evidence_fingerprint_sha256 = evidence_hash
+        certificate.claim_payload = identity.canonical_payload
+        certificate.metrics = dict(certificate.metrics)
+        certificate.metrics.update({
+            "claim_fingerprint_sha256": identity.claim_fingerprint_sha256,
+            "dependency_fingerprint_sha256": dependency_hash,
+            "evidence_fingerprint_sha256": evidence_hash,
+        })
         return edge
 
     def add_node(self, node: DerivationNode) -> None:
