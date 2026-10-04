@@ -15,8 +15,16 @@ from pydantic import BaseModel, Field
 class TensorIndex(BaseModel):
     """
     A single index on a tensor or geometric quantity.
+
+    dimension is the coordinate/index-space cardinality when known. It is
+    separate from TensorQuantity.dimension, which describes physical units.
     """
     symbol: str = Field(..., description="Index symbol or identifier, e.g. 'mu', 'nu', 'i', '0'")
+    dimension: Optional[int] = Field(
+        default=None,
+        gt=0,
+        description="Optional dimension/cardinality of the index space",
+    )
     position: Literal["upper", "lower"] = Field(
         default="lower",
         description="'upper' for contravariant, 'lower' for covariant"
@@ -40,6 +48,52 @@ class TensorIndex(BaseModel):
 
     def __hash__(self) -> int:
         return hash((self.symbol, self.position))
+
+
+class TensorExpression(BaseModel):
+    """
+    Structured sum of tensor index terms.
+
+    Each term is represented by the ordered indices carried by its tensor
+    factors. Validation derives free/dummy status from repeated labels instead
+    of trusting caller-supplied is_dummy flags.
+    """
+    terms: List[List[TensorIndex]] = Field(..., min_length=1)
+
+    def validate_structure(self) -> "IndexValidationResult":
+        return validate_tensor_sum(self.terms)
+
+    @property
+    def free_index_signature(self) -> List[Tuple[str, str]]:
+        result = self.validate_structure()
+        if not result.is_valid:
+            raise ValueError("; ".join(result.errors))
+        return sorted(
+            (index.symbol, index.position)
+            for index in result.free_indices
+        )
+
+
+class TensorEquation(BaseModel):
+    """Structured tensor equation with independently validated sides."""
+
+    lhs: TensorExpression
+    rhs: TensorExpression
+
+    def validate_structure(self) -> "IndexValidationResult":
+        lhs_indices = [index for term in self.lhs.terms for index in term]
+        rhs_indices = [index for term in self.rhs.terms for index in term]
+        return validate_tensor_equation(lhs_indices, rhs_indices)
+
+    @property
+    def free_index_signature(self) -> List[Tuple[str, str]]:
+        result = self.validate_structure()
+        if not result.is_valid:
+            raise ValueError("; ".join(result.errors))
+        return sorted(
+            (index.symbol, index.position)
+            for index in result.free_indices
+        )
 
 
 class TensorQuantity(BaseModel):
@@ -94,8 +148,10 @@ def validate_einstein_product(indices: List[TensorIndex]) -> IndexValidationResu
 
     symbol_counts = Counter(idx.symbol for idx in indices)
     symbol_positions: Dict[str, List[str]] = {}
+    symbol_dimensions: Dict[str, List[Optional[int]]] = {}
     for idx in indices:
         symbol_positions.setdefault(idx.symbol, []).append(idx.position)
+        symbol_dimensions.setdefault(idx.symbol, []).append(idx.dimension)
 
     free_indices: List[TensorIndex] = []
     dummy_indices: List[str] = []
@@ -105,6 +161,16 @@ def validate_einstein_product(indices: List[TensorIndex]) -> IndexValidationResu
         if count == 1:
             free_indices.append(TensorIndex(symbol=sym, position=positions[0], is_dummy=False))
         elif count == 2:
+            dimensions = {
+                dimension
+                for dimension in symbol_dimensions[sym]
+                if dimension is not None
+            }
+            if len(dimensions) > 1:
+                errors.append(
+                    f"Invalid contraction on index '{sym}': incompatible index dimensions "
+                    f"{sorted(dimensions)}."
+                )
             if positions[0] == positions[1]:
                 errors.append(
                     f"Invalid contraction on index '{sym}': both occurrences are in '{positions[0]}' position. "
