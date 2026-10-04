@@ -302,7 +302,11 @@ def run_cadabra_script(
 
     if result["execution_status"] != "COMPLETED":
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version, execution_status="EXECUTION_FAILED",
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity,
+            executable_path=executable_path,
+            executable_fingerprint_sha256=executable_fingerprint,
+            runtime_environment_fingerprint_sha256=runtime_environment_fingerprint,
+            execution_status="EXECUTION_FAILED",
             independence_class="CROSS_CHECK_FAILED",
             input_fingerprint_sha256=input_fingerprint,
             claim_fingerprint_sha256=claim_fingerprint_sha256,
