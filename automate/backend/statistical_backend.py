@@ -234,6 +234,14 @@ class StatisticalChecker(BaseChecker):
 
         perr = np.sqrt(np.diag(pcov))
 
+        # Goodness-of-fit bookkeeping is defined before confidence intervals,
+        # because the confidence critical value depends on residual degrees of freedom.
+        n_points = len(t_data)
+        n_params = len(popt)
+        dof = n_points - n_params
+        fitted_y = model_func(t_data, *popt)
+        residuals = x_obs - fitted_y
+
         # 95% confidence intervals use the Student-t critical value with the
         # actual residual degrees of freedom, not a fixed normal 1.96 shortcut.
         if dof > 0 and np.all(np.isfinite(perr)):
