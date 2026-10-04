@@ -201,6 +201,11 @@ def test_translated_ir_rejects_missing_or_malformed_fingerprint(monkeypatch):
     monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
     with pytest.raises(ValueError, match="valid 64-character hexadecimal IR fingerprint"):
         adapter.run_translated_cadabra({"source": "ex := A_{a};", "ir_fingerprint_sha256": "bad"})
+    with pytest.raises(ValueError, match="valid 64-character hexadecimal IR fingerprint"):
+        adapter.run_translated_cadabra({
+            "source": "ex := A_{a};",
+            "ir_fingerprint_sha256": "g" * 64,
+        })
 
 
 def test_translated_ir_rejects_empty_source():
