@@ -212,9 +212,9 @@ class TensorChecker(BaseChecker):
                     {
                         "label": label,
                         "variance": variance,
-                        "dimension": None,
+                        "dimension": dimension,
                     }
-                    for label, variance in index_signature
+                    for label, variance, dimension in index_signature
                 ],
             }
         error_msg: Optional[str] = None
