@@ -310,3 +310,92 @@ def test_external_assumption_remains_explicit_leaf():
         "id": "asm_external",
         "description": "Undeclared external assumption",
     }]
+
+
+def test_assumption_dependency_change_stales_certificate():
+    from automate.backend.base import BaseChecker, VerificationReport
+    from automate.core.status import VerificationStatus
+
+    class AssumptionSeedChecker(BaseChecker):
+        @property
+        def name(self):
+            return "assumption-seed"
+
+        @property
+        def version(self):
+            return "1"
+
+        def verify_edge(self, edge, graph):
+            return VerificationReport(
+                status=VerificationStatus.SYMBOLIC_CHECKED,
+                backend=self.name,
+                backend_version=self.version,
+                passed=True,
+            )
+
+    graph = DerivationGraph(id="assumption_certificate_test")
+    for aid in ("asm_derived", "asm_base", "asm_extra"):
+        graph.add_assumption(
+            Assumption(id=aid, description=aid, formal_predicate=aid)
+        )
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_derived",
+            depends_on=["asm_base"],
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="source",
+            expression=MathematicalExpression(raw_str="E"),
+            assumptions=["asm_derived"],
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="target",
+            expression=MathematicalExpression(raw_str="F"),
+        )
+    )
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["source"],
+        output_nodes=["target"],
+        transformation_rule="candidate",
+        justification="assumption-sensitive candidate",
+    )
+    graph.add_edge(edge)
+
+    report = AssumptionSeedChecker().verify_edge(edge, graph)
+    graph.record_verification_report(edge.id, report)
+    assert graph.is_certificate_current(edge.id) is True
+
+    graph.assumption_dependencies[0].depends_on = ["asm_extra"]
+
+    state = graph.get_certificate_staleness(edge.id)
+    assert state["current"] is False
+    assert state["reason"] == "CLAIM_CHANGED"
+
+
+def test_assumption_dependency_graph_survives_serialization():
+    graph = DerivationGraph(id="assumption_serialization_test")
+    for aid in ("asm_a", "asm_b"):
+        graph.add_assumption(
+            Assumption(id=aid, description=aid, formal_predicate=aid)
+        )
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_a",
+            depends_on=["asm_b"],
+            relation="requires",
+            justification="test dependency",
+        )
+    )
+
+    restored = DerivationGraph.from_json(graph.to_json())
+    assert len(restored.assumption_dependencies) == 1
+    dependency = restored.assumption_dependencies[0]
+    assert dependency.assumption_id == "asm_a"
+    assert dependency.depends_on == ["asm_b"]
+    assert dependency.relation == "requires"
+    assert restored.validate_assumption_dependency_graph() is True
