@@ -118,15 +118,34 @@ def _run_cadabra_cli(payload: Dict[str, Any]) -> Dict[str, Any]:
                     stderr=stderr_handle,
                     shell=False,
                 )
-                try:
-                    return_code = process.wait(timeout=timeout)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=1.0)
-                    return {
-                        "execution_status": "EXECUTION_FAILED",
-                        "error": "Cadabra process exceeded the sandbox wall-clock limit.",
-                    }
+                deadline = __import__("time").monotonic() + timeout
+                return_code = None
+                while return_code is None:
+                    if __import__("time").monotonic() >= deadline:
+                        process.kill()
+                        process.wait(timeout=1.0)
+                        return {
+                            "execution_status": "EXECUTION_FAILED",
+                            "error": "Cadabra process exceeded the sandbox wall-clock limit.",
+                        }
+
+                    current_output = (
+                        os.path.getsize(stdout_path) + os.path.getsize(stderr_path)
+                    )
+                    if current_output > max_output_bytes:
+                        process.kill()
+                        process.wait(timeout=1.0)
+                        return {
+                            "execution_status": "EXECUTION_FAILED",
+                            "error": (
+                                "Cadabra output exceeded the sandbox output-size "
+                                f"limit of {max_output_bytes} bytes."
+                            ),
+                        }
+
+                    return_code = process.poll()
+                    if return_code is None:
+                        __import__("time").sleep(0.02)
         except OSError as exc:
             return {
                 "execution_status": "EXECUTION_FAILED",
