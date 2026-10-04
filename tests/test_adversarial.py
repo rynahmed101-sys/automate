@@ -589,11 +589,11 @@ class TestCheckerCapabilityBypass:
 
         val_res = validate_ai_proposal(proposal.model_dump(), graph)
         assert not val_res.is_valid
-        assert any("Incompatible target_checker 'dimension'" in e for e in val_res.errors)
+        assert any("not allowed" in e for e in val_res.errors)
 
         exec_res = apply_and_verify_proposal(proposal, graph)
         assert not exec_res.success
-        assert any("Incompatible target_checker" in e for e in exec_res.errors)
+        assert any("not allowed" in e for e in exec_res.errors)
         assert "out_node" not in graph.nodes
 
     def test_statistical_checker_rejected_for_euler_lagrange(self):
@@ -606,7 +606,7 @@ class TestCheckerCapabilityBypass:
 
         val_res = validate_ai_proposal(proposal.model_dump(), graph)
         assert not val_res.is_valid
-        assert any("Incompatible target_checker 'statistical'" in e for e in val_res.errors)
+        assert any("not allowed" in e for e in val_res.errors)
 
         exec_res = apply_and_verify_proposal(proposal, graph)
         assert not exec_res.success
@@ -621,5 +621,5 @@ class TestCheckerCapabilityBypass:
 
         val_res = validate_ai_proposal(proposal.model_dump(), graph)
         assert not val_res.is_valid
-        assert any("Unknown target_checker 'quantum_oracle'" in e for e in val_res.errors)
+        assert any("Unknown checker 'quantum_oracle'" in e for e in val_res.errors)
 

@@ -236,10 +236,8 @@ class TestUnknownCheckerImmutability:
             f"Expected unknown checker rejection, got: {result.errors}"
         assert before == after, "Graph mutated by unknown checker rejection"
 
-    def test_dimension_only_checker_for_euler_lagrange_allowed(self):
-        """dimension is in KNOWN_CHECKERS but NOT in euler_lagrange's allowed_checkers.
-        Now that allowed_checkers enforcement is active, this must be rejected
-        and the graph must remain unchanged."""
+    def test_dimension_only_checker_for_euler_lagrange_rejected(self):
+        """dimension is not a semantic checker for Euler-Lagrange and must be rejected."""
         graph = _make_sho_graph()
         before = _snapshot(graph)
 
@@ -251,10 +249,9 @@ class TestUnknownCheckerImmutability:
         result = apply_and_verify_proposal(proposal, graph, dry_run=False)
         after = _snapshot(graph)
 
-        # dimension is not in euler_lagrange's allowed_checkers → must fail
-        assert not result.success, \
-            "dimension checker should be rejected for euler_lagrange by allowed_checkers enforcement"
-        assert before == after, "Graph mutated by incompatible checker rejection"
+        assert not result.success
+        assert any("not allowed" in e.lower() for e in result.errors)
+        assert before == after
 
 
 # ---------------------------------------------------------------------------

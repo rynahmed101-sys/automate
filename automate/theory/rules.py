@@ -302,8 +302,8 @@ class RuleRegistry:
             domain="differential_geometry",
             implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True,
-            allowed_checkers=["tensor", "sympy"],
+            symbolic_checker_available=False,
+            allowed_checkers=[],
         ))
 
         self.register(RuleDefinition(
@@ -314,8 +314,8 @@ class RuleRegistry:
             domain="differential_geometry",
             implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True,
-            allowed_checkers=["tensor", "sympy"],
+            symbolic_checker_available=False,
+            allowed_checkers=[],
         ))
 
         self.register(RuleDefinition(
@@ -326,8 +326,8 @@ class RuleRegistry:
             domain="differential_geometry",
             implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True,
-            allowed_checkers=["tensor", "sympy"],
+            symbolic_checker_available=False,
+            allowed_checkers=[],
         ))
 
 

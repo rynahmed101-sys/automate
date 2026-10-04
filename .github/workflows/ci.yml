@@ -3,9 +3,7 @@ name: Automate CI
 on:
   push:
     branches:
-      - feat/generalized-engine
-      - feat/verification-hardening
-      - feat/verification-orchestrator
+      - "feat/**"
       - main
   pull_request:
     branches:
@@ -24,6 +22,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -54,9 +54,6 @@ jobs:
   lean4:
     name: Lean 4 proof check
     runs-on: ubuntu-latest
-    # Lean 4 install is slow; run only on push to main or PR targeting main
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
