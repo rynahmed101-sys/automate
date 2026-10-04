@@ -82,7 +82,9 @@ def translate_expression(expression: TensorExpression) -> dict:
         "ir_fingerprint_sha256": fingerprint,
         "translation": "canonical TensorExpression.products -> Cadabra syntax",
     }
-\n\ndef tensor_equation_to_cadabra(equation: TensorEquation) -> str:
+
+
+def tensor_equation_to_cadabra(equation: TensorEquation) -> str:
     """Translate a validated structured tensor equation into Cadabra syntax."""
     if equation.lhs.products is None or equation.rhs.products is None:
         raise ValueError(
