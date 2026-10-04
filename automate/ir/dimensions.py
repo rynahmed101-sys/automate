@@ -19,8 +19,15 @@ class Dimension:
         self.exponents: Dict[str, int] = {}
         if exponents:
             for k, v in exponents.items():
-                if k in self.BASE_DIMENSIONS and v != 0:
-                    self.exponents[k] = int(v)
+                if k not in self.BASE_DIMENSIONS:
+                    raise ValueError(
+                        f"Unknown base dimension '{k}'. "
+                        f"Expected one of: {', '.join(self.BASE_DIMENSIONS)}."
+                    )
+                if not isinstance(v, int) or isinstance(v, bool):
+                    raise ValueError(f"Dimension exponent for '{k}' must be an integer.")
+                if v != 0:
+                    self.exponents[k] = v
 
     @classmethod
     def dimensionless(cls) -> "Dimension":
@@ -98,9 +105,28 @@ class Dimension:
                 continue
 
             if "^" in token:
-                base, exp = token.split("^")
-                exponents[base] = exponents.get(base, 0) + int(exp)
+                parts = token.split("^")
+                if len(parts) != 2:
+                    raise ValueError(f"Invalid dimension token '{token}'.")
+                base, exp = parts
+                if base not in cls.BASE_DIMENSIONS:
+                    raise ValueError(
+                        f"Unknown base dimension '{base}'. "
+                        f"Expected one of: {', '.join(cls.BASE_DIMENSIONS)}."
+                    )
+                try:
+                    exponent = int(exp)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Dimension exponent in '{token}' must be an integer."
+                    ) from exc
+                exponents[base] = exponents.get(base, 0) + exponent
             else:
+                if token not in cls.BASE_DIMENSIONS:
+                    raise ValueError(
+                        f"Unknown base dimension '{token}'. "
+                        f"Expected one of: {', '.join(cls.BASE_DIMENSIONS)}."
+                    )
                 exponents[token] = exponents.get(token, 0) + 1
 
         return cls(exponents)
