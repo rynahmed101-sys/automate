@@ -351,7 +351,17 @@ class SafeParser:
                 return self.make_symbol(node.args[0].value)
 
             if name not in safe_locals:
-                raise SafeParseError(f"Function '{name}' is not allowlisted.")
+                # Unknown plain identifiers may represent symbolic functions
+                # such as x(t). Construct a SymPy undefined function directly;
+                # this never invokes a user-provided Python callable.
+                args = [self._convert(arg, safe_locals) for arg in node.args]
+                try:
+                    return sp.Function(name)(*args)
+                except Exception as exc:
+                    raise SafeParseError(
+                        f"Symbolic function '{name}' could not be constructed: "
+                        f"{type(exc).__name__}: {exc}"
+                    ) from exc
 
             target = safe_locals[name]
             if name in {"pi", "E", "I", "oo", "nan", "zoo"}:
