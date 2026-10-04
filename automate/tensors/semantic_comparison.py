@@ -136,7 +136,7 @@ def _symmetry_for(quantity: TensorQuantity):
     if kind == "symmetric":
         return TensorSymmetry.fully_symmetric(rank)
     if kind == "antisymmetric":
-        return TensorSymmetry.fully_antisymmetric(rank)
+        return TensorSymmetry.fully_symmetric(-rank)
     if kind == "riemann":
         return TensorSymmetry.riemann()
     raise ValueError(f"Unsupported tensor symmetry: {kind!r}")
@@ -217,52 +217,36 @@ def canonicalize_expression(
 
 
 def semantic_signature(expression: TensorExpression) -> str:
-    """Return an alpha-normalized semantic declaration fingerprint.
+    """Return an alpha-normalized tensor-declaration fingerprint.
 
-    Dummy/bound index names are not semantic identity, so they are replaced by
-    a binding marker. Free index names remain explicit because free-index
-    identity is part of the equation's interface. Factor/product ordering is
-    normalized here only for the declaration layer; algebraic equivalence is
-    still decided by SymPy's independent canonicalizer.
+    Dummy-index names are intentionally absent here. Free-index identity is
+    preserved by the independent SymPy canonical form, while this declaration
+    layer records tensor identity, declared symmetry, index-space membership,
+    and slot variance. Symmetric declarations normalize slot order because
+    their slot permutation is semantic equivalence.
     """
     if expression.products is None:
         raise ValueError("Semantic comparison requires structured products.")
-
-    occurrences: Dict[str, List[TensorIndex]] = {}
-    for product in expression.products:
-        for quantity in product.factors:
-            for index in quantity.indices:
-                occurrences.setdefault(index.symbol, []).append(index)
-
-    dummy_symbols = {
-        symbol
-        for symbol, indexes_for_symbol in occurrences.items()
-        if (
-            len(indexes_for_symbol) == 2
-            and {index.position for index in indexes_for_symbol} == {"upper", "lower"}
-            and len({index.index_space for index in indexes_for_symbol}) == 1
-        )
-    }
 
     payload = []
     for product in expression.products:
         factors = []
         for quantity in product.factors:
-            indices = []
-            for index in quantity.indices:
-                item = {
-                    "binding": "dummy" if index.symbol in dummy_symbols else "free",
+            kind = quantity.symmetry or "none"
+            slots = [
+                {
                     "index_space": index.index_space,
                     "position": index.position,
                     "dimension": index.dimension,
                 }
-                if index.symbol not in dummy_symbols:
-                    item["symbol"] = index.symbol
-                indices.append(item)
+                for index in quantity.indices
+            ]
+            if kind in {"symmetric", "riemann"}:
+                slots.sort(key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":")))
             factors.append({
                 "name": quantity.name,
-                "symmetry": quantity.symmetry or "none",
-                "indices": indices,
+                "symmetry": kind,
+                "slots": slots,
             })
         factors.sort(key=lambda factor: json.dumps(factor, sort_keys=True, separators=(",", ":")))
         payload.append({"factors": factors})
