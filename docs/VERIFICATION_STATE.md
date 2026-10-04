@@ -56,6 +56,8 @@ The earlier local Windows evidence from the integrated recovery work remains sep
 
 **Tensor evidence provenance.** Tensor verification now records a SHA-256 fingerprint of the exact graph metric/claim/configuration, exact comparison method, coordinate/metric representation, and external-engine metadata. EinsteinPy unavailability is classified as `NOT_RUN`; an external-engine calculation failure is classified as `DISCREPANCY_DETECTED` rather than falsely reported as independent agreement. Successful EinsteinPy comparison remains `DIFFERENT_ENGINE` evidence rather than proof.
 
+**Permanent mutation matrix.** The verification kernel now carries a deterministic adversarial mutation suite covering coefficient, sign, variable, dimension, domain, node kind, transformation rule, semantic parameters, side conditions, assumption predicates and assumption activation. The suite also mutates transitive upstream dependencies and unrelated graph state. Semantic mutations must change claim identity and stale the certificate; upstream-only mutations must leave claim identity stable while changing dependency identity; unrelated mutations must leave the certificate current. Evidence payload mutations are tracked independently from mathematical claim identity.
+
 ## Current capability assessment
 
 | Capability | Current status |
