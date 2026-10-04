@@ -237,6 +237,12 @@ def translate_edge_claim(
                 f"Rule '{rule_name}' requires exactly one input and one output "
                 "expression for an equality claim."
             )
+        if any(isinstance(expr, Relational) for expr in [parsed_inputs[0], parsed_outputs[0]]):
+            raise GraphToLeanTranslationError(
+                f"Rule '{rule_name}' expects arithmetic expressions, not whole "
+                "equations or inequalities. Use the generic 'implies' relation "
+                "for proposition-level graph edges."
+            )
         proposition = f"{translated_inputs[0]} = {translated_outputs[0]}"
         relation = "equality"
     elif rule_name == "implies":
