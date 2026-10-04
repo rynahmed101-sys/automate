@@ -511,8 +511,8 @@ class TestDimensionBackendCoordinateAware:
             out_expr="m * l**2 * theta_ddot + m * g * l * sin(theta)",
             rule="euler_lagrange",
             params={"coordinate_dimension": "angle"},
-            in_dim="",   # dimensionless
-            out_dim="",  # dimensionless
+            in_dim="dimensionless",
+            out_dim="dimensionless",
         )
         checker = DimensionChecker()
         report = checker.verify_edge(edge, graph)
@@ -529,8 +529,8 @@ class TestDimensionBackendCoordinateAware:
             out_expr="A * cos(omega * t + phi)",
             rule="solve_harmonic_oscillator",
             params={"coordinate_dimension": "angle"},
-            in_dim="",
-            out_dim="",
+            in_dim="dimensionless",
+            out_dim="dimensionless",
         )
         checker = DimensionChecker()
         report = checker.verify_edge(edge, graph)
