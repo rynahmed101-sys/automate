@@ -362,18 +362,39 @@ class StatisticalChecker(BaseChecker):
         ss_tot = float(np.sum((x_obs - np.mean(x_obs)) ** 2))
         r_squared = float(1.0 - (ss_res / ss_tot)) if ss_tot > 0 else 0.0
 
+        gof_confidence = float(params.get("gof_confidence_level", 0.95))
+        if not (0.0 < gof_confidence < 1.0):
+            return (
+                False,
+                {"model": model_type},
+                [],
+                "Invalid goodness-of-fit confidence level: expected 0 < gof_confidence_level < 1.",
+            )
+
         if sigma is not None and np.all(sigma > 0) and dof > 0:
             chi2 = float(np.sum((residuals / sigma) ** 2))
             reduced_chi2 = float(chi2 / dof)
+            chi2_lower = float(stats.chi2.ppf((1.0 - gof_confidence) / 2.0, dof))
+            chi2_upper = float(stats.chi2.ppf((1.0 + gof_confidence) / 2.0, dof))
+            chi2_cdf = float(stats.chi2.cdf(chi2, dof))
+            chi2_sf = float(stats.chi2.sf(chi2, dof))
+            chi2_two_sided_p = float(min(1.0, 2.0 * min(chi2_cdf, chi2_sf)))
             chi2_mode = "known_observation_sigma"
-            passed = (0.3 <= reduced_chi2 <= 3.0) and (r_squared > 0.85)
+            # Treat the stated measurement uncertainty as the statistical error
+            # model and ask whether the observed residual sum is compatible with
+            # the chi-square distribution at the configured confidence level.
+            passed = chi2_lower <= chi2 <= chi2_upper
         else:
             chi2 = None
             reduced_chi2 = None
+            chi2_lower = None
+            chi2_upper = None
+            chi2_two_sided_p = None
             chi2_mode = "unavailable_without_positive_observation_sigma"
-            # Without a known observation uncertainty, a reduced chi-squared
-            # threshold would be numerically arbitrary and is therefore not used.
-            passed = r_squared > 0.85
+            # Parameter estimation remains possible without measurement
+            # uncertainty, but a STATISTICALLY_CHECKED goodness-of-fit claim does
+            # not. Do not turn R² into a substitute statistical error model.
+            passed = False
 
         residual_mean = float(np.mean(residuals))
         residual_std = float(np.std(residuals))
@@ -392,6 +413,13 @@ class StatisticalChecker(BaseChecker):
             "chi2": chi2,
             "reduced_chi2": reduced_chi2,
             "chi2_mode": chi2_mode,
+            "chi2_compatibility_interval": (
+                [chi2_lower, chi2_upper]
+                if chi2_lower is not None and chi2_upper is not None
+                else None
+            ),
+            "chi2_two_sided_p_value": chi2_two_sided_p,
+            "gof_confidence_level": gof_confidence,
             "degrees_of_freedom": dof,
             "r_squared": r_squared,
             "sum_squared_residuals": ss_res,
@@ -418,6 +446,7 @@ class StatisticalChecker(BaseChecker):
             "model": model_type,
             "fit_initial_guess": [float(v) for v in p0],
             "noise_std": float(noise_std),
+            "gof_confidence_level": gof_confidence,
             "sample_size": n_points,
         }
         evidence_fingerprint = hashlib.sha256(
@@ -437,6 +466,7 @@ class StatisticalChecker(BaseChecker):
                 "source_type": "observed",
                 "data_id": data_id,
                 "provenance_authentication": "caller_declared_not_independently_authenticated",
+                "preprocessing": "none_declared",
                 "sha256": data_hash,
                 "n_points": n_points,
             },
@@ -452,9 +482,10 @@ class StatisticalChecker(BaseChecker):
                 "step": "residual_goodness_of_fit",
                 "description": "Computed goodness-of-fit diagnostics appropriate to the supplied uncertainty information.",
                 "result": (
-                    f"Reduced Chi^2 = {reduced_chi2:.3f}, R^2 = {r_squared:.4f}"
+                    f"Chi^2 = {chi2:.3f}, dof = {dof}, "
+                    f"two-sided p = {chi2_two_sided_p:.4g}"
                     if reduced_chi2 is not None
-                    else f"Reduced Chi^2 = unavailable, R^2 = {r_squared:.4f}"
+                    else "Chi^2 = unavailable because positive observational uncertainty was not supplied."
                 )
             }
         ]
@@ -463,14 +494,16 @@ class StatisticalChecker(BaseChecker):
             error_msg = None
         elif reduced_chi2 is not None:
             error_msg = (
-                "Statistical fit criteria not satisfied: "
-                f"reduced_chi2={reduced_chi2:.3f} (need [0.3, 3.0]), "
-                f"R2={r_squared:.4f} (need > 0.85)"
+                "Statistical goodness-of-fit rejected: "
+                f"chi2={chi2:.3f}, dof={dof}, "
+                f"two-sided p={chi2_two_sided_p:.4g}, "
+                f"compatibility interval={chi2_lower:.3f}..{chi2_upper:.3f} "
+                f"at confidence={gof_confidence:.3f}."
             )
         else:
             error_msg = (
-                "Statistical fit criteria not satisfied: observational uncertainty "
-                f"was not supplied, so only R2={r_squared:.4f} (need > 0.85) was evaluated."
+                "UNSUPPORTED: STATISTICALLY_CHECKED status requires positive "
+                "observational uncertainty via noise_std."
             )
         return passed, details, certificates, error_msg
 
