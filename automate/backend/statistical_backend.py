@@ -251,7 +251,65 @@ class StatisticalChecker(BaseChecker):
         except Exception as e:
             return False, {}, [], f"curve_fit failed: {type(e).__name__}: {str(e)}"
 
+        # A visually excellent fit can still be statistically meaningless if
+        # multiple fitted parameters are not locally identifiable. Check the
+        # numerical model Jacobian at the fitted point and fail closed when its
+        # columns are rank deficient.
+        try:
+            jacobian = self._numerical_jacobian(model_func, t_data, popt)
+            singular_values = np.linalg.svd(jacobian, compute_uv=False)
+            jacobian_rank = int(np.linalg.matrix_rank(jacobian))
+        except Exception as e:
+            return (
+                False,
+                {"model": model_type},
+                [],
+                f"Statistical identifiability check failed: {type(e).__name__}: {str(e)}",
+            )
+
+        if not np.all(np.isfinite(singular_values)):
+            return (
+                False,
+                {"model": model_type},
+                [],
+                "Statistical identifiability check failed: non-finite Jacobian singular values.",
+            )
+
+        if jacobian_rank < len(popt):
+            return (
+                False,
+                {
+                    "model": model_type,
+                    "identifiability": {
+                        "identified": False,
+                        "jacobian_rank": jacobian_rank,
+                        "parameter_count": len(popt),
+                        "singular_values": [float(v) for v in singular_values],
+                    },
+                },
+                [],
+                (
+                    "Statistical fit is not locally identifiable: "
+                    f"Jacobian rank {jacobian_rank} < parameter count {len(popt)}."
+                ),
+            )
+
         perr = np.sqrt(np.diag(pcov))
+        if not np.all(np.isfinite(perr)):
+            return (
+                False,
+                {
+                    "model": model_type,
+                    "identifiability": {
+                        "identified": True,
+                        "jacobian_rank": jacobian_rank,
+                        "parameter_count": len(popt),
+                        "singular_values": [float(v) for v in singular_values],
+                    },
+                },
+                [],
+                "Statistical fit produced non-finite parameter uncertainty estimates.",
+            )
 
         # Goodness-of-fit bookkeeping is defined before confidence intervals,
         # because the confidence critical value depends on residual degrees of freedom.
@@ -507,6 +565,30 @@ class StatisticalChecker(BaseChecker):
                 {"model": model_type, "graph_input_expression": getattr(in_node.expression, "raw_str", "")},
                 f"UNSUPPORTED: could not safely bind statistical model to graph claim: {type(exc).__name__}: {exc}",
             )
+
+    @staticmethod
+    def _numerical_jacobian(model_func, t_data: np.ndarray, parameters: np.ndarray) -> np.ndarray:
+        """Estimate the model Jacobian with deterministic central finite differences."""
+        parameters = np.asarray(parameters, dtype=float)
+        columns = []
+        step_scale = np.sqrt(np.finfo(float).eps)
+
+        for i, value in enumerate(parameters):
+            step = step_scale * max(1.0, abs(float(value)))
+            plus = parameters.copy()
+            minus = parameters.copy()
+            plus[i] += step
+            minus[i] -= step
+            f_plus = np.asarray(model_func(t_data, *plus), dtype=float)
+            f_minus = np.asarray(model_func(t_data, *minus), dtype=float)
+            if f_plus.shape != t_data.shape or f_minus.shape != t_data.shape:
+                raise ValueError("Model function returned an unexpected shape during identifiability analysis.")
+            column = (f_plus - f_minus) / (2.0 * step)
+            if not np.all(np.isfinite(column)):
+                raise ValueError("Model Jacobian contains non-finite values.")
+            columns.append(column)
+
+        return np.column_stack(columns)
 
     @staticmethod
     def _initial_guess(params: Dict[str, Any], names: List[str], defaults: List[float]) -> List[float]:
