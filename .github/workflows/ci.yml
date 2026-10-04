@@ -80,6 +80,6 @@ jobs:
 
       - name: Run Lean backend tests (with Lean 4 available)
         run: |
-          pytest tests/test_adversarial.py::TestLeanBackendNoTautology -v --tb=short
+          pytest tests/test_lean_backend.py tests/test_adversarial.py::TestLeanBackendNoTautology -v --tb=short
         env:
           LEAN_BIN: ${{ env.HOME }}/.elan/bin/lean
