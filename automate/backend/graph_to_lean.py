@@ -223,6 +223,12 @@ def translate_edge_claim(
 
     rule_name = str(rule)
 
+    supported_relations = {"algebraic_identity", "identity_claim", "equivalent", "implies"}
+    if rule_name not in supported_relations:
+        raise GraphToLeanTranslationError(
+            f"Rule '{rule_name}' has no generic graph-to-Lean relation mapping."
+        )
+
     parsed_inputs = [_parse_node(raw) for raw in input_expressions]
     parsed_outputs = [_parse_node(raw) for raw in output_expressions]
 
@@ -255,7 +261,7 @@ def translate_edge_claim(
         proposition = f"{translated_inputs[0]} = {translated_outputs[0]}"
         relation = "equality"
     elif rule_name == "implies":
-        if not all(isinstance(expr, sp.Relational) for expr in [*parsed_inputs, *parsed_outputs]):
+        if not all(isinstance(expr, Relational) for expr in [*parsed_inputs, *parsed_outputs]):
             raise GraphToLeanTranslationError(
                 "The generic 'implies' relation requires proposition/equation nodes."
             )
@@ -265,11 +271,6 @@ def translate_edge_claim(
         for hypothesis in reversed(hypotheses):
             proposition = f"({hypothesis}) -> ({proposition})"
         relation = "implication"
-    else:
-        raise GraphToLeanTranslationError(
-            f"Rule '{rule_name}' has no generic graph-to-Lean relation mapping."
-        )
-
     return LeanClaim(
         proposition=proposition,
         binders=sorted(symbols),
