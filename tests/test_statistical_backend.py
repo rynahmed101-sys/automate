@@ -4,6 +4,7 @@ Updated to use model-aware fitting. The model must be specified explicitly.
 """
 
 import pytest
+import numpy as np
 from automate.backend.statistical_backend import StatisticalChecker
 from automate.core.graph import DerivationGraph
 from automate.core.node import DerivationNode
@@ -39,12 +40,18 @@ def test_statistical_parameter_inference():
         justification="Least Squares Non-linear Regression",
         checker="statistical",
         parameters={
-            "model": "cosine",      # NEW: model must be explicit
+            "model": "cosine",
             "A": 1.0,
-            "omega": 2.0,           # true omega = sqrt(k/m) = 2.0
+            "omega": 2.0,
             "phi": 0.0,
-            "n_points": 50,
+            "t_data": np.linspace(0, 10, 50).tolist(),
+            "x_obs": (
+                np.cos(2.0 * np.linspace(0, 10, 50))
+                + 0.05 * np.random.default_rng(42).normal(size=50)
+            ).tolist(),
             "noise_std": 0.05,
+            "data_source": "observed",
+            "data_id": "test-observed-cosine-v1",
         }
     )
     graph.add_edge(edge)
@@ -95,3 +102,85 @@ def test_statistical_not_applicable_for_euler_lagrange():
 
     assert report.status == VerificationStatus.NOT_APPLICABLE
     assert report.passed is False
+
+
+def test_empirical_inference_rejects_implicit_synthetic_data():
+    graph = DerivationGraph(id="stats_synthetic_rejection")
+    graph.add_node(
+        DerivationNode(
+            id="sol",
+            expression=MathematicalExpression(raw_str="A * cos(omega * t + phi)"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="fit",
+            expression=MathematicalExpression(raw_str="fit"),
+        )
+    )
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["sol"],
+        output_nodes=["fit"],
+        transformation_rule="empirical_inference",
+        justification="Empirical fitting",
+        checker="statistical",
+        parameters={
+            "model": "cosine",
+            "A": 1.0,
+            "omega": 2.0,
+            "phi": 0.0,
+            "n_points": 50,
+            "noise_std": 0.05,
+        },
+    )
+    graph.add_edge(edge)
+
+    report = StatisticalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert "explicit t_data and x_obs" in (report.error_message or "")
+    assert "observational evidence" in (report.error_message or "")
+
+
+def test_empirical_inference_records_data_fingerprint_and_sigma_mode():
+    graph = DerivationGraph(id="stats_provenance")
+    graph.add_node(
+        DerivationNode(
+            id="sol",
+            expression=MathematicalExpression(raw_str="a * t + b"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="fit",
+            expression=MathematicalExpression(raw_str="linear_fit"),
+        )
+    )
+    t_data = np.linspace(0, 5, 20)
+    x_obs = 3.0 * t_data + 2.0
+
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["sol"],
+        output_nodes=["fit"],
+        transformation_rule="empirical_inference",
+        justification="Linear regression",
+        checker="statistical",
+        parameters={
+            "model": "linear",
+            "t_data": t_data.tolist(),
+            "x_obs": x_obs.tolist(),
+            "data_source": "observed",
+            "data_id": "test-linear-v1",
+        },
+    )
+    graph.add_edge(edge)
+
+    report = StatisticalChecker().verify_edge(edge, graph)
+
+    assert report.passed is True, report.error_message
+    assert report.details["data_provenance"]["data_id"] == "test-linear-v1"
+    assert len(report.details["data_provenance"]["sha256"]) == 64
+    assert report.details["goodness_of_fit"]["chi2"] is None
+    assert report.details["goodness_of_fit"]["chi2_mode"].startswith("unavailable")
