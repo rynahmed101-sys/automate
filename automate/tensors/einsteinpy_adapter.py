@@ -13,6 +13,8 @@ import hashlib
 import json
 import sympy as sp
 
+from automate.core.sandbox import SandboxError, SandboxLimits, VerifiedExecutionSandbox
+
 try:
     import einsteinpy
     from einsteinpy.symbolic import (
@@ -40,7 +42,7 @@ def get_einsteinpy_version() -> str:
     return _EINSTEINPY_VERSION
 
 
-def cross_check_geometry(
+def _cross_check_geometry_core(
     metric: sp.Matrix,
     coords: List[sp.Symbol],
     native_christoffel: Optional[Dict[Tuple[int, int, int], sp.Expr]] = None,
@@ -201,3 +203,105 @@ def cross_check_geometry(
             "independence_class": "DISCREPANCY_DETECTED",
             "discrepancies": [f"Exception during EinsteinPy evaluation: {str(e)}"],
         }
+
+    
+def _geometry_metric_fingerprint(metric: sp.Matrix, coords: List[sp.Symbol]) -> str:
+    """Return a deterministic fingerprint of the metric and coordinate system."""
+    payload = {
+        "coordinates": [sp.srepr(coord) for coord in coords],
+        "metric": sp.srepr(metric),
+    }
+    return hashlib.sha256(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _run_einsteinpy_cross_check(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Spawn-safe worker entrypoint for the bounded EinsteinPy oracle."""
+    return _cross_check_geometry_core(
+        metric=payload["metric"],
+        coords=payload["coords"],
+        native_christoffel=payload.get("native_christoffel"),
+        native_ricci=payload.get("native_ricci"),
+        native_ricci_scalar=payload.get("native_ricci_scalar"),
+        native_einstein=payload.get("native_einstein"),
+    )
+
+
+def cross_check_geometry(
+    metric: sp.Matrix,
+    coords: List[sp.Symbol],
+    native_christoffel: Optional[Dict[Tuple[int, int, int], sp.Expr]] = None,
+    native_ricci: Optional[sp.Matrix] = None,
+    native_ricci_scalar: Optional[sp.Expr] = None,
+    native_einstein: Optional[sp.Matrix] = None,
+    sandbox_limits: Optional[SandboxLimits] = None,
+) -> Dict[str, Any]:
+    """
+    Cross-check geometry with EinsteinPy inside VerifiedExecutionSandbox.
+
+    The returned report records the exact metric fingerprint, external engine
+    identity/version, comparison method, and the sandbox target/resource limits.
+    Sandbox execution failure is distinct from a mathematical discrepancy.
+    """
+    metric_fingerprint = _geometry_metric_fingerprint(metric, coords)
+    limits = sandbox_limits or SandboxLimits()
+    payload = {
+        "metric": metric,
+        "coords": coords,
+        "native_christoffel": native_christoffel,
+        "native_ricci": native_ricci,
+        "native_ricci_scalar": native_ricci_scalar,
+        "native_einstein": native_einstein,
+    }
+
+    try:
+        report = VerifiedExecutionSandbox(limits).run(
+            "automate.tensors.einsteinpy_adapter:_run_einsteinpy_cross_check",
+            payload,
+        )
+    except SandboxError as exc:
+        return {
+            "available": _EINSTEINPY_AVAILABLE,
+            "engine": "EinsteinPy",
+            "version": _EINSTEINPY_VERSION,
+            "metric_fingerprint_sha256": metric_fingerprint,
+            "comparison_method": "exact symbolic equality after SymPy simplification",
+            "execution_status": "FAILED",
+            "all_matched": None,
+            "independence_class": "CROSS_CHECK_FAILED",
+            "error": f"EinsteinPy sandbox execution failed: {type(exc).__name__}: {exc}",
+            "discrepancies": [],
+            "reproducibility": {
+                "engine": "EinsteinPy",
+                "version": _EINSTEINPY_VERSION,
+                "metric_fingerprint_sha256": metric_fingerprint,
+                "comparison_method": "exact symbolic equality after SymPy simplification",
+                "sandbox_target": "automate.tensors.einsteinpy_adapter:_run_einsteinpy_cross_check",
+                "sandbox_limits": limits.model_dump(),
+            },
+        }
+
+    report["execution_status"] = "COMPLETED"
+    report["sandbox"] = {
+        "target": "automate.tensors.einsteinpy_adapter:_run_einsteinpy_cross_check",
+        "limits": limits.model_dump(),
+        "bounded_process": True,
+    }
+    report["reproducibility"] = {
+        "engine": report.get("engine", "EinsteinPy"),
+        "version": report.get("version", _EINSTEINPY_VERSION),
+        "metric_fingerprint_sha256": report.get("metric_fingerprint_sha256", metric_fingerprint),
+        "comparison_method": report.get(
+            "comparison_method",
+            "exact symbolic equality after SymPy simplification",
+        ),
+        "checks_performed": report.get("checks_performed", 0),
+        "sandbox_target": "automate.tensors.einsteinpy_adapter:_run_einsteinpy_cross_check",
+        "sandbox_limits": limits.model_dump(),
+    }
+    return report
