@@ -92,6 +92,21 @@ def _translate_arithmetic(expr: sp.Basic) -> str:
     )
 
 
+def translate_integer_expression(expr: sp.Basic) -> Tuple[str, List[str]]:
+    """Translate an already-parsed integer arithmetic expression."""
+    _check_size(expr)
+    for atom in expr.atoms(sp.Rational):
+        if type(atom) is sp.Rational and atom.q != 1:
+            raise GraphToLeanTranslationError(
+                "Non-integer rational coefficients are not supported."
+            )
+    names = sorted(
+        _check_identifier(symbol.name)
+        for symbol in expr.free_symbols
+    )
+    return _translate_arithmetic(expr), names
+
+
 def _translate_atom(expr: sp.Basic) -> str:
     if isinstance(expr, sp.Relational):
         lhs = _translate_arithmetic(expr.lhs)
