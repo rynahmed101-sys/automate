@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from automate.core.status import VerificationStatus
 from automate.core.node import DerivationNode
 from automate.core.edge import DerivationEdge, DerivationCertificate
-from automate.ir.assumptions import Assumption, AssumptionRegistry
+from automate.ir.assumptions import Assumption, AssumptionDependency, AssumptionRegistry
 from automate.ir.serialization import dump_json, load_json
 from automate.core.claim import (
     build_claim_identity,
@@ -34,6 +34,10 @@ class DerivationGraph(BaseModel):
     nodes: Dict[str, DerivationNode] = Field(default_factory=dict)
     edges: Dict[str, DerivationEdge] = Field(default_factory=dict)
     assumptions: Dict[str, Assumption] = Field(default_factory=dict)
+    assumption_dependencies: List[AssumptionDependency] = Field(
+        default_factory=list,
+        description="Explicit dependency graph between declared assumptions",
+    )
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     def get_claim_identity(self, edge_id: str):
@@ -190,6 +194,98 @@ class DerivationGraph(BaseModel):
     def add_assumption(self, assumption: Assumption) -> None:
         self.assumptions[assumption.id] = assumption
 
+    def add_assumption_dependency(self, dependency: AssumptionDependency) -> None:
+        """Add a declared assumption dependency and reject cycles/unknown IDs."""
+        if dependency.assumption_id not in self.assumptions:
+            raise ValueError(
+                f"Assumption dependency target '{dependency.assumption_id}' is not declared."
+            )
+        missing = [
+            aid for aid in dependency.depends_on if aid not in self.assumptions
+        ]
+        if missing:
+            raise ValueError(
+                "Assumption dependency references undeclared prerequisites: "
+                + ", ".join(sorted(missing))
+            )
+
+        self.assumption_dependencies.append(dependency)
+        try:
+            self.validate_assumption_dependency_graph()
+        except Exception:
+            self.assumption_dependencies.pop()
+            raise
+
+    def get_assumption_dependencies(self, assumption_id: str) -> List[str]:
+        """Return direct active prerequisites of an assumption."""
+        if assumption_id not in self.assumptions:
+            raise KeyError(f"Assumption '{assumption_id}' not found in graph.")
+        dependencies: Set[str] = set()
+        for dependency in self.assumption_dependencies:
+            if (
+                dependency.active
+                and dependency.assumption_id == assumption_id
+            ):
+                dependencies.update(dependency.depends_on)
+        return sorted(dependencies)
+
+    def get_assumption_dependency_closure(self, assumption_ids: Set[str] | List[str]) -> Set[str]:
+        """Return assumptions plus all transitive active prerequisites."""
+        roots = set(assumption_ids)
+        unknown = roots.difference(self.assumptions)
+        if unknown:
+            raise KeyError(
+                "Unknown assumption IDs: " + ", ".join(sorted(unknown))
+            )
+
+        closure: Set[str] = set()
+        stack = list(roots)
+        while stack:
+            current = stack.pop()
+            if current in closure:
+                continue
+            closure.add(current)
+            stack.extend(self.get_assumption_dependencies(current))
+        return closure
+
+    def validate_assumption_dependency_graph(self) -> bool:
+        """Validate that declared assumption prerequisites form a DAG."""
+        adjacency: Dict[str, Set[str]] = defaultdict(set)
+        for dependency in self.assumption_dependencies:
+            if not dependency.active:
+                continue
+            adjacency[dependency.assumption_id].update(dependency.depends_on)
+
+        visiting: Set[str] = set()
+        visited: Set[str] = set()
+
+        def dfs(current: str) -> None:
+            if current in visiting:
+                raise ValueError(
+                    "Assumption dependency graph contains a cycle involving "
+                    f"'{current}'."
+                )
+            if current in visited:
+                return
+            visiting.add(current)
+            for parent in adjacency.get(current, set()):
+                dfs(parent)
+            visiting.remove(current)
+            visited.add(current)
+
+        for assumption_id in self.assumptions:
+            dfs(assumption_id)
+        return True
+
+    def query_assumption_dependency_tree(self, assumption_id: str) -> Dict[str, Any]:
+        """Return direct and transitive prerequisites for one assumption."""
+        closure = self.get_assumption_dependency_closure({assumption_id})
+        return {
+            "assumption_id": assumption_id,
+            "direct_dependencies": self.get_assumption_dependencies(assumption_id),
+            "transitive_dependencies": sorted(closure - {assumption_id}),
+        }
+
     def get_node(self, node_id: str) -> Optional[DerivationNode]:
         return self.nodes.get(node_id)
 
@@ -280,7 +376,9 @@ class DerivationGraph(BaseModel):
             visited_nodes.add(curr_id)
             node = self.nodes.get(curr_id)
             if node:
-                accumulated_assumptions.update(node.assumptions)
+                accumulated_assumptions.update(
+                    self.get_assumption_dependency_closure(set(node.assumptions))
+                )
             for edge in self.get_incoming_edges(curr_id):
                 for parent_id in edge.input_nodes:
                     dfs(parent_id)
