@@ -434,50 +434,58 @@ end Automate.LagrangianMechanics
             return code, theorem_name
 
         elif rule == "algebraic_identity":
-            # Attempt to generate a Lean ring/linarith obligation for the specific expressions.
-            # If the expressions cannot be parsed into a valid theorem, return NOT_APPLICABLE.
+            # Generate the Lean proposition directly from the graph expressions for
+            # a deliberately restricted integer-polynomial subset. This is a real
+            # graph-to-Lean binding, not a canned theorem template.
             try:
+                from automate.ir.safe_parser import SafeParser, SafeParseError
+                from automate.backend.lean_expression import (
+                    LeanExpressionTranslationError,
+                    translate_identity,
+                )
+
                 in_expr_str = in_nodes[0].expression.raw_str.strip()
                 out_expr_str = out_nodes[0].expression.raw_str.strip()
-            except Exception:
-                return "__NOT_APPLICABLE__", (
-                    "Could not read expression strings from graph nodes for algebraic_identity rule."
-                )
+                if not in_expr_str or not out_expr_str:
+                    return "__NOT_APPLICABLE__", (
+                        "Empty expressions in graph nodes; cannot formalize algebraic identity."
+                    )
+                if "=" in in_expr_str or "=" in out_expr_str:
+                    return "__NOT_APPLICABLE__", (
+                        "Equation-form algebraic identities are not yet supported by the "
+                        "restricted graph-to-Lean translator."
+                    )
 
-            # Validate expressions are non-trivial numeric/algebraic
-            if not in_expr_str or not out_expr_str:
-                return "__NOT_APPLICABLE__", (
-                    "Empty expressions in graph nodes; cannot formalize algebraic identity."
-                )
+                parser = SafeParser()
+                lhs = parser.parse(in_expr_str)
+                rhs = parser.parse(out_expr_str)
+                proposition, names = translate_identity(lhs, rhs)
 
-            # Simple case: if the expressions look like integers or rational numbers,
-            # attempt a numeric equality theorem using decide
-            import re
-            def looks_numeric(s: str) -> bool:
-                return bool(re.match(r'^-?\d+(\.\d+)?(/\d+)?$', s.strip()))
-
-            if looks_numeric(in_expr_str) and looks_numeric(out_expr_str):
                 theorem_name = f"algebraic_identity_{edge.id.replace('-', '_')}"
+                binders = " ".join(f"({name} : Int)" for name in names)
                 code = f"""-- Automate Machine-Generated Lean 4 Proof Obligation
 -- Derivation Edge ID: {edge.id}
 -- Rule: algebraic_identity
+-- Source expressions are translated from the graph AST into the proposition below.
 import Init
 
 namespace Automate.Derivations
 
-theorem {theorem_name} : ({in_expr_str} : Int) = {out_expr_str} := by decide
+theorem {theorem_name} {binders} : {proposition} := by
+  simpa [pow_two, mul_add, add_mul, sub_eq_add_neg,
+    add_assoc, add_comm, add_left_comm,
+    mul_assoc, mul_comm, mul_left_comm]
 
 end Automate.Derivations
 """
                 return code, theorem_name
 
-            # Non-numeric symbolic algebraic identities cannot yet be automatically
-            # formalized without a Lean 4 meta-programming bridge.
-            return "__NOT_APPLICABLE__", (
-                f"Algebraic identity '{in_expr_str} = {out_expr_str}' cannot yet be automatically "
-                "formalized in Lean 4. This rule requires a symbolic-to-Lean transpiler (not yet implemented). "
-                "Status: NOT_APPLICABLE. Use SymPy backend for symbolic verification."
-            )
+            except (SafeParseError, LeanExpressionTranslationError, Exception) as exc:
+                return "__NOT_APPLICABLE__", (
+                    "Restricted graph-to-Lean translation rejected algebraic identity: "
+                    f"{type(exc).__name__}: {exc}. "
+                    "Supported subset is integer polynomial expressions over Int."
+                )
 
         else:
             # This branch should not be reached because unsupported rules are
