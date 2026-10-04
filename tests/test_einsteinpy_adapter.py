@@ -32,3 +32,10 @@ def test_external_engine_failure_is_not_classified_as_mathematical_discrepancy(m
 def test_einsteinpy_runtime_provenance_is_explicit():
     assert adapter.get_einsteinpy_version()
     assert adapter.get_einsteinpy_version() == "0.4.0" or not adapter.is_einsteinpy_available()
+
+
+def test_einsteinpy_runtime_provenance_fingerprint_is_stable():
+    first = adapter._runtime_environment_fingerprint()
+    second = adapter._runtime_environment_fingerprint()
+    assert len(first) == 64
+    assert first == second
