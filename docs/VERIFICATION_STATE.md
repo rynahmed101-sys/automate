@@ -3,7 +3,7 @@
 **Audit date:** 2026-10-04
 **Repository:** `rynahmed101-sys/automate`
 **Intended branch:** `feat/verification-hardening`
-**Last fully CI-verified code commit:** `7070c6b1fab08501f5295ea455e246ce9fa8fd13`\n**Current branch tip:** `db87cc1cf18549dd044d8347dbaffd7c242accff`
+**Last fully CI-verified implementation commit:** `468f3e0c4ab5d6dccab6210c4031c8d8e51f1e2f`\n**CI:** GitHub Actions run #178 passed on that exact implementation commit.
 **Published integration lineage:** `349b258` → recovery merge `ad702127` → upstream hardening `3e2fa552`
 **Integration:** The feature branch contains the recovered local work plus the upstream hardening. No merge to `main` and no history rewrite occurred.
 
@@ -22,7 +22,7 @@
 | Earlier exact-SHA run #19, `99ed4e1` | PASS |
 | Earlier exact-SHA run #17, `58b098e` | PASS |
 
-GitHub Actions [run #95](https://github.com/rynahmed101-sys/automate/actions/runs/37182226286) is the last completed exact-SHA verification for `7070c6b1`. All five jobs completed successfully: Python 3.10, 3.11, 3.12, Python 3.13, and the Lean 4.34.1 proof-check job. The current branch tip is newer and must not be described as green until its own workflow completes. The verified tip includes the statistical graph-claim binding and identifiability hardening, expanded numerical evidence, tensor cross-check provenance, Lean claim fingerprints, and SafeParser process/resource isolation changes.
+GitHub Actions [run #95](https://github.com/rynahmed101-sys/automate/actions/runs/37182226286) is the last completed exact-SHA verification for `7070c6b1`. All five jobs completed successfully: Python 3.10, 3.11, 3.12, Python 3.13, and the Lean 4.34.1 proof-check job. The documentation commits may be newer than this implementation checkpoint; the implementation SHA above is the exact code checkpoint validated by run #178. The verified tip includes the statistical graph-claim binding and identifiability hardening, expanded numerical evidence, tensor cross-check provenance, Lean claim fingerprints, and SafeParser process/resource isolation changes.
 
 The earlier local Windows evidence from the integrated recovery work remains separately classified: 235 passed / 1 skipped for the full suite and 30 passed / 1 skipped for the adversarial suite. The local Lean skip was caused by an unusable Lean shim/toolchain and is not evidence of local Lean proof execution.
 
@@ -87,7 +87,7 @@ A shared `ExternalEngineEvidence` provenance model is now available in
 The adapter records engine/version, input and output fingerprints, comparison
 method, sandbox target/limits, execution status, and independence classification.
 
-This milestone is an integration/provenance boundary, not yet a graph-to-Cadabra
+Run #178 validated Python 3.10, 3.11, 3.12, Python 3.13, and Lean 4.34.1; the full suites and explicit adversarial/mutation suite passed.\n\nThis milestone is an integration/provenance boundary, not yet a graph-to-Cadabra
 translator. The canonical tensor IR remains the source of truth, and no
 parallel tensor representation was introduced.
 
