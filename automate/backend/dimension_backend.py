@@ -23,6 +23,18 @@ from automate.core.graph import DerivationGraph
 from automate.ir.dimensions import Dimension
 
 
+def _require_explicit_dimension(node: Any, role: str) -> Optional[str]:
+    """Return a failure message when applicable dimension metadata is missing."""
+    expression = getattr(node, "expression", None)
+    if expression is None or not getattr(expression, "has_explicit_dimension", False):
+        return (
+            f"Missing physical dimension metadata for {role}. "
+            "Use an explicit dimension such as 'L', 'M*L^2*T^-2', "
+            "or 'dimensionless'/'1'."
+        )
+    return None
+
+
 def _resolve_coordinate_dimension(coord_dim_str: str) -> Dimension:
     """Map a declared coordinate-dimension descriptor to a Dimension object."""
     mapping = {
@@ -83,11 +95,15 @@ class DimensionChecker(BaseChecker):
             elif rule == "conserve_energy":
                 # Output dimension must be Energy [M·L²·T⁻²]
                 energy_node = out_nodes[0]
+                missing = _require_explicit_dimension(energy_node, "energy output")
+                if missing:
+                    return False, f"UNSUPPORTED: {missing}", details
+
                 energy_dim = energy_node.expression.get_dimension()
                 expected_dim = Dimension.energy()
 
                 details["inspected_nodes"][energy_node.id] = repr(energy_dim)
-                if not energy_dim.is_dimensionless() and energy_dim != expected_dim:
+                if energy_dim != expected_dim:
                     passed = False
                     error_msg = (
                         f"Energy dimension mismatch: expected {expected_dim}, got {energy_dim}"
@@ -98,6 +114,10 @@ class DimensionChecker(BaseChecker):
             elif rule == "solve_harmonic_oscillator":
                 # Output should have same dimension as coordinate
                 sol_node = out_nodes[0]
+                missing = _require_explicit_dimension(sol_node, "trajectory output")
+                if missing:
+                    return False, f"UNSUPPORTED: {missing}", details
+
                 sol_dim = sol_node.expression.get_dimension()
 
                 # Coordinate dimension from parameters
@@ -106,17 +126,16 @@ class DimensionChecker(BaseChecker):
 
                 details["inspected_nodes"][sol_node.id] = repr(sol_dim)
                 details["coordinate_dimension_used"] = coord_dim_str
-                if not sol_dim.is_dimensionless() and not expected_dim.is_dimensionless():
-                    if sol_dim != expected_dim:
-                        passed = False
-                        error_msg = (
-                            f"Trajectory dimension mismatch: expected {expected_dim}, "
-                            f"got {sol_dim}"
-                        )
-                    else:
-                        details["consistency"] = (
-                            f"Verified: Trajectory dimension is {sol_dim}"
-                        )
+                if sol_dim != expected_dim:
+                    passed = False
+                    error_msg = (
+                        f"Trajectory dimension mismatch: expected {expected_dim}, "
+                        f"got {sol_dim}"
+                    )
+                else:
+                    details["consistency"] = (
+                        f"Verified: Trajectory dimension is {sol_dim}"
+                    )
 
             else:
                 # Generic consistency: ensure all output nodes have valid dimensions
@@ -184,6 +203,12 @@ class DimensionChecker(BaseChecker):
         lagr_node = in_nodes[0]
         eom_node = out_nodes[0]
 
+        missing_lagr = _require_explicit_dimension(lagr_node, "Lagrangian input")
+        missing_eom = _require_explicit_dimension(eom_node, "equation-of-motion output")
+        if missing_lagr or missing_eom:
+            missing = missing_lagr or missing_eom
+            return False, f"UNSUPPORTED: {missing}", details
+
         lagr_dim = lagr_node.expression.get_dimension()
         eom_dim = eom_node.expression.get_dimension()
 
@@ -195,14 +220,7 @@ class DimensionChecker(BaseChecker):
         coord_dim = _resolve_coordinate_dimension(coord_dim_str)
         details["coordinate_dimension_used"] = coord_dim_str
 
-        # If both dimensions are dimensionless (unspecified), skip the check
-        if lagr_dim.is_dimensionless() or eom_dim.is_dimensionless():
-            details["consistency"] = (
-                "Dimension check skipped: one or both nodes are dimensionless "
-                "(dimensions not specified in graph nodes)."
-            )
-            return True, None, details
-
+        # Explicit dimensionless metadata is valid and is not the same as missing metadata.
         # For dimensionless coordinates (angles), [EoM] = [Lagrangian] / [1] = [Lagrangian]
         if coord_dim.is_dimensionless():
             expected_eom_dim = lagr_dim
