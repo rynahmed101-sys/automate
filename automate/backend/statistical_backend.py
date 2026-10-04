@@ -660,6 +660,8 @@ class StatisticalChecker(BaseChecker):
                 t, jac_expr.subs(subs), modules="numpy"
             )(t_data)
             jac_values = np.asarray(evaluated, dtype=float)
+            if jac_values.ndim == 0:
+                jac_values = np.full(t_data.shape, float(jac_values), dtype=float)
             if jac_values.shape != t_data.shape:
                 raise ValueError("Symbolic Jacobian returned an unexpected shape.")
             if not np.all(np.isfinite(jac_values)):
