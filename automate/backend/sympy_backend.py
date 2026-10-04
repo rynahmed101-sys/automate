@@ -522,6 +522,76 @@ class SymPyChecker(BaseChecker):
             side_condition_ids,
         )
 
+    def _verify_divide_both_sides(
+        self,
+        in_node: Any,
+        out_node: Any,
+        params: Dict[str, Any],
+        graph: Optional[DerivationGraph] = None,
+        side_condition_ids: Optional[List[str]] = None,
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+
+        divisor_str = params.get("divisor", "")
+        if not divisor_str:
+            return False, {"rule": "divide_both_sides"}, [],                 "UNSUPPORTED: edge.parameters['divisor'] required for divide_both_sides rule."
+
+        parser = SafeParser()
+        try:
+            in_expr = parser.parse(in_node.expression.raw_str)
+            out_expr = parser.parse(out_node.expression.raw_str)
+            div_expr = parser.parse(str(divisor_str))
+        except SafeParseError as e:
+            return False, {"rule": "divide_both_sides"}, [], f"SafeParser error: {e}"
+
+        if div_expr == 0:
+            return False, {"rule": "divide_both_sides", "divisor": str(div_expr)}, [],                 "Division by zero: divisor is zero."
+
+        nonzero_proven = False
+        nonzero_source: Optional[str] = None
+
+        if div_expr.is_number:
+            nonzero_proven = bool(div_expr != 0)
+            nonzero_source = "numeric divisor"
+        elif graph is not None:
+            nonzero_proven, nonzero_source = self._prove_symbolic_nonzero(
+                div_expr, graph, side_condition_ids or []
+            )
+
+        if not nonzero_proven:
+            return (
+                False,
+                {
+                    "rule": "divide_both_sides",
+                    "divisor": str(div_expr),
+                    "nonzero_proven": False,
+                    "side_conditions_considered": side_condition_ids or [],
+                },
+                [],
+                f"UNSUPPORTED: symbolic divisor '{div_expr}' is not proven non-zero.",
+            )
+
+        expected = sp.simplify(in_expr / div_expr)
+        diff = sp.simplify(out_expr - expected)
+        passed = (diff == 0)
+        details = {
+            "in_expr": str(in_expr),
+            "divisor": str(div_expr),
+            "nonzero_proven": nonzero_proven,
+            "nonzero_source": nonzero_source,
+            "expected_out": str(expected),
+            "actual_out": str(out_expr),
+            "diff": str(diff),
+        }
+        steps = [
+            {"step": 1, "operation": "parse_divisor", "expr": str(div_expr)},
+            {"step": 2, "operation": "prove_divisor_nonzero", "source": nonzero_source},
+            {"step": 3, "operation": "in_expr / divisor", "expr": str(expected)},
+            {"step": 4, "operation": "simplify(actual - expected)", "expr": str(diff)},
+        ]
+        err = None if passed else f"divide_both_sides mismatch: expected {expected}, got {out_expr}"
+        return passed, details, steps, err
+
     # ------------------------------------------------------------------
     # Rule: differentiate_both_sides
     # Verifies that out_expr == d(in_expr)/d(wrt).
