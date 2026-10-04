@@ -213,11 +213,11 @@ class RuleRegistry:
             category="tensors",
             description="Contracts one upper and one lower index using Einstein summation convention",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True,
-            # tensor checker not yet wired; dimension is auxiliary only
-            allowed_checkers=["sympy"],
+            symbolic_checker_available=False,
+            # TensorChecker is not yet wired into the backend pipeline.
+            allowed_checkers=[],
         ))
 
         self.register(RuleDefinition(
@@ -226,10 +226,10 @@ class RuleRegistry:
             category="tensors",
             description="Raises a covariant tensor index using the inverse metric g^{mu nu}",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True,
-            allowed_checkers=["sympy"],
+            symbolic_checker_available=False,
+            allowed_checkers=[],
         ))
 
         self.register(RuleDefinition(
@@ -238,10 +238,10 @@ class RuleRegistry:
             category="tensors",
             description="Lowers a contravariant tensor index using the metric g_{mu nu}",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True,
-            allowed_checkers=["sympy"],
+            symbolic_checker_available=False,
+            allowed_checkers=[],
         ))
 
         # 5. Differential Equations & Solutions
