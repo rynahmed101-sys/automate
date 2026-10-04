@@ -2,17 +2,17 @@
 
 ## Current working state
 
-**Current head:** `b9664970b4e63b204cc5cd0ba794c1f7bc83e08d`
+**Current head at last audit:** `b9664970b4e63b204cc5cd0ba794c1f7bc83e08d`
 
 | State | Status |
 |---|---|
 | Implementation | **COMPLETE** |
 | Architectural boundary | **COMPLETE** |
 | Test coverage | **IMPLEMENTED** |
-| CI | **QUEUED / NOT YET VERIFIED** |
+| CI | **FAILED for prior head; current fix awaiting verification** |
 | Merge to `main` | **NOT PERFORMED** |
 
-The current head includes the AI-agent integration contract, machine-readable integration manifest, Dependabot configuration, reproducible dev container, and GitHub workspace documentation. No workflow run is currently reported for this exact head, so it must not be described as CI-verified.
+The current head includes the AI-agent integration contract, machine-readable integration manifest, Dependabot configuration, reproducible dev container, and GitHub workspace documentation. GitHub Actions run #267 for the prior exact head completed with failure in all four Python matrix jobs because the Cadabra fingerprint validation message did not satisfy its adversarial test; the Lean 4 job passed. The current fix has not yet been CI-verified.
 
 The last completed exact-SHA implementation verification remains the earlier checkpoint documented above. This distinction is intentional: a previously verified commit does not make a newer commit verified automatically.
 
