@@ -2,7 +2,7 @@
 
 ## Current working state
 
-**Current head at last audit:** `8e551f8dcecefea815880daa165de9271f564198`
+**Current head at last audit:** `eee12d367ad2a2ecca8d8d739fc8c15d4cfa9a61`
 
 | State | Status |
 |---|---|
@@ -12,7 +12,7 @@
 | CI | **VERIFIED for current head** |
 | Merge to `main` | **NOT PERFORMED** |
 
-The current head includes the AI-agent integration contract, machine-readable integration manifest, Dependabot configuration, reproducible dev container, and GitHub workspace documentation. GitHub Actions run #281 passed for exact head `8e551f8dcecefea815880daa165de9271f564198`: Python 3.10, 3.11, 3.12, Python 3.13, and Lean 4.34.1 all passed.
+The current head includes the AI-agent integration contract, machine-readable integration manifest, Dependabot configuration, reproducible dev container, and GitHub workspace documentation. GitHub Actions run #283 passed for exact head `eee12d367ad2a2ecca8d8d739fc8c15d4cfa9a61`: Python 3.10, 3.11, 3.12, Python 3.13, and Lean 4.34.1 all passed.
 
 The last completed exact-SHA implementation verification remains the earlier checkpoint documented above. This distinction is intentional: a previously verified commit does not make a newer commit verified automatically.
 
@@ -20,7 +20,7 @@ The last completed exact-SHA implementation verification remains the earlier che
 **Audit date:** 2026-10-04
 **Repository:** `rynahmed101-sys/automate`
 **Intended branch:** `feat/verification-hardening`
-**Last fully CI-verified implementation commit:** `8e551f8dcecefea815880daa165de9271f564198`\n**CI:** GitHub Actions run #178 passed on that exact implementation commit.
+**Last fully CI-verified implementation commit:** `eee12d367ad2a2ecca8d8d739fc8c15d4cfa9a61`\n**CI:** GitHub Actions run #178 passed on that exact implementation commit.
 **Published integration lineage:** `349b258` → recovery merge `ad702127` → upstream hardening `3e2fa552`
 **Integration:** The feature branch contains the recovered local work plus the upstream hardening. No merge to `main` and no history rewrite occurred.
 
