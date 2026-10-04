@@ -51,7 +51,16 @@ def test_numerical_report_records_convergence_and_claim_fingerprint():
 
     metrics = report.details["metrics"]
     assert metrics["convergence_probe"] == "passed"
+    assert metrics["fine_solver_success"] is True
+    assert metrics["coarse_solver_success"] is True
     assert metrics["max_relative_state_difference"] >= 0
+    assert metrics["absolute_state_error_estimate"] == metrics["max_abs_state_difference"]
+    assert metrics["normalized_state_error_estimate"] == metrics["max_relative_state_difference"]
+    assert metrics["tolerance_refinement_factor"] == 10.0
+    assert metrics["fine_to_coarse_nfev_ratio"] >= 1.0
+    assert len(metrics["fine_trajectory_sha256"]) == 64
+    assert len(metrics["coarse_trajectory_sha256"]) == 64
+    assert metrics["trajectory_shape"] == [2, 500]
     assert len(metrics["claim_fingerprint_sha256"]) == 64
     assert any(step["step"] == "tolerance_refinement_check" for step in report.certificates)
 
