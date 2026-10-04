@@ -81,47 +81,58 @@ class DimensionChecker(BaseChecker):
                 )
 
             elif rule == "conserve_energy":
-            # Output dimension must be Energy [M·L²·T⁻²]
-            energy_node = out_nodes[0]
-            energy_dim = energy_node.expression.get_dimension()
-            expected_dim = Dimension.energy()
+                # Output dimension must be Energy [M·L²·T⁻²]
+                energy_node = out_nodes[0]
+                energy_dim = energy_node.expression.get_dimension()
+                expected_dim = Dimension.energy()
 
-            details["inspected_nodes"][energy_node.id] = repr(energy_dim)
-            if not energy_dim.is_dimensionless() and energy_dim != expected_dim:
-                passed = False
-                error_msg = f"Energy dimension mismatch: expected {expected_dim}, got {energy_dim}"
-            else:
-                details["consistency"] = f"Verified: Energy dimension is {energy_dim}"
-
-        elif rule == "solve_harmonic_oscillator":
-            # Output should have same dimension as coordinate
-            sol_node = out_nodes[0]
-            sol_dim = sol_node.expression.get_dimension()
-
-            # Coordinate dimension from parameters
-            coord_dim_str = edge.parameters.get("coordinate_dimension", "length")
-            expected_dim = _resolve_coordinate_dimension(coord_dim_str)
-
-            details["inspected_nodes"][sol_node.id] = repr(sol_dim)
-            details["coordinate_dimension_used"] = coord_dim_str
-            if not sol_dim.is_dimensionless() and not expected_dim.is_dimensionless():
-                if sol_dim != expected_dim:
+                details["inspected_nodes"][energy_node.id] = repr(energy_dim)
+                if not energy_dim.is_dimensionless() and energy_dim != expected_dim:
                     passed = False
-                    error_msg = f"Trajectory dimension mismatch: expected {expected_dim}, got {sol_dim}"
+                    error_msg = (
+                        f"Energy dimension mismatch: expected {expected_dim}, got {energy_dim}"
+                    )
                 else:
-                    details["consistency"] = f"Verified: Trajectory dimension is {sol_dim}"
+                    details["consistency"] = f"Verified: Energy dimension is {energy_dim}"
+
+            elif rule == "solve_harmonic_oscillator":
+                # Output should have same dimension as coordinate
+                sol_node = out_nodes[0]
+                sol_dim = sol_node.expression.get_dimension()
+
+                # Coordinate dimension from parameters
+                coord_dim_str = edge.parameters.get("coordinate_dimension", "length")
+                expected_dim = _resolve_coordinate_dimension(coord_dim_str)
+
+                details["inspected_nodes"][sol_node.id] = repr(sol_dim)
+                details["coordinate_dimension_used"] = coord_dim_str
+                if not sol_dim.is_dimensionless() and not expected_dim.is_dimensionless():
+                    if sol_dim != expected_dim:
+                        passed = False
+                        error_msg = (
+                            f"Trajectory dimension mismatch: expected {expected_dim}, "
+                            f"got {sol_dim}"
+                        )
+                    else:
+                        details["consistency"] = (
+                            f"Verified: Trajectory dimension is {sol_dim}"
+                        )
 
             else:
                 # Generic consistency: ensure all output nodes have valid dimensions
                 for node in out_nodes:
                     dim = node.expression.get_dimension()
                     details["inspected_nodes"][node.id] = repr(dim)
+
         except (ValueError, TypeError) as exc:
             passed = False
             error_msg = f"UNSUPPORTED: invalid dimensional metadata: {exc}"
 
         elapsed = (time.perf_counter() - start_time) * 1000
-        status = VerificationStatus.DIMENSIONALLY_CHECKED if passed else VerificationStatus.FAILED
+        status = (
+            VerificationStatus.DIMENSIONALLY_CHECKED
+            if passed else VerificationStatus.FAILED
+        )
 
         from automate.backend.base import VerificationEvidence
         evidence = VerificationEvidence(
@@ -129,9 +140,14 @@ class DimensionChecker(BaseChecker):
             backend_version=self.version,
             input_node_ids=edge.input_nodes,
             output_node_ids=edge.output_nodes,
-            assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
+            assumptions_used=list(
+                graph.compute_inherited_assumptions(edge.input_nodes[0])
+            ) if edge.input_nodes else [],
             side_conditions_checked=edge.side_conditions,
-            generated_obligations=[{"rule": rule, "dimension_check": details.get("consistency", "homogeneous")}],
+            generated_obligations=[{
+                "rule": rule,
+                "dimension_check": details.get("consistency", "homogeneous")
+            }],
             command_invocation=f"DimensionChecker.verify_edge('{edge.id}')",
             passed=passed,
             status=status,
