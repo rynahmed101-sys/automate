@@ -112,6 +112,9 @@ def validate_ai_proposal(
         return ProposalValidationResult(False, None, [f"Schema validation error: {'; '.join(schema_errs)}"])
 
     # 4. Semantic rule/checker validation against RuleRegistry
+    # Keep checker identity validation separate from rule capability validation:
+    # an unknown checker must be reported as unknown rather than as a
+    # rule/checker compatibility error.
     registry = rule_registry or RuleRegistry()
     rule_def = registry.get(proposal.rule)
     if not rule_def:
@@ -121,8 +124,15 @@ def validate_ai_proposal(
         )
     else:
         checker_name = proposal.target_checker
+        known_checkers = {"sympy", "lean4", "numerical", "statistical", "dimension"}
         if not isinstance(checker_name, str) or not checker_name.strip():
             errors.append("A non-empty target_checker is required.")
+        elif checker_name not in known_checkers:
+            errors.append(
+                f"Unknown checker '{checker_name}'. "
+                f"Must be one of: {', '.join(sorted(known_checkers))}. "
+                "No fallback to a different checker is permitted."
+            )
         elif checker_name not in rule_def.allowed_checkers:
             errors.append(
                 f"Checker '{checker_name}' is not allowed for rule '{proposal.rule}'. "
