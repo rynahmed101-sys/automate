@@ -21,6 +21,8 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
+import sympy as sp
+
 from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge, DerivationCertificate
