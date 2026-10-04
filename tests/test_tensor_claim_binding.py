@@ -73,3 +73,63 @@ def test_matching_metric_records_claim_fingerprint():
     assert len(report.details["claim_fingerprint_sha256"]) == 64
     assert edge.certificate is not None
     assert edge.certificate.metrics["claim_fingerprint_sha256"] == report.details["claim_fingerprint_sha256"]
+
+
+def test_tensor_checker_accepts_valid_structured_index_expression():
+    graph, edge = _metric_graph("flat_2d", "flat_2d")
+    edge.parameters["index_structure"] = {
+        "terms": [[
+            {"symbol": "mu", "position": "lower"},
+            {"symbol": "nu", "position": "lower"},
+            {"symbol": "nu", "position": "upper"},
+        ]]
+    }
+
+    report = TensorChecker().verify_edge(edge, graph)
+
+    assert report.passed is True, report.error_message
+    assert report.details["index_semantics"]["status"] == "VALID"
+    assert report.details["index_semantics"]["mode"] == "expression"
+
+
+def test_tensor_checker_rejects_invalid_structured_index_expression():
+    graph, edge = _metric_graph("flat_2d", "flat_2d")
+    edge.parameters["index_structure"] = {
+        "terms": [[
+            {"symbol": "mu", "position": "upper"},
+            {"symbol": "mu", "position": "upper"},
+        ]]
+    }
+
+    report = TensorChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "Structured tensor index semantics rejected" in (report.error_message or "")
+
+
+def test_tensor_checker_validates_structured_tensor_equation_indices():
+    graph, edge = _metric_graph("flat_2d", "flat_2d")
+    edge.parameters["index_structure"] = {
+        "lhs": {
+            "terms": [[
+                {"symbol": "mu", "position": "lower"},
+                {"symbol": "nu", "position": "lower"},
+            ]]
+        },
+        "rhs": {
+            "terms": [[
+                {"symbol": "mu", "position": "lower"},
+                {"symbol": "nu", "position": "lower"},
+            ]]
+        },
+    }
+
+    report = TensorChecker().verify_edge(edge, graph)
+
+    assert report.passed is True, report.error_message
+    assert report.details["index_semantics"]["mode"] == "equation"
+    assert report.details["index_semantics"]["free_index_signature"] == [
+        {"label": "mu", "variance": "lower"},
+        {"label": "nu", "variance": "lower"},
+    ]
