@@ -327,7 +327,9 @@ def run_cadabra_script(
         ).to_report()
 
     return ExternalEngineEvidence(
-        engine="Cadabra2", version=version, execution_status="COMPLETED",
+        engine="Cadabra2", version=version, runtime_identity=runtime_identity,
+        executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint,
+        adapter_version="v1", execution_status="COMPLETED",
         independence_class="DIFFERENT_ENGINE",
         input_fingerprint_sha256=input_fingerprint,
         claim_fingerprint_sha256=claim_fingerprint_sha256,
