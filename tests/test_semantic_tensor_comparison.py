@@ -88,3 +88,74 @@ def test_cross_space_contraction_fails_closed():
         IndexSpace(name="W", dimension=4),
     ])
     assert validate_semantics(equation, ctx)
+
+def test_free_index_identity_is_not_alpha_renamed():
+    left = _eq(second_symbol="j")
+    right = _eq(second_symbol="k")
+    result = semantic_compare(left, right, _ctx())
+    assert result["result"] == SemanticResult.SEMANTIC_DISCREPANCY.value
+
+
+def test_symmetric_slot_permutation_matches():
+    i = TensorIndex(symbol="i", position="upper", dimension=4, index_space="V")
+    j = TensorIndex(symbol="j", position="upper", dimension=4, index_space="V")
+    left_expr = TensorExpression(
+        terms=[[i, j]],
+        products=[TensorProduct(factors=[
+            TensorQuantity(name="T", indices=[i, j], symmetry="symmetric")
+        ])],
+    )
+    right_expr = TensorExpression(
+        terms=[[j, i]],
+        products=[TensorProduct(factors=[
+            TensorQuantity(name="T", indices=[j, i], symmetry="symmetric")
+        ])],
+    )
+    result = semantic_compare(
+        TensorEquation(lhs=left_expr, rhs=left_expr.model_copy(deep=True)),
+        TensorEquation(lhs=right_expr, rhs=right_expr.model_copy(deep=True)),
+        _ctx(),
+    )
+    assert result["result"] == SemanticResult.SEMANTIC_MATCH.value
+
+
+def test_antisymmetric_slot_swap_is_not_silently_identified_as_match():
+    i = TensorIndex(symbol="i", position="upper", dimension=4, index_space="V")
+    j = TensorIndex(symbol="j", position="upper", dimension=4, index_space="V")
+    left_expr = TensorExpression(
+        terms=[[i, j]],
+        products=[TensorProduct(factors=[
+            TensorQuantity(name="A", indices=[i, j], symmetry="antisymmetric")
+        ])],
+    )
+    right_expr = TensorExpression(
+        terms=[[j, i]],
+        products=[TensorProduct(factors=[
+            TensorQuantity(name="A", indices=[j, i], symmetry="antisymmetric")
+        ])],
+    )
+    result = semantic_compare(
+        TensorEquation(lhs=left_expr, rhs=left_expr.model_copy(deep=True)),
+        TensorEquation(lhs=right_expr, rhs=right_expr.model_copy(deep=True)),
+        _ctx(),
+    )
+    assert result["result"] == SemanticResult.SEMANTIC_DISCREPANCY.value
+
+
+def test_context_metric_metadata_is_bound_into_certificate_fingerprints():
+    equation = _eq()
+    plain = semantic_compare(
+        equation,
+        equation.model_copy(deep=True),
+        TensorSemanticContext(index_spaces=[IndexSpace(name="V", dimension=4)]),
+    )
+    metric = semantic_compare(
+        equation,
+        equation.model_copy(deep=True),
+        TensorSemanticContext(index_spaces=[
+            IndexSpace(name="V", dimension=4, metric_name="g", metric_symmetry="symmetric")
+        ]),
+    )
+    assert plain["result"] == SemanticResult.SEMANTIC_MATCH.value
+    assert metric["result"] == SemanticResult.SEMANTIC_MATCH.value
+    assert plain["left_fingerprint_sha256"] != metric["left_fingerprint_sha256"]
