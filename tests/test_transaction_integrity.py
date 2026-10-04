@@ -25,6 +25,8 @@ Node counts are NOT sufficient — we check identities, statuses, and expression
 import copy
 import pytest
 
+pytestmark = pytest.mark.trust_boundary
+
 from automate.core.graph import DerivationGraph
 from automate.core.node import DerivationNode, MathematicalExpression
 from automate.core.status import VerificationStatus
@@ -184,12 +186,14 @@ class TestUnknownCheckerImmutability:
         after = _snapshot(graph)
 
         assert not result.success
-        assert any("Unknown checker" in e for e in result.errors)
+        assert any("Unknown" in e and "checker" in e.lower() for e in result.errors), \
+            f"Expected unknown checker rejection, got: {result.errors}"
         assert before == after, "Graph mutated by unknown checker rejection"
 
     def test_dimension_only_checker_for_euler_lagrange_allowed(self):
-        """dimension is in KNOWN_CHECKERS, so it gets past the checker check.
-        (The dimension backend may return NOT_APPLICABLE for EL, which is fine.)"""
+        """dimension is in KNOWN_CHECKERS but NOT in euler_lagrange's allowed_checkers.
+        Now that allowed_checkers enforcement is active, this must be rejected
+        and the graph must remain unchanged."""
         graph = _make_sho_graph()
         before = _snapshot(graph)
 
@@ -201,9 +205,10 @@ class TestUnknownCheckerImmutability:
         result = apply_and_verify_proposal(proposal, graph, dry_run=False)
         after = _snapshot(graph)
 
-        # Whether passed or not, if not passed: no graph mutation
-        if not result.success:
-            assert before == after
+        # dimension is not in euler_lagrange's allowed_checkers → must fail
+        assert not result.success, \
+            "dimension checker should be rejected for euler_lagrange by allowed_checkers enforcement"
+        assert before == after, "Graph mutated by incompatible checker rejection"
 
 
 # ---------------------------------------------------------------------------

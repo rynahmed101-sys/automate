@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - feat/generalized-engine
+      - feat/verification-hardening
+      - feat/verification-orchestrator
       - main
   pull_request:
     branches:

@@ -23,6 +23,7 @@ from automate.backend.dimension_backend import DimensionChecker
 from automate.backend.lean_backend import LeanChecker
 from automate.backend.numerical_backend import NumericalChecker
 from automate.backend.statistical_backend import StatisticalChecker
+from automate.backend.tensor_backend import TensorChecker
 
 
 class ProposalExecutionResult:
@@ -91,8 +92,8 @@ def apply_and_verify_proposal(
             errors=val_res.errors
         )
 
-    # 2. Validate checker name against known checkers
-    _KNOWN_CHECKERS = {"sympy", "lean4", "numerical", "statistical", "dimension"}
+    # 2. Validate checker name against known checkers and rule capabilities
+    _KNOWN_CHECKERS = {"sympy", "lean4", "numerical", "statistical", "dimension", "tensor"}
     checker_name = proposal.target_checker
     if checker_name not in _KNOWN_CHECKERS:
         return ProposalExecutionResult(
@@ -104,6 +105,18 @@ def apply_and_verify_proposal(
                 "No fallback to a different checker is permitted."
             ]
         )
+
+    rule_def = reg.get(proposal.rule)
+    if rule_def and checker_name not in rule_def.allowed_checkers:
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            errors=[
+                f"Incompatible target_checker '{checker_name}' for rule '{proposal.rule}'. "
+                f"Allowed checkers: {', '.join(sorted(rule_def.allowed_checkers))}."
+            ]
+        )
+
 
     # 3. Build candidate state on a DEEP COPY — canonical graph is never touched
     #    until we have a verified result AND dry_run is False.
@@ -174,9 +187,12 @@ def apply_and_verify_proposal(
         checker = StatisticalChecker()
     elif checker_name == "dimension":
         checker = DimensionChecker()
+    elif checker_name == "tensor":
+        checker = TensorChecker()
     else:
         # Already rejected above — this branch is unreachable
         raise AssertionError(f"Unreachable: unknown checker '{checker_name}'")
+
 
 
     verif_report = checker.verify_edge(edge, working_graph)

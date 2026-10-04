@@ -48,7 +48,12 @@ class LeanChecker(BaseChecker):
         return self._version
 
     def is_available(self) -> bool:
-        return bool(self._lean_path and os.path.exists(self._lean_path))
+        if not (self._lean_path and os.path.exists(self._lean_path)):
+            return False
+        # Must actually be executable and have an active, working toolchain
+        if self._version in ("Not Installed", "Unknown", "Unavailable", ""):
+            return False
+        return True
 
     def _discover_lean_path(self) -> Optional[str]:
         # 1. Direct environment variable overrides

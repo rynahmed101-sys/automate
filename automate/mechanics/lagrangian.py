@@ -7,7 +7,7 @@ Operates directly on symbolic graph semantics without hardcoded solutions.
 
 from typing import Dict, Any, List, Optional, Tuple, Set, Union
 import sympy as sp
-
+from automate.ir.safe_parser import SafeParser
 
 class LagrangianSystem:
     """
@@ -65,9 +65,12 @@ class LagrangianSystem:
     def _parse_expression(self, expr_in: Union[str, sp.Expr]) -> sp.Expr:
         """
         Parses an expression string into a SymPy expression in terms of q(t) and diff(q(t), t).
+        Uses SafeParser for security — no raw sp.sympify on untrusted strings.
         """
         if isinstance(expr_in, sp.Expr):
             return expr_in
+
+        from automate.ir.safe_parser import SafeParser
 
         # Build local symbol dict for parsing
         local_dict: Dict[str, Any] = {self.time_sym.name: self.time_sym}
@@ -79,8 +82,9 @@ class LagrangianSystem:
             local_dict[f"{q}_dot"] = self.q_dots[q]
             local_dict[f"{q}_ddot"] = self.q_ddots[q]
 
-        # Use SymPy parse_expr with custom local dict
-        parsed = sp.sympify(expr_in, locals=local_dict)
+        # Use SafeParser instead of raw sp.sympify
+        parser = SafeParser()
+        parsed = parser.parse(expr_in, extra_locals=local_dict)
 
         # Ensure any bare symbols q are converted to q(t) if appropriate
         subs_map = {}
@@ -186,6 +190,80 @@ class LagrangianSystem:
 
         return eoms, steps
 
+    def cross_check_euler_lagrange(self) -> Dict[str, Any]:
+        """
+        Cross-check our manual EL derivation against SymPy's built-in
+        sympy.calculus.euler.euler_equations (independent code path).
+
+        Independence class: SAME_ENGINE_DIFFERENT_PATH
+        Both use SymPy, but via completely different implementations:
+        - Our code: manual dL/dq_dot → d/dt → subtract dL/dq
+        - SymPy's: sympy.calculus.euler.euler_equations (variational calculus module)
+
+        Returns
+        -------
+        dict with keys:
+            all_matched: bool
+            our_eoms: dict[str, str]
+            sympy_eoms: dict[str, str]
+            discrepancies: list[str]
+            independence_class: str
+        """
+        from sympy.calculus.euler import euler_equations as sympy_euler
+
+        # Our EL equations
+        our_eoms, _ = self.euler_lagrange_equations()
+
+        # SymPy's independent EL computation
+        funcs = [self.q_funcs[q] for q in self.coord_names]
+        try:
+            sympy_results = sympy_euler(self.lagrangian, funcs, self.time_sym)
+        except Exception as e:
+            return {
+                "all_matched": False,
+                "our_eoms": {q: str(e) for q, e in our_eoms.items()},
+                "sympy_eoms": {},
+                "discrepancies": [f"sympy.calculus.euler.euler_equations raised: {e}"],
+                "independence_class": "SAME_ENGINE_DIFFERENT_PATH",
+            }
+
+        # sympy_results is a list of Eq(..., 0), one per function
+        # Map them back to our coordinate names
+        discrepancies = []
+        sympy_eom_map: Dict[str, sp.Expr] = {}
+
+        for i, q in enumerate(self.coord_names):
+            if i >= len(sympy_results):
+                discrepancies.append(f"SymPy returned fewer EL equations than coordinates (missing {q})")
+                continue
+
+            eq = sympy_results[i]
+            # eq is Eq(lhs, 0), so the EL expression is eq.lhs
+            sympy_lhs = eq.lhs if hasattr(eq, 'lhs') else eq
+            sympy_eom_map[q] = sympy_lhs
+
+            # Compare: our_eoms[q] should equal sympy_lhs (up to simplification)
+            our_lhs = our_eoms[q]
+            diff = sp.simplify(our_lhs - sympy_lhs)
+            if diff != 0:
+                # Check proportionality
+                ratio = sp.simplify(our_lhs / sympy_lhs) if sympy_lhs != 0 else None
+                if ratio is not None and ratio.is_number and ratio != 0:
+                    pass  # proportional — still a match
+                else:
+                    discrepancies.append(
+                        f"Coordinate {q}: residual = {diff}, "
+                        f"ours = {our_lhs}, sympy = {sympy_lhs}"
+                    )
+
+        return {
+            "all_matched": len(discrepancies) == 0,
+            "our_eoms": {q: str(e) for q, e in our_eoms.items()},
+            "sympy_eoms": {q: str(e) for q, e in sympy_eom_map.items()},
+            "discrepancies": discrepancies,
+            "independence_class": "SAME_ENGINE_DIFFERENT_PATH",
+        }
+
     def verify_euler_lagrange(
         self,
         candidate_eom_str: Union[str, Dict[str, str]]
@@ -233,6 +311,13 @@ class LagrangianSystem:
             "residuals": diffs,
             "all_passed": all_passed
         }
+
+        # Attach independent cross-check via sympy.calculus.euler
+        try:
+            cross = self.cross_check_euler_lagrange()
+            details["sympy_euler_cross_check"] = cross
+        except Exception:
+            details["sympy_euler_cross_check"] = {"error": "cross-check unavailable"}
 
         err = None if all_passed else f"Euler-Lagrange residual mismatch: {diffs}"
         return all_passed, details, steps, err

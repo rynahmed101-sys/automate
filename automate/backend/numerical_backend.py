@@ -448,13 +448,15 @@ class NumericalChecker(BaseChecker):
                 local_syms[p_name] = sp.Symbol(p_name, real=True)
 
         try:
+            from automate.ir.safe_parser import SafeParser
+            parser = SafeParser()
             if "=" in eom_str:
                 parts = eom_str.split("=", 1)
-                lhs = sp.sympify(parts[0].strip(), locals=local_syms)
-                rhs = sp.sympify(parts[1].strip(), locals=local_syms)
+                lhs = parser.parse(parts[0].strip(), extra_locals=local_syms)
+                rhs = parser.parse(parts[1].strip(), extra_locals=local_syms)
                 eom_expr = lhs - rhs
             else:
-                eom_expr = sp.sympify(eom_str, locals=local_syms)
+                eom_expr = parser.parse(eom_str, extra_locals=local_syms)
         except Exception as e:
             return False, {"eom": eom_str}, [], \
                 f"EoM string parse error: {type(e).__name__}: {str(e)}"

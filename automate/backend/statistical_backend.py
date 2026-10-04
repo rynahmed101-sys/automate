@@ -334,7 +334,9 @@ class StatisticalChecker(BaseChecker):
             local_syms = {"t": t_sym, **{p: s for p, s in zip(model_params, fit_syms)}}
 
             try:
-                expr = sp.sympify(expr_str, locals=local_syms)
+                from automate.ir.safe_parser import SafeParser
+                parser = SafeParser()
+                expr = parser.parse(expr_str, extra_locals=local_syms)
                 func = sp.lambdify([t_sym] + fit_syms, expr, modules="numpy")
             except Exception as e:
                 return None, [], [], []

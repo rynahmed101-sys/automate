@@ -111,7 +111,7 @@ def validate_ai_proposal(
         schema_errs = [f"{e['loc']}: {e['msg']}" for e in ve.errors()]
         return ProposalValidationResult(False, None, [f"Schema validation error: {'; '.join(schema_errs)}"])
 
-    # 4. Semantic rule validation against RuleRegistry
+    # 4. Semantic rule and checker validation against RuleRegistry
     registry = rule_registry or RuleRegistry()
     rule_def = registry.get(proposal.rule)
     if not rule_def:
@@ -119,6 +119,20 @@ def validate_ai_proposal(
             f"Unknown transformation rule '{proposal.rule}'. "
             f"Must be one of approved rules: {', '.join(sorted(registry.list_rule_ids()))}."
         )
+    else:
+        # Strict checker capability verification
+        _KNOWN_CHECKERS = {"sympy", "lean4", "numerical", "statistical", "dimension", "tensor"}
+        if proposal.target_checker not in _KNOWN_CHECKERS:
+            errors.append(
+                f"Unknown target_checker '{proposal.target_checker}'. "
+                f"Must be one of approved checkers: {', '.join(sorted(_KNOWN_CHECKERS))}."
+            )
+        elif proposal.target_checker not in rule_def.allowed_checkers:
+            errors.append(
+                f"Incompatible target_checker '{proposal.target_checker}' for rule '{proposal.rule}'. "
+                f"Semantically allowed checkers: {', '.join(sorted(rule_def.allowed_checkers))}."
+            )
+
 
     # 5. Graph dependency validation (if graph is provided)
     if graph:

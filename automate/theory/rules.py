@@ -206,18 +206,104 @@ class RuleRegistry:
             allowed_checkers=["sympy", "lean4"],
         ))
 
-        # 4. Tensor Calculus Rules
+        # 4. Tensor & Differential Geometry Rules
+        self.register(RuleDefinition(
+            rule_id="christoffel_symbols",
+            name="Christoffel Symbols of Second Kind",
+            category="tensors",
+            description="Derives metric connection coefficients Γ^σ_{μν} from metric tensor g_{μν}",
+            domain="differential_geometry",
+            inputs=["Metric"],
+            outputs=["Christoffel Symbols"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+            citation="Riemannian Geometry Connection"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="riemann_curvature",
+            name="Riemann Curvature Tensor",
+            category="tensors",
+            description="Computes Riemann curvature tensor R^σ_{ρμν} from Christoffel connection",
+            domain="differential_geometry",
+            inputs=["Metric"],
+            outputs=["Riemann Tensor"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+            citation="Riemannian Curvature"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="ricci_curvature",
+            name="Ricci Curvature Tensor",
+            category="tensors",
+            description="Contracts Riemann tensor to form symmetric Ricci tensor R_{μν} = R^σ_{μσν}",
+            domain="differential_geometry",
+            inputs=["Metric"],
+            outputs=["Ricci Tensor"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="ricci_scalar",
+            name="Ricci Curvature Scalar",
+            category="tensors",
+            description="Contracts Ricci tensor with inverse metric R = g^{μν} R_{μν}",
+            domain="differential_geometry",
+            inputs=["Metric"],
+            outputs=["Ricci Scalar"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="einstein_tensor",
+            name="Einstein Tensor",
+            category="tensors",
+            description="Computes trace-reversed Ricci curvature G_{μν} = R_{μν} - (1/2) g_{μν} R",
+            domain="general_relativity",
+            inputs=["Metric"],
+            outputs=["Einstein Tensor"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+            citation="Einstein Field Equations"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="geodesic_equations",
+            name="Geodesic Equations of Motion",
+            category="tensors",
+            description="Derives autoparallel curve equations d²x^σ/dτ² + Γ^σ_{μν} (dx^μ/dτ)(dx^ν/dτ) = 0",
+            domain="general_relativity",
+            inputs=["Metric"],
+            outputs=["Geodesic Equations"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+        ))
+
         self.register(RuleDefinition(
             rule_id="index_contract",
             name="Einstein Index Contraction",
             category="tensors",
             description="Contracts one upper and one lower index using Einstein summation convention",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
             symbolic_checker_available=True,
-            # tensor checker not yet wired; dimension is auxiliary only
-            allowed_checkers=["sympy"],
+            allowed_checkers=["tensor", "sympy"],
         ))
 
         self.register(RuleDefinition(
@@ -226,10 +312,10 @@ class RuleRegistry:
             category="tensors",
             description="Raises a covariant tensor index using the inverse metric g^{mu nu}",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
             symbolic_checker_available=True,
-            allowed_checkers=["sympy"],
+            allowed_checkers=["tensor", "sympy"],
         ))
 
         self.register(RuleDefinition(
@@ -238,11 +324,12 @@ class RuleRegistry:
             category="tensors",
             description="Lowers a contravariant tensor index using the metric g_{mu nu}",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
             symbolic_checker_available=True,
-            allowed_checkers=["sympy"],
+            allowed_checkers=["tensor", "sympy"],
         ))
+
 
         # 5. Differential Equations & Solutions
         self.register(RuleDefinition(

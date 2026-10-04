@@ -65,6 +65,8 @@ class FieldTheoryAction:
         if isinstance(expr_in, sp.Expr):
             return expr_in
 
+        from automate.ir.safe_parser import SafeParser
+
         local_dict: Dict[str, Any] = dict(self.coord_map)
         local_dict.update(self.symbols)
 
@@ -74,7 +76,8 @@ class FieldTheoryAction:
                 local_dict[f"d_{c}_{f}"] = self.field_grad[f][c]
                 local_dict[f"diff({f}, {c})"] = self.field_grad[f][c]
 
-        parsed = sp.sympify(expr_in, locals=local_dict)
+        parser = SafeParser()
+        parsed = parser.parse(expr_in, extra_locals=local_dict)
 
         # Substitute bare symbols into field functions if needed
         subs_map = {}

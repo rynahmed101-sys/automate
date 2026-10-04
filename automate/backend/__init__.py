@@ -8,6 +8,7 @@ from automate.backend.sympy_backend import SymPyChecker
 from automate.backend.lean_backend import LeanChecker
 from automate.backend.numerical_backend import NumericalChecker
 from automate.backend.statistical_backend import StatisticalChecker
+from automate.backend.tensor_backend import TensorChecker
 
 __all__ = [
     "BaseChecker",
@@ -18,4 +19,6 @@ __all__ = [
     "LeanChecker",
     "NumericalChecker",
     "StatisticalChecker",
+    "TensorChecker",
 ]
+
