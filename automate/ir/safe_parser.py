@@ -132,6 +132,7 @@ def _isolated_parse_worker(
     max_atoms: int,
     max_depth: int,
     max_seconds: float,
+    max_result_bytes: int,
 ) -> None:
     """Run SafeParser in a killable child process."""
     _apply_worker_resource_limits(max_seconds)
@@ -142,9 +143,9 @@ def _isolated_parse_worker(
             max_seconds=max_seconds,
         )
         result = parser.parse(expr_str, extra_locals=extra_locals)
-        _send_isolated_result(send_conn, "ok", result)
+        _send_isolated_result(send_conn, "ok", result, max_result_bytes)
     except BaseException as exc:
-        _send_isolated_result(send_conn, "error", f"{type(exc).__name__}: {exc}")
+        _send_isolated_result(send_conn, "error", f"{type(exc).__name__}: {exc}", max_result_bytes)
     finally:
         send_conn.close()
 
@@ -157,6 +158,7 @@ def _isolated_parse_equation_worker(
     max_atoms: int,
     max_depth: int,
     max_seconds: float,
+    max_result_bytes: int,
 ) -> None:
     """Run SafeParser.parse_equation in a killable child process."""
     _apply_worker_resource_limits(max_seconds)
@@ -196,7 +198,7 @@ def _isolated_parse_equation_worker(
         pass
 
 
-def _send_isolated_result(send_conn: Any, status: str, payload: Any) -> None:
+def _send_isolated_result(\n    send_conn: Any,\n    status: str,\n    payload: Any,\n    max_result_bytes: int = _MAX_RESULT_BYTES,\n) -> None:
     """Send bounded serialized worker output over the process pipe."""
     if status == "ok":
         try:
@@ -207,11 +209,11 @@ def _send_isolated_result(send_conn: Any, status: str, payload: Any) -> None:
             payload = f"Could not serialize isolated parser result: {type(exc).__name__}: {exc}"
 
         if blob is not None:
-            if len(blob) > _MAX_RESULT_BYTES:
+            if len(blob) > max_result_bytes:
                 status = "error"
                 payload = (
                     "Isolated parser result exceeded the output-size limit of "
-                    f"{_MAX_RESULT_BYTES} bytes."
+                    f"{max_result_bytes} bytes."
                 )
             else:
                 send_conn.send(("ok_bytes", blob))
@@ -536,6 +538,7 @@ class SafeParser:
                 self.max_atoms,
                 self.max_depth,
                 budget,
+                _MAX_RESULT_BYTES,
             ),
             daemon=True,
         )
