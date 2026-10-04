@@ -363,3 +363,24 @@ class TestStructuralParserBoundary:
         expr = parser.parse("diff(x(t), t, 2)", extra_locals={"x": x, "t": t})
         assert expr != 0
         assert isinstance(expr, sp.Expr)
+
+
+class TestIsolatedParsing:
+
+    def test_isolated_parse_returns_equivalent_expression(self, parser):
+        result = parser.parse_isolated("m*x**2 + k*x", timeout=3.0)
+        assert sp.simplify(result - (sp.Symbol("m") * sp.Symbol("x")**2 + sp.Symbol("k") * sp.Symbol("x"))) == 0
+
+    def test_isolated_equation_parse_returns_residual(self, parser):
+        result = parser.parse_equation_isolated("m*x + k = 0", timeout=3.0)
+        assert sp.simplify(result - (sp.Symbol("m") * sp.Symbol("x") + sp.Symbol("k"))) == 0
+
+    def test_isolated_parse_rejects_nonpositive_timeout(self, parser):
+        with pytest.raises(SafeParseError, match="greater than zero"):
+            parser.parse_isolated("x + 1", timeout=0)
+
+    def test_isolated_parse_preserves_bound_function(self):
+        x = sp.Function("x")
+        parser = SafeParser(extra_symbols={"x": x})
+        result = parser.parse_isolated("diff(x(t), t, 2)", extra_locals={"x": x}, timeout=3.0)
+        assert result == sp.diff(x(sp.Symbol("t")), sp.Symbol("t"), 2)
