@@ -72,7 +72,6 @@ class FieldTheoryAction:
             local_dict[f] = self.field_funcs[f]
             for c in self.coord_names:
                 local_dict[f"d_{c}_{f}"] = self.field_grad[f][c]
-                local_dict[f"diff({f}, {c})"] = self.field_grad[f][c]
 
         from automate.ir.safe_parser import SafeParser
         parsed = SafeParser(extra_symbols=local_dict).parse(expr_in)
