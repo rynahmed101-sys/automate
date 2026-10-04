@@ -63,7 +63,6 @@ class StatisticalChecker(BaseChecker):
             memory_bytes=memory_bytes,
         )
 
-class StatisticalChecker(BaseChecker):
     @property
     def name(self) -> str:
         return "StatisticalChecker"
