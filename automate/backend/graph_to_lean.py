@@ -286,3 +286,80 @@ def translate_edge_claim(
         assumption_ids=[],
         unsupported_assumptions=[],
     )
+
+
+
+def _assumption_binder_name(assumption_id: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9_']", "_", assumption_id)
+    if not cleaned or cleaned[0].isdigit():
+        cleaned = "asm_" + cleaned
+    return "h_" + cleaned
+
+
+def translate_graph_edge_claim(
+    graph: "DerivationGraph",
+    edge: "DerivationEdge",
+    include_assumptions: bool = True,
+) -> LeanClaim:
+    """
+    Translate an actual graph edge and its inherited assumptions.
+
+    Assumption predicates that fit the supported relation/arithmetic subset are
+    emitted as explicit Lean hypotheses. Unsupported external predicates stay
+    listed as unsupported assumptions and are never assigned invented semantics.
+    """
+    claim = translate_edge_claim(
+        rule=edge.transformation_rule,
+        input_expressions=[
+            graph.nodes[node_id].expression.raw_str
+            for node_id in edge.input_nodes
+        ],
+        output_expressions=[
+            graph.nodes[node_id].expression.raw_str
+            for node_id in edge.output_nodes
+        ],
+    )
+
+    if not include_assumptions:
+        return claim
+
+    root_assumptions = set(edge.side_conditions)
+    for node_id in [*edge.input_nodes, *edge.output_nodes]:
+        root_assumptions.update(graph.compute_inherited_assumptions(node_id))
+
+    assumption_ids = sorted(
+        graph.get_assumption_dependency_closure(root_assumptions)
+    )
+
+    hypotheses: List[str] = []
+    unsupported: List[str] = []
+    all_binders = set(claim.binders)
+
+    for assumption_id in assumption_ids:
+        assumption = graph.assumptions.get(assumption_id)
+        if assumption is None:
+            unsupported.append(assumption_id)
+            continue
+
+        try:
+            predicate, predicate_names = translate_node_expression(
+                assumption.formal_predicate
+            )
+        except GraphToLeanTranslationError:
+            unsupported.append(assumption_id)
+            continue
+
+        all_binders.update(predicate_names)
+        hypotheses.append(
+            f"({_assumption_binder_name(assumption_id)} : {predicate})"
+        )
+
+    return LeanClaim(
+        proposition=claim.proposition,
+        binders=sorted(all_binders),
+        source_nodes=claim.source_nodes,
+        relation=claim.relation,
+        assumption_hypotheses=hypotheses,
+        assumption_ids=assumption_ids,
+        unsupported_assumptions=unsupported,
+    )
