@@ -369,6 +369,20 @@ class StatisticalChecker(BaseChecker):
             )
         return passed, details, certificates, error_msg
 
+    @staticmethod
+    def _initial_guess(params: Dict[str, Any], names: List[str], defaults: List[float]) -> List[float]:
+        """Use explicit fit_initial_guess only; never use reference parameter values as p0."""
+        supplied = params.get("fit_initial_guess")
+        if isinstance(supplied, dict):
+            values = [float(supplied.get(name, default)) for name, default in zip(names, defaults)]
+        elif isinstance(supplied, (list, tuple)) and len(supplied) == len(names):
+            values = [float(v) for v in supplied]
+        else:
+            values = list(defaults)
+        if not all(np.isfinite(values)):
+            raise ValueError("fit_initial_guess must contain finite numeric values.")
+        return values
+
     def _build_model(
         self, model_type: str, params: Dict[str, Any], in_node: Any
     ):
@@ -383,7 +397,7 @@ class StatisticalChecker(BaseChecker):
             def model_func(t, A, omega, phi):
                 return A * np.cos(omega * t + phi)
 
-            return model_func, ["A", "omega", "phi"], [1.2, 1.8, 0.1], [A_true, omega_true, phi_true]
+            return model_func, ["A", "omega", "phi"], self._initial_guess(params, ["A", "omega", "phi"], [1.2, 1.8, 0.1]), [A_true, omega_true, phi_true]
 
         elif model_type == "exponential_decay":
             A_true = float(params.get("A", 1.0))
@@ -392,7 +406,7 @@ class StatisticalChecker(BaseChecker):
             def model_func(t, A, lam):
                 return A * np.exp(-lam * t)
 
-            return model_func, ["A", "lambda"], [1.2, 0.4], [A_true, lam_true]
+            return model_func, ["A", "lambda"], self._initial_guess(params, ["A", "lambda"], [1.2, 0.4]), [A_true, lam_true]
 
         elif model_type == "power_law":
             A_true = float(params.get("A", 1.0))
@@ -401,7 +415,7 @@ class StatisticalChecker(BaseChecker):
             def model_func(t, A, n):
                 return A * np.abs(t) ** n
 
-            return model_func, ["A", "n"], [0.9, 1.8], [A_true, n_true]
+            return model_func, ["A", "n"], self._initial_guess(params, ["A", "n"], [0.9, 1.8]), [A_true, n_true]
 
         elif model_type == "damped_oscillator":
             A_true = float(params.get("A", 1.0))
@@ -412,8 +426,7 @@ class StatisticalChecker(BaseChecker):
             def model_func(t, A, gamma, omega, phi):
                 return A * np.exp(-gamma * t) * np.cos(omega * t + phi)
 
-            return model_func, ["A", "gamma", "omega", "phi"], [1.1, 0.05, 1.8, 0.1], \
-                [A_true, gamma_true, omega_true, phi_true]
+            return model_func, ["A", "gamma", "omega", "phi"], self._initial_guess(params, ["A", "gamma", "omega", "phi"], [1.1, 0.05, 1.8, 0.1]), [A_true, gamma_true, omega_true, phi_true]
 
         elif model_type == "linear":
             a_true = float(params.get("a", 1.0))
@@ -422,7 +435,7 @@ class StatisticalChecker(BaseChecker):
             def model_func(t, a, b):
                 return a * t + b
 
-            return model_func, ["a", "b"], [0.9, 0.1], [a_true, b_true]
+            return model_func, ["a", "b"], self._initial_guess(params, ["a", "b"], [0.9, 0.1]), [a_true, b_true]
 
         elif model_type == "expression":
             # Build model function from expression string
@@ -442,9 +455,8 @@ class StatisticalChecker(BaseChecker):
             except Exception as e:
                 return None, [], [], []
 
-            true_vals = [float(params.get(p, 1.0)) for p in model_params]
-            p0 = [v * 1.1 + 0.1 for v in true_vals]  # perturbed initial guess
-            return func, model_params, p0, true_vals
+            p0 = self._initial_guess(params, model_params, [1.0] * len(model_params))
+            return func, model_params, p0, []
 
         else:
             return None, [], [], []
