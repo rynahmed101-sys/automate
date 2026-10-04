@@ -1,13 +1,17 @@
 """
 Automate Tensor Algebra Module.
 
-Provides symbolic component-level tensor computations for Riemannian
-and pseudo-Riemannian manifolds: Christoffel symbols, Riemann/Ricci tensors,
-Ricci scalar, Einstein tensor, geodesic equations, and Bianchi identity verification.
+Provides symbolic component-level tensor computations and canonical tensor IR
+utilities for external-engine verification.
 """
 
 from automate.tensors.algebra import TensorGeometry
-from automate.tensors.cadabra_translation import (\n    tensor_expression_to_cadabra,\n    tensor_product_to_cadabra,\n    translate_expression,\n)\nfrom automate.tensors.cadabra_adapter import (
+from automate.tensors.cadabra_translation import (
+    tensor_expression_to_cadabra,
+    tensor_product_to_cadabra,
+    translate_expression,
+)
+from automate.tensors.cadabra_adapter import (
     get_cadabra_version,
     is_cadabra_available,
     run_cadabra_script,
@@ -16,6 +20,7 @@ from automate.ir.tensors import (
     TensorEquation,
     TensorExpression,
     TensorIndex,
+    TensorProduct,
     TensorQuantity,
     validate_einstein_product,
     validate_tensor_equation,
@@ -24,12 +29,16 @@ from automate.ir.tensors import (
 
 __all__ = [
     "TensorGeometry",
-    "tensor_expression_to_cadabra",\n    "tensor_product_to_cadabra",\n    "translate_expression",\n    "get_cadabra_version",
+    "tensor_expression_to_cadabra",
+    "tensor_product_to_cadabra",
+    "translate_expression",
+    "get_cadabra_version",
     "is_cadabra_available",
     "run_cadabra_script",
     "TensorEquation",
     "TensorExpression",
     "TensorIndex",
+    "TensorProduct",
     "TensorQuantity",
     "validate_einstein_product",
     "validate_tensor_equation",
