@@ -80,7 +80,8 @@ class LagrangianSystem:
             local_dict[f"{q}_ddot"] = self.q_ddots[q]
 
         # Use SymPy parse_expr with custom local dict
-        parsed = sp.sympify(expr_in, locals=local_dict)
+        from automate.ir.safe_parser import SafeParser
+        parsed = SafeParser(extra_symbols=local_dict).parse(expr_in)
 
         # Ensure any bare symbols q are converted to q(t) if appropriate
         subs_map = {}
