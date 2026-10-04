@@ -169,13 +169,15 @@ def _isolated_parse_equation_worker(
             max_seconds=max_seconds,
         )
         result = parser.parse_equation(eq_str, extra_locals=extra_locals)
-        _send_isolated_result(send_conn, "ok", result)
+        _send_isolated_result(send_conn, "ok", result, max_result_bytes)
     except BaseException as exc:
-        _send_isolated_result(send_conn, "error", f"{type(exc).__name__}: {exc}")
+        _send_isolated_result(send_conn, "error", f"{type(exc).__name__}: {exc}", max_result_bytes)
     finally:
         send_conn.close()
 
-\n\ndef _apply_worker_resource_limits(cpu_seconds: float) -> None:
+
+
+def _apply_worker_resource_limits(cpu_seconds: float) -> None:
     """Apply best-effort POSIX CPU/address-space limits inside the worker only."""
     try:
         import math
