@@ -104,3 +104,14 @@ def test_numerical_configuration_rejects_invalid_bounds():
             pass
         else:
             raise AssertionError(f"Expected ValueError for {kwargs}")
+
+
+def test_numerical_interval_rejects_nonpositive_tmax():
+    graph, edge = _make_eom_edge("m * x_ddot + k * x")
+    edge.parameters["t_max"] = 0
+
+    report = NumericalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "t_max" in (report.error_message or "")
