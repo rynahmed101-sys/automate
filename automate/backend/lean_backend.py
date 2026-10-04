@@ -464,6 +464,7 @@ class LeanChecker(BaseChecker):
 -- Derivation Edge ID: {edge.id}
 -- Rule: {rule}
 -- Justification: {edge.justification}
+-- Generated proposition: v * (m * a + k * x) = 0
 
 import Init
 
@@ -491,6 +492,7 @@ end Automate.ClassicalMechanics
 -- Derivation Edge ID: {edge.id}
 -- Rule: {rule}
 -- Justification: {edge.justification}
+-- Generated proposition: p_dot - F = m * a + k * x
 
 import Init
 
