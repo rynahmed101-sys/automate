@@ -367,6 +367,13 @@ class TestStructuralParserBoundary:
 
 class TestIsolatedParsing:
 
+
+
+    def test_safe_symbolic_function_application_is_allowed(self, parser):
+        result = parser.parse("f(x) + g(t, x)")
+        assert "f(x)" in str(result)
+        assert "g(t, x)" in str(result)
+
     def test_isolated_parse_returns_equivalent_expression(self, parser):
         result = parser.parse_isolated("m*x**2 + k*x", timeout=3.0)
         assert sp.simplify(result - (sp.Symbol("m") * sp.Symbol("x")**2 + sp.Symbol("k") * sp.Symbol("x"))) == 0
