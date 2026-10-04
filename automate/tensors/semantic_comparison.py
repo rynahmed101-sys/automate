@@ -216,6 +216,37 @@ def canonicalize_expression(
     return str(result.canon_bp())
 
 
+def semantic_signature(expression: TensorExpression) -> str:
+    """Return an explicit semantic declaration fingerprint.
+
+    SymPy canonicalization is responsible for tensor canonicalization, while
+    this independent metadata fingerprint preserves distinctions such as two
+    same-dimensional but different index spaces that a rendered canonical
+    expression may not expose.
+    """
+    if expression.products is None:
+        raise ValueError("Semantic comparison requires structured products.")
+    payload = []
+    for product in expression.products:
+        factors = []
+        for quantity in product.factors:
+            factors.append({
+                "name": quantity.name,
+                "symmetry": quantity.symmetry or "none",
+                "indices": [
+                    {
+                        "symbol": index.symbol,
+                        "index_space": index.index_space,
+                        "position": index.position,
+                        "dimension": index.dimension,
+                    }
+                    for index in quantity.indices
+                ],
+            })
+        payload.append({"factors": factors})
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
 def semantic_compare(
     left: TensorEquation,
     right: TensorEquation,
@@ -249,6 +280,8 @@ def semantic_compare(
             canonicalize_expression(right.lhs, context),
             canonicalize_expression(right.rhs, context),
         )
+        left_semantics = (semantic_signature(left.lhs), semantic_signature(left.rhs))
+        right_semantics = (semantic_signature(right.lhs), semantic_signature(right.rhs))
     except Exception as exc:
         return {
             "result": SemanticResult.EXECUTION_FAILED.value,
@@ -256,8 +289,8 @@ def semantic_compare(
             "independence_class": "INDEPENDENT_ENGINE",
         }
 
-    left_payload = json.dumps(left_canonical, separators=(",", ":"))
-    right_payload = json.dumps(right_canonical, separators=(",", ":"))
+    left_payload = json.dumps({"canonical": left_canonical, "semantics": left_semantics}, separators=(",", ":"), sort_keys=True)
+    right_payload = json.dumps({"canonical": right_canonical, "semantics": right_semantics}, separators=(",", ":"), sort_keys=True)
     left_fp = hashlib.sha256(left_payload.encode()).hexdigest()
     right_fp = hashlib.sha256(right_payload.encode()).hexdigest()
     matched = left_canonical == right_canonical
