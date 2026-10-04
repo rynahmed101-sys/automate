@@ -11,7 +11,8 @@
     "context": "automate.context.v1",
     "proposal": "automate.proposal.v1",
     "ir": "automate.ir.v0.2",
-    "certificates": "automate.cert.v0.2"
+    "certificates": "automate.cert.v0.2",
+    "tensor": "automate-tensor-v1"
   },
   "commands": {
     "discover": "automate capabilities --json",
@@ -21,9 +22,14 @@
     "apply": "automate propose <theory> --proposal <proposal> --json",
     "research": "automate research <theory> --provider <provider> --max-steps <n> --json",
     "check": "automate check <graph> --json",
-    "parse": "automate parse <theory> --json"
+    "parse": "automate parse <theory> --json",
+    "schema": "automate schema --name <ir|tensor|proposal|context>"
   },
-  "providers": ["mock", "local", "openai"],
+  "providers": [
+    "mock",
+    "local",
+    "openai"
+  ],
   "trust_rules": [
     "AI output is untrusted input",
     "verification status is evidence-derived",
