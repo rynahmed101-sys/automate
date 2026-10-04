@@ -142,7 +142,8 @@ class VerifiedExecutionSandbox:
     """Run a named verification entrypoint inside a bounded child process."""
 
     def __init__(self, limits: SandboxLimits | None = None):
-        self.limits = limits or SandboxLimits()
+        supplied = limits or SandboxLimits()
+        self.limits = SandboxLimits.model_validate(supplied.model_dump())
         self.limits = limits or SandboxLimits()
 
     def run(self, target: str, payload: Any) -> Any:
