@@ -155,6 +155,16 @@ The CLI schema discovery surface now accepts `ir`, `proposal`, and `context` exp
 
 The currently committed graph JSON schema is `automate.ir.v0.1`. The structured Tensor IR implementation has richer internal semantics, but a separately versioned Tensor IR JSON Schema remains future work and must not be advertised as an existing file until published.
 
+## Current hardening additions
+
+External-engine evidence now carries a provenance schema version, adapter version, resolved executable identity where available, and an executable SHA-256 fingerprint for Cadabra. External evidence fingerprints are themselves validated as hexadecimal SHA-256 values.
+
+EinsteinPy is pinned to version 0.4.0 in project dependency metadata. EinsteinPy calculation failures are classified as `CROSS_CHECK_FAILED`, never as mathematical discrepancies. Supported EinsteinPy comparisons remain independently computed engine agreement, not formal proof.
+
+The canonical Tensor IR now has a versioned machine-readable contract at `schemas/automate-tensor-v1.json`, and `automate schema --name tensor --json` exposes the authoritative Pydantic schema through the CLI contract surface.
+
+A public-repository security workflow now runs CodeQL for Python and `pip-audit` against installed dependencies. Security automation does not receive application secrets.
+
 ## Current capability assessment
 
 | Capability | Current status |
