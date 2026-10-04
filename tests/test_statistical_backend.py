@@ -277,6 +277,51 @@ def test_empirical_expression_model_cannot_override_graph_expression():
     assert "does not match the graph input claim" in (report.error_message or "")
 
 
+
+def test_empirical_inference_rejects_locally_non_identifiable_model():
+    """A rank-deficient model Jacobian must not receive STATISTICALLY_CHECKED status."""
+    graph = DerivationGraph(id="stats_identifiability")
+    graph.add_node(
+        DerivationNode(
+            id="sol",
+            expression=MathematicalExpression(raw_str="a * t + b * t"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="fit",
+            expression=MathematicalExpression(raw_str="a_fit, b_fit"),
+        )
+    )
+
+    t_data = np.linspace(0, 5, 20)
+    x_obs = 3.0 * t_data
+
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["sol"],
+        output_nodes=["fit"],
+        transformation_rule="empirical_inference",
+        justification="Identifiability test",
+        checker="statistical",
+        parameters={
+            "model": "expression",
+            "model_parameters": ["a", "b"],
+            "t_data": t_data.tolist(),
+            "x_obs": x_obs.tolist(),
+            "noise_std": 0.1,
+            "data_source": "observed",
+            "data_id": "identifiability-negative-v1",
+        },
+    )
+    graph.add_edge(edge)
+
+    report = StatisticalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "not locally identifiable" in (report.error_message or "")
+
 def test_statistical_report_records_graph_and_evidence_fingerprints():
     graph = DerivationGraph(id="stats_fingerprint")
     graph.add_node(
