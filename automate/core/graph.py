@@ -218,8 +218,6 @@ class DerivationGraph(BaseModel):
 
     def get_assumption_dependencies(self, assumption_id: str) -> List[str]:
         """Return direct active prerequisites of an assumption."""
-        if assumption_id not in self.assumptions:
-            raise KeyError(f"Assumption '{assumption_id}' not found in graph.")
         dependencies: Set[str] = set()
         for dependency in self.assumption_dependencies:
             if (
@@ -232,12 +230,8 @@ class DerivationGraph(BaseModel):
     def get_assumption_dependency_closure(self, assumption_ids: Set[str] | List[str]) -> Set[str]:
         """Return assumptions plus all transitive active prerequisites."""
         roots = set(assumption_ids)
-        unknown = roots.difference(self.assumptions)
-        if unknown:
-            raise KeyError(
-                "Unknown assumption IDs: " + ", ".join(sorted(unknown))
-            )
-
+        # Unknown assumptions remain explicit external premises. They are leaves
+        # in the dependency graph because Automate cannot invent their meaning.
         closure: Set[str] = set()
         stack = list(roots)
         while stack:
