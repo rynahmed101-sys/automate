@@ -64,7 +64,9 @@ def test_statistical_parameter_inference():
     assert report.backend == "StatisticalChecker"
 
     gof = report.details["goodness_of_fit"]
-    assert 0.3 <= gof["reduced_chi2"] <= 3.0
+    assert gof["chi2_mode"] == "known_observation_sigma"
+    assert gof["chi2_two_sided_p_value"] > 0.05
+    assert gof["chi2_compatibility_interval"][0] <= gof["chi2"] <= gof["chi2_compatibility_interval"][1]
     assert gof["r_squared"] > 0.90
 
     estimates = report.details["parameter_estimates"]
@@ -170,7 +172,9 @@ def test_empirical_inference_records_data_fingerprint_and_sigma_mode():
         parameters={
             "model": "linear",
             "t_data": t_data.tolist(),
-            "x_obs": x_obs.tolist(),
+            "x_obs": (x_obs + 0.1 * np.random.default_rng(11).normal(size=len(x_obs))).tolist(),
+            "noise_std": 0.1,
+            "gof_confidence_level": 0.95,
             "data_source": "observed",
             "data_id": "test-linear-v1",
         },
@@ -182,8 +186,9 @@ def test_empirical_inference_records_data_fingerprint_and_sigma_mode():
     assert report.passed is True, report.error_message
     assert report.details["data_provenance"]["data_id"] == "test-linear-v1"
     assert len(report.details["data_provenance"]["sha256"]) == 64
-    assert report.details["goodness_of_fit"]["chi2"] is None
-    assert report.details["goodness_of_fit"]["chi2_mode"].startswith("unavailable")
+    assert report.details["goodness_of_fit"]["chi2"] is not None
+    assert report.details["goodness_of_fit"]["chi2_mode"] == "known_observation_sigma"
+    assert report.details["goodness_of_fit"]["gof_confidence_level"] == 0.95
 
 
 
@@ -350,7 +355,9 @@ def test_statistical_report_records_graph_and_evidence_fingerprints():
         parameters={
             "model": "linear",
             "t_data": t_data.tolist(),
-            "x_obs": x_obs.tolist(),
+            "x_obs": (x_obs + 0.1 * np.random.default_rng(12).normal(size=len(x_obs))).tolist(),
+            "noise_std": 0.1,
+            "gof_confidence_level": 0.95,
             "data_source": "observed",
             "data_id": "binding-positive-v1",
         },
@@ -363,6 +370,88 @@ def test_statistical_report_records_graph_and_evidence_fingerprints():
     assert len(report.details["claim_fingerprint_sha256"]) == 64
     assert len(report.details["evidence_fingerprint_sha256"]) == 64
     assert report.details["graph_claim_binding"]["model_expression_equivalent"] is True
+
+
+def test_empirical_inference_without_uncertainty_cannot_be_statistically_checked():
+    graph = DerivationGraph(id="stats_no_uncertainty")
+    graph.add_node(
+        DerivationNode(
+            id="sol",
+            expression=MathematicalExpression(raw_str="a * t + b"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="fit",
+            expression=MathematicalExpression(raw_str="linear_fit"),
+        )
+    )
+    t_data = np.linspace(0, 5, 20)
+    x_obs = 3.0 * t_data + 2.0
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["sol"],
+        output_nodes=["fit"],
+        transformation_rule="empirical_inference",
+        justification="No uncertainty negative test",
+        checker="statistical",
+        parameters={
+            "model": "linear",
+            "t_data": t_data.tolist(),
+            "x_obs": x_obs.tolist(),
+            "data_source": "observed",
+            "data_id": "no-uncertainty-negative-v1",
+        },
+    )
+    graph.add_edge(edge)
+
+    report = StatisticalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "requires positive observational uncertainty" in (report.error_message or "")
+
+
+def test_empirical_inference_rejects_invalid_gof_confidence_level():
+    graph = DerivationGraph(id="stats_bad_confidence")
+    graph.add_node(
+        DerivationNode(
+            id="sol",
+            expression=MathematicalExpression(raw_str="a * t + b"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="fit",
+            expression=MathematicalExpression(raw_str="linear_fit"),
+        )
+    )
+    t_data = np.linspace(0, 5, 20)
+    x_obs = 3.0 * t_data + 2.0
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["sol"],
+        output_nodes=["fit"],
+        transformation_rule="empirical_inference",
+        justification="Invalid confidence test",
+        checker="statistical",
+        parameters={
+            "model": "linear",
+            "t_data": t_data.tolist(),
+            "x_obs": x_obs.tolist(),
+            "noise_std": 0.1,
+            "gof_confidence_level": 1.0,
+            "data_source": "observed",
+            "data_id": "bad-confidence-v1",
+        },
+    )
+    graph.add_edge(edge)
+
+    report = StatisticalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "confidence level" in (report.error_message or "")
 
 def test_fit_initial_guess_does_not_use_reference_parameters():
     checker = StatisticalChecker()
