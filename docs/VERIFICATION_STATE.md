@@ -58,6 +58,9 @@ The earlier local Windows evidence from the integrated recovery work remains sep
 
 **Permanent mutation matrix.** The verification kernel now carries a deterministic adversarial mutation suite covering coefficient, sign, variable, dimension, domain, node kind, transformation rule, semantic parameters, side conditions, assumption predicates and assumption activation. The suite also mutates transitive upstream dependencies and unrelated graph state. Semantic mutations must change claim identity and stale the certificate; upstream-only mutations must leave claim identity stable while changing dependency identity; unrelated mutations must leave the certificate current. Evidence payload mutations are tracked independently from mathematical claim identity.
 
+**Assumption dependency graph.** Assumptions now support explicit prerequisite relationships with cycle detection and transitive closure. Node inheritance includes those prerequisite assumptions, certificate identity therefore includes them, and assumption dependency changes can invalidate prior certificates. Dependency structure is serialized in the certificate package. Undeclared external assumptions remain explicit leaf premises rather than being silently invented.
+
+**Structured tensor/index semantics.** The canonical tensor IR now represents tensor expressions and equations as structured index terms. Validation enforces rank/position consistency, Einstein dummy-index pairing, rejection of triple repeats, contracted-index dimension compatibility, and matching free-index signatures across sums and equations. TensorChecker consumes optional structured index data before component verification; malformed index structure fails closed.
 ## Current capability assessment
 
 | Capability | Current status |
