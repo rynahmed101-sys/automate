@@ -91,6 +91,22 @@ Run #178 validated Python 3.10, 3.11, 3.12, Python 3.13, and Lean 4.34.1; the fu
 translator. The canonical tensor IR remains the source of truth, and no
 parallel tensor representation was introduced.
 
+## Phase 4.3: canonical Tensor IR -> Cadabra translation
+
+The external Cadabra boundary now has a semantic translation layer at
+`automate/tensors/cadabra_translation.py`. It accepts structured
+`TensorExpression.products` data, validates Einstein index structure before
+translation, preserves tensor-factor names and index variance, and emits a
+deterministic Cadabra expression plus a SHA-256 fingerprint of the canonical
+IR input.
+
+Legacy index-only `TensorExpression` values are deliberately rejected by the
+translator because they do not retain tensor-factor identity. No tensor
+symmetries, index spaces, or Cadabra properties are guessed from incomplete
+IR metadata. The generated source is therefore a conservative expression
+boundary, not a claim that every domain-specific Cadabra semantic property
+has been reconstructed.
+
 ## Current capability assessment
 
 | Capability | Current status |
@@ -138,6 +154,6 @@ The canonical claim identity deliberately excludes backend-specific tolerances, 
 3. Generalize structured ODEs, mechanics, field variation, and numerical error certificates only where semantics are explicit and testable.
 4. Expand statistical provenance beyond caller-declared labels to authenticated or externally resolved dataset lineage where the execution environment permits it, and formalize more of the statistical model assumptions.
 5. Generalize graph-to-Lean translation beyond the restricted integer-polynomial subset; reuse mathlib/physlib theorems only when proposition identity is preserved.
-6. Bind the Cadabra adapter to graph-derived tensor identities through an explicit canonical translation layer; do not infer mathematics from rule names or free-form scripts.\n7. Pin external-engine versions, licenses, inputs/results and independence metadata in `docs/ECOSYSTEM.md` and verification certificates.
+6. Bind the Cadabra translator to graph-derived tensor identities and equation semantics; do not infer mathematics from rule names or free-form scripts.\n7. Pin external-engine versions, licenses, inputs/results and independence metadata in `docs/ECOSYSTEM.md` and verification certificates.
 
 Claims not supported by source inspection or an executed check remain **UNVERIFIED**.
