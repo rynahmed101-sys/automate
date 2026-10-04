@@ -9,6 +9,8 @@ Independence Class: DIFFERENT_ENGINE
 """
 
 from typing import Dict, Any, List, Optional, Tuple
+import hashlib
+import json
 import sympy as sp
 
 try:
@@ -69,6 +71,14 @@ def cross_check_geometry(
     dict
         Structured cross-check report with comparison results and discrepancies.
     """
+    metric_payload = {
+        "coordinates": [sp.srepr(coord) for coord in coords],
+        "metric": sp.srepr(metric),
+    }
+    metric_fingerprint = hashlib.sha256(
+        json.dumps(metric_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
     if not _EINSTEINPY_AVAILABLE:
         return {
             "available": False,
@@ -76,7 +86,9 @@ def cross_check_geometry(
             "version": _EINSTEINPY_VERSION,
             "reason": "EinsteinPy not installed in environment",
             "all_matched": None,
-            "independence_class": "SAME_ENGINE",
+            "independence_class": "NOT_RUN",
+            "metric_fingerprint_sha256": metric_fingerprint,
+            "comparison_method": "exact symbolic equality after SymPy simplification",
         }
 
     n = len(coords)
@@ -163,6 +175,10 @@ def cross_check_geometry(
             "engine": "EinsteinPy",
             "version": _EINSTEINPY_VERSION,
             "license": "MIT",
+            "metric_fingerprint_sha256": metric_fingerprint,
+            "coordinate_representation": [sp.sstr(coord) for coord in coords],
+            "metric_representation": sp.sstr(metric),
+            "comparison_method": "exact symbolic equality after SymPy simplification",
             "independence_class": "DIFFERENT_ENGINE" if all_matched else "DISCREPANCY_DETECTED",
             "checks_performed": checks_performed,
             "all_matched": all_matched,
@@ -179,7 +195,9 @@ def cross_check_geometry(
             "engine": "EinsteinPy",
             "version": _EINSTEINPY_VERSION,
             "error": f"EinsteinPy calculation failed: {type(e).__name__}: {str(e)}",
+            "metric_fingerprint_sha256": metric_fingerprint,
+            "comparison_method": "exact symbolic equality after SymPy simplification",
             "all_matched": False,
-            "independence_class": "DIFFERENT_ENGINE",
+            "independence_class": "DISCREPANCY_DETECTED",
             "discrepancies": [f"Exception during EinsteinPy evaluation: {str(e)}"],
         }
