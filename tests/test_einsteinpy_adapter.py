@@ -24,7 +24,7 @@ def test_external_engine_failure_is_not_classified_as_mathematical_discrepancy(m
     )
 
     assert report["execution_status"] == "FAILED"
-    assert report["all_matched"] is False
+    assert report["all_matched"] is None
     assert report["independence_class"] == "CROSS_CHECK_FAILED"
     assert report["discrepancies"] == []
 
