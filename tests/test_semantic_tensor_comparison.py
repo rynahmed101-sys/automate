@@ -201,3 +201,17 @@ def test_supported_symmetry_cannot_cross_index_spaces():
     ])
     result = semantic_compare(equation, equation.model_copy(deep=True), ctx)
     assert result["result"] == SemanticResult.UNSUPPORTED_SEMANTICS.value
+
+
+def test_certificate_separates_canonical_and_semantic_equality():
+    left = _eq("V")
+    right = _eq("W")
+    ctx = TensorSemanticContext(index_spaces=[
+        IndexSpace(name="V", dimension=4),
+        IndexSpace(name="W", dimension=4),
+    ])
+    result = semantic_compare(left, right, ctx)
+    assert result["canonical_equal"] is True
+    assert result["semantic_declarations_equal"] is False
+    assert result["result"] == SemanticResult.SEMANTIC_DISCREPANCY.value
+    assert len(result["context_fingerprint_sha256"]) == 64
