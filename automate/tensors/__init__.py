@@ -7,21 +7,23 @@ Ricci scalar, Einstein tensor, geodesic equations, and Bianchi identity verifica
 """
 
 from automate.tensors.algebra import TensorGeometry
-from automate.tensors.index import (
+from automate.ir.tensors import (
+    TensorEquation,
     TensorExpression,
-    TensorFactor,
     TensorIndex,
-    TensorSymbol,
-    TensorTerm,
+    TensorQuantity,
+    validate_einstein_product,
     validate_tensor_equation,
+    validate_tensor_sum,
 )
 
 __all__ = [
     "TensorGeometry",
+    "TensorEquation",
     "TensorExpression",
-    "TensorFactor",
     "TensorIndex",
-    "TensorSymbol",
-    "TensorTerm",
+    "TensorQuantity",
+    "validate_einstein_product",
     "validate_tensor_equation",
+    "validate_tensor_sum",
 ]
