@@ -2,7 +2,7 @@
 
 ## Current working state
 
-**Current head at last audit:** `0dfce5aa38650e428b0866885c1d8a61f66b98e8`
+**Current head at last audit:** `d413df09ec4eb22009da219c720a4b61bccb6ba4`
 
 | State | Status |
 |---|---|
@@ -12,15 +12,14 @@
 | CI | **VERIFIED for current head** |
 | Merge to `main` | **NOT PERFORMED** |
 
-The current head includes the AI-agent integration contract, machine-readable integration manifest, Dependabot configuration, reproducible dev container, and GitHub workspace documentation. GitHub Actions run #283 passed for exact head `eee12d367ad2a2ecca8d8d739fc8c15d4cfa9a61`: Python 3.10, 3.11, 3.12, Python 3.13, and Lean 4.34.1 all passed.
-
-The last completed exact-SHA implementation verification remains the earlier checkpoint documented above. This distinction is intentional: a previously verified commit does not make a newer commit verified automatically.
+The current head is the exact implementation checkpoint validated by GitHub Actions run #333. A verification claim is always bound to the exact commit SHA, not merely to the branch.
 
 
 **Audit date:** 2026-10-04
 **Repository:** `rynahmed101-sys/automate`
 **Intended branch:** `feat/verification-hardening`
-**Last fully CI-verified implementation commit:** `0dfce5aa38650e428b0866885c1d8a61f66b98e8`\n**CI:** GitHub Actions run #331 passed on that exact implementation commit.
+**Last fully CI-verified implementation commit:** `d413df09ec4eb22009da219c720a4b61bccb6ba4`
+**CI:** GitHub Actions run #333 passed on that exact implementation commit.
 **Published integration lineage:** `349b258` → recovery merge `ad702127` → upstream hardening `3e2fa552`
 **Integration:** The feature branch contains the recovered local work plus the upstream hardening. No merge to `main` and no history rewrite occurred.
 
@@ -39,9 +38,9 @@ The last completed exact-SHA implementation verification remains the earlier che
 | Earlier exact-SHA run #19, `99ed4e1` | PASS |
 | Earlier exact-SHA run #17, `58b098e` | PASS |
 
-GitHub Actions [run #95](https://github.com/rynahmed101-sys/automate/actions/runs/37182226286) is the last completed exact-SHA verification for `7070c6b1`. All five jobs completed successfully: Python 3.10, 3.11, 3.12, Python 3.13, and the Lean 4.34.1 proof-check job. The documentation commits may be newer than this implementation checkpoint; the implementation SHA above is the exact code checkpoint validated by run #178. The verified tip includes the statistical graph-claim binding and identifiability hardening, expanded numerical evidence, tensor cross-check provenance, Lean claim fingerprints, and SafeParser process/resource isolation changes.
+GitHub Actions [run #95](https://github.com/rynahmed101-sys/automate/actions/runs/37182226286) is the last completed exact-SHA verification for `7070c6b1`. All five jobs completed successfully: Python 3.10, 3.11, 3.12, Python 3.13, and the Lean 4.34.1 proof-check job. The verified tip includes the external-engine provenance hardening, canonical Tensor IR contract, EinsteinPy independent-engine classification, sandbox-limit tests, and the public-repository security workflow.
 
-The earlier local Windows evidence from the integrated recovery work remains separately classified: 235 passed / 1 skipped for the full suite and 30 passed / 1 skipped for the adversarial suite. The local Lean skip was caused by an unusable Lean shim/toolchain and is not evidence of local Lean proof execution.
+The earlier local Windows evidence remains separately classified and is not substituted for authoritative GitHub Actions evidence.
 
 ## Hardening completed in this phase
 
