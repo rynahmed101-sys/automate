@@ -140,3 +140,48 @@ def test_sandbox_limits_are_recorded(monkeypatch):
     report = adapter.run_cadabra_script("x;", sandbox_limits=limits)
 
     assert report["sandbox_limits"]["max_output_bytes"] == 12345
+
+
+def test_translated_ir_binds_claim_fingerprint(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FakeSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            return {
+                "execution_status": "COMPLETED",
+                "stdout": "ok",
+                "stderr": "",
+                "output_fingerprint_sha256": "e" * 64,
+            }
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
+
+    fingerprint = "f" * 64
+    report = adapter.run_translated_cadabra({
+        "source": "ex := A_{a};",
+        "ir_fingerprint_sha256": fingerprint,
+    })
+
+    assert report["execution_status"] == "COMPLETED"
+    assert report["independence_class"] == "UNVERIFIED"
+    assert report["claim_fingerprint_sha256"] == fingerprint
+
+
+@pytest.mark.adversarial
+@pytest.mark.trust_boundary
+def test_translated_ir_rejects_missing_or_malformed_fingerprint(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    with pytest.raises(ValueError, match="valid 64-character IR fingerprint"):
+        adapter.run_translated_cadabra({"source": "ex := A_{a};", "ir_fingerprint_sha256": "bad"})
+
+
+def test_translated_ir_rejects_empty_source():
+    with pytest.raises(ValueError, match="non-empty source"):
+        adapter.run_translated_cadabra({
+            "source": "",
+            "ir_fingerprint_sha256": "f" * 64,
+        })
