@@ -272,11 +272,16 @@ class StatisticalChecker(BaseChecker):
                 )
             ) if scale > 0 else 0
         except Exception as e:
+            message = str(e)
+            if message.startswith("NOT_IDENTIFIABLE:"):
+                message = "Statistical fit is not locally identifiable: " + message.split(":", 1)[1].strip()
+            else:
+                message = f"Statistical identifiability check failed: {type(e).__name__}: {message}"
             return (
                 False,
                 {"model": model_type},
                 [],
-                f"Statistical identifiability check failed: {type(e).__name__}: {str(e)}",
+                message,
             )
 
         if not np.all(np.isfinite(jacobian)) or not np.all(np.isfinite(singular_values)):
@@ -590,65 +595,6 @@ class StatisticalChecker(BaseChecker):
                 f"UNSUPPORTED: could not safely bind statistical model to graph claim: {type(exc).__name__}: {exc}",
             )
 
-    def _symbolic_model_jacobian(
-        self,
-        model_type: str,
-        params: Dict[str, Any],
-        in_node: Any,
-        t_data: np.ndarray,
-        param_names: List[str],
-    ) -> Tuple[np.ndarray, List[sp.Expr]]:
-        """Build an exact symbolic parameter Jacobian, then evaluate it on t_data."""
-        t = sp.Symbol("t", real=True)
-        symbols = {name: sp.Symbol(name, real=True) for name in param_names}
-
-        if model_type == "cosine":
-            expr = symbols["A"] * sp.cos(symbols["omega"] * t + symbols["phi"])
-        elif model_type == "exponential_decay":
-            expr = symbols["A"] * sp.exp(-symbols["lam"] * t)
-        elif model_type == "power_law":
-            expr = symbols["A"] * sp.Abs(t) ** symbols["n"]
-        elif model_type == "damped_oscillator":
-            expr = (
-                symbols["A"]
-                * sp.exp(-symbols["gamma"] * t)
-                * sp.cos(symbols["omega"] * t + symbols["phi"])
-            )
-        elif model_type == "linear":
-            expr = symbols["a"] * t + symbols["b"]
-        elif model_type == "expression":
-            expr_str = params.get("expression_str") or in_node.expression.raw_str.strip()
-            local_syms = {"t": t, **symbols}
-            from automate.ir.safe_parser import SafeParser
-            expr = SafeParser(extra_symbols=local_syms).parse(expr_str)
-        else:
-            raise ValueError(f"Unsupported statistical model type '{model_type}'.")
-
-        jacobian_symbolic = [sp.simplify(sp.diff(expr, symbols[name])) for name in param_names]
-
-        # Detect exact algebraic duplicate/negated columns before numerical evaluation.
-        for i in range(len(jacobian_symbolic)):
-            for j in range(i + 1, len(jacobian_symbolic)):
-                if sp.simplify(jacobian_symbolic[i] - jacobian_symbolic[j]) == 0:
-                    raise ValueError(
-                        f"Parameters '{param_names[i]}' and '{param_names[j]}' have identical sensitivity functions."
-                    )
-                if sp.simplify(jacobian_symbolic[i] + jacobian_symbolic[j]) == 0:
-                    raise ValueError(
-                        f"Parameters '{param_names[i]}' and '{param_names[j]}' have opposite sensitivity functions."
-                    )
-
-        jac_func = sp.lambdify([t] + [symbols[name] for name in param_names], jacobian_symbolic, modules="numpy")
-        evaluated = jac_func(t_data, *[
-            float(0.0) for _ in param_names
-        ])
-
-        # Re-evaluate at the fitted values is required for nonlinear models.
-        # Caller replaces these zero placeholders after function construction below.
-        raise RuntimeError(
-            "_symbolic_model_jacobian requires fitted parameters; use _evaluate_symbolic_jacobian."
-        )
-
     def _evaluate_symbolic_jacobian(
         self,
         model_type: str,
@@ -658,14 +604,15 @@ class StatisticalChecker(BaseChecker):
         param_names: List[str],
         fitted_parameters: np.ndarray,
     ) -> Tuple[np.ndarray, List[sp.Expr]]:
-        """Evaluate the exact symbolic parameter Jacobian at fitted parameters."""
+        """Evaluate an exact symbolic parameter Jacobian at fitted parameters."""
         t = sp.Symbol("t", real=True)
         symbols = {name: sp.Symbol(name, real=True) for name in param_names}
 
         if model_type == "cosine":
             expr = symbols["A"] * sp.cos(symbols["omega"] * t + symbols["phi"])
         elif model_type == "exponential_decay":
-            expr = symbols["A"] * sp.exp(-symbols["lam"] * t)
+            lam = symbols["lambda"]
+            expr = symbols["A"] * sp.exp(-lam * t)
         elif model_type == "power_law":
             expr = symbols["A"] * sp.Abs(t) ** symbols["n"]
         elif model_type == "damped_oscillator":
@@ -683,27 +630,42 @@ class StatisticalChecker(BaseChecker):
         else:
             raise ValueError(f"Unsupported statistical model type '{model_type}'.")
 
-        jacobian_symbolic = [sp.simplify(sp.diff(expr, symbols[name])) for name in param_names]
+        jacobian_symbolic = [
+            sp.simplify(sp.diff(expr, symbols[name]))
+            for name in param_names
+        ]
 
+        # Exact duplicate or negated sensitivities prove a structural
+        # non-identifiability without relying on floating-point rank estimates.
         for i in range(len(jacobian_symbolic)):
             for j in range(i + 1, len(jacobian_symbolic)):
                 if sp.simplify(jacobian_symbolic[i] - jacobian_symbolic[j]) == 0:
                     raise ValueError(
-                        f"Parameters '{param_names[i]}' and '{param_names[j]}' have identical sensitivity functions."
+                        f"NOT_IDENTIFIABLE: parameters '{param_names[i]}' and "
+                        f"'{param_names[j]}' have identical sensitivity functions."
                     )
                 if sp.simplify(jacobian_symbolic[i] + jacobian_symbolic[j]) == 0:
                     raise ValueError(
-                        f"Parameters '{param_names[i]}' and '{param_names[j]}' have opposite sensitivity functions."
+                        f"NOT_IDENTIFIABLE: parameters '{param_names[i]}' and "
+                        f"'{param_names[j]}' have opposite sensitivity functions."
                     )
 
-        subs = {symbols[name]: float(value) for name, value in zip(param_names, fitted_parameters)}
-        jac_exprs = [expr.subs(subs) for expr in jacobian_symbolic]
+        subs = {
+            symbols[name]: float(value)
+            for name, value in zip(param_names, fitted_parameters)
+        }
         jac_columns = []
-        for jac_expr in jac_exprs:
-            jac_values = np.asarray(sp.lambdify(t, jac_expr, modules="numpy")(t_data), dtype=float)
+        for jac_expr in jacobian_symbolic:
+            evaluated = sp.lambdify(
+                t, jac_expr.subs(subs), modules="numpy"
+            )(t_data)
+            jac_values = np.asarray(evaluated, dtype=float)
             if jac_values.shape != t_data.shape:
                 raise ValueError("Symbolic Jacobian returned an unexpected shape.")
+            if not np.all(np.isfinite(jac_values)):
+                raise ValueError("Symbolic Jacobian contains non-finite values.")
             jac_columns.append(jac_values)
+
         return np.column_stack(jac_columns), jacobian_symbolic
 
     @staticmethod
