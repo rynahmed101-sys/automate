@@ -2,17 +2,17 @@
 
 ## Current working state
 
-**Current head at last audit:** `b9664970b4e63b204cc5cd0ba794c1f7bc83e08d`
+**Current head at last audit:** `8e551f8dcecefea815880daa165de9271f564198`
 
 | State | Status |
 |---|---|
 | Implementation | **COMPLETE** |
 | Architectural boundary | **COMPLETE** |
 | Test coverage | **IMPLEMENTED** |
-| CI | **FAILED for prior head; current fix awaiting verification** |
+| CI | **VERIFIED for current head** |
 | Merge to `main` | **NOT PERFORMED** |
 
-The current head includes the AI-agent integration contract, machine-readable integration manifest, Dependabot configuration, reproducible dev container, and GitHub workspace documentation. GitHub Actions run #267 for the prior exact head completed with failure in all four Python matrix jobs because the Cadabra fingerprint validation message did not satisfy its adversarial test; the Lean 4 job passed. The current fix has not yet been CI-verified.
+The current head includes the AI-agent integration contract, machine-readable integration manifest, Dependabot configuration, reproducible dev container, and GitHub workspace documentation. GitHub Actions run #281 passed for exact head `8e551f8dcecefea815880daa165de9271f564198`: Python 3.10, 3.11, 3.12, Python 3.13, and Lean 4.34.1 all passed.
 
 The last completed exact-SHA implementation verification remains the earlier checkpoint documented above. This distinction is intentional: a previously verified commit does not make a newer commit verified automatically.
 
@@ -20,7 +20,7 @@ The last completed exact-SHA implementation verification remains the earlier che
 **Audit date:** 2026-10-04
 **Repository:** `rynahmed101-sys/automate`
 **Intended branch:** `feat/verification-hardening`
-**Last fully CI-verified implementation commit:** `468f3e0c4ab5d6dccab6210c4031c8d8e51f1e2f`\n**CI:** GitHub Actions run #178 passed on that exact implementation commit.
+**Last fully CI-verified implementation commit:** `8e551f8dcecefea815880daa165de9271f564198`\n**CI:** GitHub Actions run #178 passed on that exact implementation commit.
 **Published integration lineage:** `349b258` → recovery merge `ad702127` → upstream hardening `3e2fa552`
 **Integration:** The feature branch contains the recovered local work plus the upstream hardening. No merge to `main` and no history rewrite occurred.
 
@@ -148,6 +148,12 @@ Cadabra source generation uses the documented `:=` assignment form, and the
 external adapter now preserves the canonical IR fingerprint across unavailable,
 execution-failure, unverified, discrepancy, and independent-agreement evidence
 paths. Malformed fingerprints are rejected as non-hexadecimal SHA-256 values.
+
+## Machine-agent interoperability hardening
+
+The CLI schema discovery surface now accepts `ir`, `proposal`, and `context` explicitly. `automate schema --name proposal` and `automate schema --name context` emit JSON Schema directly from the authoritative Pydantic contract models, while `ir` emits the committed canonical graph schema. Unsupported schema names fail closed. These interfaces are covered by dedicated CLI contract tests.
+
+The currently committed graph JSON schema is `automate.ir.v0.1`. The structured Tensor IR implementation has richer internal semantics, but a separately versioned Tensor IR JSON Schema remains future work and must not be advertised as an existing file until published.
 
 ## Current capability assessment
 
