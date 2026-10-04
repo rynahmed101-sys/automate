@@ -201,7 +201,7 @@ def _cross_check_geometry_core(
             "comparison_method": "exact symbolic equality after SymPy simplification",
             "all_matched": False,
             "execution_status": "FAILED",
-            "all_matched": None,
+            "all_matched": False,
             "independence_class": "CROSS_CHECK_FAILED",
             "discrepancies": [],
             "error": f"EinsteinPy calculation failed: {type(e).__name__}: {str(e)}",
