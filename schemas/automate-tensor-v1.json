@@ -34,6 +34,13 @@
           ],
           "exclusiveMinimum": 0
         },
+        "index_space": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
         "position": {
           "enum": [
             "upper",
