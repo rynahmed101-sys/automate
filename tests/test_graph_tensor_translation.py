@@ -88,3 +88,39 @@ def test_graph_equation_ast_builds_valid_tensor_equation():
     equation = graph_equation_node_to_tensor_ir(graph, "n")
     assert isinstance(equation, TensorEquation)
     assert equation.free_index_signature == [("a", "lower", None)]
+
+
+def test_graph_to_cadabra_boundary_binds_canonical_ir_fingerprint(monkeypatch):
+    graph = DerivationGraph(id="g")
+    graph.add_node(_node(
+        "n",
+        {
+            "kind": "binary_op",
+            "op": "mul",
+            "left": _tensor("R", ["a", "b"], [False, True]),
+            "right": _tensor("v", ["b"], [False]),
+        },
+    ))
+    captured = {}
+
+    def fake_run(source, *, expected_output=None, sandbox_limits=None, claim_fingerprint_sha256=None):
+        captured["source"] = source
+        captured["expected_output"] = expected_output
+        captured["claim"] = claim_fingerprint_sha256
+        return {
+            "execution_status": "COMPLETED",
+            "independence_class": "DIFFERENT_ENGINE",
+        }
+
+    monkeypatch.setattr(
+        "automate.tensors.cadabra_verification.run_cadabra_script",
+        fake_run,
+    )
+    from automate.tensors.cadabra_verification import verify_graph_tensor_node_with_cadabra
+
+    result = verify_graph_tensor_node_with_cadabra(graph, "n")
+    assert result["independence_class"] == "DIFFERENT_ENGINE"
+    assert captured["claim"]
+    assert len(captured["claim"]) == 64
+    assert captured["expected_output"] == "R_{a}^{b} v_{b}"
+    assert "ex := R_{a}^{b} v_{b}:" in captured["source"]
