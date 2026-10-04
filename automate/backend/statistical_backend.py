@@ -470,7 +470,13 @@ class StatisticalChecker(BaseChecker):
             from automate.ir.safe_parser import SafeParser
 
             graph_expr_text = in_node.expression.raw_str.strip()
-            graph_expr = SafeParser().parse(graph_expr_text)
+            parse_expr_text = graph_expr_text
+            if model_type == "exponential_decay":
+                # "lambda" is a valid historical model parameter name but a Python
+                # keyword. Normalize only that exact identifier at this parser boundary.
+                import re
+                parse_expr_text = re.sub(r"\blambda\b", "lam", parse_expr_text)
+            graph_expr = SafeParser().parse(parse_expr_text)
 
             t = sp.Symbol("t")
             model_symbols = {
