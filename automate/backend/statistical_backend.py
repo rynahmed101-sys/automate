@@ -17,6 +17,7 @@ If no model is specified and the rule is not 'empirical_inference',
 returns NOT_APPLICABLE rather than silently fitting a cosine.
 """
 
+import hashlib
 import time
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
@@ -175,10 +176,51 @@ class StatisticalChecker(BaseChecker):
         if model_func is None:
             return False, {}, [], f"Cannot build model function for model type '{model_type}'"
 
-        # Data
+        # Empirical inference must consume an explicit external data payload.
+        # Synthetic data remains available to lower-level benchmark callers, but it
+        # is never silently promoted to observational evidence.
+        if "t_data" not in params or "x_obs" not in params:
+            return (
+                False,
+                {},
+                [],
+                "UNSUPPORTED: empirical_inference requires explicit t_data and x_obs. "
+                "Synthetic data generation is not observational evidence.",
+            )
+
+        data_source = params.get("data_source")
+        if data_source != "observed":
+            return (
+                False,
+                {"data_source": data_source},
+                [],
+                "UNSUPPORTED: empirical_inference requires data_source='observed'. "
+                "Synthetic or unspecified data cannot receive STATISTICALLY_CHECKED status.",
+            )
+
         t_data, x_obs, noise_std = self._load_data(params, model_type, model_func, true_params)
+        if len(t_data) != len(x_obs) or len(t_data) < max(3, len(param_names) + 1):
+            return (
+                False,
+                {},
+                [],
+                "Invalid observational data: t_data and x_obs must have equal length "
+                "and contain more samples than fitted parameters.",
+            )
+        if not (np.all(np.isfinite(t_data)) and np.all(np.isfinite(x_obs))):
+            return False, {}, [], "Invalid observational data: non-finite values found."
+        if np.any(np.diff(t_data) <= 0):
+            return False, {}, [], "Invalid observational data: t_data must be strictly increasing."
+        if not np.isfinite(noise_std) or noise_std < 0:
+            return False, {}, [], "Invalid observational data: noise_std must be finite and non-negative."
 
         sigma = np.full_like(x_obs, noise_std) if noise_std > 0 else None
+
+        data_hash = hashlib.sha256(
+            np.ascontiguousarray(t_data, dtype=np.float64).tobytes()
+            + np.ascontiguousarray(x_obs, dtype=np.float64).tobytes()
+            + str(float(noise_std)).encode("utf-8")
+        ).hexdigest()
 
         try:
             fit_kwargs = {"p0": p0}
@@ -192,40 +234,65 @@ class StatisticalChecker(BaseChecker):
 
         perr = np.sqrt(np.diag(pcov))
 
-        # 95% confidence intervals
+        # 95% confidence intervals use the Student-t critical value with the
+        # actual residual degrees of freedom, not a fixed normal 1.96 shortcut.
+        if dof > 0 and np.all(np.isfinite(perr)):
+            t_critical = float(stats.t.ppf(0.975, dof))
+        else:
+            t_critical = float("nan")
+
         ci_95 = {
-            name: [float(popt[i] - 1.96 * perr[i]), float(popt[i] + 1.96 * perr[i])]
+            name: (
+                [float(popt[i] - t_critical * perr[i]), float(popt[i] + t_critical * perr[i])]
+                if np.isfinite(t_critical) and np.isfinite(perr[i])
+                else [float("nan"), float("nan")]
+            )
             for i, name in enumerate(param_names)
         }
 
-        # Goodness-of-fit
-        fitted_y = model_func(t_data, *popt)
-        residuals = x_obs - fitted_y
-        n_points = len(t_data)
-        n_params = len(popt)
-        dof = n_points - n_params
-
-        if sigma is not None and np.all(sigma > 0):
-            chi2 = float(np.sum((residuals / sigma) ** 2))
-        else:
-            chi2 = float(np.sum(residuals ** 2))
-
-        reduced_chi2 = float(chi2 / dof) if dof > 0 else float("inf")
         ss_res = float(np.sum(residuals ** 2))
         ss_tot = float(np.sum((x_obs - np.mean(x_obs)) ** 2))
         r_squared = float(1.0 - (ss_res / ss_tot)) if ss_tot > 0 else 0.0
 
-        # Pass criteria: reduced chi^2 in [0.3, 3.0] and R² > 0.85
-        # These are reasonable for physics data; not fixed thresholds that artificially pass.
-        passed = (0.3 <= reduced_chi2 <= 3.0) and (r_squared > 0.85)
+        if sigma is not None and np.all(sigma > 0) and dof > 0:
+            chi2 = float(np.sum((residuals / sigma) ** 2))
+            reduced_chi2 = float(chi2 / dof)
+            chi2_mode = "known_observation_sigma"
+            passed = (0.3 <= reduced_chi2 <= 3.0) and (r_squared > 0.85)
+        else:
+            chi2 = None
+            reduced_chi2 = None
+            chi2_mode = "unavailable_without_positive_observation_sigma"
+            # Without a known observation uncertainty, a reduced chi-squared
+            # threshold would be numerically arbitrary and is therefore not used.
+            passed = r_squared > 0.85
+
+        residual_mean = float(np.mean(residuals))
+        residual_std = float(np.std(residuals))
+        centered = residuals - residual_mean
+        if len(centered) > 2 and np.std(centered) > 0:
+            lag1 = float(np.corrcoef(centered[:-1], centered[1:])[0, 1])
+        else:
+            lag1 = float("nan")
+
+        if len(residuals) >= 8 and np.all(np.isfinite(residuals)):
+            normality_p = float(stats.normaltest(residuals).pvalue)
+        else:
+            normality_p = None
 
         goodness_of_fit = {
             "chi2": chi2,
             "reduced_chi2": reduced_chi2,
+            "chi2_mode": chi2_mode,
             "degrees_of_freedom": dof,
             "r_squared": r_squared,
-            "residual_mean": float(np.mean(residuals)),
-            "residual_std": float(np.std(residuals))
+            "sum_squared_residuals": ss_res,
+            "residual_mean": residual_mean,
+            "residual_std": residual_std,
+            "residual_lag1_autocorrelation": lag1,
+            "residual_normality_p_value": normality_p,
+            "confidence_level": 0.95,
+            "confidence_critical_value": t_critical,
         }
 
         estimates = {
@@ -244,7 +311,13 @@ class StatisticalChecker(BaseChecker):
             "goodness_of_fit": goodness_of_fit,
             "sample_size": n_points,
             "noise_std_used": float(noise_std),
-            "data_source": "provided" if "t_data" in params else "synthetic"
+            "data_source": data_source,
+            "data_provenance": {
+                "source_type": "observed",
+                "data_id": str(params.get("data_id", "unidentified_observed_dataset")),
+                "sha256": data_hash,
+                "n_points": n_points,
+            },
         }
 
         certificates = [
@@ -260,11 +333,19 @@ class StatisticalChecker(BaseChecker):
             }
         ]
 
-        error_msg = None if passed else (
-            f"Statistical fit criteria not satisfied: "
-            f"reduced_chi2={reduced_chi2:.3f} (need [0.3, 3.0]), "
-            f"R2={r_squared:.4f} (need > 0.85)"
-        )
+        if passed:
+            error_msg = None
+        elif reduced_chi2 is not None:
+            error_msg = (
+                "Statistical fit criteria not satisfied: "
+                f"reduced_chi2={reduced_chi2:.3f} (need [0.3, 3.0]), "
+                f"R2={r_squared:.4f} (need > 0.85)"
+            )
+        else:
+            error_msg = (
+                "Statistical fit criteria not satisfied: observational uncertainty "
+                f"was not supplied, so only R2={r_squared:.4f} (need > 0.85) was evaluated."
+            )
         return passed, details, certificates, error_msg
 
     def _build_model(
@@ -368,6 +449,3 @@ class StatisticalChecker(BaseChecker):
         x_obs = x_pure + np.random.normal(0, noise_std, size=n_points)
         return t_data, x_obs, noise_std
 
-
-# Type alias
-Any = object
