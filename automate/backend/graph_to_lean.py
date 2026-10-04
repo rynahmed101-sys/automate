@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 import sympy as sp
+from sympy.core.relational import Relational
 
 from automate.ir.safe_parser import SafeParser, SafeParseError
 
@@ -108,7 +109,7 @@ def translate_integer_expression(expr: sp.Basic) -> Tuple[str, List[str]]:
 
 
 def _translate_atom(expr: sp.Basic) -> str:
-    if isinstance(expr, sp.Relational):
+    if isinstance(expr, Relational):
         lhs = _translate_arithmetic(expr.lhs)
         rhs = _translate_arithmetic(expr.rhs)
 
