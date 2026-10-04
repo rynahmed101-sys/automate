@@ -634,6 +634,7 @@ class SafeParser:
                 self.max_atoms,
                 self.max_depth,
                 budget,
+                _MAX_RESULT_BYTES,
             ),
             daemon=True,
         )
