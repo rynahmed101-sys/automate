@@ -64,6 +64,8 @@ class TestCrossCheckFlat2D:
 
         assert rep["all_matched"] is True
         assert rep["independence_class"] == "DIFFERENT_ENGINE"
+        assert len(rep["metric_fingerprint_sha256"]) == 64
+        assert rep["comparison_method"] == "exact symbolic equality after SymPy simplification"
         assert rep["christoffel_matched"] is True
         assert rep["ricci_matched"] is True
         assert rep["ricci_scalar_matched"] is True
@@ -269,3 +271,28 @@ class TestCrossCheckCylindrical3D:
         ])
         tg = TensorGeometry(g, [rho, phi, z])
         assert sp.simplify(tg.ricci_scalar()) == 0
+
+
+def test_cross_check_exception_is_not_reported_as_independent_agreement(monkeypatch):
+    import automate.tensors.einsteinpy_adapter as adapter
+
+    x, y = sp.symbols("x y", real=True)
+    metric = sp.Matrix([[1, 0], [0, 1]])
+
+    class ExplodingMetricTensor:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("intentional cross-engine failure")
+
+    monkeypatch.setattr(adapter, "MetricTensor", ExplodingMetricTensor)
+
+    report = adapter.cross_check_geometry(
+        metric=metric,
+        coords=[x, y],
+        native_ricci_scalar=sp.Integer(0),
+    )
+
+    assert report["available"] is True
+    assert report["all_matched"] is False
+    assert report["independence_class"] == "DISCREPANCY_DETECTED"
+    assert len(report["metric_fingerprint_sha256"]) == 64
+    assert report["comparison_method"] == "exact symbolic equality after SymPy simplification"
