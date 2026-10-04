@@ -13,7 +13,7 @@ import json
 import re
 from typing import Iterable, List
 
-from automate.ir.tensors import TensorExpression, TensorIndex, TensorProduct
+from automate.ir.tensors import TensorEquation, TensorExpression, TensorIndex, TensorProduct
 
 _IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 
@@ -81,4 +81,31 @@ def translate_expression(expression: TensorExpression) -> dict:
         "source": source,
         "ir_fingerprint_sha256": fingerprint,
         "translation": "canonical TensorExpression.products -> Cadabra syntax",
+    }
+\n\ndef tensor_equation_to_cadabra(equation: TensorEquation) -> str:
+    """Translate a validated structured tensor equation into Cadabra syntax."""
+    if equation.lhs.products is None or equation.rhs.products is None:
+        raise ValueError(
+            "Cadabra equation translation requires structured products on both sides."
+        )
+    validation = equation.validate_structure()
+    if not validation.is_valid:
+        raise ValueError("; ".join(validation.errors))
+    lhs = tensor_expression_to_cadabra(equation.lhs)
+    rhs = tensor_expression_to_cadabra(equation.rhs)
+    return f"{lhs} = {rhs}"
+
+
+def translate_equation(equation: TensorEquation) -> dict:
+    """Return deterministic Cadabra source and canonical equation fingerprint."""
+    source_expression = tensor_equation_to_cadabra(equation)
+    canonical = equation.model_dump(mode="json")
+    fingerprint = hashlib.sha256(
+        json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return {
+        "engine": "Cadabra2",
+        "source": f"{source_expression};",
+        "ir_fingerprint_sha256": fingerprint,
+        "translation": "canonical TensorEquation.products -> Cadabra syntax",
     }
