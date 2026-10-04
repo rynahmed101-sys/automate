@@ -336,8 +336,12 @@ class StatisticalChecker(BaseChecker):
             },
             {
                 "step": "residual_goodness_of_fit",
-                "description": "Computed reduced chi-squared and R^2",
-                "result": f"Reduced Chi^2 = {reduced_chi2:.3f}, R^2 = {r_squared:.4f}"
+                "description": "Computed goodness-of-fit diagnostics appropriate to the supplied uncertainty information.",
+                "result": (
+                    f"Reduced Chi^2 = {reduced_chi2:.3f}, R^2 = {r_squared:.4f}"
+                    if reduced_chi2 is not None
+                    else f"Reduced Chi^2 = unavailable, R^2 = {r_squared:.4f}"
+                )
             }
         ]
 
