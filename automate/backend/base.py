@@ -103,8 +103,22 @@ class BaseChecker(ABC):
 
     @staticmethod
     def _stamp_report(report: VerificationReport, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
-        identity = build_claim_identity(graph, edge)
-        dependency_hash = build_dependency_fingerprint(graph, edge)
+        try:
+            identity = build_claim_identity(graph, edge)
+            dependency_hash = build_dependency_fingerprint(graph, edge)
+        except (KeyError, ValueError, TypeError) as exc:
+            # A malformed graph cannot have a trustworthy claim identity. Preserve
+            # the backend's controlled failure report instead of allowing the
+            # provenance layer itself to crash.
+            report.details = dict(report.details)
+            report.details["claim_identity_status"] = "UNAVAILABLE_INVALID_GRAPH"
+            report.details["claim_identity_error"] = f"{type(exc).__name__}: {exc}"
+            report.error_message = report.error_message or (
+                "Claim identity could not be computed because the derivation graph "
+                "is structurally invalid."
+            )
+            return report
+
         evidence_hash = compute_evidence_fingerprint(report.to_dict())
         identity_dict = identity.model_dump()
 
