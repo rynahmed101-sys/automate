@@ -515,45 +515,32 @@ end Automate.LagrangianMechanics
             return code, theorem_name
 
         elif rule == "algebraic_identity":
-            # Generate the Lean proposition directly from the graph expressions for
-            # a deliberately restricted integer-polynomial subset. This is a real
-            # graph-to-Lean binding, not a canned theorem template.
+            # The generic graph-to-Lean translator consumes the exact graph
+            # expressions and produces the Lean proposition. No canned theorem
+            # is selected from the rule name.
             try:
-                from automate.ir.safe_parser import SafeParser, SafeParseError
-                from automate.backend.lean_expression import (
-                    LeanExpressionTranslationError,
-                    translate_identity,
+                from automate.backend.graph_to_lean import (
+                    GraphToLeanTranslationError,
+                    translate_edge_claim,
                 )
 
-                in_expr_str = in_nodes[0].expression.raw_str.strip()
-                out_expr_str = out_nodes[0].expression.raw_str.strip()
-                if not in_expr_str or not out_expr_str:
-                    return "__NOT_APPLICABLE__", (
-                        "Empty expressions in graph nodes; cannot formalize algebraic identity."
-                    )
-                if "=" in in_expr_str or "=" in out_expr_str:
-                    return "__NOT_APPLICABLE__", (
-                        "Equation-form algebraic identities are not yet supported by the "
-                        "restricted graph-to-Lean translator."
-                    )
-
-                parser = SafeParser()
-                lhs = parser.parse(in_expr_str)
-                rhs = parser.parse(out_expr_str)
-                proposition, names = translate_identity(lhs, rhs)
-
+                claim = translate_edge_claim(
+                    rule=rule,
+                    input_expressions=[node.expression.raw_str for node in in_nodes],
+                    output_expressions=[node.expression.raw_str for node in out_nodes],
+                )
                 theorem_name = f"algebraic_identity_{edge.id.replace('-', '_')}"
-                binders = " ".join(f"({name} : Int)" for name in names)
+                binders = " ".join(f"({name} : Int)" for name in claim.binders)
                 code = f"""-- Automate Machine-Generated Lean 4 Proof Obligation
 -- Derivation Edge ID: {edge.id}
--- Rule: algebraic_identity
--- Source expressions are translated from the graph AST into the proposition below.
--- Generated proposition: {proposition}
+-- Rule: {rule}
+-- Generated directly from graph expressions by the generic graph-to-Lean translator.
+-- Generated proposition: {claim.proposition}
 import Init
 
 namespace Automate.Derivations
 
-theorem {theorem_name} {binders} : {proposition} := by
+theorem {theorem_name} {binders} : {claim.proposition} := by
   simpa [pow_two, mul_add, add_mul, sub_eq_add_neg,
     add_assoc, add_comm, add_left_comm,
     mul_assoc, mul_comm, mul_left_comm]
@@ -562,11 +549,10 @@ end Automate.Derivations
 """
                 return code, theorem_name
 
-            except (SafeParseError, LeanExpressionTranslationError, Exception) as exc:
+            except GraphToLeanTranslationError as exc:
                 return "__NOT_APPLICABLE__", (
-                    "Restricted graph-to-Lean translation rejected algebraic identity: "
-                    f"{type(exc).__name__}: {exc}. "
-                    "Supported subset is integer polynomial expressions over Int."
+                    "Graph-to-Lean translation rejected algebraic identity: "
+                    f"{exc}. Supported subset is integer arithmetic/polynomial expressions."
                 )
 
         else:
