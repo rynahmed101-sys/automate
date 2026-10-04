@@ -3,7 +3,7 @@ Tests for First-Class Assumption Tracking and Sensitivity Analysis.
 """
 
 import pytest
-from automate.ir.assumptions import Assumption, AssumptionRegistry
+from automate.ir.assumptions import Assumption, AssumptionDependency, AssumptionRegistry
 from automate.core.graph import DerivationGraph
 from automate.core.node import DerivationNode
 from automate.core.edge import DerivationEdge
@@ -170,3 +170,143 @@ def test_side_condition_validation():
     assert met2 is False
     assert missing2 == ["asm_real"]
 
+
+
+def test_assumption_dependency_closure_is_transitive():
+    graph = DerivationGraph(id="assumption_dependency_test")
+    for aid, predicate in (
+        ("asm_smooth", "smooth(x)"),
+        ("asm_continuous", "continuous(x)"),
+        ("asm_domain", "x in D"),
+    ):
+        graph.add_assumption(
+            Assumption(
+                id=aid,
+                description=aid,
+                category="regularity",
+                formal_predicate=predicate,
+            )
+        )
+
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_smooth",
+            depends_on=["asm_continuous"],
+            relation="requires",
+            justification="Smoothness requires continuity",
+        )
+    )
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_continuous",
+            depends_on=["asm_domain"],
+            relation="requires",
+            justification="Continuity is stated on the domain",
+        )
+    )
+
+    assert graph.get_assumption_dependencies("asm_smooth") == ["asm_continuous"]
+    assert graph.get_assumption_dependency_closure({"asm_smooth"}) == {
+        "asm_smooth",
+        "asm_continuous",
+        "asm_domain",
+    }
+    tree = graph.query_assumption_dependency_tree("asm_smooth")
+    assert tree["direct_dependencies"] == ["asm_continuous"]
+    assert tree["transitive_dependencies"] == ["asm_continuous", "asm_domain"]
+
+
+def test_assumption_dependency_cycle_is_rejected():
+    graph = DerivationGraph(id="assumption_cycle_test")
+    for aid in ("asm_a", "asm_b"):
+        graph.add_assumption(
+            Assumption(
+                id=aid,
+                description=aid,
+                formal_predicate=f"{aid}_predicate",
+            )
+        )
+
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_a",
+            depends_on=["asm_b"],
+        )
+    )
+
+    with pytest.raises(ValueError, match="contains a cycle"):
+        graph.add_assumption_dependency(
+            AssumptionDependency(
+                assumption_id="asm_b",
+                depends_on=["asm_a"],
+            )
+        )
+
+    assert len(graph.assumption_dependencies) == 1
+
+
+def test_assumption_dependency_requires_declared_prerequisites():
+    graph = DerivationGraph(id="assumption_unknown_test")
+    graph.add_assumption(
+        Assumption(
+            id="asm_a",
+            description="A",
+            formal_predicate="A",
+        )
+    )
+
+    with pytest.raises(ValueError, match="undeclared prerequisites"):
+        graph.add_assumption_dependency(
+            AssumptionDependency(
+                assumption_id="asm_a",
+                depends_on=["asm_missing"],
+            )
+        )
+
+
+def test_node_inheritance_includes_transitive_assumption_prerequisites():
+    graph = DerivationGraph(id="assumption_node_inheritance")
+    for aid in ("asm_derived", "asm_base"):
+        graph.add_assumption(
+            Assumption(
+                id=aid,
+                description=aid,
+                formal_predicate=aid,
+            )
+        )
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_derived",
+            depends_on=["asm_base"],
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="node",
+            expression=MathematicalExpression(raw_str="E"),
+            assumptions=["asm_derived"],
+        )
+    )
+
+    assert graph.compute_inherited_assumptions("node") == {
+        "asm_derived",
+        "asm_base",
+    }
+
+
+def test_external_assumption_remains_explicit_leaf():
+    graph = DerivationGraph(id="external_assumption_test")
+    graph.add_node(
+        DerivationNode(
+            id="node",
+            expression=MathematicalExpression(raw_str="E"),
+            assumptions=["asm_external"],
+        )
+    )
+
+    assert graph.compute_inherited_assumptions("node") == {"asm_external"}
+    details = graph.query_assumptions_for_node("node")
+    assert details["assumptions"] == [{
+        "id": "asm_external",
+        "description": "Undeclared external assumption",
+    }]
