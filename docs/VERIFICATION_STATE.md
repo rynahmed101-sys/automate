@@ -63,6 +63,34 @@ The earlier local Windows evidence from the integrated recovery work remains sep
 **Structured tensor/index semantics.** The canonical tensor IR now represents tensor expressions and equations as structured index terms. Validation enforces rank/position consistency, Einstein dummy-index pairing, rejection of triple repeats, contracted-index dimension compatibility, and matching free-index signatures across sums and equations. TensorChecker consumes optional structured index data before component verification; malformed index structure fails closed.
 
 **Graph-to-Lean translation.** The Lean backend now uses a generic graph-bound translator for algebraic claims rather than selecting a canned theorem from the rule name. The translator preserves the actual graph expressions, supports a bounded integer arithmetic/relation subset, rejects unsupported constructs explicitly, and can carry translatable inherited assumption predicates as explicit Lean hypotheses. Unsupported external assumptions remain provenance metadata rather than invented formal axioms. Broader calculus, tensor, and physics-law translation remains unsupported until those semantics can be represented faithfully.
+## Phase 4.2: Cadabra integration
+
+A bounded Cadabra2 external-engine adapter is now implemented at
+`automate/tensors/cadabra_adapter.py`. Cadabra remains strictly external:
+Automate does not vendor or import Cadabra source/runtime. The adapter detects
+the CLI, records its version, fingerprints the exact source input, rejects the
+initial unsupported external-control constructs, and executes the CLI through
+`VerifiedExecutionSandbox`.
+
+The initial supported boundary is deliberately narrow: explicitly supplied
+Cadabra source plus an optional exact expected-output comparison. Successful
+execution without an independent comparison target is recorded as
+`COMPLETED` with independence class `UNVERIFIED`. A matching comparison is
+`DIFFERENT_ENGINE` evidence; a mismatch is
+`MATHEMATICAL_DISCREPANCY` / `CROSS_CHECK_FAILED`; unavailable Cadabra is
+`UNAVAILABLE` / `NOT_RUN`; and sandbox/process failures are
+`EXECUTION_FAILED` / `CROSS_CHECK_FAILED`. None of these paths treats
+engine availability or execution success as proof.
+
+A shared `ExternalEngineEvidence` provenance model is now available in
+`automate/core/external_engine.py` for Cadabra and future external adapters.
+The adapter records engine/version, input and output fingerprints, comparison
+method, sandbox target/limits, execution status, and independence classification.
+
+This milestone is an integration/provenance boundary, not yet a graph-to-Cadabra
+translator. The canonical tensor IR remains the source of truth, and no
+parallel tensor representation was introduced.
+
 ## Current capability assessment
 
 | Capability | Current status |
@@ -110,6 +138,6 @@ The canonical claim identity deliberately excludes backend-specific tolerances, 
 3. Generalize structured ODEs, mechanics, field variation, and numerical error certificates only where semantics are explicit and testable.
 4. Expand statistical provenance beyond caller-declared labels to authenticated or externally resolved dataset lineage where the execution environment permits it, and formalize more of the statistical model assumptions.
 5. Generalize graph-to-Lean translation beyond the restricted integer-polynomial subset; reuse mathlib/physlib theorems only when proposition identity is preserved.
-6. Pin external-engine versions, licenses, inputs/results and independence metadata in `docs/ECOSYSTEM.md` and verification certificates.
+6. Bind the Cadabra adapter to graph-derived tensor identities through an explicit canonical translation layer; do not infer mathematics from rule names or free-form scripts.\n7. Pin external-engine versions, licenses, inputs/results and independence metadata in `docs/ECOSYSTEM.md` and verification certificates.
 
 Claims not supported by source inspection or an executed check remain **UNVERIFIED**.
