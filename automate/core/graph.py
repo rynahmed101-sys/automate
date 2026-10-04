@@ -17,7 +17,6 @@ from automate.core.node import DerivationNode
 from automate.core.edge import DerivationEdge, DerivationCertificate
 from automate.ir.assumptions import Assumption, AssumptionRegistry
 from automate.ir.serialization import dump_json, load_json
-from automate.backend.base import VerificationReport
 from automate.core.claim import (
     build_claim_identity,
     build_dependency_fingerprint,
