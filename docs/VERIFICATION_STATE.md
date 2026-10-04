@@ -30,6 +30,8 @@ The earlier local Windows evidence from the integrated recovery work remains sep
 
 **SafeParser security boundary.** Untrusted mathematical text is now parsed into a restricted Python AST and translated through an explicit allowlist into SymPy objects. Source strings are not passed to `sympify`/Python evaluation. Attribute access, subscripting, arbitrary callables, keyword arguments, statement-like syntax and other non-mathematical constructs are rejected. AST size/depth and resulting expression size/depth are bounded.
 
+**Shared execution sandbox.** The verification kernel now provides a reusable `VerifiedExecutionSandbox` with spawned-process isolation, hard parent-side wall-clock termination, bounded serialized input/output, best-effort POSIX CPU-time and address-space limits, constrained scientific-library thread counts, and explicit evaluation budgets. Numerical ODE and statistical fitting backends currently execute their expensive semantic work through this shared boundary. SafeParser retains its specialized isolated-parser boundary because its AST/result constraints are narrower and already independently hardened. Cross-engine adapters and future Cadabra workers should migrate onto the same sandbox contract rather than inventing separate resource controls.
+
 **Dimensional semantics.** Unknown base dimensions and unknown coordinate-dimension descriptors now fail closed instead of silently becoming dimensionless. This prevents an unrecognized unit declaration from being treated as a successful dimensionless case.
 
 **Symbolic division and assumption entailment.** `divide_both_sides` now delegates nonzero obligations to a centralized `AssumptionEntailment` layer. Active relational assumptions may jointly establish a consequence such as a product or positive sum; malformed, inactive, unsupported, or inconclusive assumptions never count as proof.
@@ -97,7 +99,7 @@ The canonical claim identity deliberately excludes backend-specific tolerances, 
 ## Remaining work
 
 1. Expand tensor claim binding and independent EinsteinPy/textbook coverage without marking unsupported whole-tensor or index-operation claims as verified.
-2. Extend numerical process-level resource isolation with explicit CPU/memory bounds and document platform-specific limits; SafeParser now has best-effort POSIX CPU/address-space controls plus cross-platform wall-clock termination.
+2. Extend shared sandbox adoption to tensor external-engine workers and future Cadabra integration; process-level controls are now available centrally, while platform-specific POSIX resource enforcement still requires fallback to wall-clock termination on unsupported systems.
 3. Generalize structured ODEs, mechanics, field variation, and numerical error certificates only where semantics are explicit and testable.
 4. Expand statistical provenance beyond caller-declared labels to authenticated or externally resolved dataset lineage where the execution environment permits it, and formalize more of the statistical model assumptions.
 5. Generalize graph-to-Lean translation beyond the restricted integer-polynomial subset; reuse mathlib/physlib theorems only when proposition identity is preserved.

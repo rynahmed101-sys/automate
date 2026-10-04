@@ -464,3 +464,8 @@ def test_fit_initial_guess_does_not_use_reference_parameters():
     params["fit_initial_guess"] = {"A": 2.0, "omega": 3.0, "phi": 0.25}
     _, _, explicit_guesses, _ = checker._build_model("cosine", params, None)
     assert explicit_guesses == [2.0, 3.0, 0.25]
+
+
+def test_statistical_checker_rejects_nonpositive_model_evaluation_budget():
+    with pytest.raises(ValueError, match="max_model_evaluations"):
+        StatisticalChecker(max_model_evaluations=0)

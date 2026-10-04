@@ -28,6 +28,7 @@ from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge, DerivationCertificate
 from automate.core.graph import DerivationGraph
+from automate.core.sandbox import EvaluationBudget, SandboxError, SandboxLimits, VerifiedExecutionSandbox
 
 # Rules that involve ODE integration
 _ODE_RULES = frozenset({
@@ -38,6 +39,18 @@ _ODE_RULES = frozenset({
 })
 
 
+def _run_numerical_verification(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Spawn-safe worker entrypoint used by VerifiedExecutionSandbox."""
+    config = dict(payload["checker"])
+    config.pop("wall_clock_seconds", None)
+    config.pop("cpu_seconds", None)
+    config.pop("memory_bytes", None)
+    edge = DerivationEdge.model_validate(payload["edge"])
+    graph = DerivationGraph.model_validate(payload["graph"])
+    checker = NumericalChecker(**config)
+    return checker._verify_edge_core(edge, graph).model_dump()
+
+
 class NumericalChecker(BaseChecker):
     def __init__(
         self,
@@ -45,6 +58,10 @@ class NumericalChecker(BaseChecker):
         atol: float = 1e-10,
         convergence_tolerance: float = 1e-6,
         refinement_factor: float = 10.0,
+        wall_clock_seconds: float = 30.0,
+        cpu_seconds: float = 20.0,
+        memory_bytes: int = 1024 * 1024 * 1024,
+        max_function_evaluations: int = 200_000,
     ):
         if not (0 < rtol < 1):
             raise ValueError("rtol must be in (0, 1).")
@@ -58,6 +75,14 @@ class NumericalChecker(BaseChecker):
         self.atol = atol
         self.convergence_tolerance = convergence_tolerance
         self.refinement_factor = refinement_factor
+        if max_function_evaluations <= 0:
+            raise ValueError("max_function_evaluations must be positive.")
+        self.max_function_evaluations = int(max_function_evaluations)
+        self._sandbox_limits = SandboxLimits(
+            wall_clock_seconds=wall_clock_seconds,
+            cpu_seconds=cpu_seconds,
+            memory_bytes=memory_bytes,
+        )
 
     @property
     def name(self) -> str:
@@ -68,50 +93,40 @@ class NumericalChecker(BaseChecker):
         return f"NumPy {np.__version__}, SciPy {scipy.__version__}"
 
     def verify_edge(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
-        start_time = time.perf_counter()
-
-        in_nodes = [graph.get_node(nid) for nid in edge.input_nodes]
-        out_nodes = [graph.get_node(nid) for nid in edge.output_nodes]
-
-        if not all(in_nodes) or not all(out_nodes):
-            return VerificationReport(
+        """Verify an edge inside the shared process/resource sandbox."""
+        payload = {
+            "checker": {
+                "rtol": self.rtol,
+                "atol": self.atol,
+                "convergence_tolerance": self.convergence_tolerance,
+                "refinement_factor": self.refinement_factor,
+                "wall_clock_seconds": self._sandbox_limits.wall_clock_seconds,
+                "cpu_seconds": self._sandbox_limits.cpu_seconds,
+                "memory_bytes": self._sandbox_limits.memory_bytes,
+                "max_function_evaluations": self.max_function_evaluations,
+            },
+            "edge": edge.model_dump(),
+            "graph": graph.model_dump(),
+        }
+        try:
+            report_data = VerifiedExecutionSandbox(self._sandbox_limits).run(
+                "automate.backend.numerical_backend:_run_numerical_verification",
+                payload,
+            )
+            report = VerificationReport.model_validate(report_data)
+        except SandboxError as exc:
+            report = VerificationReport(
                 status=VerificationStatus.FAILED,
                 backend=self.name,
                 backend_version=self.version,
                 passed=False,
-                error_message="Referenced nodes missing from derivation graph."
+                error_message=f"Numerical execution sandbox rejected or terminated task: {exc}",
             )
 
-        rule = edge.transformation_rule
-        passed = False
-        error_msg = None
-        details: Dict[str, Any] = {"rule": rule}
-        certificates: List[Dict[str, Any]] = []
+        graph.record_verification_report(edge.id, report)
+        return report
 
-        if rule not in _ODE_RULES:
-            # This backend cannot verify non-ODE rules
-            status = VerificationStatus.NOT_APPLICABLE
-            details["reason"] = (
-                f"Rule '{rule}' does not involve ODE integration; "
-                "numerical backend is not applicable."
-            )
-            elapsed = (time.perf_counter() - start_time) * 1000
-            return self._build_report(
-                status, False, details, [], None, edge, graph, elapsed
-            )
-
-        try:
-            passed, details, certificates, error_msg = self._simulate_ode_from_graph(
-                rule, in_nodes, out_nodes, edge.parameters
-            )
-        except Exception as e:
-            passed = False
-            error_msg = f"Numerical execution error: {type(e).__name__}: {str(e)}"
-
-        elapsed = (time.perf_counter() - start_time) * 1000
-        status = VerificationStatus.NUMERICALLY_CHECKED if passed else VerificationStatus.FAILED
-        return self._build_report(status, passed, details, certificates, error_msg, edge, graph, elapsed)
-
+    def _verify_edge_core(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
     def _build_report(
         self, status, passed, details, certificates, error_msg, edge, graph, elapsed
     ) -> VerificationReport:
@@ -210,9 +225,14 @@ class NumericalChecker(BaseChecker):
         coarse_rtol = min(self.rtol * self.refinement_factor, 1e-2)
         coarse_atol = min(self.atol * self.refinement_factor, 1e-4)
 
+        coarse_budget = EvaluationBudget(self.max_function_evaluations)
+        def coarse_ode_sys(t, y):
+            coarse_budget.consume()
+            return ode_sys(t, y)
+
         try:
             coarse_result = solve_ivp(
-                ode_sys,
+                coarse_ode_sys,
                 t_span,
                 y0,
                 t_eval=t_eval,
@@ -282,6 +302,7 @@ class NumericalChecker(BaseChecker):
             "fine_trajectory_sha256": trajectory_fingerprint,
             "coarse_trajectory_sha256": coarse_trajectory_fingerprint,
             "trajectory_shape": list(fine_result.y.shape),
+            "max_function_evaluations": self.max_function_evaluations,
         }
         if passed:
             return True, details, None
@@ -458,7 +479,9 @@ class NumericalChecker(BaseChecker):
             y0.append(float(x0_map.get(q, 1.0)))
             y0.append(float(v0_map.get(q, 0.0)))
 
+        eval_budget = EvaluationBudget(self.max_function_evaluations)
         def ode_sys(t, y):
+            eval_budget.consume()
             dy = []
             args = list(y)  # [q1, v1, q2, v2, ...]
             for i, q in enumerate(coords):
@@ -699,7 +722,9 @@ class NumericalChecker(BaseChecker):
         x0 = float(x0_map.get(q_name, 1.0))
         v0 = float(v0_map.get(q_name, 0.0))
 
+        eval_budget = EvaluationBudget(self.max_function_evaluations)
         def ode_sys(t, y):
+            eval_budget.consume()
             q_val, v_val = y
             return [v_val, float(accel_func(q_val, v_val))]
 

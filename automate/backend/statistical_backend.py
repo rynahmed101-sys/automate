@@ -31,7 +31,37 @@ from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge, DerivationCertificate
 from automate.core.graph import DerivationGraph
+from automate.core.sandbox import EvaluationBudget, SandboxError, SandboxLimits, VerifiedExecutionSandbox
 
+
+def _run_statistical_verification(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Spawn-safe worker entrypoint used by VerifiedExecutionSandbox."""
+    checker_config = dict(payload["checker"])
+    checker_config.pop("wall_clock_seconds", None)
+    checker_config.pop("cpu_seconds", None)
+    checker_config.pop("memory_bytes", None)
+    edge = DerivationEdge.model_validate(payload["edge"])
+    graph = DerivationGraph.model_validate(payload["graph"])
+    checker = StatisticalChecker(**checker_config)
+    return checker._verify_edge_core(edge, graph).model_dump()
+
+
+class StatisticalChecker(BaseChecker):
+    def __init__(
+        self,
+        wall_clock_seconds: float = 30.0,
+        cpu_seconds: float = 20.0,
+        memory_bytes: int = 1024 * 1024 * 1024,
+        max_model_evaluations: int = 100_000,
+    ):
+        if max_model_evaluations <= 0:
+            raise ValueError("max_model_evaluations must be positive.")
+        self.max_model_evaluations = int(max_model_evaluations)
+        self._sandbox_limits = SandboxLimits(
+            wall_clock_seconds=wall_clock_seconds,
+            cpu_seconds=cpu_seconds,
+            memory_bytes=memory_bytes,
+        )
 
 class StatisticalChecker(BaseChecker):
     @property
@@ -43,47 +73,36 @@ class StatisticalChecker(BaseChecker):
         return f"SciPy {scipy.__version__}"
 
     def verify_edge(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
-        start_time = time.perf_counter()
-
-        in_nodes = [graph.get_node(nid) for nid in edge.input_nodes]
-        out_nodes = [graph.get_node(nid) for nid in edge.output_nodes]
-
-        if not all(in_nodes) or not all(out_nodes):
-            return VerificationReport(
+        """Verify an empirical inference inside the shared execution sandbox."""
+        payload = {
+            "checker": {
+                "wall_clock_seconds": self._sandbox_limits.wall_clock_seconds,
+                "cpu_seconds": self._sandbox_limits.cpu_seconds,
+                "memory_bytes": self._sandbox_limits.memory_bytes,
+                "max_model_evaluations": self.max_model_evaluations,
+            },
+            "edge": edge.model_dump(),
+            "graph": graph.model_dump(),
+        }
+        try:
+            report_data = VerifiedExecutionSandbox(self._sandbox_limits).run(
+                "automate.backend.statistical_backend:_run_statistical_verification",
+                payload,
+            )
+            report = VerificationReport.model_validate(report_data)
+        except SandboxError as exc:
+            report = VerificationReport(
                 status=VerificationStatus.FAILED,
                 backend=self.name,
                 backend_version=self.version,
                 passed=False,
-                error_message="Referenced nodes missing from derivation graph."
+                error_message=f"Statistical execution sandbox rejected or terminated task: {exc}",
             )
 
-        rule = edge.transformation_rule
-        passed = False
-        error_msg = None
-        details: Dict[str, Any] = {"rule": rule}
-        certificates: List[Dict[str, Any]] = []
+        graph.record_verification_report(edge.id, report)
+        return report
 
-        if rule != "empirical_inference":
-            status = VerificationStatus.NOT_APPLICABLE
-            details["reason"] = (
-                f"Rule '{rule}' is not an empirical inference rule. "
-                "StatisticalChecker only applies to 'empirical_inference'."
-            )
-            elapsed = (time.perf_counter() - start_time) * 1000
-            return self._build_report(status, False, details, [], None, edge, graph, elapsed)
-
-        try:
-            passed, details, certificates, error_msg = self._fit_parametric_model(
-                in_nodes[0], out_nodes[0], edge.parameters
-            )
-        except Exception as e:
-            passed = False
-            error_msg = f"Statistical estimation error: {type(e).__name__}: {str(e)}"
-
-        elapsed = (time.perf_counter() - start_time) * 1000
-        status = VerificationStatus.STATISTICALLY_CHECKED if passed else VerificationStatus.FAILED
-        return self._build_report(status, passed, details, certificates, error_msg, edge, graph, elapsed)
-
+    def _verify_edge_core(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
     def _build_report(
         self, status, passed, details, certificates, error_msg, edge, graph, elapsed
     ) -> VerificationReport:
@@ -183,6 +202,12 @@ class StatisticalChecker(BaseChecker):
             return False, claim_details, [], claim_error
 
         model_func, param_names, p0, true_params = self._build_model(model_type, params, in_node)
+        evaluation_budget = EvaluationBudget(self.max_model_evaluations)
+        original_model_func = model_func
+        def budgeted_model_func(t, *model_params):
+            evaluation_budget.consume()
+            return original_model_func(t, *model_params)
+        model_func = budgeted_model_func
         if model_func is None:
             return False, {}, [], f"Cannot build model function for model type '{model_type}'"
 
@@ -246,6 +271,7 @@ class StatisticalChecker(BaseChecker):
             if sigma is not None:
                 fit_kwargs["sigma"] = sigma
                 fit_kwargs["absolute_sigma"] = True
+            fit_kwargs["maxfev"] = self.max_model_evaluations
 
             popt, pcov = curve_fit(model_func, t_data, x_obs, **fit_kwargs)
         except Exception as e:
@@ -448,6 +474,8 @@ class StatisticalChecker(BaseChecker):
             "noise_std": float(noise_std),
             "gof_confidence_level": gof_confidence,
             "sample_size": n_points,
+            "max_model_evaluations": self.max_model_evaluations,
+            "model_evaluations_used": evaluation_budget.used,
         }
         evidence_fingerprint = hashlib.sha256(
             json.dumps(evidence_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
