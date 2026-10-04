@@ -241,6 +241,7 @@ def test_cadabra_provenance_binds_resolved_executable(monkeypatch, tmp_path):
     assert report["executable_path"] == str(executable.resolve())
     assert len(report["executable_fingerprint_sha256"]) == 64
     assert report["adapter_version"] == "v1"
+    assert len(report["runtime_environment_fingerprint_sha256"]) == 64
 
 
 @pytest.mark.adversarial
@@ -270,3 +271,24 @@ def test_external_evidence_rejects_non_hex_fingerprints():
             comparison_method="test",
             sandbox_target="test:entry",
         )
+
+
+@pytest.mark.trust_boundary
+def test_cadabra_failure_still_records_runtime_provenance(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FailingSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            raise adapter.SandboxError("worker crashed")
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FailingSandbox)
+    report = adapter.run_cadabra_script("ex := A;")
+
+    assert report["execution_status"] == "EXECUTION_FAILED"
+    assert report["runtime_identity"] == "resolved-path-only"
+    assert report["executable_path"] == "/usr/bin/cadabra2"
+    assert report["runtime_environment_fingerprint_sha256"]
