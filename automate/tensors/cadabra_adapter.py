@@ -34,6 +34,32 @@ def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def _sha256_file(path: str, *, max_bytes: int = 32 * 1024 * 1024) -> str:
+    """Fingerprint an executable without reading unbounded external data."""
+    digest = hashlib.sha256()
+    total = 0
+    with open(path, "rb") as handle:
+        while True:
+            chunk = handle.read(1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_bytes:
+                raise ValueError("Cadabra executable exceeds provenance fingerprint limit.")
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _executable_provenance(executable: Optional[str]) -> tuple[Optional[str], Optional[str], str]:
+    if executable is None:
+        return None, None, "unavailable"
+    try:
+        path = os.path.realpath(executable)
+        return path, _sha256_file(path), "resolved-executable-sha256"
+    except (OSError, ValueError):
+        return os.path.realpath(executable), None, "resolved-path-only"
+
+
 def find_cadabra_executable() -> Optional[str]:
     """Return a Cadabra executable found on PATH, without invoking a shell."""
     for name in _CADABRA_BINARY_NAMES:
@@ -217,6 +243,7 @@ def run_cadabra_script(
     input_fingerprint = _sha256_text(source)
     version = get_cadabra_version()
     executable = find_cadabra_executable()
+    executable_path, executable_fingerprint, runtime_identity = _executable_provenance(executable)
     limits = sandbox_limits or SandboxLimits()
     comparison_method = "exact stdout comparison when expected_output is supplied"
 
@@ -224,7 +251,7 @@ def run_cadabra_script(
         _validate_supported_script(source)
     except ValueError as exc:
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version, execution_status="UNSUPPORTED",
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, adapter_version="v1", execution_status="UNSUPPORTED",
             independence_class="UNVERIFIED", input_fingerprint_sha256=input_fingerprint,
             claim_fingerprint_sha256=claim_fingerprint_sha256,
             comparison_method=comparison_method, sandbox_target=_TARGET,
@@ -275,7 +302,7 @@ def run_cadabra_script(
     stdout = result.get("stdout", "")
     if expected_output is None:
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version, execution_status="COMPLETED",
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, adapter_version="v1", execution_status="COMPLETED",
             independence_class="UNVERIFIED",
             input_fingerprint_sha256=input_fingerprint,
             claim_fingerprint_sha256=claim_fingerprint_sha256,
@@ -287,7 +314,7 @@ def run_cadabra_script(
 
     if stdout.strip() != expected_output.strip():
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version,
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, adapter_version="v1",
             execution_status="MATHEMATICAL_DISCREPANCY",
             independence_class="CROSS_CHECK_FAILED",
             input_fingerprint_sha256=input_fingerprint,
