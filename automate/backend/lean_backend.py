@@ -521,20 +521,25 @@ end Automate.LagrangianMechanics
             try:
                 from automate.backend.graph_to_lean import (
                     GraphToLeanTranslationError,
-                    translate_edge_claim,
+                    translate_graph_edge_claim,
                 )
 
-                claim = translate_edge_claim(
-                    rule=rule,
-                    input_expressions=[node.expression.raw_str for node in in_nodes],
-                    output_expressions=[node.expression.raw_str for node in out_nodes],
-                )
+                claim = translate_graph_edge_claim(graph, edge)
                 theorem_name = f"algebraic_identity_{edge.id.replace('-', '_')}"
-                binders = " ".join(f"({name} : Int)" for name in claim.binders)
+                variable_binders = [
+                    f"({name} : Int)"
+                    for name in claim.binders
+                ]
+                binders = " ".join([
+                    *variable_binders,
+                    *claim.assumption_hypotheses,
+                ])
                 code = f"""-- Automate Machine-Generated Lean 4 Proof Obligation
 -- Derivation Edge ID: {edge.id}
 -- Rule: {rule}
--- Generated directly from graph expressions by the generic graph-to-Lean translator.
+-- Generated directly from the graph by the generic graph-to-Lean translator.
+-- Translated assumption IDs: {', '.join(claim.assumption_ids) or 'none'}
+-- Unsupported external assumptions: {', '.join(claim.unsupported_assumptions) or 'none'}
 -- Generated proposition: {claim.proposition}
 import Init
 
