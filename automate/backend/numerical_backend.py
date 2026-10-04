@@ -251,20 +251,37 @@ class NumericalChecker(BaseChecker):
         normalized = delta / state_scale[:, None]
         max_abs = float(np.max(delta))
         max_relative = float(np.max(normalized))
+        fine_nfev = int(getattr(fine_result, "nfev", 0))
+        coarse_nfev = int(getattr(coarse_result, "nfev", 0))
+        nfev_ratio = (
+            float(fine_nfev / coarse_nfev)
+            if coarse_nfev > 0
+            else None
+        )
+        trajectory_fingerprint = self._trajectory_fingerprint(fine_result)
+        coarse_trajectory_fingerprint = self._trajectory_fingerprint(coarse_result)
         passed = max_relative <= self.convergence_tolerance
 
         details = {
             "convergence_probe": "passed" if passed else "failed",
+            "fine_solver_success": bool(fine_result.success),
+            "coarse_solver_success": bool(coarse_result.success),
             "fine_rtol": self.rtol,
             "fine_atol": self.atol,
             "coarse_rtol": coarse_rtol,
             "coarse_atol": coarse_atol,
-            "refinement_factor": self.refinement_factor,
+            "tolerance_refinement_factor": self.refinement_factor,
             "max_abs_state_difference": max_abs,
+            "absolute_state_error_estimate": max_abs,
             "max_relative_state_difference": max_relative,
+            "normalized_state_error_estimate": max_relative,
             "convergence_tolerance": self.convergence_tolerance,
-            "fine_internal_steps": int(getattr(fine_result, "nfev", 0)),
-            "coarse_internal_steps": int(getattr(coarse_result, "nfev", 0)),
+            "fine_internal_steps": fine_nfev,
+            "coarse_internal_steps": coarse_nfev,
+            "fine_to_coarse_nfev_ratio": nfev_ratio,
+            "fine_trajectory_sha256": trajectory_fingerprint,
+            "coarse_trajectory_sha256": coarse_trajectory_fingerprint,
+            "trajectory_shape": list(fine_result.y.shape),
         }
         if passed:
             return True, details, None
@@ -274,6 +291,18 @@ class NumericalChecker(BaseChecker):
             f"max relative state difference {max_relative:.2e} exceeds "
             f"convergence tolerance {self.convergence_tolerance:.2e}."
         )
+
+    @staticmethod
+    def _trajectory_fingerprint(result) -> str:
+        """Fingerprint the accepted numerical trajectory and its evaluation grid."""
+        t = np.ascontiguousarray(np.asarray(result.t, dtype=np.float64))
+        y = np.ascontiguousarray(np.asarray(result.y, dtype=np.float64))
+        payload = (
+            t.tobytes()
+            + y.shape.__repr__().encode("utf-8")
+            + y.tobytes()
+        )
+        return hashlib.sha256(payload).hexdigest()
 
     # ------------------------------------------------------------------
     # General ODE extractor and simulator.
