@@ -200,7 +200,12 @@ def _apply_worker_resource_limits(cpu_seconds: float) -> None:
         pass
 
 
-def _send_isolated_result(\n    send_conn: Any,\n    status: str,\n    payload: Any,\n    max_result_bytes: int = _MAX_RESULT_BYTES,\n) -> None:
+def _send_isolated_result(
+    send_conn: Any,
+    status: str,
+    payload: Any,
+    max_result_bytes: int = _MAX_RESULT_BYTES,
+) -> None:
     """Send bounded serialized worker output over the process pipe."""
     if status == "ok":
         try:
