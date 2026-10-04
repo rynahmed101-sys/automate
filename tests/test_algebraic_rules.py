@@ -100,6 +100,57 @@ class TestDivideBothSides:
         )
         assert not passed
         assert "not proven non-zero" in (err or "")
+    def test_divide_product_uses_complete_assumption_context(self):
+        """m*k is non-zero when independent active assumptions prove m>0 and k>0."""
+        graph = MagicMock()
+        graph.assumptions = {
+            "asm_m_pos": MagicMock(active=True, formal_predicate="m > 0"),
+            "asm_k_pos": MagicMock(active=True, formal_predicate="k > 0"),
+        }
+        checker = SymPyChecker()
+        passed, details, steps, err = checker._verify_divide_both_sides(
+            _make_node("m * k * a"),
+            _make_node("a"),
+            {"divisor": "m * k"},
+            graph,
+            ["asm_m_pos", "asm_k_pos"],
+        )
+        assert passed, f"Complete assumption context should prove product nonzero: {err}"
+        assert details["nonzero_proven"] is True
+        assert details["nonzero_source"] == "assumption_context"
+
+    def test_divide_sum_uses_assumption_entailment(self):
+        """m+1 is non-zero under m>0 without a rule-specific heuristic."""
+        graph = MagicMock()
+        graph.assumptions = {
+            "asm_m_pos": MagicMock(active=True, formal_predicate="m > 0"),
+        }
+        checker = SymPyChecker()
+        passed, details, steps, err = checker._verify_divide_both_sides(
+            _make_node("(m + 1) * a"),
+            _make_node("a"),
+            {"divisor": "m + 1"},
+            graph,
+            ["asm_m_pos"],
+        )
+        assert passed, f"Assumption engine should prove m+1 nonzero: {err}"
+
+    def test_unsupported_assumption_predicate_never_counts_as_proof(self):
+        graph = MagicMock()
+        graph.assumptions = {
+            "asm_bad": MagicMock(active=True, formal_predicate="smooth(m)"),
+        }
+        checker = SymPyChecker()
+        passed, details, steps, err = checker._verify_divide_both_sides(
+            _make_node("m * a"),
+            _make_node("a"),
+            {"divisor": "m"},
+            graph,
+            ["asm_bad"],
+        )
+        assert not passed
+        assert "not proven non-zero" in (err or "")
+
     def test_divide_quadratic_correct(self):
         """2*x**2 divided by 2 → x**2"""
         passed, details, steps, err = _run(
