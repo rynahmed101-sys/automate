@@ -19,6 +19,8 @@ import shutil
 import subprocess
 import tempfile
 import time
+import platform
+import sys
 from typing import Any, Dict, Optional
 
 from automate.core.external_engine import ExternalEngineEvidence
@@ -32,6 +34,16 @@ _TARGET = "automate.tensors.cadabra_adapter:_run_cadabra_cli"
 
 def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _adapter_runtime_fingerprint() -> str:
+    payload = {
+        "python_implementation": platform.python_implementation(),
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+    }
+    return _sha256_text(repr(sorted(payload.items())))
 
 
 def _sha256_file(path: str, *, max_bytes: int = 32 * 1024 * 1024) -> str:
@@ -244,6 +256,7 @@ def run_cadabra_script(
     version = get_cadabra_version()
     executable = find_cadabra_executable()
     executable_path, executable_fingerprint, runtime_identity = _executable_provenance(executable)
+    runtime_environment_fingerprint = _adapter_runtime_fingerprint()
     limits = sandbox_limits or SandboxLimits()
     comparison_method = "exact stdout comparison when expected_output is supplied"
 
@@ -251,7 +264,7 @@ def run_cadabra_script(
         _validate_supported_script(source)
     except ValueError as exc:
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, adapter_version="v1", execution_status="UNSUPPORTED",
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, runtime_environment_fingerprint_sha256=runtime_environment_fingerprint, adapter_version="v1", execution_status="UNSUPPORTED",
             independence_class="UNVERIFIED", input_fingerprint_sha256=input_fingerprint,
             claim_fingerprint_sha256=claim_fingerprint_sha256,
             comparison_method=comparison_method, sandbox_target=_TARGET,
@@ -261,7 +274,7 @@ def run_cadabra_script(
 
     if executable is None:
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version, execution_status="UNAVAILABLE",
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, runtime_environment_fingerprint_sha256=runtime_environment_fingerprint, execution_status="UNAVAILABLE",
             independence_class="NOT_RUN", input_fingerprint_sha256=input_fingerprint,
             comparison_method=comparison_method, sandbox_target=_TARGET,
             sandbox_limits=limits.model_dump(),
@@ -279,7 +292,7 @@ def run_cadabra_script(
         result = VerifiedExecutionSandbox(limits).run(_TARGET, payload)
     except SandboxError as exc:
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version, execution_status="EXECUTION_FAILED",
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, runtime_environment_fingerprint_sha256=runtime_environment_fingerprint, execution_status="EXECUTION_FAILED",
             independence_class="CROSS_CHECK_FAILED",
             input_fingerprint_sha256=input_fingerprint,
             comparison_method=comparison_method, sandbox_target=_TARGET,
@@ -329,6 +342,7 @@ def run_cadabra_script(
     return ExternalEngineEvidence(
         engine="Cadabra2", version=version, runtime_identity=runtime_identity,
         executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint,
+        runtime_environment_fingerprint_sha256=runtime_environment_fingerprint,
         adapter_version="v1", execution_status="COMPLETED",
         independence_class="DIFFERENT_ENGINE",
         input_fingerprint_sha256=input_fingerprint,
