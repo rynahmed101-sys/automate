@@ -129,6 +129,22 @@ class BaseChecker(ABC):
             report.evidence.evidence_fingerprint_sha256 = evidence_hash
             report.evidence.claim_identity = identity_dict
 
+        # Some legacy backends still materialize a certificate directly on the
+        # edge before returning. Canonical identity is the single authority, so
+        # normalize that certificate here rather than allowing backend-local
+        # fingerprints to compete with the verification kernel.
+        certificate = getattr(edge, "certificate", None)
+        if certificate is not None:
+            certificate.claim_schema_version = identity.schema_version
+            certificate.claim_fingerprint_sha256 = identity.claim_fingerprint_sha256
+            certificate.dependency_fingerprint_sha256 = dependency_hash
+            certificate.evidence_fingerprint_sha256 = evidence_hash
+            certificate.claim_payload = identity.canonical_payload
+            certificate.metrics = dict(certificate.metrics)
+            certificate.metrics["claim_fingerprint_sha256"] = identity.claim_fingerprint_sha256
+            certificate.metrics["dependency_fingerprint_sha256"] = dependency_hash
+            certificate.metrics["evidence_fingerprint_sha256"] = evidence_hash
+
         return report
 
     """
