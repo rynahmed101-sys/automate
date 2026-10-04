@@ -305,6 +305,13 @@ class NumericalChecker(BaseChecker):
         x0_map = params.get("initial_conditions", {})     # {coord: value}
         v0_map = params.get("initial_velocities", {})     # {coord: value}
         t_max = float(params.get("t_max", 10.0))
+        if not np.isfinite(t_max) or t_max <= 0:
+            return (
+                False,
+                {"rule": rule},
+                [],
+                "Invalid numerical interval: t_max must be finite and positive.",
+            )
         t_span = (0.0, t_max)
         t_eval = np.linspace(0.0, t_max, 500)
 
@@ -362,7 +369,9 @@ class NumericalChecker(BaseChecker):
         # Solve each eom[q] == 0 for q_ddot symbolically.
         param_subs = {}
         for p_name in sym_params:
-            val = num_params.get(p_name) or sym_params.get(p_name)
+            val = num_params.get(p_name)
+            if val is None:
+                val = sym_params.get(p_name)
             if isinstance(val, (int, float)):
                 param_subs[sys.symbols[p_name]] = float(val)
 
@@ -561,11 +570,21 @@ class NumericalChecker(BaseChecker):
                     for i in range(len(lam_syms_list))]
             # simpler approach: just pass all state components
             all_states = list(sol.y)  # shape (2*n_coords, n_steps)
-            E_num = E_func(*all_states)
-            E0 = float(E_num[0]) if hasattr(E_num, "__len__") else float(E_num)
+            E_num = np.asarray(E_func(*all_states), dtype=float)
+            if E_num.ndim == 0:
+                E_num = E_num.reshape(1)
+
+            E0 = float(E_num[0])
+            abs_drift = float(np.max(np.abs(E_num - E0)))
             if abs(E0) < 1e-12:
-                return True, 0.0
-            drift = float(np.max(np.abs(E_num - E0))) / abs(E0)
+                # A zero initial energy is not a free pass. Use the same
+                # normalized threshold against a unit floor so any meaningful
+                # numerical energy creation is still detected.
+                scale = max(float(np.max(np.abs(E_num))), 1.0)
+                drift = abs_drift / scale
+            else:
+                drift = abs_drift / abs(E0)
+
             passed = drift < 1e-4
             return passed, drift
         except Exception:
