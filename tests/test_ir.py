@@ -110,3 +110,24 @@ def test_dimension_metadata_presence_is_distinct_from_dimensionless():
     assert explicit.has_explicit_dimension is True
     assert unspecified.get_dimension().is_dimensionless()
     assert explicit.get_dimension().is_dimensionless()
+
+
+def test_structured_tensor_terms_cannot_disagree_with_products():
+    from automate.ir.tensors import TensorExpression, TensorIndex, TensorProduct, TensorQuantity
+
+    expression = TensorExpression(
+        terms=[[TensorIndex(symbol="a", position="lower")]],
+        products=[
+            TensorProduct(
+                factors=[
+                    TensorQuantity(
+                        name="A",
+                        indices=[TensorIndex(symbol="b", position="lower")],
+                    )
+                ]
+            )
+        ],
+    )
+    result = expression.validate_structure()
+    assert not result.is_valid
+    assert "products and legacy terms disagree" in result.errors[0]
