@@ -54,7 +54,7 @@
 * **Project**: SymPy
 * **Repository**: `https://github.com/sympy/sympy`
 * **Purpose**: Symbolic mathematics, expression manipulation, calculus of variations (`sympy.calculus.euler.euler_equations`), mechanics equations of motion (`LagrangesMethod`, `KanesMethod`), ODE substitution, polynomial algebra, matrix operations.
-* **Version**: `1.14.0` (Runtime dependency in `pyproject.toml`)
+* **Version**: `1.14.0` in the current CI/runtime environment; the dependency is floor-pinned as `sympy>=1.12`.
 * **License**: BSD-3-Clause (Permissive, fully compatible with Apache-2.0).
 * **Integration Method**: Python library API integration.
 * **Vendored or External**: External runtime dependency.
@@ -124,7 +124,7 @@
   - `https://github.com/scipy/scipy`
   - `https://github.com/numpy/numpy`
 * **Purpose**: Numerical initial value problem integration (`scipy.integrate.solve_ivp`), boundary value problems (`solve_bvp`), numerical quadrature (`quad`), non-linear least squares (`scipy.optimize.curve_fit`), roots, eigenvalues.
-* **Version**: SciPy `1.18.1`, NumPy `2.5.3` (Runtime dependencies).
+* **Version**: SciPy `1.18.1` is the latest upstream release as of 2026-10-04; Automate's dependency is unpinned above `1.10`, so CI resolves versions per Python environment. NumPy `2.5.3` is present in the current Python 3.13 CI environment.
 * **License**: BSD-3-Clause (Permissive, Apache-2.0 compatible).
 * **Integration Method**: Direct Python API.
 * **Vendored or External**: External runtime dependencies.
@@ -142,7 +142,7 @@
   - lmfit: `https://github.com/lmfit/lmfit-py`
   - statsmodels: `https://github.com/statsmodels/statsmodels`
 * **Purpose**: Advanced non-linear parameter estimation, parameter bounds, linear/non-linear constraints, confidence intervals, covariance analysis, AIC/BIC model comparison.
-* **Version**: lmfit `1.3.4`, statsmodels `0.14.x`
+* **Version**: lmfit `1.3.4`; statsmodels `0.15.0` is the current upstream release, but statsmodels is not a direct Automate dependency.
 * **License**: BSD-3-Clause (Permissive, Apache-2.0 compatible).
 * **Integration Method**: Python library API.
 * **Vendored or External**: External dependency.
@@ -158,7 +158,7 @@
 * **Project**: Pint
 * **Repository**: `https://github.com/hgrecco/pint`
 * **Purpose**: Unit definitions, physical quantities, dimensional analysis, Buckingham-$\pi$ theorem reductions, and unit conversions.
-* **Version**: `0.26.1`
+* **Version**: Pint `0.26.1` for Python >=3.12; current CI resolves Pint `0.25.3` on Python 3.10/3.11 because the latest Pint release requires Python >=3.12.
 * **License**: BSD-3-Clause (Permissive, Apache-2.0 compatible).
 * **Integration Method**: External dependency augmenting Automate's native `Dimension` type.
 * **Vendored or External**: External dependency.
@@ -179,7 +179,23 @@
 
 ---
 
-## 3. Dependency & License Compliance Matrix
+## 3. Fresh Upstream Verification
+
+The following facts were checked against upstream release pages on 2026-10-04 and are intentionally separated from Automate's resolved CI environment:
+
+| System | Freshly verified upstream fact | Source |
+|---|---|---|
+| SciPy | 1.18.1 released 2026-08-21; current latest release listed by SciPy | https://scipy.org/news/ |
+| EinsteinPy | 0.4.0; MIT license; latest PyPI release dated 2021-05-05 | https://pypi.org/project/einsteinpy/ |
+| Lean 4 | 4.34.1 is the latest stable release listed; 4.35.0-rc3 is a prerelease | https://lean-lang.org/doc/reference/latest/releases/ |
+| Mathlib4 | v4.34.1 listed as stable; v4.35.0-rc3 listed as prerelease | https://github.com/leanprover-community/mathlib4/releases |
+| lmfit | 1.3.4; BSD-3-Clause; latest PyPI release dated 2025-07-19 | https://pypi.org/project/lmfit/ |
+| statsmodels | 0.15.0; BSD-3-Clause; latest PyPI release dated 2026-08-27 | https://pypi.org/project/statsmodels/ |
+| Pint | 0.26.1; BSD license; requires Python >=3.12 | https://pypi.org/project/Pint/ |
+
+CI should still record the exact resolved version actually used for each verification run; upstream “latest” is not a substitute for runtime provenance.
+
+## 4. Dependency & License Compliance Matrix
 
 | Software | Repository | License | Integration Boundary | License Conflict? | Role in Automate |
 |---|---|---|---|---|---|
@@ -196,7 +212,7 @@
 
 ---
 
-## 4. Trust and Provenance Hierarchy
+## 5. Trust and Provenance Hierarchy
 
 Automate assigns every verification result an explicit `independence_class`:
 
