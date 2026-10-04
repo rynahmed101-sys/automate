@@ -61,6 +61,8 @@ The earlier local Windows evidence from the integrated recovery work remains sep
 **Assumption dependency graph.** Assumptions now support explicit prerequisite relationships with cycle detection and transitive closure. Node inheritance includes those prerequisite assumptions, certificate identity therefore includes them, and assumption dependency changes can invalidate prior certificates. Dependency structure is serialized in the certificate package. Undeclared external assumptions remain explicit leaf premises rather than being silently invented.
 
 **Structured tensor/index semantics.** The canonical tensor IR now represents tensor expressions and equations as structured index terms. Validation enforces rank/position consistency, Einstein dummy-index pairing, rejection of triple repeats, contracted-index dimension compatibility, and matching free-index signatures across sums and equations. TensorChecker consumes optional structured index data before component verification; malformed index structure fails closed.
+
+**Graph-to-Lean translation.** The Lean backend now uses a generic graph-bound translator for algebraic claims rather than selecting a canned theorem from the rule name. The translator preserves the actual graph expressions, supports a bounded integer arithmetic/relation subset, rejects unsupported constructs explicitly, and can carry translatable inherited assumption predicates as explicit Lean hypotheses. Unsupported external assumptions remain provenance metadata rather than invented formal axioms. Broader calculus, tensor, and physics-law translation remains unsupported until those semantics can be represented faithfully.
 ## Current capability assessment
 
 | Capability | Current status |
