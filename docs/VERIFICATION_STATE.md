@@ -3,7 +3,7 @@
 **Audit date:** 2026-10-04
 **Repository:** `rynahmed101-sys/automate`
 **Intended branch:** `feat/verification-hardening`
-**Verified code commit:** `e6b62046c482a006e451415101a00c44a393354d`
+**Verified code commit:** `19904dc3ebd2e639176f47e687f35c64d94fa2a3`
 **Published integration lineage:** `349b258` → recovery merge `ad702127` → upstream hardening `3e2fa552`
 **Integration:** The feature branch contains the recovered local work plus the upstream hardening. No merge to `main` and no history rewrite occurred.
 
@@ -11,7 +11,7 @@
 
 | Checkpoint | Result |
 |---|---|
-| GitHub Actions run #28, exact SHA `e6b62046` | **PASS** |
+| GitHub Actions run #34, exact SHA `19904dc3` | **PASS** |
 | GitHub Actions run #26, exact SHA `9902a82c` | PASS |
 | Python 3.10 full suite | PASS |
 | Python 3.11 full suite | PASS |
@@ -22,7 +22,9 @@
 | Earlier exact-SHA run #19, `99ed4e1` | PASS |
 | Earlier exact-SHA run #17, `58b098e` | PASS |
 
-GitHub Actions [run #28](https://github.com/rynahmed101-sys/automate/actions/runs/37179466317) is the current exact-SHA verification for `e6b62046`. All five jobs completed successfully, including Python 3.10–3.13 full suites, explicit adversarial tests, and the Lean 4.34.1 proof-check job.
+GitHub Actions [run #34](https://github.com/rynahmed101-sys/automate/actions/runs/37179619813) is the current completed exact-SHA verification for `19904dc3`. All five jobs completed successfully, including Python 3.10–3.13 full suites, explicit adversarial tests, and the Lean 4.34.1 proof-check job.
+
+The branch has since advanced beyond this checkpoint with isolated SafeParser execution, AI-boundary parsing, and conservative Lean graph-claim binding. Those newer commits remain pending exact-SHA CI verification at audit time.
 
 The earlier local Windows evidence from the integrated recovery work remains separately classified: 235 passed / 1 skipped for the full suite and 30 passed / 1 skipped for the adversarial suite. The local Lean skip was caused by an unusable Lean shim/toolchain and is not evidence of local Lean proof execution.
 
@@ -34,9 +36,13 @@ The earlier local Windows evidence from the integrated recovery work remains sep
 
 **Symbolic division and assumption entailment.** `divide_both_sides` now delegates nonzero obligations to a centralized `AssumptionEntailment` layer. Active relational assumptions may jointly establish a consequence such as a product or positive sum; malformed, inactive, unsupported, or inconclusive assumptions never count as proof.
 
+**Process-level parser isolation.** `SafeParser.parse_isolated` and `parse_equation_isolated` execute untrusted parsing in a spawned worker process with a hard parent-side wall-clock timeout and termination path. The AI proposal validator now uses this boundary for proposed output expressions before semantic verification.
+
 **Capability honesty.** Lean capabilities in the rule registry now match the actual Lean backend scope. Only `conserve_energy`, `euler_lagrange`, and `algebraic_identity` are currently advertised as Lean-supported; arbitrary symbolic algebra rules are not falsely exposed as formally proved.
 
 **Tensor claim binding.** Tensor verification now rejects a parameter-supplied named metric that conflicts with the graph input node, preventing the backend from silently verifying a different metric than the graph claims.
+
+**Lean graph-claim binding.** The current canned Lean theorem families are now guarded by exact canonical graph-shape matching. Claims outside those canonical forms return `NOT_APPLICABLE` instead of being fed to a disconnected theorem template. This remains a conservative bridge, not a general graph-to-Lean translator.
 
 **Dependency portability.** The tracked `requirements.txt` no longer contains machine-local Windows paths or a local wheel URL; it is environment-independent and aligned with the package dependency floor.
 
@@ -47,7 +53,7 @@ The earlier local Windows evidence from the integrated recovery work remains sep
 | Capability | Current status |
 |---|---|
 | AI proposal validation / transaction integrity | PARTIALLY SUPPORTED, with fail-closed capability checks and clone-before-commit |
-| Safe expression parsing | PARTIALLY SUPPORTED; structural source parsing is hardened, but process-level resource isolation remains unverified |
+| Safe expression parsing | PARTIALLY SUPPORTED; structural parsing and killable isolated proposal-boundary parsing are implemented, but full runtime coverage and memory/resource quotas remain incomplete |
 | Algebra / ODE substitution | PARTIALLY SUPPORTED for implemented rule shapes; broad structured ODE coverage remains unverified |
 | Euler-Lagrange mechanics | PARTIALLY SUPPORTED for implemented/tested systems; same-engine SymPy cross-checks are not independent engines |
 | Tensor geometry | PARTIALLY SUPPORTED; TensorChecker is integrated for supported claims, with EinsteinPy cross-checks where available |
@@ -56,7 +62,7 @@ The earlier local Windows evidence from the integrated recovery work remains sep
 | Numerics | PARTIALLY SUPPORTED; numerical results are evidence, not proofs, and general error/convergence certificates remain incomplete |
 | Statistics | PARTIALLY SUPPORTED; fitting exists, but complete observed-data provenance and diagnostics remain incomplete |
 | Field variation / generalized mechanics | PARTIALLY SUPPORTED |
-| Mathlib / Physlib graph-bound formalization | UNSUPPORTED for arbitrary graph claims; theorem reuse must preserve proposition identity |
+| Mathlib / Physlib graph-bound formalization | PARTIALLY SUPPORTED only for the narrowly guarded canonical Lean theorem families; arbitrary graph-to-Lean translation remains unsupported |
 
 ## Evidence and circularity classification
 
