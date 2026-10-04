@@ -10,7 +10,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 import json
 import copy
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from automate.core.status import VerificationStatus
 from automate.core.node import DerivationNode
@@ -39,6 +39,11 @@ class DerivationGraph(BaseModel):
         description="Explicit dependency graph between declared assumptions",
     )
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _validate_assumption_dependencies(self) -> "DerivationGraph":
+        self.validate_assumption_dependency_graph()
+        return self
 
     def get_claim_identity(self, edge_id: str):
         """Return the canonical identity of an edge's mathematical claim."""
@@ -553,6 +558,9 @@ class DerivationGraph(BaseModel):
         # 2. assumptions.json
         assumptions_data = {
             "declared_assumptions": {aid: asm.to_dict() for aid, asm in self.assumptions.items()},
+            "assumption_dependency_graph": [
+                dependency.to_dict() for dependency in self.assumption_dependencies
+            ],
             "node_assumption_dependencies": {
                 nid: sorted(list(self.compute_inherited_assumptions(nid)))
                 for nid in self.nodes
