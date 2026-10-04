@@ -200,8 +200,11 @@ def _cross_check_geometry_core(
             "metric_fingerprint_sha256": metric_fingerprint,
             "comparison_method": "exact symbolic equality after SymPy simplification",
             "all_matched": False,
-            "independence_class": "DISCREPANCY_DETECTED",
-            "discrepancies": [f"Exception during EinsteinPy evaluation: {str(e)}"],
+            "execution_status": "FAILED",
+            "all_matched": None,
+            "independence_class": "CROSS_CHECK_FAILED",
+            "discrepancies": [],
+            "error": f"EinsteinPy calculation failed: {type(e).__name__}: {str(e)}",
         }
 
     
