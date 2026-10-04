@@ -24,15 +24,17 @@ def _ctx():
 
 
 def test_renamed_dummy_index_is_supported_by_independent_path():
-    i = TensorIndex(symbol="i", position="upper", dimension=4, index_space="V", is_dummy=True)
-    j = TensorIndex(symbol="j", position="lower", dimension=4, index_space="V", is_dummy=True)
-    a = TensorIndex(symbol="a", position="upper", dimension=4, index_space="V", is_dummy=True)
-    b = TensorIndex(symbol="b", position="lower", dimension=4, index_space="V", is_dummy=True)
+    i_upper = TensorIndex(symbol="i", position="upper", dimension=4, index_space="V")
+    i_lower = TensorIndex(symbol="i", position="lower", dimension=4, index_space="V")
+    a_upper = TensorIndex(symbol="a", position="upper", dimension=4, index_space="V")
+    a_lower = TensorIndex(symbol="a", position="lower", dimension=4, index_space="V")
     left = TensorExpression(
-        terms=[[i, j]], products=[TensorProduct(factors=[TensorQuantity(name="T", indices=[i, j])])]
+        terms=[[i_upper, i_lower]],
+        products=[TensorProduct(factors=[TensorQuantity(name="T", indices=[i_upper, i_lower])])],
     )
     right = TensorExpression(
-        terms=[[a, b]], products=[TensorProduct(factors=[TensorQuantity(name="T", indices=[a, b])])]
+        terms=[[a_upper, a_lower]],
+        products=[TensorProduct(factors=[TensorQuantity(name="T", indices=[a_upper, a_lower])])],
     )
     result = semantic_compare(
         TensorEquation(lhs=left, rhs=left.model_copy(deep=True)),
