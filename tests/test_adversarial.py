@@ -623,3 +623,39 @@ class TestCheckerCapabilityBypass:
         assert not val_res.is_valid
         assert any("Unknown checker 'quantum_oracle'" in e for e in val_res.errors)
 
+
+
+# ===========================================================================
+# 12. Dimension metadata must fail closed
+# ===========================================================================
+
+class TestUnknownDimensionMetadata:
+    """Unknown unit/dimension declarations must not be interpreted as dimensionless."""
+
+    def test_unknown_coordinate_dimension_rejected(self):
+        graph, edge = make_graph(
+            in_expr="1/2 * m * x_dot**2 - 1/2 * k * x**2",
+            out_expr="m * x_ddot + k * x",
+            rule="euler_lagrange",
+            params={"coordinates": ["x"], "coordinate_dimension": "bogus_dimension"},
+            in_dim="M*L^2*T^-2",
+            out_dim="M*L*T^-2",
+        )
+        report = DimensionChecker().verify_edge(edge, graph)
+        assert report.passed is False
+        assert report.status == VerificationStatus.FAILED
+        assert "Unknown coordinate_dimension" in (report.error_message or "")
+
+    def test_unknown_coordinate_dimension_for_solution_rejected(self):
+        graph, edge = make_graph(
+            in_expr="m * x_ddot + k * x",
+            out_expr="A * cos(omega * t + phi)",
+            rule="solve_harmonic_oscillator",
+            params={"coordinate_dimension": "bogus_dimension"},
+            in_dim="M*L*T^-2",
+            out_dim="L",
+        )
+        report = DimensionChecker().verify_edge(edge, graph)
+        assert report.passed is False
+        assert report.status == VerificationStatus.FAILED
+        assert "Unknown coordinate_dimension" in (report.error_message or "")
