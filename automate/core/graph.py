@@ -103,7 +103,7 @@ class DerivationGraph(BaseModel):
         state = self.get_certificate_staleness(edge_id)
         return state["current"] is True
 
-    def record_verification_report(self, edge_id: str, report: VerificationReport) -> DerivationEdge:
+    def record_verification_report(self, edge_id: str, report: Any) -> DerivationEdge:
         """
         Persist a verification report as an auditable edge certificate.
 
