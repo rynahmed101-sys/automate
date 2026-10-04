@@ -143,8 +143,9 @@ class VerifiedExecutionSandbox:
 
     def __init__(self, limits: SandboxLimits | None = None):
         supplied = limits or SandboxLimits()
+        # Re-validate the caller-supplied model in case a mutable Pydantic
+        # instance was changed after construction.
         self.limits = SandboxLimits.model_validate(supplied.model_dump())
-        self.limits = limits or SandboxLimits()
 
     def run(self, target: str, payload: Any) -> Any:
         if not isinstance(target, str) or ":" not in target:
