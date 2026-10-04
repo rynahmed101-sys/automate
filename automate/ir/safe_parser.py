@@ -32,6 +32,7 @@ import ast
 import operator
 import re
 import time
+import types
 from typing import Any, Callable, Dict, Optional
 
 import sympy as sp
@@ -162,17 +163,17 @@ def _ast_stats(tree: ast.AST) -> tuple[int, int]:
 
 
 def _is_safe_binding(value: Any) -> bool:
-    # Explicitly allow only exact objects exported through the parser
-    # allowlist, including SymPy's built-in function classes and constructors.
+    # Exact parser-approved callables/constants are always allowed.
     if any(value is allowed for allowed in _ALLOWED_FUNCTIONS.values()):
         return True
+    # SymPy expressions/symbols are safe bindings.
     if isinstance(value, sp.Basic):
         return True
-    if isinstance(value, type):
-        try:
-            return issubclass(value, sp.core.function.UndefinedFunction)
-        except TypeError:
-            return False
+    # A user-defined symbolic function such as sp.Function("x") is a
+    # SymPy FunctionClass. It is safe because calls still originate only
+    # from the allowlisted AST Call path.
+    if isinstance(value, sp.core.function.FunctionClass):
+        return True
     return False
 
 
@@ -202,6 +203,10 @@ class SafeParser:
             if not isinstance(key, str) or not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", key):
                 raise SafeParseError(
                     f"{label} key '{key}' is not a valid identifier."
+                )
+            if isinstance(value, types.ModuleType):
+                raise SafeParseError(
+                    f"{label} value for '{key}' is a Python module, which is not allowed."
                 )
             if not _is_safe_binding(value):
                 raise SafeParseError(
@@ -321,6 +326,11 @@ class SafeParser:
                     f"Safe mathematical call '{name}' failed: {type(exc).__name__}: {exc}"
                 ) from exc
 
+        if isinstance(node, ast.Attribute):
+            raise SafeParseError(
+                "Only direct allowlisted function calls are permitted; "
+                "attribute access is not allowed."
+            )
         raise SafeParseError(
             f"Syntax node '{type(node).__name__}' is not permitted in mathematical expressions."
         )
