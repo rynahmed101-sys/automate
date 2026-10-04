@@ -212,6 +212,23 @@ CI should still record the exact resolved version actually used for each verific
 
 ---
 
+## Cadabra2 integration boundary
+
+The repository now contains a bounded Cadabra2 adapter at
+`automate/tensors/cadabra_adapter.py`. Cadabra remains an external CLI
+oracle: no Cadabra source or runtime is vendored into Automate. The adapter
+uses `VerifiedExecutionSandbox`, records the executable/version and exact
+source fingerprint, bounds serialized output, and distinguishes unavailable,
+unsupported, execution-failed, discrepancy, and independent-agreement paths.
+
+The initial adapter deliberately does not translate arbitrary Automate tensor
+IR into Cadabra syntax. Its supported boundary is explicit source execution
+with optional exact expected-output comparison. A successful run without an
+independent comparison target remains `UNVERIFIED`; a matching comparison is
+`DIFFERENT_ENGINE` evidence, not proof. Graph-to-Cadabra translation is a
+separate milestone and must preserve canonical tensor semantics rather than
+mapping rule names to canned identities.
+
 ## 5. Trust and Provenance Hierarchy
 
 Automate assigns every verification result an explicit `independence_class`:
