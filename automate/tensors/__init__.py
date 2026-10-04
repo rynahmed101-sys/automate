@@ -7,8 +7,10 @@ utilities for external-engine verification.
 
 from automate.tensors.algebra import TensorGeometry
 from automate.tensors.cadabra_translation import (
+    tensor_equation_to_cadabra,
     tensor_expression_to_cadabra,
     tensor_product_to_cadabra,
+    translate_equation,
     translate_expression,
 )
 from automate.tensors.cadabra_adapter import (
@@ -29,8 +31,10 @@ from automate.ir.tensors import (
 
 __all__ = [
     "TensorGeometry",
+    "tensor_equation_to_cadabra",
     "tensor_expression_to_cadabra",
     "tensor_product_to_cadabra",
+    "translate_equation",
     "translate_expression",
     "get_cadabra_version",
     "is_cadabra_available",
