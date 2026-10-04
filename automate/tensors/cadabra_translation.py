@@ -66,3 +66,19 @@ def cadabra_declarations(expression: TensorExpression) -> List[str]:
         raise ValueError("Structured tensor products are required for Cadabra translation.")
     return []
 
+
+def translate_expression(expression: TensorExpression) -> dict:
+    """Return deterministic Cadabra source plus a canonical IR fingerprint."""
+    source_expression = tensor_expression_to_cadabra(expression)
+    declarations = cadabra_declarations(expression)
+    source = "\n".join(declarations + [f"{{{source_expression}}};"])
+    canonical = expression.model_dump(mode="json")
+    fingerprint = hashlib.sha256(
+        json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return {
+        "engine": "Cadabra2",
+        "source": source,
+        "ir_fingerprint_sha256": fingerprint,
+        "translation": "canonical TensorExpression.products -> Cadabra syntax",
+    }
