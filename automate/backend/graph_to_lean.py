@@ -9,10 +9,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Sequence, Tuple, TYPE_CHECKING
 
 import sympy as sp
 from sympy.core.relational import Relational
+
+if TYPE_CHECKING:
+    from automate.core.edge import DerivationEdge
+    from automate.core.graph import DerivationGraph
 
 from automate.ir.safe_parser import SafeParser, SafeParseError
 
@@ -34,6 +38,9 @@ class LeanClaim:
     binders: List[str]
     source_nodes: List[Dict[str, Any]]
     relation: str
+    assumption_hypotheses: List[str]
+    assumption_ids: List[str]
+    unsupported_assumptions: List[str]
 
 
 def _check_identifier(name: str) -> str:
@@ -275,4 +282,7 @@ def translate_edge_claim(
             ],
         ],
         relation=relation,
+        assumption_hypotheses=[],
+        assumption_ids=[],
+        unsupported_assumptions=[],
     )
