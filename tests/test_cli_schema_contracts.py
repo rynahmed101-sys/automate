@@ -39,3 +39,13 @@ def test_schema_rejects_unknown_contract():
     result = CliRunner().invoke(main, ["schema", "--name", "certificate"])
 
     assert result.exit_code != 0
+
+
+def test_schema_tensor_returns_canonical_tensor_contract():
+    result = CliRunner().invoke(main, ["schema", "--name", "tensor"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["$id"].endswith("/automate-tensor-v1.json")
+    assert "lhs" in payload["properties"]
+    assert "TensorExpression" in payload.get("$defs", {})
