@@ -295,7 +295,7 @@ def test_cross_check_exception_is_not_reported_as_independent_agreement(monkeypa
     )
 
     assert report["available"] is True
-    assert report["all_matched"] is False
+    assert report["all_matched"] is None
     assert report["independence_class"] == "CROSS_CHECK_FAILED"
     assert len(report["metric_fingerprint_sha256"]) == 64
     assert report["comparison_method"] == "exact symbolic equality after SymPy simplification"
