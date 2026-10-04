@@ -94,7 +94,7 @@ def test_machine_client_workflow(tmp_path):
     assert Path(trace["graph_file"]).exists()
 
     check = runner.invoke(
-        main, ["check", "examples/harmonic_oscillator.yaml", "--json"]
+        main, ["check", trace["graph_file"], "--json"]
     )
     assert check.exit_code == 0, check.output
     json.loads(check.output)
