@@ -335,8 +335,12 @@ def semantic_compare(
     )
     left_fp = hashlib.sha256(left_payload.encode()).hexdigest()
     right_fp = hashlib.sha256(right_payload.encode()).hexdigest()
+    canonical_equal = left_canonical == right_canonical
     semantics_equal = left_semantics == right_semantics
-    matched = left_canonical == right_canonical and semantics_equal
+    matched = canonical_equal and semantics_equal
+    context_fingerprint_sha256 = hashlib.sha256(
+        context_signature.encode("utf-8")
+    ).hexdigest()
     return {
         "result": (
             SemanticResult.SEMANTIC_MATCH.value
@@ -348,5 +352,7 @@ def semantic_compare(
         "canonicalization": "TensorIndexType/TensorHead/TensorSymmetry/canon_bp",
         "left_fingerprint_sha256": left_fp,
         "right_fingerprint_sha256": right_fp,
-        "canonical_equal": matched,
+        "context_fingerprint_sha256": context_fingerprint_sha256,
+        "canonical_equal": canonical_equal,
+        "semantic_declarations_equal": semantics_equal,
     }
