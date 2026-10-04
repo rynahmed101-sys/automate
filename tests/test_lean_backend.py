@@ -62,3 +62,82 @@ def test_lean_formal_proof_verification():
     assert report.proof_script is not None
     assert edge.certificate is not None
     assert "formal_proof_hash" in edge.certificate.metrics
+
+
+
+def test_graph_bound_symbolic_algebraic_identity():
+    checker = LeanChecker()
+    graph = DerivationGraph(id="lean_symbolic_binding")
+    graph.add_node(
+        DerivationNode(
+            id="lhs",
+            expression=MathematicalExpression(raw_str="x**2 + 2*x + 1"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="rhs",
+            expression=MathematicalExpression(raw_str="(x + 1)**2"),
+        )
+    )
+    edge = DerivationEdge(
+        id="edge_symbolic",
+        input_nodes=["lhs"],
+        output_nodes=["rhs"],
+        transformation_rule="algebraic_identity",
+        justification="Polynomial expansion",
+        checker="lean4",
+    )
+    graph.add_edge(edge)
+
+    lhs = graph.get_node("lhs")
+    rhs = graph.get_node("rhs")
+    lean_code, theorem_name = checker._generate_lean_obligation(edge, [lhs], [rhs])
+
+    assert lean_code != "__NOT_APPLICABLE__"
+    assert theorem_name.startswith("algebraic_identity_")
+    assert "x" in lean_code
+    assert "2" in lean_code
+    assert "x ** 2" not in lean_code
+
+
+def test_graph_bound_wrong_symbolic_identity_is_not_certified():
+    checker = LeanChecker()
+    graph = DerivationGraph(id="lean_symbolic_negative")
+    graph.add_node(
+        DerivationNode(
+            id="lhs",
+            expression=MathematicalExpression(raw_str="x**2 + 2*x + 1"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="rhs",
+            expression=MathematicalExpression(raw_str="x**2 + 2*x"),
+        )
+    )
+    edge = DerivationEdge(
+        id="edge_symbolic_wrong",
+        input_nodes=["lhs"],
+        output_nodes=["rhs"],
+        transformation_rule="algebraic_identity",
+        justification="Adversarial wrong identity",
+        checker="lean4",
+    )
+    graph.add_edge(edge)
+
+    lean_code, theorem_name = checker._generate_lean_obligation(
+        edge,
+        [graph.get_node("lhs")],
+        [graph.get_node("rhs")],
+    )
+
+    assert lean_code != "__NOT_APPLICABLE__"
+    if checker.is_available():
+        report = checker.verify_edge(edge, graph)
+        assert report.status == VerificationStatus.FAILED
+        assert report.passed is False
+    else:
+        # Translation is still generated from the actual graph; execution is
+        # honestly deferred when no Lean compiler is available.
+        assert theorem_name.startswith("algebraic_identity_")
