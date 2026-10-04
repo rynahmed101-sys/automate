@@ -15,7 +15,7 @@ Unknown coordinate dimensions are rejected rather than treated as dimensionless.
 """
 
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge
