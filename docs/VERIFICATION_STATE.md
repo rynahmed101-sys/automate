@@ -175,7 +175,7 @@ The canonical claim identity deliberately excludes backend-specific tolerances, 
 ## Remaining work
 
 1. Expand tensor claim binding and independent EinsteinPy/textbook coverage without marking unsupported whole-tensor or index-operation claims as verified.
-2. Extend shared sandbox adoption to tensor external-engine workers and future Cadabra integration; process-level controls are now available centrally, while platform-specific POSIX resource enforcement still requires fallback to wall-clock termination on unsupported systems.
+2. Pin external-engine versions and strengthen machine-level resource controls where the host supports them; Cadabra already executes through the shared sandbox, while POSIX resource enforcement still requires fallback to wall-clock termination on unsupported systems.
 3. Generalize structured ODEs, mechanics, field variation, and numerical error certificates only where semantics are explicit and testable.
 4. Expand statistical provenance beyond caller-declared labels to authenticated or externally resolved dataset lineage where the execution environment permits it, and formalize more of the statistical model assumptions.
 5. Generalize graph-to-Lean translation beyond the restricted integer-polynomial subset; reuse mathlib/physlib theorems only when proposition identity is preserved.
