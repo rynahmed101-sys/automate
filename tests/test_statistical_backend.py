@@ -186,6 +186,139 @@ def test_empirical_inference_records_data_fingerprint_and_sigma_mode():
     assert report.details["goodness_of_fit"]["chi2_mode"].startswith("unavailable")
 
 
+
+def test_empirical_inference_rejects_model_that_does_not_match_graph_claim():
+    """Observed data cannot rescue a statistical model unrelated to the graph expression."""
+    graph = DerivationGraph(id="stats_graph_binding")
+    graph.add_node(
+        DerivationNode(
+            id="sol",
+            expression=MathematicalExpression(raw_str="A * sin(omega * t + phi)"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="fit",
+            expression=MathematicalExpression(raw_str="omega_fit"),
+        )
+    )
+
+    t_data = np.linspace(0, 10, 50)
+    x_obs = np.cos(2.0 * t_data)
+
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["sol"],
+        output_nodes=["fit"],
+        transformation_rule="empirical_inference",
+        justification="Graph-bound model test",
+        checker="statistical",
+        parameters={
+            "model": "cosine",
+            "t_data": t_data.tolist(),
+            "x_obs": x_obs.tolist(),
+            "noise_std": 0.05,
+            "data_source": "observed",
+            "data_id": "binding-negative-v1",
+        },
+    )
+    graph.add_edge(edge)
+
+    report = StatisticalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "does not match the graph input claim" in (report.error_message or "")
+
+
+def test_empirical_expression_model_cannot_override_graph_expression():
+    """The arbitrary-expression path must not replace the graph model with a different expression."""
+    graph = DerivationGraph(id="stats_expression_binding")
+    graph.add_node(
+        DerivationNode(
+            id="sol",
+            expression=MathematicalExpression(raw_str="a * t + b"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="fit",
+            expression=MathematicalExpression(raw_str="linear_fit"),
+        )
+    )
+
+    t_data = np.linspace(0, 5, 20)
+    x_obs = 3.0 * t_data + 2.0
+
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["sol"],
+        output_nodes=["fit"],
+        transformation_rule="empirical_inference",
+        justification="Graph-bound expression test",
+        checker="statistical",
+        parameters={
+            "model": "expression",
+            "expression_str": "a * t**2 + b",
+            "model_parameters": ["a", "b"],
+            "t_data": t_data.tolist(),
+            "x_obs": x_obs.tolist(),
+            "noise_std": 0.1,
+            "data_source": "observed",
+            "data_id": "binding-expression-negative-v1",
+        },
+    )
+    graph.add_edge(edge)
+
+    report = StatisticalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.FAILED
+    assert "does not match the graph input claim" in (report.error_message or "")
+
+
+def test_statistical_report_records_graph_and_evidence_fingerprints():
+    graph = DerivationGraph(id="stats_fingerprint")
+    graph.add_node(
+        DerivationNode(
+            id="sol",
+            expression=MathematicalExpression(raw_str="a * t + b"),
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="fit",
+            expression=MathematicalExpression(raw_str="linear_fit"),
+        )
+    )
+
+    t_data = np.linspace(0, 5, 20)
+    x_obs = 3.0 * t_data + 2.0
+
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["sol"],
+        output_nodes=["fit"],
+        transformation_rule="empirical_inference",
+        justification="Graph-bound provenance test",
+        checker="statistical",
+        parameters={
+            "model": "linear",
+            "t_data": t_data.tolist(),
+            "x_obs": x_obs.tolist(),
+            "data_source": "observed",
+            "data_id": "binding-positive-v1",
+        },
+    )
+    graph.add_edge(edge)
+
+    report = StatisticalChecker().verify_edge(edge, graph)
+
+    assert report.passed is True, report.error_message
+    assert len(report.details["claim_fingerprint_sha256"]) == 64
+    assert len(report.details["evidence_fingerprint_sha256"]) == 64
+    assert report.details["graph_claim_binding"]["model_expression_equivalent"] is True
+
 def test_fit_initial_guess_does_not_use_reference_parameters():
     checker = StatisticalChecker()
     params = {"A": 99.0, "omega": 77.0, "phi": 55.0}
