@@ -32,6 +32,14 @@ from automate.tensors.cadabra_adapter import (
     run_cadabra_script,
     run_translated_cadabra,
 )
+from automate.tensors.semantic_comparison import (
+    IndexSpace,
+    SemanticResult,
+    TensorSemanticContext,
+    TensorSymmetry,
+    semantic_compare,
+    validate_semantics,
+)
 from automate.ir.tensors import (
     TensorEquation,
     TensorExpression,
@@ -45,6 +53,12 @@ from automate.ir.tensors import (
 
 __all__ = [
     "TensorGeometry",
+    "IndexSpace",
+    "SemanticResult",
+    "TensorSemanticContext",
+    "TensorSymmetry",
+    "semantic_compare",
+    "validate_semantics",
     "tensor_equation_to_cadabra",
     "tensor_expression_to_cadabra",
     "tensor_product_to_cadabra",
