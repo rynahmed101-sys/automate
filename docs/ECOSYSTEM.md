@@ -221,13 +221,20 @@ uses `VerifiedExecutionSandbox`, records the executable/version and exact
 source fingerprint, bounds serialized output, and distinguishes unavailable,
 unsupported, execution-failed, discrepancy, and independent-agreement paths.
 
-The initial adapter deliberately does not translate arbitrary Automate tensor
-IR into Cadabra syntax. Its supported boundary is explicit source execution
-with optional exact expected-output comparison. A successful run without an
-independent comparison target remains `UNVERIFIED`; a matching comparison is
-`DIFFERENT_ENGINE` evidence, not proof. Graph-to-Cadabra translation is a
-separate milestone and must preserve canonical tensor semantics rather than
-mapping rule names to canned identities.
+The adapter now sits behind a graph-bound canonical Tensor IR bridge.
+Structured graph AST tensor/symbol nodes are converted losslessly within a
+strict supported subset, preserving factor identity and index variance while
+refusing unsupported operations and missing structured AST data.
+
+The end-to-end verification API in
+`automate/tensors/cadabra_verification.py` performs graph AST -> canonical
+Tensor IR -> deterministic Cadabra source -> canonical IR fingerprint ->
+bounded Cadabra execution -> provenance-bound evidence. Its comparison target
+is generated internally by a separate structural renderer rather than supplied
+by the caller. Agreement is classified as `DIFFERENT_ENGINE` only for this
+explicit structural round-trip scope; it is not presented as a general
+mathematical proof. Extending this to semantic tensor identities requires an
+independent result computation and explicit index/symmetry metadata.
 
 ## 5. Trust and Provenance Hierarchy
 
