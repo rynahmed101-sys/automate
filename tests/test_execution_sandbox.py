@@ -76,3 +76,9 @@ def test_limits_reject_invalid_values():
         SandboxLimits(cpu_seconds=0)
     with pytest.raises(ValueError):
         SandboxLimits(memory_bytes=0)
+
+def test_sandbox_defensively_revalidates_mutated_limits():
+    limits = SandboxLimits()
+    limits.wall_clock_seconds = 0
+    with pytest.raises(ValueError):
+        VerifiedExecutionSandbox(limits)
