@@ -103,6 +103,47 @@ class StatisticalChecker(BaseChecker):
         return report
 
     def _verify_edge_core(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
+        start_time = time.perf_counter()
+
+        in_nodes = [graph.get_node(nid) for nid in edge.input_nodes]
+        out_nodes = [graph.get_node(nid) for nid in edge.output_nodes]
+
+        if not all(in_nodes) or not all(out_nodes):
+            return VerificationReport(
+                status=VerificationStatus.FAILED,
+                backend=self.name,
+                backend_version=self.version,
+                passed=False,
+                error_message="Referenced nodes missing from derivation graph."
+            )
+
+        rule = edge.transformation_rule
+        passed = False
+        error_msg = None
+        details: Dict[str, Any] = {"rule": rule}
+        certificates: List[Dict[str, Any]] = []
+
+        if rule != "empirical_inference":
+            status = VerificationStatus.NOT_APPLICABLE
+            details["reason"] = (
+                f"Rule '{rule}' is not an empirical inference rule. "
+                "StatisticalChecker only applies to 'empirical_inference'."
+            )
+            elapsed = (time.perf_counter() - start_time) * 1000
+            return self._build_report(status, False, details, [], None, edge, graph, elapsed)
+
+        try:
+            passed, details, certificates, error_msg = self._fit_parametric_model(
+                in_nodes[0], out_nodes[0], edge.parameters
+            )
+        except Exception as e:
+            passed = False
+            error_msg = f"Statistical estimation error: {type(e).__name__}: {str(e)}"
+
+        elapsed = (time.perf_counter() - start_time) * 1000
+        status = VerificationStatus.STATISTICALLY_CHECKED if passed else VerificationStatus.FAILED
+        return self._build_report(status, passed, details, certificates, error_msg, edge, graph, elapsed)
+
     def _build_report(
         self, status, passed, details, certificates, error_msg, edge, graph, elapsed
     ) -> VerificationReport:
@@ -202,6 +243,12 @@ class StatisticalChecker(BaseChecker):
             return False, claim_details, [], claim_error
 
         model_func, param_names, p0, true_params = self._build_model(model_type, params, in_node)
+        evaluation_budget = EvaluationBudget(self.max_model_evaluations)
+        original_model_func = model_func
+        def budgeted_model_func(t, *model_params):
+            evaluation_budget.consume()
+            return original_model_func(t, *model_params)
+        model_func = budgeted_model_func
         evaluation_budget = EvaluationBudget(self.max_model_evaluations)
         original_model_func = model_func
         def budgeted_model_func(t, *model_params):
@@ -474,6 +521,8 @@ class StatisticalChecker(BaseChecker):
             "noise_std": float(noise_std),
             "gof_confidence_level": gof_confidence,
             "sample_size": n_points,
+            "max_model_evaluations": self.max_model_evaluations,
+            "model_evaluations_used": evaluation_budget.used,
             "max_model_evaluations": self.max_model_evaluations,
             "model_evaluations_used": evaluation_budget.used,
         }
