@@ -47,9 +47,9 @@ jobs:
         run: |
           pytest -q --tb=short --strict-markers
 
-      - name: Run adversarial tests explicitly (anti-circularity)
+      - name: Run adversarial tests explicitly (anti-circularity and mutation hardening)
         run: |
-          pytest tests/test_adversarial.py -v --tb=short
+          pytest tests/test_adversarial.py tests/test_claim_mutations.py -v --tb=short
 
   lean4:
     name: Lean 4 proof check
