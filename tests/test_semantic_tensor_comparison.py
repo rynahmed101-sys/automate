@@ -159,3 +159,45 @@ def test_context_metric_metadata_is_bound_into_certificate_fingerprints():
     assert plain["result"] == SemanticResult.SEMANTIC_MATCH.value
     assert metric["result"] == SemanticResult.SEMANTIC_MATCH.value
     assert plain["left_fingerprint_sha256"] != metric["left_fingerprint_sha256"]
+
+def test_supported_riemann_pair_exchange_matches():
+    i = TensorIndex(symbol="i", position="upper", dimension=4, index_space="V")
+    j = TensorIndex(symbol="j", position="lower", dimension=4, index_space="V")
+    k = TensorIndex(symbol="k", position="upper", dimension=4, index_space="V")
+    l = TensorIndex(symbol="l", position="lower", dimension=4, index_space="V")
+    left_expr = TensorExpression(
+        terms=[[i, j, k, l]],
+        products=[TensorProduct(factors=[
+            TensorQuantity(name="R", indices=[i, j, k, l], symmetry="riemann")
+        ])],
+    )
+    right_expr = TensorExpression(
+        terms=[[k, l, i, j]],
+        products=[TensorProduct(factors=[
+            TensorQuantity(name="R", indices=[k, l, i, j], symmetry="riemann")
+        ])],
+    )
+    result = semantic_compare(
+        TensorEquation(lhs=left_expr, rhs=left_expr.model_copy(deep=True)),
+        TensorEquation(lhs=right_expr, rhs=right_expr.model_copy(deep=True)),
+        _ctx(),
+    )
+    assert result["result"] == SemanticResult.SEMANTIC_MATCH.value
+
+
+def test_supported_symmetry_cannot_cross_index_spaces():
+    i = TensorIndex(symbol="i", position="upper", dimension=4, index_space="V")
+    j = TensorIndex(symbol="j", position="upper", dimension=4, index_space="W")
+    expr = TensorExpression(
+        terms=[[i, j]],
+        products=[TensorProduct(factors=[
+            TensorQuantity(name="T", indices=[i, j], symmetry="symmetric")
+        ])],
+    )
+    equation = TensorEquation(lhs=expr, rhs=expr.model_copy(deep=True))
+    ctx = TensorSemanticContext(index_spaces=[
+        IndexSpace(name="V", dimension=4),
+        IndexSpace(name="W", dimension=4),
+    ])
+    result = semantic_compare(equation, equation.model_copy(deep=True), ctx)
+    assert result["result"] == SemanticResult.UNSUPPORTED_SEMANTICS.value
