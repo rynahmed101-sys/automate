@@ -117,6 +117,40 @@ class TensorEquation(BaseModel):
     rhs: TensorExpression
 
     def validate_structure(self) -> "IndexValidationResult":
+        if self.lhs.products is not None or self.rhs.products is not None:
+            if self.lhs.products is None or self.rhs.products is None:
+                return IndexValidationResult(
+                    is_valid=False,
+                    errors=["TensorEquation requires structured products on both sides."],
+                )
+            lhs_validation = self.lhs.validate_structure()
+            rhs_validation = self.rhs.validate_structure()
+            errors = [
+                *[f"LHS index error: {error}" for error in lhs_validation.errors],
+                *[f"RHS index error: {error}" for error in rhs_validation.errors],
+            ]
+            if errors:
+                return IndexValidationResult(is_valid=False, errors=errors)
+            lhs_free = {
+                (index.symbol, index.position, index.dimension)
+                for index in lhs_validation.free_indices
+            }
+            rhs_free = {
+                (index.symbol, index.position, index.dimension)
+                for index in rhs_validation.free_indices
+            }
+            if lhs_free != rhs_free:
+                errors.append(
+                    "Equation index mismatch between LHS and RHS. "
+                    f"LHS free indices: {sorted(lhs_free)}; RHS free indices: {sorted(rhs_free)}."
+                )
+            return IndexValidationResult(
+                is_valid=not errors,
+                free_indices=lhs_validation.free_indices if not errors else [],
+                resultant_rank=lhs_validation.resultant_rank if not errors else -1,
+                errors=errors,
+            )
+
         lhs_indices = [index for term in self.lhs.terms for index in term]
         rhs_indices = [index for term in self.rhs.terms for index in term]
         return validate_tensor_equation(lhs_indices, rhs_indices)
