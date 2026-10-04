@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 ExternalExecutionStatus = Literal[
@@ -25,6 +25,7 @@ class ExternalEngineEvidence(BaseModel):
     executable_path: Optional[str] = None
     executable_fingerprint_sha256: Optional[str] = None
     adapter_version: str = "v1"
+    provenance_schema_version: str = "v1"
     execution_status: ExternalExecutionStatus
     independence_class: ExternalIndependence
     input_fingerprint_sha256: str
@@ -36,6 +37,16 @@ class ExternalEngineEvidence(BaseModel):
     checks_performed: int = 0
     error: Optional[str] = None
     notes: list[str] = Field(default_factory=list)
+
+    @field_validator("input_fingerprint_sha256", "claim_fingerprint_sha256", "output_fingerprint_sha256")
+    @classmethod
+    def validate_fingerprint(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        import re
+        if re.fullmatch(r"[0-9a-fA-F]{64}", value) is None:
+            raise ValueError("fingerprints must be 64-character hexadecimal SHA-256 values")
+        return value
 
     def to_report(self) -> Dict[str, Any]:
         return self.model_dump()
