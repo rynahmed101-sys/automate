@@ -388,7 +388,17 @@ class TensorChecker(BaseChecker):
     ) -> Tuple[TensorGeometry, sp.Matrix, List[sp.Symbol]]:
         """Constructs TensorGeometry from in_node and edge parameters."""
         raw_str = in_node.expression.raw_str.strip()
-        named_metric = params.get("named_metric") or raw_str
+        requested_named_metric = params.get("named_metric")
+        if requested_named_metric is not None:
+            requested_named_metric = str(requested_named_metric).strip()
+            if requested_named_metric != raw_str:
+                raise ValueError(
+                    "Graph-bound tensor verification rejected a conflicting "
+                    "named_metric: the requested metric must exactly match the "
+                    "input node expression. The checker must not compute a "
+                    "different metric than the graph claim identifies."
+                )
+        named_metric = requested_named_metric or raw_str
 
         # Predefined canonical metrics
         if named_metric in ("schwarzschild_4d", "schwarzschild"):
