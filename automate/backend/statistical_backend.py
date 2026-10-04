@@ -18,6 +18,7 @@ returns NOT_APPLICABLE rather than silently fitting a cosine.
 """
 
 import hashlib
+import json
 import time
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
@@ -172,6 +173,15 @@ class StatisticalChecker(BaseChecker):
                     "No default model is applied."
                 )
 
+        # Bind the statistical model to the graph input before touching the data.
+        # A caller-supplied model selector must never allow the backend to fit a
+        # mathematically different model than the one represented by the graph.
+        claim_ok, claim_details, claim_error = self._validate_graph_model_claim(
+            in_node, out_node, model_type, params
+        )
+        if not claim_ok:
+            return False, claim_details, [], claim_error
+
         model_func, param_names, p0, true_params = self._build_model(model_type, params, in_node)
         if model_func is None:
             return False, {}, [], f"Cannot build model function for model type '{model_type}'"
@@ -321,6 +331,18 @@ class StatisticalChecker(BaseChecker):
             for i, name in enumerate(param_names)
         }
 
+        evidence_payload = {
+            "claim_fingerprint_sha256": claim_details["claim_fingerprint_sha256"],
+            "dataset_sha256": data_hash,
+            "model": model_type,
+            "fit_initial_guess": [float(v) for v in p0],
+            "noise_std": float(noise_std),
+            "sample_size": n_points,
+        }
+        evidence_fingerprint = hashlib.sha256(
+            json.dumps(evidence_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+
         details = {
             "model": model_type,
             "parameter_estimates": estimates,
@@ -328,6 +350,8 @@ class StatisticalChecker(BaseChecker):
             "sample_size": n_points,
             "noise_std_used": float(noise_std),
             "data_source": data_source,
+            **claim_details,
+            "evidence_fingerprint_sha256": evidence_fingerprint,
             "data_provenance": {
                 "source_type": "observed",
                 "data_id": data_id,
@@ -368,6 +392,121 @@ class StatisticalChecker(BaseChecker):
                 f"was not supplied, so only R2={r_squared:.4f} (need > 0.85) was evaluated."
             )
         return passed, details, certificates, error_msg
+
+    def _validate_graph_model_claim(
+        self,
+        in_node: Any,
+        out_node: Any,
+        model_type: str,
+        params: Dict[str, Any],
+    ) -> Tuple[bool, Dict[str, Any], Optional[str]]:
+        """
+        Verify that the requested statistical model is mathematically equivalent
+        to the graph input expression.
+
+        The output node is retained in the claim fingerprint so the provenance
+        evidence is bound to the complete edge claim, but the semantic model
+        itself is derived from and checked against the graph input node.
+        """
+        try:
+            from automate.ir.safe_parser import SafeParser
+
+            graph_expr_text = in_node.expression.raw_str.strip()
+            graph_expr = SafeParser().parse(graph_expr_text)
+
+            t = sp.Symbol("t")
+            model_symbols = {
+                name: sp.Symbol(name)
+                for name in ("A", "omega", "phi", "lambda", "lam", "gamma", "a", "b", "n")
+            }
+
+            if model_type == "cosine":
+                expected = model_symbols["A"] * sp.cos(
+                    model_symbols["omega"] * t + model_symbols["phi"]
+                )
+            elif model_type == "exponential_decay":
+                # The backend parameter name is historically "lambda", but Python
+                # syntax cannot express that identifier. Accept a graph claim using
+                # the semantically equivalent "lam" spelling as well.
+                expected = model_symbols["A"] * sp.exp(-model_symbols["lam"] * t)
+                lam_graph = graph_expr.xreplace({model_symbols["lambda"]: model_symbols["lam"]})
+                graph_expr = lam_graph
+            elif model_type == "power_law":
+                expected = model_symbols["A"] * sp.Abs(t) ** model_symbols["n"]
+            elif model_type == "damped_oscillator":
+                expected = (
+                    model_symbols["A"]
+                    * sp.exp(-model_symbols["gamma"] * t)
+                    * sp.cos(model_symbols["omega"] * t + model_symbols["phi"])
+                )
+            elif model_type == "linear":
+                expected = model_symbols["a"] * t + model_symbols["b"]
+            elif model_type == "expression":
+                expression_str = params.get("expression_str") or graph_expr_text
+                candidate = SafeParser().parse(expression_str)
+                if sp.simplify(candidate - graph_expr) != 0:
+                    return (
+                        False,
+                        {"model": model_type, "graph_input_expression": graph_expr_text},
+                        "UNSUPPORTED: statistical expression model does not match the graph input claim.",
+                    )
+                expected = candidate
+            else:
+                return (
+                    False,
+                    {"model": model_type},
+                    f"UNSUPPORTED: no graph-binding rule exists for statistical model '{model_type}'.",
+                )
+
+            if model_type != "expression":
+                if sp.simplify(graph_expr - expected) != 0:
+                    return (
+                        False,
+                        {
+                            "model": model_type,
+                            "graph_input_expression": graph_expr_text,
+                            "expected_model_expression": str(expected),
+                        },
+                        (
+                            "UNSUPPORTED: statistical model does not match the graph input claim. "
+                            f"model='{model_type}'"
+                        ),
+                    )
+
+            normalized_input = sp.srepr(graph_expr)
+            normalized_expected = sp.srepr(expected)
+            fingerprint_payload = {
+                "input_node_id": getattr(in_node, "id", None),
+                "output_node_id": getattr(out_node, "id", None),
+                "input_expression": graph_expr_text,
+                "output_expression": out_node.expression.raw_str.strip(),
+                "model": model_type,
+                "normalized_input_expression": normalized_input,
+                "normalized_model_expression": normalized_expected,
+            }
+            claim_fingerprint = hashlib.sha256(
+                json.dumps(
+                    fingerprint_payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+
+            return True, {
+                "graph_claim_binding": {
+                    "input_node_id": getattr(in_node, "id", None),
+                    "output_node_id": getattr(out_node, "id", None),
+                    "model_expression_equivalent": True,
+                    "normalized_model_expression": normalized_expected,
+                },
+                "claim_fingerprint_sha256": claim_fingerprint,
+            }, None
+        except Exception as exc:
+            return (
+                False,
+                {"model": model_type, "graph_input_expression": getattr(in_node.expression, "raw_str", "")},
+                f"UNSUPPORTED: could not safely bind statistical model to graph claim: {type(exc).__name__}: {exc}",
+            )
 
     @staticmethod
     def _initial_guess(params: Dict[str, Any], names: List[str], defaults: List[float]) -> List[float]:
