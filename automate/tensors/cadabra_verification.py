@@ -9,11 +9,11 @@ general symbolic proof or infer tensor symmetries.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from automate.ir.tensors import TensorEquation, TensorExpression, TensorProduct
 from automate.tensors.cadabra_adapter import run_cadabra_script
+from automate.tensors.graph_translation import graph_equation_node_to_tensor_ir, graph_node_to_tensor_ir
 from automate.tensors.cadabra_translation import translate_equation, translate_expression
 
 
@@ -44,10 +44,6 @@ def independent_structural_equation_result(equation: TensorEquation) -> str:
         + " = "
         + independent_structural_result(equation.rhs)
     )
-
-
-def _normalise_result(value: str) -> str:
-    return re.sub(r"\\s+", " ", value).strip()
 
 
 def _execution_source(translation: dict) -> str:
@@ -93,3 +89,15 @@ def verify_translated_equation(
     result["comparison_scope"] = "structural_tensor_equation_round_trip"
     result["independent_result"] = expected
     return result
+
+
+def verify_graph_tensor_node_with_cadabra(graph, node_id: str, *, sandbox_limits=None) -> dict:
+    """Run the complete graph -> Tensor IR -> Cadabra verification boundary."""
+    expression = graph_node_to_tensor_ir(graph, node_id)
+    return verify_translated_expression(expression, sandbox_limits=sandbox_limits)
+
+
+def verify_graph_tensor_equation_with_cadabra(graph, node_id: str, *, sandbox_limits=None) -> dict:
+    """Run the complete graph equation -> Tensor IR -> Cadabra verification boundary."""
+    equation = graph_equation_node_to_tensor_ir(graph, node_id)
+    return verify_translated_equation(equation, sandbox_limits=sandbox_limits)
