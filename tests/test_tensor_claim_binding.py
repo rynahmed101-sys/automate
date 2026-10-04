@@ -71,5 +71,5 @@ def test_matching_metric_records_claim_fingerprint():
 
     assert report.passed is True, report.error_message
     assert len(report.details["claim_fingerprint_sha256"]) == 64
-    assert report.certificate is not None
-    assert report.certificate.metrics["claim_fingerprint_sha256"] == report.details["claim_fingerprint_sha256"]
+    assert edge.certificate is not None
+    assert edge.certificate.metrics["claim_fingerprint_sha256"] == report.details["claim_fingerprint_sha256"]
