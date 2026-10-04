@@ -87,8 +87,7 @@ A shared `ExternalEngineEvidence` provenance model is now available in
 The adapter records engine/version, input and output fingerprints, comparison
 method, sandbox target/limits, execution status, and independence classification.
 
-Run #178 validated Python 3.10, 3.11, 3.12, Python 3.13, and Lean 4.34.1; the full suites and explicit adversarial/mutation suite passed.\n\nThis milestone is an integration/provenance boundary, not yet a graph-to-Cadabra
-translator. The canonical tensor IR remains the source of truth, and no
+Run #178 validated Python 3.10, 3.11, 3.12, Python 3.13, and Lean 4.34.1; the full suites and explicit adversarial/mutation suite passed.\n\nThis milestone is an integration/provenance boundary; the graph-to-Cadabra bridge is now implemented for the strict structured Tensor AST subset described below. The canonical tensor IR remains the source of truth, and no
 parallel tensor representation was introduced.
 
 ## Phase 4.3: canonical Tensor IR -> Cadabra translation
@@ -106,6 +105,32 @@ symmetries, index spaces, or Cadabra properties are guessed from incomplete
 IR metadata. The generated source is therefore a conservative expression
 boundary, not a claim that every domain-specific Cadabra semantic property
 has been reconstructed.
+
+
+## Phase 4.3 completion: graph-bound Cadabra verification boundary
+
+The canonical tensor path is now connected to graph AST data through
+`automate/tensors/graph_translation.py`. Only explicit tensor/symbol nodes
+and addition/multiplication are accepted. Raw expression strings are never
+implicitly parsed, unsupported operations fail closed, tensor-factor identity
+and index variance are preserved, and tensor physical dimensions are not
+mistaken for index cardinalities.
+
+The end-to-end API in `automate/tensors/cadabra_verification.py` now performs:
+
+`graph AST -> canonical Tensor IR -> deterministic Cadabra translation -> IR SHA-256 -> bounded Cadabra execution -> provenance-bound evidence`
+
+The verification path does not accept caller-supplied stdout as its comparison
+target. It generates an independent structural rendering from the canonical
+Tensor IR and compares that result with Cadabra's `str(ex)` output. This is
+explicitly classified as **structural round-trip agreement**, not a general
+symbolic proof. Tensor symmetries and index-space semantics are still not
+invented when the graph IR does not provide them.
+
+Cadabra source generation uses the documented `:=` assignment form, and the
+external adapter now preserves the canonical IR fingerprint across unavailable,
+execution-failure, unverified, discrepancy, and independent-agreement evidence
+paths. Malformed fingerprints are rejected as non-hexadecimal SHA-256 values.
 
 ## Current capability assessment
 
@@ -154,6 +179,6 @@ The canonical claim identity deliberately excludes backend-specific tolerances, 
 3. Generalize structured ODEs, mechanics, field variation, and numerical error certificates only where semantics are explicit and testable.
 4. Expand statistical provenance beyond caller-declared labels to authenticated or externally resolved dataset lineage where the execution environment permits it, and formalize more of the statistical model assumptions.
 5. Generalize graph-to-Lean translation beyond the restricted integer-polynomial subset; reuse mathlib/physlib theorems only when proposition identity is preserved.
-6. Bind the Cadabra translator to graph-derived tensor identities and equation semantics; do not infer mathematics from rule names or free-form scripts.\n7. Pin external-engine versions, licenses, inputs/results and independence metadata in `docs/ECOSYSTEM.md` and verification certificates.
+6. Extend graph-bound Cadabra comparison from structural round-trip agreement to independently computed semantic results where the canonical IR carries sufficient information; never infer missing symmetries or index spaces.\n7. Pin external-engine versions, licenses, inputs/results and independence metadata in `docs/ECOSYSTEM.md` and verification certificates.
 
 Claims not supported by source inspection or an executed check remain **UNVERIFIED**.
