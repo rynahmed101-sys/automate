@@ -391,3 +391,11 @@ class TestIsolatedParsing:
         parser = SafeParser(extra_symbols={"x": x})
         result = parser.parse_isolated("diff(x(t), t, 2)", extra_locals={"x": x}, timeout=3.0)
         assert result == sp.diff(x(sp.Symbol("t")), sp.Symbol("t"), 2)
+
+
+    def test_isolated_parse_enforces_output_size_limit(self, parser, monkeypatch):
+        import automate.ir.safe_parser as safe_parser_module
+
+        monkeypatch.setattr(safe_parser_module, "_MAX_RESULT_BYTES", 1)
+        with pytest.raises(SafeParseError, match="output-size limit"):
+            parser.parse_isolated("x + 1", timeout=3.0)
