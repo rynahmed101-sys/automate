@@ -163,6 +163,28 @@ def apply_and_verify_proposal(
     dim_checker = DimensionChecker()
     dim_report = dim_checker.verify_edge(edge, working_graph)
 
+    # A known dimensional contradiction is a hard verification failure.
+    # Do not allow a later semantic backend to certify a proposition that
+    # already failed an applicable prerequisite check.
+    if not dim_report.passed:
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            edge_id=edge_id,
+            status=dim_report.status,
+            report={
+                "checker": "DimensionChecker",
+                "passed": False,
+                "status": dim_report.status.value,
+                "execution_time_ms": dim_report.execution_time_ms,
+                "details": dim_report.details,
+                "error_message": dim_report.error_message,
+                "dimension_check": dim_report.to_dict(),
+            },
+            errors=[dim_report.error_message] if dim_report.error_message else ["Dimensional verification failed."],
+            graph_updated=False,
+        )
+
     # 6. Semantic verification backend (on clone)
     if checker_name == "sympy":
         checker = SymPyChecker()
