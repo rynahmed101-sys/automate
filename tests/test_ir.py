@@ -89,3 +89,14 @@ def test_physical_constant():
     )
     assert c.value == 299792458.0
     assert c.dimension == "L*T^-1"
+
+
+def test_unknown_dimension_name_is_rejected():
+    """Unknown physical dimensions must never collapse to dimensionless."""
+    with pytest.raises(ValueError, match="Unknown base dimension"):
+        Dimension.from_string("M*Bogus")
+
+def test_malformed_dimension_exponent_is_rejected():
+    """Malformed exponents must be rejected rather than silently coerced."""
+    with pytest.raises(ValueError, match="must be an integer"):
+        Dimension.from_string("L^not_an_integer")
