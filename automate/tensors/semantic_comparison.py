@@ -107,6 +107,13 @@ def validate_semantics(
             errors.append(
                 f"Tensor '{quantity.name}' declares riemann symmetry but rank is {rank}."
             )
+        if kind in {"symmetric", "antisymmetric", "riemann"}:
+            declared_spaces = {index.index_space for index in quantity.indices}
+            if len(declared_spaces) != 1:
+                errors.append(
+                    f"Tensor '{quantity.name}' declares {kind} symmetry across multiple "
+                    f"index spaces: {sorted(declared_spaces)}."
+                )
 
     for expression in (equation.lhs, equation.rhs):
         by_symbol: Dict[str, List[TensorIndex]] = {}
