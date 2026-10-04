@@ -392,7 +392,7 @@ class TensorChecker(BaseChecker):
                         {
                             "label": label,
                             "variance": variance,
-                            "dimension": dimension,
+                            **({"dimension": dimension} if dimension is not None else {}),
                         }
                         for label, variance, dimension in index_signature
                     ],
