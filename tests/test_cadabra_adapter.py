@@ -292,3 +292,28 @@ def test_cadabra_failure_still_records_runtime_provenance(monkeypatch):
     assert report["runtime_identity"] == "resolved-path-only"
     assert report["executable_path"] == "/usr/bin/cadabra2"
     assert report["runtime_environment_fingerprint_sha256"]
+
+
+@pytest.mark.trust_boundary
+def test_cadabra_process_failure_preserves_runtime_provenance(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FailingSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            return {
+                "execution_status": "EXECUTION_FAILED",
+                "error": "process exited 7",
+            }
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FailingSandbox)
+    report = adapter.run_cadabra_script("ex := A;")
+
+    assert report["execution_status"] == "EXECUTION_FAILED"
+    assert report["runtime_identity"] == "resolved-path-only"
+    assert report["executable_path"] == "/usr/bin/cadabra2"
+    assert report["runtime_environment_fingerprint_sha256"]
+    assert report["error"] == "process exited 7"
