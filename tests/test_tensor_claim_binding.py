@@ -62,3 +62,14 @@ def test_matching_named_metric_remains_verifiable():
 
     assert report.passed is True
     assert report.status == VerificationStatus.SYMBOLIC_CHECKED
+
+
+def test_matching_metric_records_claim_fingerprint():
+    graph, edge = _metric_graph("flat_2d", "flat_2d")
+
+    report = TensorChecker().verify_edge(edge, graph)
+
+    assert report.passed is True, report.error_message
+    assert len(report.details["claim_fingerprint_sha256"]) == 64
+    assert report.certificate is not None
+    assert report.certificate.metrics["claim_fingerprint_sha256"] == report.details["claim_fingerprint_sha256"]
