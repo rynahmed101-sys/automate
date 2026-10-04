@@ -3,16 +3,15 @@ DimensionChecker: Verifies physical dimensional consistency across expressions,
 equations, derivatives, and transformations.
 
 The coordinate dimension is no longer hardcoded to Length. Instead it is read from:
-  1. edge.parameters['coordinate_dimension'] — explicit override
-  2. The node's own expression metadata (node.expression.get_dimension())
-  3. Falls back to dimensionless if neither is specified, but logs a warning.
+The coordinate dimension is read from edge.parameters['coordinate_dimension'].
 
-Supported coordinate dimensions via edge.parameters['coordinate_dimension']:
+Supported explicit values:
   - 'length'       → Dimension.length()
   - 'angle'        → Dimension.dimensionless()   (radians are dimensionless)
   - 'dimensionless'→ Dimension.dimensionless()
-  - 'action'       → M·L²·T⁻¹
-  - 'field'        → user-specified via node metadata
+  - 'action'       → Dimension.action()
+
+Unknown coordinate dimensions are rejected rather than treated as dimensionless.
 """
 
 import time
@@ -25,26 +24,21 @@ from automate.ir.dimensions import Dimension
 
 
 def _resolve_coordinate_dimension(coord_dim_str: str) -> Dimension:
-    """Map a string descriptor to a Dimension object."""
+    """Map a declared coordinate-dimension descriptor to a Dimension object."""
     mapping = {
         "length": Dimension.length,
         "angle": Dimension.dimensionless,
         "dimensionless": Dimension.dimensionless,
+        "action": Dimension.action,
     }
-    if coord_dim_str in mapping:
-        return mapping[coord_dim_str]()
-
-    # Attempt to build action dimension M·L²·T⁻¹
-    if coord_dim_str == "action":
-        # action = energy * time = M·L²·T⁻²·T = M·L²·T⁻¹
-        # Dimension class may not have a direct method; compose via mass * length^2 / time
-        try:
-            return Dimension.mass() * Dimension.length() * Dimension.length() / Dimension.time()
-        except Exception:
-            return Dimension.dimensionless()
-
-    # Unknown string: return dimensionless with a note
-    return Dimension.dimensionless()
+    try:
+        factory = mapping[coord_dim_str]
+    except KeyError as exc:
+        raise ValueError(
+            f"Unknown coordinate_dimension '{coord_dim_str}'. "
+            f"Expected one of: {', '.join(sorted(mapping))}."
+        ) from exc
+    return factory()
 
 
 class DimensionChecker(BaseChecker):
@@ -80,12 +74,13 @@ class DimensionChecker(BaseChecker):
         passed = True
         error_msg = None
 
-        if rule == "euler_lagrange":
-            passed, error_msg, details = self._check_euler_lagrange(
-                in_nodes, out_nodes, edge.parameters, details
-            )
+        try:
+            if rule == "euler_lagrange":
+                passed, error_msg, details = self._check_euler_lagrange(
+                    in_nodes, out_nodes, edge.parameters, details
+                )
 
-        elif rule == "conserve_energy":
+            elif rule == "conserve_energy":
             # Output dimension must be Energy [M·L²·T⁻²]
             energy_node = out_nodes[0]
             energy_dim = energy_node.expression.get_dimension()
@@ -116,11 +111,14 @@ class DimensionChecker(BaseChecker):
                 else:
                     details["consistency"] = f"Verified: Trajectory dimension is {sol_dim}"
 
-        else:
-            # Generic consistency: ensure all output nodes have valid dimensions
-            for node in out_nodes:
-                dim = node.expression.get_dimension()
-                details["inspected_nodes"][node.id] = repr(dim)
+            else:
+                # Generic consistency: ensure all output nodes have valid dimensions
+                for node in out_nodes:
+                    dim = node.expression.get_dimension()
+                    details["inspected_nodes"][node.id] = repr(dim)
+        except (ValueError, TypeError) as exc:
+            passed = False
+            error_msg = f"UNSUPPORTED: invalid dimensional metadata: {exc}"
 
         elapsed = (time.perf_counter() - start_time) * 1000
         status = VerificationStatus.DIMENSIONALLY_CHECKED if passed else VerificationStatus.FAILED
