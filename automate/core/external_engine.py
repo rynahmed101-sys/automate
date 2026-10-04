@@ -24,6 +24,7 @@ class ExternalEngineEvidence(BaseModel):
     runtime_identity: str = "unspecified"
     executable_path: Optional[str] = None
     executable_fingerprint_sha256: Optional[str] = None
+    runtime_environment_fingerprint_sha256: Optional[str] = None
     adapter_version: str = "v1"
     provenance_schema_version: str = "v1"
     execution_status: ExternalExecutionStatus
