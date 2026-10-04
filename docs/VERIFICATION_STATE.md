@@ -2,7 +2,7 @@
 
 ## Current working state
 
-**Current head at last audit:** `eee12d367ad2a2ecca8d8d739fc8c15d4cfa9a61`
+**Current head at last audit:** `0dfce5aa38650e428b0866885c1d8a61f66b98e8`
 
 | State | Status |
 |---|---|
@@ -20,7 +20,7 @@ The last completed exact-SHA implementation verification remains the earlier che
 **Audit date:** 2026-10-04
 **Repository:** `rynahmed101-sys/automate`
 **Intended branch:** `feat/verification-hardening`
-**Last fully CI-verified implementation commit:** `eee12d367ad2a2ecca8d8d739fc8c15d4cfa9a61`\n**CI:** GitHub Actions run #178 passed on that exact implementation commit.
+**Last fully CI-verified implementation commit:** `0dfce5aa38650e428b0866885c1d8a61f66b98e8`\n**CI:** GitHub Actions run #331 passed on that exact implementation commit.
 **Published integration lineage:** `349b258` → recovery merge `ad702127` → upstream hardening `3e2fa552`
 **Integration:** The feature branch contains the recovered local work plus the upstream hardening. No merge to `main` and no history rewrite occurred.
 
@@ -163,7 +163,7 @@ EinsteinPy is pinned to version 0.4.0 in project dependency metadata. EinsteinPy
 
 The canonical Tensor IR now has a versioned machine-readable contract at `schemas/automate-tensor-v1.json`, and `automate schema --name tensor --json` exposes the authoritative Pydantic schema through the CLI contract surface.
 
-A public-repository security workflow now runs CodeQL for Python and `pip-audit` against installed dependencies. Security automation does not receive application secrets.
+A public-repository security workflow now runs CodeQL for Python and `pip-audit` against installed dependencies. Security Audit run #16 passed for the previous verified hardening tip; the final documentation-only synchronization commit requires its own exact-head CI run.
 
 ## Current capability assessment
 
