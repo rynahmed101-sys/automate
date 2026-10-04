@@ -409,13 +409,17 @@ class TensorChecker(BaseChecker):
                     native_einstein=tg.einstein_tensor() if rule == "einstein_tensor" else None,
                 )
                 details["cross_check"] = cross_rep
-                if cross_rep.get("all_matched"):
+                if cross_rep.get("all_matched") is True:
                     independence_class = "DIFFERENT_ENGINE"
                 elif cross_rep.get("all_matched") is False:
-                    # Discrepancy detected between Automate and EinsteinPy
+                    # A completed external comparison found a mathematical discrepancy.
                     independence_class = "DISCREPANCY_DETECTED"
                     passed = False
                     error_msg = f"Independent oracle discrepancy with EinsteinPy: {cross_rep.get('discrepancies')}"
+                elif cross_rep.get("execution_status") == "FAILED":
+                    # The oracle did not complete; this is neither agreement nor a
+                    # mathematical discrepancy.
+                    independence_class = "CROSS_CHECK_FAILED"
             else:
                 details["cross_check"] = {"available": False, "reason": "EinsteinPy cross-check not run or not applicable"}
 
@@ -442,6 +446,7 @@ class TensorChecker(BaseChecker):
                 metrics={
                     "independence_class": independence_class,
                     "claim_fingerprint_sha256": claim_hash,
+                    "external_engine_reproducibility": details.get("cross_check", {}).get("reproducibility"),
                 },
                 diagnostics=[f"Independence Class: {independence_class}"]
             )
