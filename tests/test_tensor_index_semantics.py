@@ -110,9 +110,30 @@ def test_tensor_equation_accepts_matching_free_indices():
     result = equation.validate_structure()
     assert result.is_valid is True
     assert equation.free_index_signature == [
-        ("mu", "lower"),
-        ("nu", "lower"),
+        ("mu", "lower", None),
+        ("nu", "lower", None),
     ]
+
+
+
+
+
+def test_free_index_signature_preserves_dimension():
+    expression = TensorExpression(
+        terms=[[
+            idx("mu", "lower", 4),
+            idx("nu", "lower", 3),
+        ]]
+    )
+
+    assert expression.free_index_signature == [
+        ("mu", "lower", 4),
+        ("nu", "lower", 3),
+    ]
+
+
+def test_free_index_dimension_mismatch_is_not_equal():
+    assert idx("mu", "lower", 4) != idx("mu", "lower", 3)
 
 
 def test_tensor_quantity_rank_is_explicitly_structured():
