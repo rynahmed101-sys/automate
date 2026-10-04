@@ -19,6 +19,7 @@ from automate.backend.statistical_backend import StatisticalChecker
 from automate.visualization.html_graph import generate_interactive_html
 from automate.visualization.terminal import print_graph_summary, print_assumption_report, console
 from automate.demo import run_harmonic_oscillator_demo
+from automate.ai.schemas import AIContext
 from automate.ai import (
     build_ai_context,
     validate_ai_proposal,
@@ -486,12 +487,19 @@ def export_certificate(graph_file: str, output_dir: str, as_json: bool):
 @main.command()
 @click.option("--name", "-n", default="ir", type=click.Choice(["ir", "proposal", "context"]), help="Schema name")
 def schema(name: str):
-    """Print the versioned machine-readable JSON schema."""
-    schema_path = Path(__file__).parent.parent / "schemas" / "automate-ir-v0.1.json"
-    if schema_path.exists():
+    """Print an authoritative machine-readable JSON schema for an interchange contract."""
+    if name == "ir":
+        schema_path = Path(__file__).parent.parent / "schemas" / "automate-ir-v0.1.json"
+        if not schema_path.exists():
+            raise click.ClickException("Canonical IR schema file is unavailable.")
         click.echo(schema_path.read_text(encoding="utf-8"))
-    else:
-        click.echo(json.dumps({"error": f"Schema '{name}' not found on disk"}, indent=2))
+        return
+
+    model = DerivationProposal if name == "proposal" else AIContext
+    document = model.model_json_schema()
+    document["$id"] = f"https://automate.physics/schemas/automate-{name}-v1.json"
+    document["title"] = f"Automate {name.capitalize()} Contract (v1)"
+    click.echo(json.dumps(document, indent=2))
 
 
 if __name__ == "__main__":
