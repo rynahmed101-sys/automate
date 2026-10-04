@@ -53,6 +53,7 @@ def test_graph_edge_translation_is_not_rule_name_inference():
     )
 
     assert claim.relation == "equality"
+    assert claim.translator_version == "1.0"
     assert "x" in claim.binders
     assert "=" in claim.proposition
     assert claim.source_nodes[0]["raw_expression"] == "x**2 + 2*x + 1"
