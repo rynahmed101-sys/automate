@@ -23,6 +23,7 @@ All normal agent interactions should prefer structured JSON:
 - `automate check <graph> --json`: graph verification.
 - `automate parse <theory> --json`: canonical graph generation.
 - `automate schema --name <ir|tensor|proposal|context>`: machine-readable interchange schema discovery.
+- `schemas/automate-tensor-v1.json`: versioned canonical Tensor Equation contract.
 
 ## Integration rule
 
@@ -33,6 +34,7 @@ The canonical interchange formats are:
 - `automate.context.v1`
 - `automate.proposal.v1`
 - `automate.ir.v0.2`
+- `automate-tensor-v1`
 - certificate package / manifest artifacts
 
 Provider adapters are optional. The core verification path must remain usable without a cloud AI provider.
