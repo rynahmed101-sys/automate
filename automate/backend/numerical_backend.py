@@ -15,6 +15,8 @@ Supported rules with ODE integration:
 Unsupported rules return NOT_APPLICABLE.
 """
 
+import hashlib
+import json
 import time
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
@@ -37,9 +39,25 @@ _ODE_RULES = frozenset({
 
 
 class NumericalChecker(BaseChecker):
-    def __init__(self, rtol: float = 1e-8, atol: float = 1e-10):
+    def __init__(
+        self,
+        rtol: float = 1e-8,
+        atol: float = 1e-10,
+        convergence_tolerance: float = 1e-6,
+        refinement_factor: float = 10.0,
+    ):
+        if not (0 < rtol < 1):
+            raise ValueError("rtol must be in (0, 1).")
+        if not (0 < atol < 1):
+            raise ValueError("atol must be in (0, 1).")
+        if not (convergence_tolerance > 0):
+            raise ValueError("convergence_tolerance must be positive.")
+        if not (refinement_factor > 1):
+            raise ValueError("refinement_factor must be > 1.")
         self.rtol = rtol
         self.atol = atol
+        self.convergence_tolerance = convergence_tolerance
+        self.refinement_factor = refinement_factor
 
     @property
     def name(self) -> str:
@@ -98,6 +116,11 @@ class NumericalChecker(BaseChecker):
         self, status, passed, details, certificates, error_msg, edge, graph, elapsed
     ) -> VerificationReport:
         rule = edge.transformation_rule
+
+        fingerprint = self._claim_fingerprint(edge, graph, [graph.get_node(nid) for nid in edge.input_nodes], [graph.get_node(nid) for nid in edge.output_nodes])
+        details.setdefault("reproducibility", {})["claim_fingerprint_sha256"] = fingerprint
+        details.setdefault("metrics", {})["claim_fingerprint_sha256"] = fingerprint
+
         if passed:
             edge.status = status
             edge.checker = "numerical"
@@ -142,6 +165,114 @@ class NumericalChecker(BaseChecker):
             error_message=error_msg,
             certificates=certificates,
             evidence=evidence
+        )
+
+    def _claim_fingerprint(
+        self,
+        edge: DerivationEdge,
+        graph: DerivationGraph,
+        in_nodes: list,
+        out_nodes: list,
+    ) -> str:
+        """Hash the graph claim and numerical configuration for provenance."""
+        payload = {
+            "graph_id": getattr(graph, "id", None),
+            "edge_id": edge.id,
+            "rule": edge.transformation_rule,
+            "input_nodes": [
+                {"id": n.id, "expression": n.expression.raw_str}
+                for n in in_nodes
+            ],
+            "output_nodes": [
+                {"id": n.id, "expression": n.expression.raw_str}
+                for n in out_nodes
+            ],
+            "parameters": edge.parameters,
+        }
+        encoded = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+    def _convergence_probe(
+        self,
+        ode_sys,
+        t_span: Tuple[float, float],
+        y0: list,
+        t_eval: np.ndarray,
+        fine_result,
+    ) -> Tuple[bool, Dict[str, Any], Optional[str]]:
+        """
+        Compare the accepted solve against a deliberately coarser tolerance run.
+
+        This is empirical convergence evidence, not a rigorous global error bound.
+        The run must remain close under tolerance refinement before it is reported
+        as NUMERICALLY_CHECKED.
+        """
+        coarse_rtol = min(self.rtol * self.refinement_factor, 1e-2)
+        coarse_atol = min(self.atol * self.refinement_factor, 1e-4)
+
+        try:
+            coarse_result = solve_ivp(
+                ode_sys,
+                t_span,
+                y0,
+                t_eval=t_eval,
+                method="RK45",
+                rtol=coarse_rtol,
+                atol=coarse_atol,
+            )
+        except Exception as exc:
+            return False, {
+                "convergence_probe": "failed",
+                "fine_rtol": self.rtol,
+                "fine_atol": self.atol,
+                "coarse_rtol": coarse_rtol,
+                "coarse_atol": coarse_atol,
+            }, f"Convergence probe execution failed: {type(exc).__name__}: {exc}"
+
+        if not coarse_result.success:
+            return False, {
+                "convergence_probe": "failed",
+                "fine_rtol": self.rtol,
+                "fine_atol": self.atol,
+                "coarse_rtol": coarse_rtol,
+                "coarse_atol": coarse_atol,
+                "coarse_solver_message": coarse_result.message,
+            }, f"Convergence probe solver failed: {coarse_result.message}"
+
+        if coarse_result.y.shape != fine_result.y.shape:
+            return False, {
+                "convergence_probe": "failed",
+                "shape_fine": list(fine_result.y.shape),
+                "shape_coarse": list(coarse_result.y.shape),
+            }, "Convergence probe returned incompatible trajectory shapes."
+
+        delta = np.abs(fine_result.y - coarse_result.y)
+        state_scale = np.maximum(np.max(np.abs(fine_result.y), axis=1), 1.0)
+        normalized = delta / state_scale[:, None]
+        max_abs = float(np.max(delta))
+        max_relative = float(np.max(normalized))
+        passed = max_relative <= self.convergence_tolerance
+
+        details = {
+            "convergence_probe": "passed" if passed else "failed",
+            "fine_rtol": self.rtol,
+            "fine_atol": self.atol,
+            "coarse_rtol": coarse_rtol,
+            "coarse_atol": coarse_atol,
+            "refinement_factor": self.refinement_factor,
+            "max_abs_state_difference": max_abs,
+            "max_relative_state_difference": max_relative,
+            "convergence_tolerance": self.convergence_tolerance,
+            "fine_internal_steps": int(getattr(fine_result, "nfev", 0)),
+            "coarse_internal_steps": int(getattr(coarse_result, "nfev", 0)),
+        }
+        if passed:
+            return True, details, None
+
+        return False, details, (
+            "Numerical result did not remain stable under tolerance refinement: "
+            f"max relative state difference {max_relative:.2e} exceeds "
+            f"convergence tolerance {self.convergence_tolerance:.2e}."
         )
 
     # ------------------------------------------------------------------
@@ -309,16 +440,30 @@ class NumericalChecker(BaseChecker):
             return False, {"lagrangian": lagrangian_str}, [], \
                 f"ODE solver failed: {sol.message}"
 
-        # Compute energy conservation numerically (if Lagrangian-derived)
+        convergence_passed, convergence_metrics, convergence_error = self._convergence_probe(
+            ode_sys, t_span, y0, t_eval, sol
+        )
+
         conservation_passed, energy_drift = self._check_energy_conservation_numerical(
             sol, coords, sys, param_subs, x0_map, v0_map, num_params
         )
 
-        # For conserve_energy rule, the pass criterion is energy drift
         if rule == "conserve_energy":
-            passed = conservation_passed
+            if energy_drift is None:
+                passed = False
+                energy_error = (
+                    "Energy conservation could not be evaluated; numerical backend "
+                    "will not treat an unavailable diagnostic as success."
+                )
+            else:
+                passed = conservation_passed
+                energy_error = None
         else:
-            passed = sol.success  # trajectory integrated successfully
+            passed = convergence_passed
+            energy_error = None
+
+        if not convergence_passed:
+            passed = False
 
         metrics = {
             "num_steps": len(sol.t),
@@ -326,6 +471,7 @@ class NumericalChecker(BaseChecker):
             "rtol": self.rtol,
             "atol": self.atol,
             "energy_drift_relative": energy_drift if energy_drift is not None else "N/A",
+            **convergence_metrics,
         }
         details = {
             "lagrangian": lagrangian_str,
@@ -348,6 +494,15 @@ class NumericalChecker(BaseChecker):
                 "result": f"Solver success: {sol.success}, steps: {len(sol.t)}"
             }
         ]
+        certificates.append({
+            "step": "tolerance_refinement_check",
+            "description": "Compared accepted trajectory with a coarser RK45 tolerance run.",
+            "result": (
+                "Stable under refinement"
+                if convergence_passed
+                else "Unstable under refinement"
+            ),
+        })
         if energy_drift is not None:
             certificates.append({
                 "step": "energy_conservation_check",
@@ -358,6 +513,10 @@ class NumericalChecker(BaseChecker):
         max_drift_threshold = 1e-4
         if rule == "conserve_energy" and energy_drift is not None and energy_drift >= max_drift_threshold:
             error_msg = f"Energy not conserved: max relative drift = {energy_drift:.2e} (threshold {max_drift_threshold})"
+        elif energy_error:
+            error_msg = energy_error
+        elif convergence_error:
+            error_msg = convergence_error
         else:
             error_msg = None
 
@@ -410,7 +569,7 @@ class NumericalChecker(BaseChecker):
             passed = drift < 1e-4
             return passed, drift
         except Exception:
-            return True, None  # Cannot compute energy; don't fail on this
+            return False, None  # Unavailable evidence is not a successful check
 
     def _integrate_eom_string(
         self,
@@ -496,8 +655,9 @@ class NumericalChecker(BaseChecker):
             q_val, v_val = y
             return [v_val, float(accel_func(q_val, v_val))]
 
+        y0 = [x0, v0]
         result = solve_ivp(
-            ode_sys, t_span, [x0, v0], t_eval=t_eval,
+            ode_sys, t_span, y0, t_eval=t_eval,
             method="RK45", rtol=self.rtol, atol=self.atol
         )
 
@@ -505,11 +665,16 @@ class NumericalChecker(BaseChecker):
             return False, {"eom": eom_str}, [], \
                 f"ODE solver failed: {result.message}"
 
+        convergence_passed, convergence_metrics, convergence_error = self._convergence_probe(
+            ode_sys, t_span, y0, t_eval, result
+        )
+
         metrics = {
             "num_steps": len(result.t),
             "solver_method": "RK45",
             "rtol": self.rtol,
             "atol": self.atol,
+            **convergence_metrics,
         }
         details = {
             "eom_string": eom_str,
@@ -528,6 +693,17 @@ class NumericalChecker(BaseChecker):
             "step": "eom_string_integration",
             "description": f"Integrated EoM '{eom_str}' over t in {t_span}",
             "result": f"Solver success: {result.success}, steps: {len(result.t)}"
+        }, {
+            "step": "tolerance_refinement_check",
+            "description": "Compared accepted trajectory with a coarser RK45 tolerance run.",
+            "result": (
+                "Stable under refinement"
+                if convergence_passed
+                else "Unstable under refinement"
+            ),
         }]
+
+        if convergence_error:
+            return False, details, certificates, convergence_error
 
         return True, details, certificates, None
