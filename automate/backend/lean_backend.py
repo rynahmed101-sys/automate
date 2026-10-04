@@ -17,6 +17,8 @@ import shutil
 import subprocess
 import time
 import hashlib
+import json
+import re
 import tempfile
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
@@ -218,6 +220,11 @@ class LeanChecker(BaseChecker):
             "compiler_stdout": stdout if cond_status != VerificationStatus.CONDITIONAL else "",
             "compiler_stderr": stderr if cond_status != VerificationStatus.CONDITIONAL else error_msg
         }
+        if lean_code:
+            claim_binding = self._claim_binding_evidence(
+                edge, graph, in_nodes, out_nodes, lean_code, code_hash
+            )
+            details.update(claim_binding)
 
         if cond_status == VerificationStatus.CONDITIONAL:
             status = VerificationStatus.CONDITIONAL
@@ -248,7 +255,10 @@ class LeanChecker(BaseChecker):
                 proof_code=lean_code,
                 backend_version=f"Lean {self.version}",
                 execution_time_ms=elapsed,
-                metrics={"formal_proof_hash": code_hash},
+                metrics={
+                    "formal_proof_hash": code_hash,
+                    "graph_claim_fingerprint_sha256": details.get("graph_claim_fingerprint_sha256"),
+                },
                 diagnostics=[line for line in details.get("compiler_stdout", "").splitlines() if line.strip()]
             )
         elif status == VerificationStatus.CONDITIONAL:
@@ -280,9 +290,15 @@ class LeanChecker(BaseChecker):
                 "version": self.version,
                 "source_hash": code_hash,
                 "obligation_id": theorem_name,
-                "generated_lean_source": lean_code
+                "generated_lean_source": lean_code,
+                "graph_claim_fingerprint_sha256": details.get("graph_claim_fingerprint_sha256"),
+                "generated_proposition": details.get("graph_claim_binding", {}).get("generated_proposition"),
             },
-            metrics={"type_checked": passed, "source_hash": code_hash}
+            metrics={
+                "type_checked": passed,
+                "source_hash": code_hash,
+                "graph_claim_fingerprint_sha256": details.get("graph_claim_fingerprint_sha256"),
+            }
         )
         edge.evidence = evidence.to_dict()
 
@@ -298,6 +314,69 @@ class LeanChecker(BaseChecker):
             evidence=evidence
         )
 
+
+    @staticmethod
+    def _claim_binding_evidence(
+        edge: DerivationEdge,
+        graph: DerivationGraph,
+        in_nodes: List[Any],
+        out_nodes: List[Any],
+        lean_code: str,
+        code_hash: str,
+    ) -> Dict[str, Any]:
+        """Bind the generated Lean source to the exact graph claim and normalized IR."""
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+
+        normalized_nodes = []
+        for node in [*in_nodes, *out_nodes]:
+            raw = node.expression.raw_str.strip()
+            normalized = None
+            try:
+                parser = SafeParser()
+                if "=" in raw:
+                    normalized = sp.srepr(parser.parse_equation(raw))
+                else:
+                    normalized = sp.srepr(parser.parse(raw))
+            except SafeParseError:
+                normalized = None
+            normalized_nodes.append({
+                "id": node.id,
+                "raw_expression": raw,
+                "normalized_ir": normalized,
+            })
+
+        proposition_match = re.findall(
+            r"^-- Generated proposition: (.+)$",
+            lean_code,
+            flags=re.MULTILINE,
+        )
+        generated_proposition = proposition_match[-1] if proposition_match else None
+
+        payload = {
+            "graph_id": getattr(graph, "id", None),
+            "edge_id": edge.id,
+            "rule": edge.transformation_rule,
+            "input_nodes": normalized_nodes[: len(in_nodes)],
+            "output_nodes": normalized_nodes[len(in_nodes):],
+            "generated_proposition": generated_proposition,
+            "generated_lean_source_sha256": code_hash,
+        }
+        fingerprint = hashlib.sha256(
+            json.dumps(
+                payload,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+
+        return {
+            "graph_claim_fingerprint_sha256": fingerprint,
+            "graph_claim_binding": {
+                "normalized_nodes": normalized_nodes,
+                "generated_proposition": generated_proposition,
+                "source_hash_sha256": code_hash,
+            },
+        }
 
     @staticmethod
     def _canonical_claim_matches(
@@ -467,6 +546,7 @@ end Automate.LagrangianMechanics
 -- Derivation Edge ID: {edge.id}
 -- Rule: algebraic_identity
 -- Source expressions are translated from the graph AST into the proposition below.
+-- Generated proposition: {proposition}
 import Init
 
 namespace Automate.Derivations
