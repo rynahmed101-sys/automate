@@ -255,3 +255,18 @@ def test_cadabra_provenance_changes_when_executable_changes(monkeypatch, tmp_pat
     second = adapter._executable_provenance(str(executable))[1]
 
     assert first != second
+
+
+def test_external_evidence_rejects_non_hex_fingerprints():
+    from automate.core.external_engine import ExternalEngineEvidence
+
+    with pytest.raises(ValueError, match="64-character hexadecimal SHA-256"):
+        ExternalEngineEvidence(
+            engine="test",
+            version="1",
+            execution_status="COMPLETED",
+            independence_class="UNVERIFIED",
+            input_fingerprint_sha256="g" * 64,
+            comparison_method="test",
+            sandbox_target="test:entry",
+        )
