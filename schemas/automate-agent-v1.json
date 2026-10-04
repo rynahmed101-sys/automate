@@ -1,0 +1,34 @@
+{
+  "schema_version": "automate.agent.v1",
+  "project": "automate-physics",
+  "integration": {
+    "primary_interface": "cli",
+    "machine_output": "json",
+    "offline_core": true,
+    "cloud_provider_required": false
+  },
+  "contracts": {
+    "context": "automate.context.v1",
+    "proposal": "automate.proposal.v1",
+    "ir": "automate.ir.v0.2",
+    "certificates": "automate.cert.v0.2"
+  },
+  "commands": {
+    "discover": "automate capabilities --json",
+    "context": "automate context <theory> --json",
+    "validate": "automate validate <proposal> --theory <theory> --json",
+    "dry_run": "automate propose <theory> --proposal <proposal> --dry-run --json",
+    "apply": "automate propose <theory> --proposal <proposal> --json",
+    "research": "automate research <theory> --provider <provider> --max-steps <n> --json",
+    "check": "automate check <graph> --json",
+    "parse": "automate parse <theory> --json"
+  },
+  "providers": ["mock", "local", "openai"],
+  "trust_rules": [
+    "AI output is untrusted input",
+    "verification status is evidence-derived",
+    "unsupported semantics fail closed",
+    "credentials never enter mathematical artifacts",
+    "caller-supplied expected output is not independent evidence"
+  ]
+}
