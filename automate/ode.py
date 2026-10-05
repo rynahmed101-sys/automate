@@ -560,7 +560,7 @@ class ODEEngine:
         loc = self._locals()
         cond = parser.parse_equation(condition_text, extra_locals=loc)
         replacements: Dict[sp.Expr, sp.Expr] = {}
-        for atom in cond.atoms(AppliedUndef)
+        for atom in cond.atoms(AppliedUndef):
             if atom.func == fn:
                 arg = atom.args[0]
                 replacements[atom] = candidate.subs(self.variable, arg)
