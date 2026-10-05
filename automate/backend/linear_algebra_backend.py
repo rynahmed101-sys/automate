@@ -36,6 +36,7 @@ class LinearAlgebraChecker(BaseChecker):
         "linear_transformation_apply", "matrix_representation",
         "matrix_positive_definite",
         "matrix_symmetric", "matrix_hermitian",
+        "matrix_pseudoinverse", "linear_least_squares",
     }
 
     @property
