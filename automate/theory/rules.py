@@ -273,6 +273,21 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="nested_integrate",
+            name="Repeated and Nested Integration",
+            category="calculus",
+            description="Verifies an explicit sequence of indefinite integrations, including repeated or mixed variables, without an artificial depth ceiling.",
+            domain="mathematics",
+            inputs=["Scalar Integrand", "Ordered Integration Variables"],
+            outputs=["Scalar Nested Integral"],
+            required_assumptions=["explicit_integration_variable_sequence"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Repeated antiderivative construction"
+        ))
+
+        self.register(RuleDefinition(
             rule_id="limit",
             name="Scalar Limit",
             category="calculus",
