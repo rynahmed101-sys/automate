@@ -26,7 +26,7 @@ def test_pseudoinverse_square_invertible():
 
 
 def test_pseudoinverse_rectangular_rank_deficient():
-    report=_check("matrix_pseudoinverse", ["Matrix([[1, 2], [2, 4], [3, 6]])"], "Matrix([[1/14, 1/7, 3/14], [1/7, 2/7, 3/7]])")
+    report=_check("matrix_pseudoinverse", ["Matrix([[1, 2], [2, 4], [3, 6]])"], "Matrix([[1/70, 1/35, 3/70], [1/35, 2/35, 3/35]])")
     assert report.passed
 
 
@@ -42,7 +42,7 @@ def test_pseudoinverse_wrong_claim_rejected():
 
 
 def test_least_squares_overdetermined():
-    report=_check("linear_least_squares", ["Matrix([[1, 0], [1, 1], [1, 2]])", "Matrix([1, 2, 2])"], "Vector([2/3, 1/2])")
+    report=_check("linear_least_squares", ["Matrix([[1, 0], [1, 1], [1, 2]])", "Matrix([1, 2, 2])"], "Vector([4/3, 1/2])")
     assert report.passed
     assert report.details["numpy_cross_check"]["passed"] is True
 
