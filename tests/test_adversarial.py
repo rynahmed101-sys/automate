@@ -287,7 +287,7 @@ class TestStatisticalBackendNotApplicable:
         checker = StatisticalChecker()
         report = checker.verify_edge(edge, graph)
         assert report.passed is False
-        assert report.status == VerificationStatus.FAILED
+        assert report.status == VerificationStatus.NOT_APPLICABLE
         assert "UNSUPPORTED" in (report.error_message or ""), \
             f"Expected UNSUPPORTED in error, got: {report.error_message}"
 
@@ -308,7 +308,13 @@ class TestStatisticalBackendNotApplicable:
                 "t_data": t.tolist(),
                 "x_obs": x.tolist(),
                 "noise_std": 0.05,
-                "data_source": "observed",
+"statistical_assumptions": [
+                    "independent_errors",
+                    "normal_errors",
+                    "finite_variance",
+                    "known_error_scale",
+                ],
+                                "data_source": "observed",
                 "data_id": "adversarial-observed-cosine-v1",
             },
         )
@@ -333,7 +339,13 @@ class TestStatisticalBackendNotApplicable:
                 "t_data": t.tolist(),
                 "x_obs": x.tolist(),
                 "noise_std": 0.05,
-                "data_source": "observed",
+"statistical_assumptions": [
+                    "independent_errors",
+                    "normal_errors",
+                    "finite_variance",
+                    "known_error_scale",
+                ],
+                                "data_source": "observed",
                 "data_id": "adversarial-observed-decay-v1",
             },
         )
@@ -355,7 +367,13 @@ class TestStatisticalBackendNotApplicable:
                 "t_data": t,
                 "x_obs": x,
                 "noise_std": 0.01,
-                "data_source": "observed",
+"statistical_assumptions": [
+                    "independent_errors",
+                    "normal_errors",
+                    "finite_variance",
+                    "known_error_scale",
+                ],
+                                "data_source": "observed",
                 "data_id": "adversarial-observed-cosine-wrong-model-v1",
             },
         )
