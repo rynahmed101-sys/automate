@@ -132,7 +132,7 @@ def test_integration_by_parts_wrong_v_is_rejected():
         "integration_by_parts",
         "x*exp(x)",
         "x*exp(x)-exp(x)",
-        {"variable": "x", "u": "x", "dv": "exp(x)", "v": "exp(x)+1"},
+        {"variable": "x", "u": "x", "dv": "exp(x)", "v": "2*exp(x)"},
     )
     assert report.status == VerificationStatus.FAILED
     assert not report.passed
