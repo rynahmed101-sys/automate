@@ -57,7 +57,7 @@ class ODEEngine:
         normalized = raw
         normalized = re.sub(rf"\b{escaped}_ddot\b", f"diff({self.function_name}({self.variable_name}), {self.variable_name}, 2)", normalized)
         normalized = re.sub(rf"\b{escaped}_dot\b", f"diff({self.function_name}({self.variable_name}), {self.variable_name})", normalized)
-        normalized = re.sub(rf"\b{escaped}\b", f"{self.function_name}({self.variable_name})", normalized)
+        normalized = re.sub(rf"\b{escaped}\b(?!\s*\()", f"{self.function_name}({self.variable_name})", normalized)
         return normalized
 
     def parse_expression(self, text: str, function_names: Sequence[str] = ()) -> sp.Expr:
