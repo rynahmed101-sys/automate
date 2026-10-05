@@ -245,7 +245,6 @@ def test_campaign_field_equations(lagrangian, fields, coordinates, parameters, c
             "fields": fields,
             "coordinates": coordinates,
             "parameters": parameters,
-            "assumptions": ["vanishing_boundary_variations"],
         },
     )
     report = SymPyChecker().verify_edge(edge, graph)
@@ -416,13 +415,13 @@ def test_campaign_statistical_fit():
             "t_data": t.tolist(),
             "x_obs": x.tolist(),
             "noise_std": 0.03,
-"statistical_assumptions": [
-                    "independent_errors",
-                    "normal_errors",
-                    "finite_variance",
-                    "known_error_scale",
-                ],
-                            "data_source": "observed",
+            "statistical_assumptions": [
+                "independent_errors",
+                "normal_errors",
+                "finite_variance",
+                "known_error_scale",
+            ],
+            "data_source": "observed",
             "data_id": "campaign-sho-omega-20261005",
         },
     )
