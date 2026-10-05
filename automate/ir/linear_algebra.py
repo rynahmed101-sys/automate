@@ -79,8 +79,8 @@ def _parse_matrix(call: ast.Call, parser: SafeParser) -> ParsedLinearAlgebra:
     expected_cols: int | None = None
     for row_index, row_node in enumerate(row_nodes):
         cells = _literal_sequence(row_node, f"Matrix row {row_index}")
-        if not cells:
-            raise LinearAlgebraParseError("Matrix rows must not be empty.")
+        if not cells and any(_literal_sequence(row, f"Matrix row {idx}") for idx, row in enumerate(row_nodes)):
+            raise LinearAlgebraParseError("Matrix rows must not mix empty and non-empty rows.")
         if len(cells) > _MAX_LA_DIM:
             raise LinearAlgebraParseError(f"Matrix column count exceeds {_MAX_LA_DIM}.")
         if expected_cols is None:
@@ -90,6 +90,10 @@ def _parse_matrix(call: ast.Call, parser: SafeParser) -> ParsedLinearAlgebra:
                 f"Matrix rows have inconsistent lengths: expected {expected_cols}, got {len(cells)}."
             )
         rows.append([_parse_scalar_node(cell, parser) for cell in cells])
+    if all(len(row) == 0 for row in rows):
+        # A rectangular zero-column matrix is needed to represent zero-dimensional
+        # subspaces without inventing a fake basis vector.
+        return ParsedLinearAlgebra("matrix", sp.zeros(len(rows), 0))
     return ParsedLinearAlgebra("matrix", sp.Matrix(rows))
 
 

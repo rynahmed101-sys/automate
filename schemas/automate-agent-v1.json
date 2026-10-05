@@ -302,7 +302,13 @@
       "exact Euclidean vector norms",
       "orthogonality claims with explicit indicator semantics",
       "orthogonal projection onto a non-zero vector",
-      "Gram-Schmidt orthogonalization and optional orthonormalization"
+      "Gram-Schmidt orthogonalization and optional orthonormalization",
+      "null-space basis verification with exact residual and nullity checks",
+      "row-space basis verification using column-oriented basis vectors",
+      "column-space basis verification",
+      "vector span-membership verification",
+      "linear-independence verification by exact rank",
+      "basis-of-span verification"
     ],
     "physics": [
       "Coulomb force for point charges",
@@ -942,6 +948,60 @@
       "implementation_backend": "vector_calculus",
       "allowed_checkers": [
         "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "matrix_null_space",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_row_space",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_column_space",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_span_membership",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_linear_independence",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_basis_of_span",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
       ]
     },
     {

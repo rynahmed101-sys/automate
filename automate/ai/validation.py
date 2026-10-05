@@ -168,6 +168,8 @@ def validate_ai_proposal(
                 "matrix_inverse", "matrix_rank", "matrix_rref", "linear_system_solve",
                 "matrix_characteristic_polynomial", "matrix_eigenvalues",
                 "matrix_eigenvector", "matrix_diagonalize",
+                "matrix_null_space", "matrix_row_space", "matrix_column_space",
+                "vector_span_membership", "vector_linear_independence", "vector_basis_of_span",
             }:
                 from automate.ir.linear_algebra import parse_linear_algebra_expression
                 parse_linear_algebra_expression(out_node.expression)
