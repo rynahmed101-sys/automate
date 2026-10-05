@@ -250,6 +250,7 @@ def run_cadabra_script(
     expected_output: Optional[str] = None,
     sandbox_limits: Optional[SandboxLimits] = None,
     claim_fingerprint_sha256: Optional[str] = None,
+    comparison_target_source: str = "caller_supplied",
 ) -> Dict[str, Any]:
     """Execute a supported Cadabra script and return auditable evidence."""
     input_fingerprint = _sha256_text(source)
@@ -259,14 +260,23 @@ def run_cadabra_script(
     runtime_environment_fingerprint = _adapter_runtime_fingerprint()
     limits = sandbox_limits or SandboxLimits()
     comparison_method = "exact stdout comparison when expected_output is supplied"
+    comparison_target_fingerprint = (
+        _sha256_text(expected_output.strip()) if expected_output is not None else None
+    )
+    if comparison_target_source not in {"caller_supplied", "independent_renderer"}:
+        raise ValueError(
+            "comparison_target_source must be 'caller_supplied' or 'independent_renderer'."
+        )
 
     try:
         _validate_supported_script(source)
     except ValueError as exc:
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, runtime_environment_fingerprint_sha256=runtime_environment_fingerprint, adapter_version="v1", execution_status="UNSUPPORTED",
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, runtime_environment_fingerprint_sha256=runtime_environment_fingerprint, adapter_version="v2", execution_status="UNSUPPORTED",
             independence_class="UNVERIFIED", input_fingerprint_sha256=input_fingerprint,
             claim_fingerprint_sha256=claim_fingerprint_sha256,
+            comparison_target_fingerprint_sha256=comparison_target_fingerprint,
+            comparison_target_source=comparison_target_source if expected_output is not None else "none",
             comparison_method=comparison_method, sandbox_target=_TARGET,
             sandbox_limits=limits.model_dump(), error=str(exc),
             notes=["Only bounded source execution is supported."],
@@ -310,6 +320,8 @@ def run_cadabra_script(
             independence_class="CROSS_CHECK_FAILED",
             input_fingerprint_sha256=input_fingerprint,
             claim_fingerprint_sha256=claim_fingerprint_sha256,
+            comparison_target_fingerprint_sha256=comparison_target_fingerprint,
+            comparison_target_source=comparison_target_source if expected_output is not None else "none",
             output_fingerprint_sha256=result.get("output_fingerprint_sha256"),
             comparison_method=comparison_method, sandbox_target=_TARGET,
             sandbox_limits=limits.model_dump(),
@@ -337,6 +349,8 @@ def run_cadabra_script(
             input_fingerprint_sha256=input_fingerprint,
             claim_fingerprint_sha256=claim_fingerprint_sha256,
             output_fingerprint_sha256=result.get("output_fingerprint_sha256"),
+            comparison_target_fingerprint_sha256=comparison_target_fingerprint,
+            comparison_target_source=comparison_target_source,
             comparison_method="exact normalized stdout equality",
             sandbox_target=_TARGET, sandbox_limits=limits.model_dump(),
             checks_performed=1,
@@ -348,12 +362,22 @@ def run_cadabra_script(
         executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint,
         runtime_environment_fingerprint_sha256=runtime_environment_fingerprint,
         adapter_version="v1", execution_status="COMPLETED",
-        independence_class="DIFFERENT_ENGINE",
+        independence_class=(
+            "DIFFERENT_ENGINE"
+            if comparison_target_source == "independent_renderer"
+            else "UNVERIFIED"
+        ),
         input_fingerprint_sha256=input_fingerprint,
         claim_fingerprint_sha256=claim_fingerprint_sha256,
+        comparison_target_fingerprint_sha256=comparison_target_fingerprint,
+        comparison_target_source=comparison_target_source,
         output_fingerprint_sha256=result.get("output_fingerprint_sha256"),
         comparison_method="exact normalized stdout equality",
         sandbox_target=_TARGET, sandbox_limits=limits.model_dump(),
         checks_performed=1,
-        notes=["Agreement is independent computational evidence, not formal proof."],
+        notes=[
+            "Agreement is independent computational evidence, not formal proof."
+            if comparison_target_source == "independent_renderer"
+            else "Caller-supplied comparison targets are not independent evidence."
+        ],
     ).to_report()
