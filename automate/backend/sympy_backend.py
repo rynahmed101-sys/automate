@@ -854,6 +854,32 @@ class SymPyChecker(BaseChecker):
                     "reason": "Independent numerical limit sampling failed."}
 
     @classmethod
+    def _limit_domain_supported(cls, expr: sp.Expr, variable: sp.Symbol, point: sp.Expr,
+                                direction: str) -> tuple[bool, str]:
+        """Conservatively require an approach path in the real scalar domain."""
+        if point in {sp.oo, -sp.oo}:
+            return True, "infinite_target"
+        try:
+            from sympy.calculus.util import continuous_domain
+            domain = continuous_domain(expr, variable, sp.S.Reals)
+            punctured = sp.Complement(sp.S.Reals, sp.FiniteSet(point))
+            if domain == punctured:
+                return True, "punctured_real_domain"
+            if direction in {"two_sided", "left"}:
+                left = sp.Interval.open(point - 1, point)
+                if left.is_subset(domain) is not True:
+                    if direction == "left":
+                        return False, f"real-domain analysis did not establish a left punctured neighborhood: {domain}"
+                    return False, f"real-domain analysis did not establish a left punctured neighborhood: {domain}"
+            if direction in {"two_sided", "right"}:
+                right = sp.Interval.open(point, point + 1)
+                if right.is_subset(domain) is not True:
+                    return False, f"real-domain analysis did not establish a right punctured neighborhood: {domain}"
+            return True, str(domain)
+        except (NotImplementedError, ValueError, TypeError):
+            return False, "real-domain analysis was unavailable"
+    
+    @classmethod
     def _verify_limit(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
         from automate.ir.safe_parser import SafeParser, SafeParseError
         expr, variable, point, direction = cls._parse_limit_inputs(in_node, params)
@@ -870,6 +896,11 @@ class SymPyChecker(BaseChecker):
                 return False, {"rule": "limit"}, [], f"SafeParser rejected claimed limit: {exc}"
             expected_marker = None
         try:
+            domain_ok, domain_detail = cls._limit_domain_supported(expr, variable, point, direction)
+            if not domain_ok:
+                return False, {"rule": "limit", "direction": direction, "variable": str(variable),
+                               "point": str(point), "domain_analysis": domain_detail,
+                               "_status_override": VerificationStatus.UNVERIFIED.value}, [],                        "Limit domain/approach path could not be established safely."
             if direction == "two_sided":
                 left = sp.limit(expr, variable, point, dir="-")
                 right = sp.limit(expr, variable, point, dir="+")
@@ -878,7 +909,9 @@ class SymPyChecker(BaseChecker):
                                    "point": str(point), "left_limit": str(left), "right_limit": str(right),
                                    "_status_override": VerificationStatus.UNVERIFIED.value}, \
                            "Two-sided limit could not be established from both one-sided limits."
-                if left == right:
+                if isinstance(left, sp.AccumBounds) or isinstance(right, sp.AccumBounds):
+                    actual, existence = "DNE", "nonexistent"
+                elif left == right:
                     actual, existence = left, "finite_or_infinite"
                 else:
                     actual, existence = "DNE", "nonexistent"
@@ -908,7 +941,8 @@ class SymPyChecker(BaseChecker):
             numeric = cls._limit_numeric_evidence(expr, variable, point, direction, actual)
             details = {"rule": "limit", "direction": direction, "variable": str(variable), "point": str(point),
                        "computed_limit": str(actual), "claimed_limit": expected_raw,
-                       "existence_class": existence, "numeric_evidence": numeric}
+                       "existence_class": existence, "domain_analysis": domain_detail,
+                       "numeric_evidence": numeric}
             steps = [{"step": 1, "operation": "compute explicit directional limit", "direction": direction},
                      {"step": 2, "operation": "compare computed limit with claimed result",
                       "computed": str(actual), "claimed": expected_raw}]
