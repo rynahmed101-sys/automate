@@ -256,6 +256,22 @@ class LinearAlgebraChecker(BaseChecker):
                 "atol": 1e-10,
             }
 
+        if operation == "matrix_pseudoinverse":
+            try:
+                passed = bool(np.allclose(actual_np, np.asarray(expected), rtol=1e-8, atol=1e-10, equal_nan=False))
+                error = float(np.max(np.abs(actual_np - np.asarray(expected))))
+                return {"available": True, "independence_class": "DIFFERENT_ENGINE", "engine": "numpy.linalg.pinv", "version": np.__version__, "operation": operation, "passed": passed, "max_abs_error": error, "rtol": 1e-8, "atol": 1e-10}
+            except (TypeError, ValueError):
+                return {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "NumPy pseudoinverse cross-check unavailable."}
+
+        if operation == "linear_least_squares":
+            try:
+                passed = bool(np.allclose(actual_np, np.asarray(expected), rtol=1e-8, atol=1e-10, equal_nan=False))
+                error = float(np.max(np.abs(actual_np - np.asarray(expected))))
+                return {"available": True, "independence_class": "DIFFERENT_ENGINE", "engine": "numpy.linalg.pinv", "version": np.__version__, "operation": operation, "passed": passed, "max_abs_error": error, "rtol": 1e-8, "atol": 1e-10}
+            except (TypeError, ValueError):
+                return {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "NumPy least-squares cross-check unavailable."}
+
         if operation == "matrix_eigenvalues":
             expected_np = np.asarray(expected).reshape(-1)
             passed = cls._numeric_multiset_match(actual_np, expected_np)
