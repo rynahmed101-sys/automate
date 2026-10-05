@@ -313,7 +313,13 @@ def check(graph_file: str, as_json: bool):
                 console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")
         elif edge.checker == "vector_calculus":
             report = vector_calculus_checker.verify_edge(edge, graph)
-        elif edge.checker == "coordinate_vector_calculus":\n            report = coordinate_vector_calculus_checker.verify_edge(edge, graph)\n            results[eid] = {"status": report.status.value, "passed": report.passed, "dim": dim_report.passed}\n            if not as_json:\n                status_color = "green" if report.passed else "red"\n                console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")\n        elif edge.checker == "pde":
+        elif edge.checker == "coordinate_vector_calculus":
+            report = coordinate_vector_calculus_checker.verify_edge(edge, graph)
+            results[eid] = {"status": report.status.value, "passed": report.passed, "dim": dim_report.passed}
+            if not as_json:
+                status_color = "green" if report.passed else "red"
+                console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")
+        elif edge.checker == "pde":
             report = pde_checker.verify_edge(edge, graph)
             results[eid] = {"status": report.status.value, "passed": report.passed, "dim": dim_report.passed}
             if not as_json:
