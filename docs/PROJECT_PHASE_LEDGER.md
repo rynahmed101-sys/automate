@@ -1,35 +1,69 @@
-# Automate Project Phase Ledger
+# Automate Development Stages & Capability Ledger
 
-This is the human-readable project scoreboard for the Maths & Physics capability program.
+This is the single authoritative roadmap for Automate's mathematical and physics development.
 
-The ledger is maintained by the project lead/engineering agent. It records project state in plain English.
+It replaces the old split between a domain/capability phase ladder and a separate development-intelligence roadmap. **Development stage and capability scope are now one system.**
 
-The recorded capability baseline identifies the last substantive main milestone; ledger-only bookkeeping commits do not need to replace that baseline.
+The purpose is not to accumulate isolated rules. Automate should progressively become a general mathematical-physics reasoning engine whose capabilities deepen as each stage advances.
+
+## Core development principle
+
+A domain is developed **breadth-first and depth-first enough to become reusable** before Automate treats that domain as mature.
+
+For example, introducing calculus does not mean implementing only first derivatives and one integral. The calculus machinery must support the natural generalization of the domain: arbitrary derivative order where mathematically defined, repeated differentiation/integration where represented, symbolic and numeric forms, multivariable forms when in scope, composition with other operators, domain/assumption handling, and failure cases.
+
+Likewise, a later physics example must reuse the earlier mathematical machinery instead of receiving a one-off special-case rule.
+
+This prevents the project from becoming a large collection of impressive-looking calculators that are difficult to reason about, extend, or trust.
+
+## The universal capability ladder
+
+Every capability family introduced at any stage is developed through the same ladder:
+
+1. **Representation** — typed, explicit mathematical objects and their valid shapes/domains.
+2. **Primitive operations** — the elementary operations of the domain, including natural higher-order/generalized forms.
+3. **Composition** — operations can be chained and nested rather than working only as isolated calls.
+4. **Assumptions and domains** — conditions, singularities, parameter restrictions, dimensions, orientations, boundary conditions, and conventions are explicit.
+5. **Derivation / verification** — Automate can verify results and, where the architecture supports it, construct derivation chains from trusted operations.
+6. **Generalization** — avoid arbitrary low ceilings such as “only first/second/fourth order” when a general representation is practical.
+7. **Failure intelligence** — malformed, ambiguous, unsupported, unsafe, or insufficiently justified claims fail closed as UNKNOWN/UNVERIFIED rather than being guessed.
+8. **Independent evidence** — symbolic, numerical, structural, dimensional, or formal cross-checks are used where appropriate.
+9. **Adversarial coverage** — positive, negative, boundary, degenerate, and adversarial cases are tested.
+10. **Cross-domain reuse** — later capabilities must consume the earlier domain machinery instead of duplicating it.
+11. **Certification** — registry/schema/catalog integration, documentation, focused tests, regression tests, Exact-head verification, and Security Audit are completed before the capability is marked verified.
+
+A capability is not considered mature merely because one formula or named example works.
+
+## Development-stage rules
+
+- Work on the **earliest incomplete stage** unless a prerequisite defect blocks it.
+- Within a stage, finish the current capability family before opening unrelated later-stage work.
+- A new domain must first establish its reusable representation and general primitive machinery.
+- Named examples are acceptance cases, not the architecture itself.
+- Do not create artificial order/dimension limits unless there is a documented mathematical, safety, or computational reason.
+- Reuse earlier machinery whenever possible.
+- Existing later-stage work may be preserved, repaired, and certified, but new development should follow the earliest incomplete stage.
+- UNKNOWN/UNVERIFIED is a valid result.
+- Never mark a capability [x] until authoritative verification exists.
+- Exact-head CI and Security Audit remain authoritative and must not be weakened, disabled, or bypassed.
 
 ## Status key
 
 - [ ] Not started
 - [~] In progress
-- [!] Verification pending
-- [x] Completed and verified
-
-A merged feature is **not** marked [x] until its acceptance evidence and exact-head CI verification are complete.
-
-## Current position
-
-**Last recorded capability baseline main:** `082d83b0d2b17e0dc9c97a10fea118ae4c65d7cf`
-
-**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics, bounded continuous-charge kernels, finite uniform line-charge potential, bounded Cartesian Gauss-law verification, conductor/capacitor verification, and bounded point-dipole potential/electric-field verification are certified on main. Electrostatic dipole energy and general boundary conditions remain unfinished.
-
-**Latest authoritative verification:** Dipole potential/field feature merge `082d83b0d2b17e0dc9c97a10fea118ae4c65d7cf` is covered by authoritative Exact-head run `37298925648` and Security Audit run `37298925633`, both successful on merged main SHA `ae73912108eb44a65c5c352328b8698e84b31af8`. This ledger update will create a new main SHA that must itself pass the same authoritative gates.
-
-**Next capability:** Add dipole electrostatic energy verification, then bounded electrostatic boundary-condition verification. Magnetostatics remains a later Phase 2 batch.
+- [!] Implemented/merged but authoritative verification is still pending
+- [x] Completed and authoritatively verified
 
 ---
 
-# Phase 1 — Mathematical Foundations
+# Stage 1 — Complete Core Mathematical Engine
 
-## Linear Algebra
+**Goal:** Build a broad, reusable mathematical foundation before Automate moves into increasingly specialized physics.
+
+This stage contains the mathematical basics that later physics must be able to rely on. The standard is not “a few textbook examples”; it is reusable general machinery.
+
+## 1A. Linear algebra
+
 - [x] Core vectors and vector operations
 - [x] Matrices, shapes, multiplication, transpose
 - [x] Determinant, trace, inverse, rank
@@ -38,8 +72,8 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [x] Eigenvalues with multiplicity
 - [x] Eigenvector verification
 - [x] Diagonalization
-- [ ] Null space, row space, column space
-- [ ] Basis, span, linear independence
+- [!] Null space, row space, column space
+- [!] Basis, span, linear independence
 - [ ] Change of basis
 - [ ] Symmetric / Hermitian matrices
 - [x] Norms, inner products, orthogonality
@@ -47,101 +81,92 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Positive-definite matrices
 - [ ] Quadratic forms
 
-## Core Calculus
+**Depth rule:** vector/matrix operations should be dimension-generic where represented; subspace and basis operations must correctly handle rectangular, rank-deficient, zero-dimensional, symbolic, and degenerate cases.
+
+## 1B. Calculus
+
 - [ ] Limits and continuity
+- [ ] Derivatives and higher-order derivatives
+- [ ] Chain/product/quotient and implicit differentiation
+- [ ] Higher-order symbolic differentiation without arbitrary order ceilings
 - [ ] Definite and indefinite integration
-- [ ] Integration techniques
-- [ ] Taylor / Maclaurin series
+- [ ] Repeated/nested integration where represented
+- [ ] Substitution, integration by parts, partial fractions, trigonometric and other general integration techniques where tractable
+- [ ] Fundamental theorem of calculus
+- [ ] Improper integrals and convergence-aware handling
+- [ ] Taylor / Maclaurin series and higher-order expansions
 - [ ] Partial derivatives and total differentials
+- [ ] Higher-order partial derivatives
 - [ ] Jacobians and Hessians
 - [ ] Multivariable chain rule
 - [ ] Stationary points and constrained optimization
+- [ ] Domain/singularity/assumption-aware calculus
 
-## General ODEs
+**Depth rule:** “derivative” means a general differentiation capability, not a permanently hard-coded first-derivative feature. The same principle applies to integrals, series order, and multivariable operations.
+
+## 1C. General ODEs
+
 - [ ] Separable first-order equations
 - [ ] Linear first-order equations
 - [ ] Bernoulli / exact equations
-- [ ] Second-order constant-coefficient families
+- [ ] Higher-order constant-coefficient families
+- [ ] General linear ODE representations where tractable
 - [ ] Coupled ODE systems
 - [ ] Initial-value and boundary-value problems
 - [ ] Phase-space representations
+- [ ] Verification of proposed ODE solutions
+- [ ] Domain and initial/boundary-condition validation
 
-**Phase 1 status:** [x] Core Phase 1 Linear Algebra milestones through inner products, projections, and Gram-Schmidt are verified; null spaces/bases and matrix-structure expansions remain.
+**Depth rule:** second-order examples are stepping stones, not the permanent ceiling.
+
+### Stage 1 exit condition
+
+Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
+
+**Current status:** [!] Active. Linear-algebra core is verified; the newly implemented subspace/basis family is awaiting authoritative Exact-head/Security evidence. Calculus and the remaining linear-algebra families are unfinished.
 
 ---
 
-# Phase 2 — Vector Calculus & Electromagnetism
+# Stage 2 — Core Mathematical Physics
 
-## Vector Calculus
-- [x] Scalar and vector fields
+**Goal:** Apply the Stage 1 engine across the central continuous-mathematics and classical-physics domains.
+
+## 2A. Vector calculus and fields
+
+- [x] Scalar/vector fields
 - [x] Gradient
 - [x] Directional derivative
 - [x] Divergence
 - [x] Curl
 - [x] Laplacian
-- [x] Line / surface / volume integrals
-- [x] Green's theorem / divergence theorem / Stokes' theorem
-- [x] Coulomb force / point-charge field / point-charge potential
-- [x] Conservative fields and potentials
-- [x] Flux / surface-flux capability
+- [x] Line/surface/volume integrals
 - [x] Green's theorem
 - [x] Divergence theorem
 - [x] Stokes' theorem
+- [ ] General coordinate-aware field operations where supported
+- [ ] Conservative fields and potential reconstruction at broader scope
 
-## Electrostatics
-- [ ] Coulomb law
-- [ ] Electric field and potential
-- [x] Charge distributions
-- [x] Bounded continuous-charge field/potential kernels
-- [x] Finite uniform line-charge potential
-- [x] Gauss law
-- [x] Conductors and capacitors
-- [x] Dipole potential and electric-field verification
-- [ ] Boundary conditions
+## 2B. PDEs and transforms
 
-## Magnetostatics
-- [ ] Biot-Savart law
-- [ ] Ampere law
-- [ ] Magnetic fields
-- [ ] Vector potential
-- [ ] Magnetic dipoles
-- [ ] Gauge conditions where represented
-
-## Maxwell
-- [ ] Differential Maxwell equations
-- [ ] Integral Maxwell equations
-- [ ] Differential ↔ integral form checks
-- [ ] Charge conservation
-- [ ] Electromagnetic potentials
-- [ ] Lorentz force
-- [ ] Poynting vector
-- [ ] Electromagnetic wave equation
-
-**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge, bounded continuous-charge, finite line-charge potential, bounded Cartesian Gauss-law, conductor/capacitor, and dipole potential/field verification are certified. Dipole energy and bounded electrostatic boundary conditions remain.
-
----
-
-# Phase 3 — Advanced Calculus, PDEs, Waves & Expanded Mechanics
-
-## PDEs
 - [ ] Heat equation
 - [ ] Wave equation
 - [ ] Laplace / Poisson equations
 - [ ] Separation of variables
 - [ ] Initial and boundary conditions
-- [ ] Fourier-series solutions
-- [ ] Green-function methods where tractable
-
-## Fourier / Laplace
 - [ ] Fourier series
 - [ ] Fourier transforms
 - [ ] Inverse transforms
 - [ ] Convolution
 - [ ] Laplace transforms
 - [ ] Inverse Laplace transforms
+- [ ] Green-function methods where tractable
 
-## Classical Mechanics Expansion
+## 2C. Classical mechanics
+
+- [ ] Kinematics and dynamics
+- [ ] Work, energy, and momentum
 - [ ] Constraints and Lagrange multipliers
+- [ ] Lagrangian mechanics
 - [ ] Hamilton equations
 - [ ] Poisson brackets
 - [ ] Canonical transformations
@@ -150,7 +175,34 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Rigid-body motion
 - [ ] Rotating frames
 
-## Waves and Optics
+## 2D. Electromagnetism
+
+- [x] Point-charge force/field/potential foundations
+- [x] Charge distributions
+- [x] Bounded continuous-charge kernels
+- [x] Finite uniform line-charge potential
+- [x] Gauss law
+- [x] Conductors and capacitors
+- [x] Dipole potential and electric-field verification
+- [ ] Dipole electrostatic energy
+- [ ] Electrostatic boundary conditions
+- [ ] Biot-Savart law
+- [ ] Ampere law
+- [ ] Magnetic fields
+- [ ] Vector potential
+- [ ] Magnetic dipoles
+- [ ] Gauge conditions where represented
+- [ ] Differential Maxwell equations
+- [ ] Integral Maxwell equations
+- [ ] Differential ↔ integral consistency
+- [ ] Charge conservation
+- [ ] Electromagnetic potentials
+- [ ] Lorentz force
+- [ ] Poynting vector
+- [ ] Electromagnetic wave equation
+
+## 2E. Waves and optics
+
 - [ ] Harmonic waves
 - [ ] Superposition and interference
 - [ ] Standing waves
@@ -159,87 +211,17 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Polarization
 - [ ] Basic diffraction
 
-**Phase 3 status:** [ ] Not started.
+**Stage 2 exit condition:** core mathematical-physics operators and equations must be composable with Stage 1 mathematics. Special-case physics rules must not substitute for missing general mathematics.
+
+**Current status:** [~] Existing vector-calculus and electrostatic work is preserved, but Stage 1 takes priority until complete.
 
 ---
 
-# Phase 4 — Relativity, Geometry & Differential Forms
+# Stage 3 — Numerical, Approximate & Scientific Reasoning
 
-## Tensor Algebra
-- [ ] Tensor index contraction
-- [ ] Raise tensor index
-- [ ] Lower tensor index
-- [ ] Arbitrary-rank tensor operations
-- [ ] Symmetrization / antisymmetrization
-- [ ] Kronecker delta
-- [ ] Levi-Civita symbol/tensor
-- [ ] Covariant derivatives
-- [ ] Metric compatibility
-- [ ] Coordinate transformations
-- [ ] Lie derivatives
+**Goal:** Teach Automate how exact mathematics, approximation, and numerical evidence relate.
 
-## Differential Forms
-- [ ] One-forms and p-forms
-- [ ] Wedge product
-- [ ] Exterior derivative
-- [ ] Pullback
-- [ ] Hodge dual
-- [ ] Exterior-calculus identities
-
-## Special Relativity
-- [ ] Lorentz transformations
-- [ ] Minkowski metric
-- [ ] Proper time
-- [ ] Four-vectors
-- [ ] Four-momentum
-- [ ] Four-current
-- [ ] Electromagnetic field tensor
-
-## General Relativity
-- [ ] Covariant-derivative expansion
-- [ ] Curvature invariants
-- [ ] Stress-energy tensor
-- [ ] Einstein field equations
-- [ ] Conservation laws
-- [ ] Killing vectors
-- [ ] Geodesic deviation
-- [ ] Schwarzschild spacetime
-- [ ] Weak-field / Newtonian limit
-- [ ] FLRW and Friedmann equations
-
-**Phase 4 status:** [~] Existing geometry foundation exists; tensor capabilities still need expansion.
-
----
-
-# Phase 5 — Thermodynamics & Statistical Physics
-
-## Thermodynamics
-- [ ] State variables and equations of state
-- [ ] First law
-- [ ] Second law
-- [ ] Entropy
-- [ ] Enthalpy
-- [ ] Helmholtz / Gibbs free energies
-- [ ] Maxwell relations
-- [ ] Carnot cycle
-- [ ] Phase equilibrium
-
-## Statistical Mechanics
-- [ ] Microstates / macrostates
-- [ ] Multiplicity
-- [ ] Boltzmann distribution
-- [ ] Partition functions
-- [ ] Canonical ensemble
-- [ ] Grand canonical ensemble
-- [ ] Expectation values and fluctuations
-- [ ] Equipartition
-- [ ] Simple spin systems
-
-**Phase 5 status:** [ ] Not started.
-
----
-
-# Phase 6 — Numerical Mathematics & Scientific Computing
+## 3A. Numerical mathematics
 
 - [ ] Numerical root finding
 - [ ] Nonlinear equation systems
@@ -258,14 +240,9 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Conditioning / residual evidence
 - [ ] Convergence evidence
 
-**Phase 6 status:** [~] Numerical ODE capability already exists; broader numerical mathematics remains.
+## 3B. Controlled approximation
 
----
-
-# Phase 7 — Approximation, Perturbation & Conservation
-
-## Approximation
-- [ ] Taylor expansion as a controlled approximation
+- [ ] Taylor expansion as controlled approximation
 - [ ] Small-parameter expansion
 - [ ] Linearization
 - [ ] Asymptotic notation
@@ -275,23 +252,103 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Nonrelativistic limits
 - [ ] Semiclassical limits
 
-## Conservation
-- [ ] Energy
-- [ ] Linear momentum
-- [ ] Angular momentum
-- [ ] Charge
-- [ ] Mass / continuity
-- [ ] Probability
-- [ ] Local conservation laws
-- [ ] Global conservation laws
-- [ ] Flux-form conservation
-- [ ] Noether correspondence
+## 3C. Scientific evidence
 
-**Phase 7 status:** [~] Some conservation foundations exist; reusable generalized coverage remains.
+- [ ] Distinguish exact, approximate, and numerical claims
+- [ ] Track error/residual evidence
+- [ ] Detect conditioning and instability
+- [ ] Compare independent computational routes
+- [ ] Preserve assumptions behind approximations
+
+**Stage 3 exit condition:** numerical evidence must supplement exact reasoning rather than silently replace it.
 
 ---
 
-# Phase 8 — Quantum Mechanics
+# Stage 4 — Geometry, Tensors & Relativity
+
+**Goal:** Generalize the mathematical representation from vectors/matrices/fields to coordinate-aware geometry.
+
+## 4A. Tensor algebra
+
+- [ ] Tensor index contraction
+- [ ] Raise/lower indices
+- [ ] Arbitrary-rank tensor operations
+- [ ] Symmetrization / antisymmetrization
+- [ ] Kronecker delta
+- [ ] Levi-Civita symbol/tensor
+- [ ] Covariant derivatives
+- [ ] Metric compatibility
+- [ ] Coordinate transformations
+- [ ] Lie derivatives
+
+## 4B. Differential forms
+
+- [ ] One-forms and p-forms
+- [ ] Wedge product
+- [ ] Exterior derivative
+- [ ] Pullback
+- [ ] Hodge dual
+- [ ] Exterior-calculus identities
+
+## 4C. Relativity
+
+- [ ] Lorentz transformations
+- [ ] Minkowski metric
+- [ ] Proper time
+- [ ] Four-vectors
+- [ ] Four-momentum
+- [ ] Four-current
+- [ ] Electromagnetic field tensor
+- [ ] Covariant-derivative expansion
+- [ ] Curvature invariants
+- [ ] Stress-energy tensor
+- [ ] Einstein field equations
+- [ ] Conservation laws
+- [ ] Killing vectors
+- [ ] Geodesic deviation
+- [ ] Schwarzschild spacetime
+- [ ] Weak-field / Newtonian limit
+- [ ] FLRW and Friedmann equations
+
+**Stage 4 exit condition:** coordinate changes, index operations, and geometric representations must be general reusable machinery, not isolated relativity formulas.
+
+---
+
+# Stage 5 — Thermodynamics & Statistical Physics
+
+**Goal:** Develop state-based, ensemble-based, and probabilistic physical reasoning.
+
+## 5A. Thermodynamics
+
+- [ ] State variables and equations of state
+- [ ] First law
+- [ ] Second law
+- [ ] Entropy
+- [ ] Enthalpy
+- [ ] Helmholtz / Gibbs free energies
+- [ ] Maxwell relations
+- [ ] Carnot cycle
+- [ ] Phase equilibrium
+
+## 5B. Statistical mechanics
+
+- [ ] Microstates / macrostates
+- [ ] Multiplicity
+- [ ] Boltzmann distribution
+- [ ] Partition functions
+- [ ] Canonical ensemble
+- [ ] Grand canonical ensemble
+- [ ] Expectation values and fluctuations
+- [ ] Equipartition
+- [ ] Simple spin systems
+
+**Stage 5 exit condition:** Automate must track state variables, constraints, ensemble assumptions, and derived quantities consistently.
+
+---
+
+# Stage 6 — Quantum Mechanics
+
+**Goal:** Extend the engine into complex vector spaces, operators, states, and probabilistic measurement.
 
 - [ ] Complex vector spaces
 - [ ] Hilbert-space states
@@ -314,11 +371,13 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Perturbation theory
 - [ ] Density matrices
 
-**Phase 8 status:** [ ] Not started.
+**Depth rule:** quantum capabilities must reuse and extend the general linear-algebra, calculus, ODE, numerical, and approximation machinery instead of creating parallel one-off implementations.
 
 ---
 
-# Phase 9 — Field Theory & Advanced Mathematical Physics
+# Stage 7 — Field Theory & Advanced Mathematical Physics
+
+**Goal:** Move from finite-dimensional and single-system reasoning toward fields, actions, symmetries, and interacting systems.
 
 - [ ] Generalized field Euler-Lagrange equations
 - [ ] Multiple interacting fields
@@ -330,13 +389,39 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Advanced tensor calculus
 - [ ] Selected mathematical structures useful for QFT
 
-**Phase 9 status:** [~] Scalar-field variation foundation exists; broader field theory remains.
+**Stage 7 exit condition:** field-theoretic operations must compose with the tensor, calculus, variational, symmetry, and conservation machinery already developed.
 
 ---
 
-# Phase 10 — Formal Mathematics Coverage
+# Stage 8 — Cross-Domain Synthesis
+
+**Goal:** Stop treating mathematics and physics as isolated namespaces and make Automate reason across them.
+
+Target capabilities include:
+
+- [ ] Mathematics → physics derivation chains
+- [ ] Physics → required mathematics selection
+- [ ] Reuse of the same mathematical object across domains
+- [ ] Dimensional and unit consistency
+- [ ] Assumption propagation across multi-step derivations
+- [ ] Method selection from problem structure
+- [ ] Multiple independent solution routes
+- [ ] Counterexample generation for candidate claims
+- [ ] Exact ↔ numerical ↔ formal evidence comparison
+- [ ] Automatic detection of insufficient premises
+- [ ] Long derivation-chain provenance
+- [ ] Cross-domain regression corpus
+
+**Stage 8 exit condition:** Automate should increasingly choose and compose appropriate existing machinery rather than requiring a special rule for each new problem.
+
+---
+
+# Stage 9 — Formal Mathematics & Proof Escalation
+
+**Goal:** Turn selected mathematical reasoning into machine-checked proof where practical.
 
 ## Lean-backed growth
+
 - [ ] Arithmetic
 - [ ] Polynomial identities
 - [ ] Inequalities
@@ -345,29 +430,100 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Selected limits and calculus
 - [ ] Linear algebra
 - [ ] Selected mechanics identities
-- [ ] Selected tensor identities
+- [ ] Tensor identities
 - [ ] Selected mathematical-physics theorems
 
-**Phase 10 status:** [~] Lean proof path exists; formal coverage is being expanded gradually.
+Additional reasoning goals:
+
+- [ ] Decide when a claim is suitable for formal escalation
+- [ ] Preserve correspondence between Automate IR and formal proof terms
+- [ ] Distinguish “symbolically verified” from “formally proved”
+- [ ] Maintain proof provenance
+
+**Stage 9 exit condition:** formal proof is an evidence layer integrated with reasoning, not a disconnected collection of demonstrations.
 
 ---
 
-# Project Rules
+# Stage 10 — Research-Grade Mathematical-Physics Reasoning
 
-- One coherent capability family is the normal delivery unit.
-- Prefer real mathematical problems over infrastructure work.
-- Each capability gets positive, negative, edge, and adversarial tests.
-- Independent cross-checks are used where practical.
-- AI output is untrusted until Automate verifies it.
-- UNKNOWN/UNVERIFIED is a valid result and is never treated as success.
-- A merged commit is not automatically a verified milestone.
-- Exact merged-head CI is required before a capability is marked [x].
-- This ledger is the project scoreboard and should be updated whenever the state changes.
+**Goal:** Make Automate useful not merely as a calculator or verifier, but as a structured scientific reasoning system.
 
-## Next move
+Target capabilities:
 
-**1. Implement dipole electrostatic energy verification with an explicit point-dipole model and fail-closed domain restrictions.**
+- [ ] Problem decomposition
+- [ ] Representation selection
+- [ ] Method selection
+- [ ] Hypothesis formation
+- [ ] Symbolic derivation
+- [ ] Numerical experiment design
+- [ ] Counterexample search
+- [ ] Assumption discovery
+- [ ] Competing-derivation comparison
+- [ ] Uncertainty and evidence assessment
+- [ ] Literature/formal-result integration where supported
+- [ ] Reproducible derivation provenance
+- [ ] Research-problem templates
+- [ ] Human-review checkpoints for genuinely ambiguous mathematics
 
-**2. Verify positive/negative dipole orientations, reference-potential conventions, invalid source/displacement configurations, and adversarial unsafe expressions.**
+**Stage 10 exit condition:** Automate should be able to approach a mathematical-physics problem by selecting representations and methods, deriving candidate results, checking them independently, identifying uncertainty or missing assumptions, and presenting an auditable chain of reasoning.
 
-**3. Then implement bounded electrostatic boundary-condition verification with explicit Cartesian geometry and no hidden medium/interface assumptions.**
+---
+
+# How future agents must use this ledger
+
+When entering a new chat:
+
+1. Read this file first.
+2. Identify the **earliest incomplete Development Stage**.
+3. Identify the earliest incomplete capability family inside that stage.
+4. Inspect existing implementation before adding anything.
+5. Extend the general machinery before adding more examples.
+6. Reuse earlier-stage primitives.
+7. Add positive, negative, boundary, degenerate, and adversarial tests.
+8. Add independent mathematical/numerical/formal cross-checks where appropriate.
+9. Update registry/schema/catalog and documentation.
+10. Run focused and regression tests.
+11. Commit through a coherent PR.
+12. Merge only when appropriate.
+13. Wait for Development CI.
+14. Wait for authoritative Exact-head verification.
+15. Wait for Security Audit.
+16. Mark [x] only after authoritative evidence.
+17. If this ledger itself changes, the resulting main HEAD must pass the authoritative gates again.
+18. Then continue to the next incomplete capability.
+
+## Anti-patterns explicitly prohibited
+
+- Do not jump to a later stage because it contains a more exciting physics problem while an earlier mathematical foundation is incomplete.
+- Do not implement “fourth derivative” as a special feature if a general n-th derivative representation is practical.
+- Do not implement a physics formula as a one-off calculator when its mathematical operators should exist generally.
+- Do not create arbitrary dimension/order ceilings without documenting why.
+- Do not duplicate mathematical machinery inside physics modules.
+- Do not treat a green unit test for one example as proof of a general capability.
+- Do not weaken Exact-head CI, Security Audit, parser restrictions, or fail-closed semantics to accelerate development.
+- Do not update a capability to [x] based solely on a merge, local tests, or an unverified CI observation.
+
+## Current project position
+
+**Active development stage:** Stage 1 — Complete Core Mathematical Engine.
+
+**Current priority:** finish the remaining Stage 1 linear-algebra families and then build the core calculus and ODE machinery to the same generality standard.
+
+**Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
+
+**Current authoritative baseline:** main contains the merged Phase 1A subspace/basis implementation at `e0ad0e7c4e46b562913028d75c6d46bbd0bcd02d`. Its authoritative Exact-head/Security outcome is not currently observable through the available GitHub workflow interface, so the affected capabilities must remain [!] rather than being falsely certified.
+
+---
+
+## Project quality contract
+
+Automate is intended to become a **general, progressively verified mathematical-physics reasoning engine**, not a pile of calculators.
+
+Every new feature should answer four questions:
+
+1. **What general mathematical capability does this add?**
+2. **What existing capability does it reuse?**
+3. **What broader class of problems does it unlock?**
+4. **How do we independently know that it is correct?**
+
+If the answer to the first question is merely “this one formula now works,” the implementation probably belongs one abstraction level too low.
