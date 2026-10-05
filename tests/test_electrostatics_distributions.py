@@ -378,7 +378,7 @@ def test_dipole_field_on_axis():
 def test_dipole_field_equatorial_configuration():
     result = _dipole_check(
         "dipole_field", "Vector([p,0,0])", "Vector([0,2,0])",
-        "Vector([0,-k*p/8,0])",
+        "Vector([-k*p/8,0,0])",
     )
     assert result.passed
 
