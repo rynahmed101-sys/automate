@@ -265,3 +265,43 @@ class MathematicalExpression(BaseModel):
 
     def get_dimension(self) -> Dimension:
         return Dimension.from_string(self.dimension)
+
+
+
+class GeneralizedCoordinateNode(BaseModel):
+    """Canonical generalized-coordinate representation for classical mechanics."""
+    kind: Literal["generalized_coordinate"] = "generalized_coordinate"
+    name: str
+    domain: str = "real"
+    dimension: str = ""
+    assumptions: List[str] = Field(default_factory=list)
+
+
+class MechanicalSystemNode(BaseModel):
+    """Canonical finite-dimensional mechanical system representation."""
+    kind: Literal["mechanical_system"] = "mechanical_system"
+    coordinates: List[Dict[str, Any]] = Field(default_factory=list)
+    kinetic_energy: Dict[str, Any] = Field(default_factory=dict)
+    potential_energy: Dict[str, Any] = Field(default_factory=dict)
+    forces: List[Dict[str, Any]] = Field(default_factory=list)
+    constraints: List[Dict[str, Any]] = Field(default_factory=list)
+    time_variable: str = "t"
+    assumptions: List[str] = Field(default_factory=list)
+
+
+class LagrangianNode(BaseModel):
+    """Canonical Lagrangian L(q, qdot, t) representation."""
+    kind: Literal["lagrangian"] = "lagrangian"
+    expression: Dict[str, Any]
+    coordinates: List[str] = Field(default_factory=list)
+    time_variable: str = "t"
+    assumptions: List[str] = Field(default_factory=list)
+
+
+class ConstraintNode(BaseModel):
+    """Canonical mechanical constraint representation."""
+    kind: Literal["mechanical_constraint"] = "mechanical_constraint"
+    expression: Dict[str, Any]
+    coordinates: List[str] = Field(default_factory=list)
+    constraint_type: Literal["holonomic", "nonholonomic"] = "holonomic"
+    assumptions: List[str] = Field(default_factory=list)
