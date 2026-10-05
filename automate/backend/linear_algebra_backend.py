@@ -1244,212 +1244,6 @@ class LinearAlgebraChecker(BaseChecker):
                               "eigenvalue": str(eigenvalue.value), "nonzero_vector": True})
 
             elif rule == "matrix_svd":
-                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or len(parsed_outputs) != 3:
-                    raise LinearAlgebraParseError("matrix_svd requires one input matrix and three outputs: U, Sigma, Vh.")
-                A = sp.Matrix(parsed_inputs[0].value)
-                U, Sigma, Vh = [sp.Matrix(value.value) for value in parsed_outputs]
-                m, n = A.rows, A.cols
-                k = min(m, n)
-                expected_shapes = [(m, k), (k, k), (k, n)]
-                actual_shapes = [(U.rows, U.cols), (Sigma.rows, Sigma.cols), (Vh.rows, Vh.cols)]
-                if actual_shapes != expected_shapes:
-                    raise ValueError(f"Reduced SVD shape mismatch: expected U/Sigma/Vh shapes {expected_shapes}, got {actual_shapes}.")
-                identity = sp.eye(k)
-                reconstruction = U * Sigma * Vh
-                left_orthogonality = sp.simplify(U.conjugate().T * U - identity)
-                right_orthogonality = sp.simplify(Vh * Vh.conjugate().T - identity)
-                for i in range(k):
-                    for j in range(k):
-                        if i != j and sp.simplify(Sigma[i, j]) != 0:
-                            raise ValueError("Sigma must be diagonal in the reduced SVD representation.")
-                undecidable = False
-                for i in range(k):
-                    sigma = sp.simplify(Sigma[i, i])
-                    if sigma.is_real is False or sigma.is_nonnegative is False:
-                        raise ValueError("Singular values must be real and non-negative.")
-                    if sigma.is_real is None or sigma.is_nonnegative is None:
-                        undecidable = True
-                    if i + 1 < k:
-                        comparison = sp.ask(sp.Q.ge(sigma, sp.simplify(Sigma[i + 1, i + 1])))
-                        if comparison is False:
-                            raise ValueError("Singular values must be ordered non-increasingly.")
-                        if comparison is None:
-                            undecidable = True
-                reconstruction_ok = all(self._equal_scalar(reconstruction[i, j], A[i, j]) for i in range(m) for j in range(n))
-                left_ok = all(sp.simplify(left_orthogonality[i, j]) == 0 for i in range(k) for j in range(k))
-                right_ok = all(sp.simplify(right_orthogonality[i, j]) == 0 for i in range(k) for j in range(k))
-                symbolic_passed = reconstruction_ok and left_ok and right_ok
-                if not symbolic_passed:
-                    raise ValueError("SVD reconstruction or orthogonality condition failed.")
-                details["output_shapes"] = [list(shape) for shape in actual_shapes]
-                details["reconstruction"] = self._display(ParsedLinearAlgebra("matrix", reconstruction))
-                details["singular_values"] = [str(Sigma[i, i]) for i in range(k)]
-                details["orthogonality"] = {"U_H_U": left_ok, "Vh_Vh_H": right_ok}
-                if undecidable:
-                    return self._unverified(edge, graph, start, details, "SVD candidate is structurally valid, but exact singular-value non-negativity/order could not be established symbolically.")
-                steps = [
-                    {"step": 1, "operation": "validate_reduced_dimensions", "k": k},
-                    {"step": 2, "operation": "verify_sigma_diagonal_nonnegative_ordered"},
-                    {"step": 3, "operation": "verify_U_conjugate_transpose_U_equals_I"},
-                    {"step": 4, "operation": "verify_Vh_Vh_conjugate_transpose_equals_I"},
-                    {"step": 5, "operation": "verify_reconstruction_A_equals_U_Sigma_Vh"},
-                ]
-
-            elif rule == "matrix_svd":
-                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or len(parsed_outputs) != 3:
-                    raise LinearAlgebraParseError("matrix_svd requires one input matrix and three outputs: U, Sigma, Vh.")
-                A = sp.Matrix(parsed_inputs[0].value)
-                U, Sigma, Vh = [sp.Matrix(value.value) for value in parsed_outputs]
-                m, n = A.rows, A.cols
-                k = min(m, n)
-                expected_shapes = [(m, k), (k, k), (k, n)]
-                actual_shapes = [(U.rows, U.cols), (Sigma.rows, Sigma.cols), (Vh.rows, Vh.cols)]
-                if actual_shapes != expected_shapes:
-                    raise ValueError(f"Reduced SVD shape mismatch: expected U/Sigma/Vh shapes {expected_shapes}, got {actual_shapes}.")
-                identity = sp.eye(k)
-                reconstruction = U * Sigma * Vh
-                left_orthogonality = sp.simplify(U.conjugate().T * U - identity)
-                right_orthogonality = sp.simplify(Vh * Vh.conjugate().T - identity)
-                for i in range(k):
-                    for j in range(k):
-                        if i != j and sp.simplify(Sigma[i, j]) != 0:
-                            raise ValueError("Sigma must be diagonal in the reduced SVD representation.")
-                undecidable = False
-                for i in range(k):
-                    sigma = sp.simplify(Sigma[i, i])
-                    if sigma.is_real is False or sigma.is_nonnegative is False:
-                        raise ValueError("Singular values must be real and non-negative.")
-                    if sigma.is_real is None or sigma.is_nonnegative is None:
-                        undecidable = True
-                    if i + 1 < k:
-                        comparison = sp.ask(sp.Q.ge(sigma, sp.simplify(Sigma[i + 1, i + 1])))
-                        if comparison is False:
-                            raise ValueError("Singular values must be ordered non-increasingly.")
-                        if comparison is None:
-                            undecidable = True
-                reconstruction_ok = all(self._equal_scalar(reconstruction[i, j], A[i, j]) for i in range(m) for j in range(n))
-                left_ok = all(sp.simplify(left_orthogonality[i, j]) == 0 for i in range(k) for j in range(k))
-                right_ok = all(sp.simplify(right_orthogonality[i, j]) == 0 for i in range(k) for j in range(k))
-                symbolic_passed = reconstruction_ok and left_ok and right_ok
-                if not symbolic_passed:
-                    raise ValueError("SVD reconstruction or orthogonality condition failed.")
-                details["output_shapes"] = [list(shape) for shape in actual_shapes]
-                details["reconstruction"] = self._display(ParsedLinearAlgebra("matrix", reconstruction))
-                details["singular_values"] = [str(Sigma[i, i]) for i in range(k)]
-                details["orthogonality"] = {"U_H_U": left_ok, "Vh_Vh_H": right_ok}
-                if undecidable:
-                    return self._unverified(edge, graph, start, details, "SVD candidate is structurally valid, but exact singular-value non-negativity/order could not be established symbolically.")
-                steps = [
-                    {"step": 1, "operation": "validate_reduced_dimensions", "k": k},
-                    {"step": 2, "operation": "verify_sigma_diagonal_nonnegative_ordered"},
-                    {"step": 3, "operation": "verify_U_conjugate_transpose_U_equals_I"},
-                    {"step": 4, "operation": "verify_Vh_Vh_conjugate_transpose_equals_I"},
-                    {"step": 5, "operation": "verify_reconstruction_A_equals_U_Sigma_Vh"},
-                ]
-
-            elif rule == "linear_system_solve":
-                if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "vector":
-                    raise LinearAlgebraParseError("linear_system_solve requires matrix A, vector b, and vector x.")
-                matrix, vector = sp.Matrix(parsed_inputs[0].value), sp.Matrix(parsed_inputs[1].value)
-                if matrix.rows != matrix.cols:
-                    raise ValueError(f"linear_system_solve requires square A; received {matrix.shape}.")
-                if vector.rows != matrix.rows:
-                    raise ValueError(f"Linear-system shape mismatch: A is {matrix.shape} but b has length {vector.rows}.")
-                determinant = sp.simplify(matrix.det())
-                if determinant == 0:
-                    raise ValueError("Linear system does not have a unique solution because det(A) = 0.")
-                solution = matrix.LUsolve(vector)
-                augmented_rref, pivots = matrix.row_join(vector).rref()
-                expected = ParsedLinearAlgebra("vector", solution)
-                na, nb = self._numeric_array(parsed_inputs[0]), self._numeric_array(parsed_inputs[1])
-                if na is not None and nb is not None:
-                    numpy_expected = np.linalg.solve(na, nb.reshape(-1))
-                steps = [
-                    {"step": 1, "operation": "augment_system", "shape": [int(matrix.rows), int(matrix.cols + 1)]},
-                    {"step": 2, "operation": "gaussian_elimination_rref", "pivots": list(pivots),
-                     "rref": [[str(augmented_rref[i, j]) for j in range(augmented_rref.cols)] for i in range(augmented_rref.rows)]},
-                    {"step": 3, "operation": "back_substitution", "solution": [str(v) for v in solution]},
-                ]
-            else:
-                raise AssertionError(f"Unhandled linear algebra rule {rule}")
-
-            details["input_shapes"] = [list(x.shape) for x in parsed_inputs]
-            if rule == "matrix_svd":
-                details["output_shapes"] = [list(x.shape) for x in parsed_outputs]
-                details["symbolic_equivalence"] = symbolic_passed
-            elif rule in {"matrix_diagonalize", "vector_gram_schmidt"}:
-                details["output_shapes"] = [list(x.shape) for x in parsed_outputs]
-                details["symbolic_equivalence"] = symbolic_passed
-            else:
-                details["output_shape"] = list(output.shape)
-                details["expected"] = None if expected is None else self._display(expected)
-                details["actual"] = self._display(output)
-                if symbolic_passed is None:
-                    symbolic_passed = self._equal(output, expected)
-                details["symbolic_equivalence"] = symbolic_passed
-
-            if rule in {"matrix_null_space", "matrix_row_space", "matrix_column_space"}:
-                cross = self._numpy_subspace_compare(rule, parsed_inputs, parsed_outputs)
-            elif rule == "vector_span_membership":
-                numeric_g = self._numeric_array(parsed_inputs[0])
-                numeric_v = self._numeric_array(parsed_inputs[1])
-                if numeric_g is not None and numeric_v is not None:
-                    rank_g = np.linalg.matrix_rank(numeric_g)
-                    rank_aug = np.linalg.matrix_rank(np.column_stack([numeric_g, numeric_v.reshape(-1)]))
-                    expected_indicator = 1 if rank_g == rank_aug else 0
-                    actual_indicator = self._numeric_scalar(output.value)
-                    cross = {
-                        "available": True,
-                        "independence_class": "DIFFERENT_ENGINE",
-                        "engine": "numpy.linalg.matrix_rank",
-                        "version": np.__version__,
-                        "operation": rule,
-                        "passed": actual_indicator is not None and bool(np.isclose(actual_indicator, expected_indicator, atol=1e-10, rtol=0)),
-                        "expected_indicator": expected_indicator,
-                        "actual_indicator": actual_indicator,
-                    }
-                else:
-                    cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "Span cross-check requires numeric inputs."}
-            elif rule == "vector_linear_independence":
-                numeric_g = self._numeric_array(parsed_inputs[0])
-                if numeric_g is not None:
-                    rank_g = np.linalg.matrix_rank(numeric_g)
-                    expected_indicator = 1 if rank_g == numeric_g.shape[1] else 0
-                    actual_indicator = self._numeric_scalar(output.value)
-                    cross = {
-                        "available": True,
-                        "independence_class": "DIFFERENT_ENGINE",
-                        "engine": "numpy.linalg.matrix_rank",
-                        "version": np.__version__,
-                        "operation": rule,
-                        "passed": actual_indicator is not None and bool(np.isclose(actual_indicator, expected_indicator, atol=1e-10, rtol=0)),
-                        "expected_indicator": expected_indicator,
-                        "actual_indicator": actual_indicator,
-                    }
-                else:
-                    cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "Independence cross-check requires numeric input."}
-            elif rule == "vector_basis_of_span":
-                numeric_g = self._numeric_array(parsed_inputs[0])
-                numeric_b = self._numeric_array(parsed_inputs[1])
-                if numeric_g is not None and numeric_b is not None:
-                    rank_g = np.linalg.matrix_rank(numeric_g)
-                    rank_b = np.linalg.matrix_rank(numeric_b)
-                    rank_combined = np.linalg.matrix_rank(np.column_stack([numeric_g, numeric_b]))
-                    expected_indicator = 1 if rank_b == rank_g == rank_combined else 0
-                    actual_indicator = self._numeric_scalar(output.value)
-                    cross = {
-                        "available": True,
-                        "independence_class": "DIFFERENT_ENGINE",
-                        "engine": "numpy.linalg.matrix_rank",
-                        "version": np.__version__,
-                        "operation": rule,
-                        "passed": actual_indicator is not None and bool(np.isclose(actual_indicator, expected_indicator, atol=1e-10, rtol=0)),
-                        "expected_indicator": expected_indicator,
-                        "actual_indicator": actual_indicator,
-                    }
-                else:
-                    cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "Basis cross-check requires numeric inputs."}
-            elif rule == "matrix_svd":
                 numeric_input = self._numeric_array(parsed_inputs[0])
                 numeric_outputs = [self._numeric_array(value) for value in parsed_outputs]
                 if numeric_input is not None and all(value is not None for value in numeric_outputs):
@@ -1540,6 +1334,58 @@ class LinearAlgebraChecker(BaseChecker):
                     {"step": 2, "operation": "solve_target_basis_coordinates", "target_basis_determinant": str(target_det)},
                 ]
 
+            elif rule == "matrix_svd":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or len(parsed_outputs) != 3:
+                    raise LinearAlgebraParseError("matrix_svd requires one input matrix and three outputs: U, Sigma, Vh.")
+                A = sp.Matrix(parsed_inputs[0].value)
+                U, Sigma, Vh = [sp.Matrix(value.value) for value in parsed_outputs]
+                m, n = A.rows, A.cols
+                k = min(m, n)
+                expected_shapes = [(m, k), (k, k), (k, n)]
+                actual_shapes = [(U.rows, U.cols), (Sigma.rows, Sigma.cols), (Vh.rows, Vh.cols)]
+                if actual_shapes != expected_shapes:
+                    raise ValueError(f"Reduced SVD shape mismatch: expected U/Sigma/Vh shapes {expected_shapes}, got {actual_shapes}.")
+                identity = sp.eye(k)
+                reconstruction = U * Sigma * Vh
+                left_orthogonality = sp.simplify(U.conjugate().T * U - identity)
+                right_orthogonality = sp.simplify(Vh * Vh.conjugate().T - identity)
+                for i in range(k):
+                    for j in range(k):
+                        if i != j and sp.simplify(Sigma[i, j]) != 0:
+                            raise ValueError("Sigma must be diagonal in the reduced SVD representation.")
+                undecidable = False
+                for i in range(k):
+                    sigma = sp.simplify(Sigma[i, i])
+                    if sigma.is_real is False or sigma.is_nonnegative is False:
+                        raise ValueError("Singular values must be real and non-negative.")
+                    if sigma.is_real is None or sigma.is_nonnegative is None:
+                        undecidable = True
+                    if i + 1 < k:
+                        comparison = sp.ask(sp.Q.ge(sigma, sp.simplify(Sigma[i + 1, i + 1])))
+                        if comparison is False:
+                            raise ValueError("Singular values must be ordered non-increasingly.")
+                        if comparison is None:
+                            undecidable = True
+                reconstruction_ok = all(self._equal_scalar(reconstruction[i, j], A[i, j]) for i in range(m) for j in range(n))
+                left_ok = all(sp.simplify(left_orthogonality[i, j]) == 0 for i in range(k) for j in range(k))
+                right_ok = all(sp.simplify(right_orthogonality[i, j]) == 0 for i in range(k) for j in range(k))
+                symbolic_passed = reconstruction_ok and left_ok and right_ok
+                if not symbolic_passed:
+                    raise ValueError("SVD reconstruction or orthogonality condition failed.")
+                details["output_shapes"] = [list(shape) for shape in actual_shapes]
+                details["reconstruction"] = self._display(ParsedLinearAlgebra("matrix", reconstruction))
+                details["singular_values"] = [str(Sigma[i, i]) for i in range(k)]
+                details["orthogonality"] = {"U_H_U": left_ok, "Vh_Vh_H": right_ok}
+                if undecidable:
+                    return self._unverified(edge, graph, start, details, "SVD candidate is structurally valid, but exact singular-value non-negativity/order could not be established symbolically.")
+                steps = [
+                    {"step": 1, "operation": "validate_reduced_dimensions", "k": k},
+                    {"step": 2, "operation": "verify_sigma_diagonal_nonnegative_ordered"},
+                    {"step": 3, "operation": "verify_U_conjugate_transpose_U_equals_I"},
+                    {"step": 4, "operation": "verify_Vh_Vh_conjugate_transpose_equals_I"},
+                    {"step": 5, "operation": "verify_reconstruction_A_equals_U_Sigma_Vh"},
+                ]
+
             elif rule == "linear_system_solve":
                 if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "vector":
                     raise LinearAlgebraParseError("linear_system_solve requires matrix A, vector b, and vector x.")
@@ -1567,6 +1413,9 @@ class LinearAlgebraChecker(BaseChecker):
                 raise AssertionError(f"Unhandled linear algebra rule {rule}")
 
             details["input_shapes"] = [list(x.shape) for x in parsed_inputs]
+            if rule == "matrix_svd":
+                details["output_shapes"] = [list(x.shape) for x in parsed_outputs]
+                details["symbolic_equivalence"] = symbolic_passed
             if rule in {"matrix_diagonalize", "vector_gram_schmidt"}:
                 details["output_shapes"] = [list(x.shape) for x in parsed_outputs]
                 details["symbolic_equivalence"] = symbolic_passed
