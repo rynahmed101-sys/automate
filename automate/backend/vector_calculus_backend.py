@@ -201,19 +201,17 @@ class VectorCalculusChecker(BaseChecker):
 
     @classmethod
     def _independent_integral_check(
-        cls, rule: str, inputs: list[ParsedLinearAlgebra], actual: ParsedLinearAlgebra,
-        variables: list[sp.Symbol], bounds: list[tuple[sp.Expr, sp.Expr]], exact: sp.Expr,
+        cls, rule: str, integrand: sp.Expr, actual: ParsedLinearAlgebra,
+        variables: list[sp.Symbol], bounds: list[tuple[sp.Expr, sp.Expr]],
     ) -> dict[str, Any]:
         if actual.kind != "scalar":
             return {"available": False, "independence_class": "NOT_AVAILABLE",
                     "reason": "Integral evidence requires a scalar candidate."}
-        expressions = [v.value for v in inputs if v.kind == "scalar"]
-        expressions += list(sp.Matrix(inputs[0].value)) if inputs and inputs[0].kind == "vector" else []
-        if any(not e.free_symbols.issubset(set(variables)) for e in expressions + [exact]):
+        if not integrand.free_symbols.issubset(set(variables)):
             return {"available": False, "independence_class": "NOT_AVAILABLE",
                     "reason": "Independent numerical integration requires all free symbols to be integration variables."}
         try:
-            fn = sp.lambdify(variables, exact, "numpy")
+            fn = sp.lambdify(variables, integrand, "numpy")
             numeric_bounds = [(float(sp.N(lo)), float(sp.N(hi))) for lo, hi in bounds]
             if len(variables) == 1:
                 numerical = scipy_integrate.quad(lambda t: float(fn(t)), *numeric_bounds[0], epsabs=1e-9, epsrel=1e-9)[0]
@@ -324,7 +322,7 @@ class VectorCalculusChecker(BaseChecker):
                                         f"{rule} result is mathematically incorrect.")
                 details["symbolic_equivalence"] = True
                 details["independent_numerical_check"] = self._independent_integral_check(
-                    rule, inputs, outputs[0], variables, bounds, expected_parsed.value
+                    rule, inputs, outputs[0], integrand, outputs[0], variables, bounds
                 )
                 return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
             elif rule in {"surface_integral_scalar", "surface_flux"}:
