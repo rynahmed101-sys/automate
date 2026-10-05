@@ -70,3 +70,12 @@ The `integrate` rule verifies both indefinite and definite scalar symbolic integ
 For definite integration, explicit lower and upper bounds are required and the symbolic result is compared directly. An unevaluated `Integral` is classified as UNVERIFIED rather than treated as failure or success.
 
 The current integration primitive supports an explicit positive integer `order` for repeated **indefinite** integration. Repeated definite/multiple nested integration is deliberately left for the subsequent repeated/nested-integration capability so that its representation can be made explicit rather than inferred.
+
+
+## Repeated and nested integration
+
+The `nested_integrate` rule represents repeated or nested **indefinite** integration as an ordered list of variables. The order is semantic: each listed variable is integrated in sequence, and the proposed final expression is differentiated back in reverse order.
+
+This representation supports repeated integration of the same variable and mixed-variable sequences without imposing a small fixed order ceiling. It deliberately does not pretend that an arbitrary nesting structure, definite bounds, or convergence/domain conditions have been represented when they have not.
+
+Unevaluated symbolic stages are classified as UNVERIFIED. Malformed variable sequences and incorrect candidate results fail closed.
