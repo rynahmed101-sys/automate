@@ -202,7 +202,11 @@
       "divergence-curl identity",
       "equivalent Cartesian Laplacian identity",
       "continuous charge electric-field kernels",
-      "continuous charge potential kernels"
+      "continuous charge potential kernels",
+      "explicit chain-rule differentiation",
+      "explicit product-rule differentiation",
+      "explicit quotient-rule differentiation",
+      "implicit differentiation under a local nonzero-partial condition"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -811,7 +815,8 @@
       "allowed_checkers": [
         "electrostatics"
       ]
-    },    {
+    },
+    {
       "rule_id": "uniform_line_charge_potential",
       "category": "electromagnetism",
       "domain": "electromagnetism",
@@ -819,7 +824,8 @@
       "allowed_checkers": [
         "electrostatics"
       ]
-    },    {
+    },
+    {
       "rule_id": "gauss_law_box",
       "category": "electrostatics",
       "domain": "electromagnetism",
@@ -1105,6 +1111,42 @@
       "implementation_backend": "linear_algebra",
       "allowed_checkers": [
         "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "chain_rule",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "product_rule",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "quotient_rule",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "implicit_differentiate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
       ]
     }
   ],
