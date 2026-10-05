@@ -58,7 +58,7 @@ def test_quadratic_form_3d_symmetric():
     report = _check(
         "quadratic_form",
         ["Vector([1, -2, 3])", "Matrix([[2, 1, 0], [1, 4, 2], [0, 2, 5]])"],
-        "31",
+        "35",
     )
     assert report.passed
     assert report.details["matrix_is_symmetric"] is True
@@ -68,7 +68,7 @@ def test_quadratic_form_higher_dimension():
     report = _check(
         "quadratic_form",
         ["Vector([1, 2, -1, 3])", "Matrix([[1, 0, 2, 0], [0, 2, 0, 1], [2, 0, 3, 0], [0, 1, 0, 4]])"],
-        "40",
+        "56",
     )
     assert report.passed
 
