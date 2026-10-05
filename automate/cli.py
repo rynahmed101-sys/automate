@@ -65,7 +65,15 @@ def capabilities(as_json: bool):
         "lean4": lean_checker.is_available(),
         "lean4_version": lean_checker.version,
         "ai": True,
-        "providers": providers
+        "providers": providers,
+        "rule_registry": {
+            "count": len(RuleRegistry().list_rule_ids()),
+            "rule_ids": RuleRegistry().list_rule_ids(),
+        },
+        "agent_contract": {
+            "schema_version": "automate.agent.v1",
+            "schema_command": "automate schema --name agent",
+        },
     }
     if as_json:
         click.echo(json.dumps(caps, indent=2))
@@ -80,6 +88,7 @@ def capabilities(as_json: bool):
         lean_status = "[green]Active[/green]" if caps["lean4"] else "[yellow]Inactive (Not Installed)[/yellow]"
         console.print(f"  * Lean 4 (Theorem Prover): {lean_status} ({caps['lean4_version']})")
         console.print(f"  * Universal AI Providers:  mock: [green]{providers['mock']}[/green], openai: [{ 'green' if providers['openai'] else 'dim'}]{providers['openai']}[/], local: [{ 'green' if providers['local'] else 'dim'}]{providers['local']}[/]")
+        console.print(f"  * Agent Contract:           automate.agent.v1 (automate schema --name agent)")
 
 
 @main.command()
@@ -486,13 +495,20 @@ def export_certificate(graph_file: str, output_dir: str, as_json: bool):
 
 
 @main.command()
-@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor", "proposal", "context"]), help="Schema name")
+@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor", "proposal", "context", "agent"]), help="Schema name")
 def schema(name: str):
     """Print an authoritative machine-readable JSON schema for an interchange contract."""
     if name == "ir":
         schema_path = Path(__file__).parent.parent / "schemas" / "automate-ir-v0.1.json"
         if not schema_path.exists():
             raise click.ClickException("Canonical IR schema file is unavailable.")
+        click.echo(schema_path.read_text(encoding="utf-8"))
+        return
+
+    if name == "agent":
+        schema_path = Path(__file__).parent.parent / "schemas" / "automate-agent-v1.json"
+        if not schema_path.exists():
+            raise click.ClickException("Machine-agent contract file is unavailable.")
         click.echo(schema_path.read_text(encoding="utf-8"))
         return
 
