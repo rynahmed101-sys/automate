@@ -928,16 +928,19 @@ class SymPyChecker(BaseChecker):
                 passed = actual == "DNE"
                 error_msg = None if passed else f"Limit exists as {actual}; claimed DNE."
             else:
-                comparison = sp.simplify(actual - expected) if actual != "DNE" else sp.Integer(1)
-                if comparison == 0:
+                if actual == expected:
                     passed, error_msg = True, None
-                elif getattr(comparison, "is_zero", None) is False or comparison.is_number:
-                    passed, error_msg = False, f"Limit mismatch: expected {expected}, computed {actual}."
                 else:
-                    return False, {"rule": "limit", "direction": direction, "variable": str(variable),
-                                   "point": str(point), "computed_limit": str(actual), "claimed_limit": str(expected),
-                                   "_status_override": VerificationStatus.UNVERIFIED.value}, \
-                           "Limit comparison depends on unresolved symbolic assumptions."
+                    comparison = sp.simplify(actual - expected) if actual != "DNE" else sp.Integer(1)
+                    if comparison == 0:
+                        passed, error_msg = True, None
+                    elif getattr(comparison, "is_zero", None) is False or comparison.is_number:
+                        passed, error_msg = False, f"Limit mismatch: expected {expected}, computed {actual}."
+                    else:
+                        return False, {"rule": "limit", "direction": direction, "variable": str(variable),
+                                       "point": str(point), "computed_limit": str(actual), "claimed_limit": str(expected),
+                                       "_status_override": VerificationStatus.UNVERIFIED.value}, \
+                               "Limit comparison depends on unresolved symbolic assumptions."
             numeric = cls._limit_numeric_evidence(expr, variable, point, direction, actual)
             details = {"rule": "limit", "direction": direction, "variable": str(variable), "point": str(point),
                        "computed_limit": str(actual), "claimed_limit": expected_raw,
