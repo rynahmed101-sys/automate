@@ -30,7 +30,12 @@ jobs:
       - name: Autobuild
         uses: github/codeql-action/autobuild@v4
       - name: Analyze
+        # This repository does not have GitHub code-scanning storage enabled.
+        # Keep CodeQL as a real local security analysis without making the
+        # verification gate depend on the optional upload service.
         uses: github/codeql-action/analyze@v4
+        with:
+          upload: false
 
   dependency-audit:
     name: pip-audit / Python 3.12

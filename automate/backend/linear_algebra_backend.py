@@ -65,6 +65,61 @@ class LinearAlgebraChecker(BaseChecker):
         return all(cls._equal_scalar(a[i, j], b[i, j])
                    for i in range(a.rows) for j in range(a.cols))
 
+    @classmethod
+    def _symbolic_multiset_equal(
+        cls,
+        actual: ParsedLinearAlgebra,
+        expected: ParsedLinearAlgebra,
+    ) -> bool:
+        """Compare vector-valued spectra as unordered symbolic multisets."""
+        if actual.kind != "vector" or expected.kind != "vector" or actual.shape != expected.shape:
+            return False
+        unmatched = list(sp.Matrix(expected.value))
+        for value in sp.Matrix(actual.value):
+            for index, candidate in enumerate(unmatched):
+                if cls._equal_scalar(value, candidate):
+                    unmatched.pop(index)
+                    break
+            else:
+                return False
+        return not unmatched
+
+    @staticmethod
+    def _numeric_multiset_match(
+        actual: np.ndarray,
+        expected: np.ndarray,
+        *,
+        rtol: float = 1e-8,
+        atol: float = 1e-10,
+    ) -> bool:
+        """Compare numeric spectra as unordered multisets, preserving multiplicity."""
+        actual_values = np.asarray(actual).reshape(-1)
+        expected_values = np.asarray(expected).reshape(-1)
+        if actual_values.shape != expected_values.shape:
+            return False
+
+        compatible = np.isclose(
+            actual_values[:, None],
+            expected_values[None, :],
+            rtol=rtol,
+            atol=atol,
+            equal_nan=False,
+        )
+        matched_expected: dict[int, int] = {}
+
+        def match(actual_index: int, seen: set[int]) -> bool:
+            for expected_index, is_compatible in enumerate(compatible[actual_index]):
+                if not is_compatible or expected_index in seen:
+                    continue
+                seen.add(expected_index)
+                previous_actual = matched_expected.get(expected_index)
+                if previous_actual is None or match(previous_actual, seen):
+                    matched_expected[expected_index] = actual_index
+                    return True
+            return False
+
+        return all(match(index, set()) for index in range(actual_values.size))
+
     @staticmethod
     def _numeric_scalar(value: sp.Expr) -> complex | float | None:
         if not value.is_number:
