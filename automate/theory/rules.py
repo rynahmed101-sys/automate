@@ -198,6 +198,66 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="chain_rule",
+            name="Chain Rule",
+            category="calculus",
+            description="Verifies explicit composition differentiation f(g(x)) using f'(g(x))g'(x).",
+            domain="mathematics",
+            inputs=["Outer Expression", "Inner Expression"],
+            outputs=["Scalar Derivative"],
+            required_assumptions=["explicit_differentiation_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Chain Rule"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="product_rule",
+            name="Product Rule",
+            category="calculus",
+            description="Verifies differentiation of a product of two or more differentiable factors.",
+            domain="mathematics",
+            inputs=["Scalar Factors"],
+            outputs=["Scalar Derivative"],
+            required_assumptions=["explicit_differentiation_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Product Rule"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="quotient_rule",
+            name="Quotient Rule",
+            category="calculus",
+            description="Verifies differentiation of a quotient with a denominator that is not identically zero.",
+            domain="mathematics",
+            inputs=["Numerator", "Denominator"],
+            outputs=["Scalar Derivative"],
+            required_assumptions=["explicit_differentiation_variable", "denominator_nonzero_on_domain"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Quotient Rule"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="implicit_differentiate",
+            name="Implicit Differentiation",
+            category="calculus",
+            description="Verifies dy/dx from F(x,y)=0 as -F_x/F_y under the local condition F_y != 0.",
+            domain="mathematics",
+            inputs=["Implicit Relation"],
+            outputs=["Dependent Derivative"],
+            required_assumptions=["explicit_independent_and_dependent_variables", "local_Fy_nonzero"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Implicit Function Theorem / implicit differentiation"
+        ))
+
+        self.register(RuleDefinition(
             rule_id="limit",
             name="Scalar Limit",
             category="calculus",
