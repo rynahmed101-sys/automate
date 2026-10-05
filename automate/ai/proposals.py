@@ -24,6 +24,7 @@ from automate.backend.lean_backend import LeanChecker
 from automate.backend.numerical_backend import NumericalChecker
 from automate.backend.statistical_backend import StatisticalChecker
 from automate.backend.tensor_backend import TensorChecker
+from automate.backend.linear_algebra_backend import LinearAlgebraChecker
 
 
 class ProposalExecutionResult:
@@ -93,7 +94,7 @@ def apply_and_verify_proposal(
         )
 
     # 2. Validate checker name against known checkers and rule capabilities
-    _KNOWN_CHECKERS = {"sympy", "lean4", "numerical", "statistical", "dimension", "tensor"}
+    _KNOWN_CHECKERS = {"sympy", "lean4", "numerical", "statistical", "dimension", "tensor", "linear_algebra"}
     checker_name = proposal.target_checker
     if checker_name not in _KNOWN_CHECKERS:
         return ProposalExecutionResult(
@@ -136,8 +137,13 @@ def apply_and_verify_proposal(
     # Add proposed output nodes (on clone only)
     out_node_ids = []
     for c_node in proposal.output_nodes:
+        ast_payload = {}
+        if c_node.node_kind in {"vector", "matrix"}:
+            from automate.ir.linear_algebra import linear_algebra_ast, parse_linear_algebra_expression
+            ast_payload = linear_algebra_ast(parse_linear_algebra_expression(c_node.expression))
         math_expr = MathematicalExpression(
             raw_str=c_node.expression,
+            ast=ast_payload,
             dimension=c_node.dimension,
             latex=c_node.latex
         )
@@ -242,6 +248,8 @@ def apply_and_verify_proposal(
         checker = DimensionChecker()
     elif checker_name == "tensor":
         checker = TensorChecker()
+    elif checker_name == "linear_algebra":
+        checker = LinearAlgebraChecker()
     else:
         # Already rejected above — this branch is unreachable
         raise AssertionError(f"Unreachable: unknown checker '{checker_name}'")
