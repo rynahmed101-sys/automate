@@ -174,5 +174,7 @@ def test_registry_exposes_core_family():
         "vector_add", "vector_subtract", "vector_scalar_multiply", "vector_dot",
         "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_trace",
         "matrix_inverse", "matrix_rank", "matrix_rref", "linear_system_solve",
+        "matrix_null_space", "matrix_row_space", "matrix_column_space",
+        "vector_span_membership", "vector_linear_independence", "vector_basis_of_span",
     }
     assert expected.issubset(set(RuleRegistry().list_rule_ids()))
