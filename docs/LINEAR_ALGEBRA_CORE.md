@@ -29,3 +29,8 @@ These rules establish reusable transformation semantics without depending on the
 ## Symmetric and Hermitian matrices
 
 Automate verifies square matrices for the symmetric condition A = A^T and the Hermitian condition A = A†. Numeric inputs receive independent NumPy checks. Symbolic Hermitian claims that depend on unresolved conjugation assumptions fail closed as UNVERIFIED rather than treating an unconstrained symbol as real.
+
+
+## Positive-definite matrices
+
+Positive definiteness is verified only for square matrices whose symmetric/Hermitian condition can be established. Exact symbolic cases use Sylvester's criterion through the leading principal minors; unresolved positivity or conjugation assumptions fail closed as UNVERIFIED. Numeric matrices also receive an independent NumPy Hermitian-eigenvalue check with a scale-aware tolerance.
