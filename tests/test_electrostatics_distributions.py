@@ -322,3 +322,118 @@ def test_conductor_capacitor_rules_registered():
     assert {"conductor_boundary_field", "parallel_plate_field", "parallel_plate_capacitance", "capacitor_energy"}.issubset(
         set(RuleRegistry().list_rule_ids())
     )
+
+
+def _dipole_check(rule, dipole, displacement, output, parameters=None):
+    graph = DerivationGraph(id=rule)
+    for nid, raw in [("dipole", dipole), ("displacement", displacement), ("out", output)]:
+        graph.add_node(DerivationNode(id=nid, expression=MathematicalExpression(raw_str=raw)))
+    edge = DerivationEdge(
+        id="e", input_nodes=["dipole", "displacement"], output_nodes=["out"],
+        transformation_rule=rule,
+        justification="Phase 2B bounded electric dipole acceptance",
+        checker="electrostatics",
+        parameters=parameters or {
+            "k": "k",
+            "model": "point_electric_dipole",
+            "source_position": "Vector([0,0,0])",
+            "coordinates": ["x", "y", "z"],
+        },
+    )
+    return ElectrostaticsChecker().verify_edge(edge, graph)
+
+
+def test_dipole_potential_on_axis_positive_configuration():
+    result = _dipole_check(
+        "dipole_potential", "Vector([p,0,0])", "Vector([r,0,0])",
+        "k*p/r**2",
+    )
+    assert result.passed
+
+
+def test_dipole_potential_negative_orientation():
+    result = _dipole_check(
+        "dipole_potential", "Vector([-p,0,0])", "Vector([r,0,0])",
+        "-k*p/r**2",
+    )
+    assert result.passed
+
+
+def test_dipole_potential_equatorial_zero_configuration():
+    result = _dipole_check(
+        "dipole_potential", "Vector([p,0,0])", "Vector([0,r,0])",
+        "0",
+    )
+    assert result.passed
+
+
+def test_dipole_field_on_axis():
+    result = _dipole_check(
+        "dipole_field", "Vector([p,0,0])", "Vector([r,0,0])",
+        "Vector([2*k*p/r**3,0,0])",
+    )
+    assert result.passed
+
+
+def test_dipole_field_equatorial_configuration():
+    result = _dipole_check(
+        "dipole_field", "Vector([p,0,0])", "Vector([0,r,0])",
+        "Vector([0,-k*p/r**3,0])",
+    )
+    assert result.passed
+
+
+def test_dipole_field_rejects_wrong_claim():
+    result = _dipole_check(
+        "dipole_field", "Vector([p,0,0])", "Vector([r,0,0])",
+        "Vector([k*p/r**3,0,0])",
+    )
+    assert not result.passed
+
+
+def test_dipole_rejects_zero_displacement_singularity():
+    result = _dipole_check(
+        "dipole_potential", "Vector([p,0,0])", "Vector([0,0,0])", "0",
+    )
+    assert not result.passed
+
+
+def test_dipole_rejects_non_cartesian_coordinates():
+    result = _dipole_check(
+        "dipole_field", "Vector([p,0,0])", "Vector([r,0,0])",
+        "Vector([2*k*p/r**3,0,0])",
+        parameters={
+            "k": "k", "model": "point_electric_dipole",
+            "source_position": "Vector([0,0,0])",
+            "coordinates": ["r", "theta", "phi"],
+        },
+    )
+    assert not result.passed
+
+
+def test_dipole_rejects_non_origin_source_position():
+    result = _dipole_check(
+        "dipole_potential", "Vector([p,0,0])", "Vector([r,0,0])",
+        "k*p/r**2",
+        parameters={
+            "k": "k", "model": "point_electric_dipole",
+            "source_position": "Vector([1,0,0])",
+            "coordinates": ["x", "y", "z"],
+        },
+    )
+    assert not result.passed
+
+
+def test_dipole_rejects_unsafe_parameter_expression():
+    result = _dipole_check(
+        "dipole_potential", "Vector([p,0,0])",
+        "__import__('os').system('id')", "0",
+    )
+    assert not result.passed
+
+
+def test_dipole_rules_registered():
+    from automate.theory.rules import RuleRegistry
+    assert {"dipole_potential", "dipole_field"}.issubset(
+        set(RuleRegistry().list_rule_ids())
+    )
