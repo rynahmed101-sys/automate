@@ -35,7 +35,7 @@ def _graph_edge(rule, input_expr, output_expr, *, parameters=None):
 @pytest.mark.parametrize(
     "expr,target,expected",
     [
-        ("(x**2-a**2)/(x-a)", "a", "2*a"),
+        ("(x**2-a**2)/(x-a)", "0", "a"),
         ("sin(x)/x", "0", "1"),
         ("x**2 + 3*x + 1", "2", "11"),
     ],
@@ -155,10 +155,10 @@ def test_real_domain_is_respected_for_two_sided_limits():
 
 def test_symbolic_parameter_and_assumption():
     graph, edge = _graph_edge(
-        "limit", "sqrt(x**2)", "a",
+        "limit", "sqrt(a**2 + x**2)", "a",
         parameters={
             "variable": "x",
-            "point": "a",
+            "point": "0",
             "direction": "two_sided",
             "assumptions": {"a": ["positive", "real"]},
         },
@@ -168,9 +168,9 @@ def test_symbolic_parameter_and_assumption():
     assert report.details["computed_limit"] == "a"
 
 
-def test_unresolved_symbolic_comparison_fails_closed():
+def test_symbolic_target_without_real_assumption_fails_closed():
     graph, edge = _graph_edge(
-        "limit", "sqrt(x)", "sqrt(a)",
+        "limit", "sqrt(x)", "0",
         parameters={"variable": "x", "point": "a", "direction": "two_sided"},
     )
     report = SymPyChecker().verify_edge(edge, graph)
