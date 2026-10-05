@@ -898,7 +898,9 @@ class SymPyChecker(BaseChecker):
         if expected_raw.upper() in {"DNE", "DOES_NOT_EXIST", "NONEXISTENT"}:
             expected_marker, expected = "DNE", "DNE"
         else:
-            parser = SafeParser(extra_symbols={str(variable): variable})
+            expected_symbols = cls._limit_assumption_symbols(params.get("assumptions"))
+            expected_symbols[str(variable)] = variable
+            parser = SafeParser(extra_symbols=expected_symbols)
             try:
                 expected = parser.parse(expected_raw)
             except SafeParseError as exc:
