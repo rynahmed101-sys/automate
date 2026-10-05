@@ -31,7 +31,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
@@ -42,9 +42,9 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/pip
-          key: \${{ runner.os }}-pip-3.12-\${{ hashFiles('pyproject.toml', 'requirements*.txt') }}
+          key: ${{ runner.os }}-pip-3.12-${{ hashFiles('pyproject.toml', 'requirements*.txt') }}
           restore-keys: |
-            \${{ runner.os }}-pip-3.12-
+            ${{ runner.os }}-pip-3.12-
 
       - name: Install dependencies
         run: |
@@ -57,8 +57,8 @@ jobs:
 
   exact-head:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    name: Exact-head / Python \${{ matrix.python-version }}
-    runs-on: \${{ matrix.os }}
+    name: Exact-head / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -69,20 +69,20 @@ jobs:
       - name: Checkout exact merged main commit
         uses: actions/checkout@v7
         with:
-          ref: \${{ github.sha }}
+          ref: ${{ github.sha }}
 
-      - name: Set up Python \${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
         with:
-          python-version: "\${{ matrix.python-version }}"
+          python-version: "${{ matrix.python-version }}"
 
       - name: Cache pip
         uses: actions/cache@v6
         with:
           path: ~/.cache/pip
-          key: \${{ runner.os }}-pip-\${{ matrix.python-version }}-\${{ hashFiles('pyproject.toml', 'requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml', 'requirements*.txt') }}
           restore-keys: |
-            \${{ runner.os }}-pip-\${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
 
       - name: Install dependencies
         run: |
@@ -117,12 +117,12 @@ jobs:
       - name: Checkout exact merged main commit
         uses: actions/checkout@v7
         with:
-          ref: \${{ github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Install elan (Lean 4 version manager)
         run: |
           curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
-          echo "$HOME/.elan/bin" >> \$GITHUB_PATH
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
       - name: Install Lean 4.34.1
         run: |
@@ -143,4 +143,4 @@ jobs:
         run: |
           pytest tests/test_lean_backend.py tests/test_adversarial.py::TestLeanBackendNoTautology -v --tb=short
         env:
-          LEAN_BIN: \${{ env.HOME }}/.elan/bin/lean
+          LEAN_BIN: ${{ env.HOME }}/.elan/bin/lean
