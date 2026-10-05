@@ -934,6 +934,39 @@ class RuleRegistry:
             allowed_checkers=["numerical"],
         ))
 
+        # 7. Waves & Optics
+        for _rule in [
+            RuleDefinition(rule_id="harmonic_wave", name="Harmonic Wave", category="waves_optics",
+                description="Represent and verify a 1-D harmonic traveling wave with explicit amplitude, angular frequency, wavenumber, phase, and propagation direction.",
+                domain="waves", inputs=["Harmonic wave"], outputs=["Wave field"], implementation_backend="waves_optics",
+                symbolic_checker_available=False, allowed_checkers=[]),
+            RuleDefinition(rule_id="wave_superposition", name="Wave Superposition", category="waves_optics",
+                description="Compose compatible harmonic waves; incompatible frequency/wavenumber or counter-propagating reduction is rejected.",
+                domain="waves", inputs=["Compatible waves"], outputs=["Superposed wave"], implementation_backend="waves_optics",
+                symbolic_checker_available=False, allowed_checkers=[]),
+            RuleDefinition(rule_id="standing_wave", name="Standing Wave", category="waves_optics",
+                description="Construct a standing wave from equal-amplitude counter-propagating components under an explicit 1-D idealization.",
+                domain="waves", inputs=["Counter-propagating waves"], outputs=["Standing wave"], implementation_backend="waves_optics",
+                symbolic_checker_available=False, allowed_checkers=[]),
+            RuleDefinition(rule_id="wave_dispersion", name="Wave Dispersion", category="waves_optics",
+                description="Compute phase velocity from an explicit omega-k relation; group velocity is not inferred without a supplied relation.",
+                domain="waves", inputs=["omega", "k"], outputs=["Phase velocity"], implementation_backend="waves_optics",
+                symbolic_checker_available=False, allowed_checkers=[]),
+            RuleDefinition(rule_id="reflection_refraction", name="Reflection and Refraction", category="waves_optics",
+                description="Normal-incidence Fresnel reflectance and Snell refraction for positive refractive indices; total internal reflection fails closed.",
+                domain="optics", inputs=["Refractive indices", "Incidence angle"], outputs=["Optical response"], implementation_backend="waves_optics",
+                symbolic_checker_available=False, allowed_checkers=[]),
+            RuleDefinition(rule_id="polarization_state", name="Polarization State", category="waves_optics",
+                description="Represent transverse polarization as a complex two-component Jones state with normalization and zero-state rejection.",
+                domain="optics", inputs=["Complex transverse components"], outputs=["Polarization state"], implementation_backend="waves_optics",
+                symbolic_checker_available=False, allowed_checkers=[]),
+            RuleDefinition(rule_id="single_slit_diffraction", name="Basic Single-Slit Diffraction", category="waves_optics",
+                description="Evaluate normalized Fraunhofer single-slit intensity for an explicit wavelength, slit width, and observation angle.",
+                domain="optics", inputs=["Wavelength", "Slit width", "Angle"], outputs=["Relative intensity"], implementation_backend="waves_optics",
+                symbolic_checker_available=False, allowed_checkers=[]),
+        ]:
+            self.register(_rule)
+
         self.register(RuleDefinition(
             rule_id="empirical_inference",
             name="Empirical Parameter Estimation",
