@@ -36,9 +36,13 @@ class ElectrostaticsChecker(BaseChecker):
         if a.kind != b.kind or a.shape != b.shape:
             return False
         if a.kind == "scalar":
-            return bool(sp.simplify(a.value - b.value) == 0)
+            difference = sp.simplify(a.value - b.value)
+            return bool(difference == 0 or difference.equals(0) is True)
         am, bm = sp.Matrix(a.value), sp.Matrix(b.value)
-        return all(bool(sp.simplify(am[i, 0] - bm[i, 0]) == 0) for i in range(am.rows))
+        return all(
+            bool((difference := sp.simplify(am[i, 0] - bm[i, 0])) == 0 or difference.equals(0) is True)
+            for i in range(am.rows)
+        )
 
     @staticmethod
     def _display(v: ParsedLinearAlgebra) -> Any:
