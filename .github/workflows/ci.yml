@@ -10,6 +10,11 @@ on:
       - synchronize
       - reopened
       - closed
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - closed
 
 # Automate uses two CI speeds on purpose:
 # - Development/PR CI is fast feedback. It runs the full Python test suite on one
@@ -58,7 +63,7 @@ jobs:
           pytest -q --tb=short --strict-markers
 
   exact-head:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.ref == 'refs/heads/main' && github.event.pull_request.merged == true)
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || ((github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.merged == true && github.ref == 'refs/heads/main')
     name: Exact-head / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
