@@ -19,12 +19,12 @@ def _check(rule, inputs, outputs, checker, parameters):
     return (CoordinateVectorCalculusChecker() if checker=="coordinate_vector_calculus" else VectorCalculusChecker()).verify_edge(edge,g)
 
 def test_cylindrical_gradient_and_laplacian():
-    p={"coordinate_system":"cylindrical","coordinates":["r","phi","z"]}
+    p={"coordinate_system":"cylindrical","coordinates":["r","phi","z"],"domain_exclusions":["r != 0"]}
     assert _check("coordinate_gradient",["r**2*sin(phi)+z"],["Vector([2*r*sin(phi), r*cos(phi), 1])"],"coordinate_vector_calculus",p).passed
     assert _check("coordinate_laplacian",["r**2+z**2"],["4"],"coordinate_vector_calculus",p).passed
 
 def test_spherical_gradient():
-    p={"coordinate_system":"spherical","coordinates":["r","theta","phi"]}
+    p={"coordinate_system":"spherical","coordinates":["r","theta","phi"],"domain_exclusions":["r != 0","sin(theta) != 0"]}
     assert _check("coordinate_gradient",["r**2*cos(theta)"],["Vector([2*r*cos(theta), -sin(theta), 0])"],"coordinate_vector_calculus",p).passed
 
 def test_coordinate_divergence_and_curl_differ_from_cartesian():
