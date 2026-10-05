@@ -486,10 +486,24 @@ class RuleRegistry:
                 required_assumptions=["second_partial_derivatives_exist"],
                 implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
             RuleDefinition(rule_id="laplacian_identity", name="Laplacian Identity", category="vector_calculus",
-                description="Verifies the equivalent Cartesian definitions of the scalar Laplacian.",
+                description="Verifies equivalent Cartesian scalar Laplacian definitions.",
                 domain="mathematics", inputs=["Scalar Field"], outputs=["Scalar Residual"],
                 required_assumptions=["second_partial_derivatives_exist"],
                 implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="green_theorem", name="Green's Theorem", category="vector_calculus",
+                description="Verifies circulation around an explicitly oriented Cartesian rectangle equals the double integral of planar curl.",
+                domain="mathematics", inputs=["2D Vector Field"], outputs=["Scalar Equality Residual"],
+                required_assumptions=["continuous_first_partial_derivatives_on_rectangle"],
+                side_conditions=["ccw_boundary", "explicit_cartesian_rectangle"],
+                implementation_backend="vector_calculus", formal_proof_available=False, symbolic_checker_available=True,
+                allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="divergence_theorem", name="Divergence Theorem", category="vector_calculus",
+                description="Verifies outward flux through an explicit Cartesian box equals the volume integral of divergence.",
+                domain="mathematics", inputs=["3D Vector Field"], outputs=["Scalar Equality Residual"],
+                required_assumptions=["continuous_first_partial_derivatives_on_box"],
+                side_conditions=["outward_orientation", "explicit_cartesian_box"],
+                implementation_backend="vector_calculus", formal_proof_available=False, symbolic_checker_available=True,
+                allowed_checkers=["vector_calculus"]),
             RuleDefinition(rule_id="stokes_theorem", name="Stokes' Theorem", category="vector_calculus",
                 description="Verifies circulation around an explicitly oriented planar Cartesian rectangle equals the surface integral of curl.",
                 domain="mathematics", inputs=["3D Vector Field"], outputs=["Scalar Equality Residual"],
@@ -497,6 +511,21 @@ class RuleRegistry:
                 side_conditions=["ccw_positive_normal_orientation", "explicit_cartesian_planar_surface"],
                 implementation_backend="vector_calculus", formal_proof_available=False, symbolic_checker_available=True,
                 allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="coulomb_force", name="Coulomb Force", category="electromagnetism",
+                description="Verifies the vector force between two point charges in an explicit Cartesian displacement.",
+                domain="electromagnetism", inputs=["Charge", "Charge", "Position Vector", "Position Vector"], outputs=["Force Vector"],
+                required_assumptions=["point_charges", "noncoincident_positions"],
+                implementation_backend="electrostatics", allowed_checkers=["electrostatics"]),
+            RuleDefinition(rule_id="point_charge_field", name="Point-Charge Electric Field", category="electromagnetism",
+                description="Verifies the electric field of a point charge at a nonzero displacement.",
+                domain="electromagnetism", inputs=["Charge", "Displacement Vector"], outputs=["Electric Field Vector"],
+                required_assumptions=["point_charge", "nonzero_displacement"],
+                implementation_backend="electrostatics", allowed_checkers=["electrostatics"]),
+            RuleDefinition(rule_id="point_charge_potential", name="Point-Charge Electric Potential", category="electromagnetism",
+                description="Verifies the electric potential of a point charge at a nonzero displacement.",
+                domain="electromagnetism", inputs=["Charge", "Displacement Vector"], outputs=["Electric Potential"],
+                required_assumptions=["point_charge", "nonzero_displacement"],
+                implementation_backend="electrostatics", allowed_checkers=["electrostatics"]),
         ]:
             self.register(vector_rule)
 
@@ -589,27 +618,6 @@ class RuleRegistry:
             allowed_checkers=["statistical"],
         ))
 
-    def register(self, rule: RuleDefinition) -> None:
-        self._rules[rule.rule_id] = rule
-
-    def get(self, rule_id: str) -> Optional[RuleDefinition]:
-        return self._rules.get(rule_id)
-
-    def get_rule(self, rule_id: str) -> Optional[RuleDefinition]:
-        return self.get(rule_id)
-
-    def list_rules(self) -> List[RuleDefinition]:
-        return list(self._rules.values())
-
-    def list_rule_ids(self) -> List[str]:
-        return list(self._rules.keys())
-
-    def is_checker_allowed(self, rule_id: str, checker_name: str) -> bool:
-        """Returns True if checker_name is semantically valid for rule_id."""
-        rule = self.get(rule_id)
-        if rule is None:
-            return False
-        return checker_name in rule.allowed_checkers
     def register(self, rule: RuleDefinition) -> None:
         self._rules[rule.rule_id] = rule
 
