@@ -89,15 +89,6 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_energy_conservation(
                         in_nodes, out_nodes[0], edge.parameters
                     )
-                elif rule == "solve_harmonic_oscillator":
-                    passed, details, certificates, error_msg = self._verify_ode_solution(
-                        in_nodes[0], out_nodes[0], edge.parameters
-                    )
-                elif rule == "verify_ode_solution":
-                    # Generic ODE verifier — same substitution logic, no SHO-specific assumptions
-                    passed, details, certificates, error_msg = self._verify_ode_solution(
-                        in_nodes[0], out_nodes[0], edge.parameters
-                    )
                 elif rule == "algebraic_identity":
                     passed, details, certificates, error_msg = self._verify_algebraic_identity(
                         in_nodes[0], out_nodes[0]
