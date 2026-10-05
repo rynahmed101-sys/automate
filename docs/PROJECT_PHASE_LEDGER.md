@@ -120,14 +120,18 @@ This stage contains the mathematical basics that later physics must be able to r
 - [x] Eigenvalues with multiplicity
 - [x] Eigenvector verification
 - [x] Diagonalization
-- [!] Null space, row space, column space
-- [!] Basis, span, linear independence
-- [ ] Change of basis
+- [x] Null space, row space, column space
+- [x] Basis, span, linear independence
+- [ ] Change of basis and coordinate representations
+- [ ] Linear transformations and matrix representations
 - [ ] Symmetric / Hermitian matrices
 - [x] Norms, inner products, orthogonality
 - [x] Projections and Gram-Schmidt
 - [ ] Positive-definite matrices
 - [ ] Quadratic forms
+- [ ] Singular-value decomposition
+- [ ] Moore-Penrose pseudoinverse and least-squares solutions
+- [ ] Complex scalar/vector/matrix semantics needed by later quantum and spectral reasoning
 
 **Depth rule:** vector/matrix operations should be dimension-generic where represented; subspace and basis operations must correctly handle rectangular, rank-deficient, zero-dimensional, symbolic, and degenerate cases.
 
@@ -171,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [!] Active. Linear-algebra core is verified; the newly implemented subspace/basis family is awaiting authoritative Exact-head/Security evidence. Calculus and the remaining linear-algebra families are unfinished.
+**Current status:** [~] Active. The subspace/basis family is authoritatively verified on merged `main` commit `7b2f8bff5bbfca40465abe3d9a2a51a0272bae` by the Exact-head matrix and Security Audit run #398. The remaining Stage 1A families and all Stage 1B/1C families are unfinished.
 
 ---
 
@@ -468,7 +472,11 @@ Target capabilities include:
 
 **Goal:** Turn selected mathematical reasoning into machine-checked proof where practical.
 
+**Ordering rule:** This stage is a formal-evidence escalation layer, not a prerequisite barrier for earlier mathematical or physics stages. Formalization should be applied capability-by-capability whenever the IR and semantics support faithful translation; Stage 9 collects the broader formalization frontier after the core capability families have matured.
+
 ## Lean-backed growth
+
+Formal-proof work may begin before this stage when an earlier capability has a faithful formal boundary. A later Stage 9 item must not be used as justification for postponing useful formal evidence that is already technically supported.
 
 - [ ] Arithmetic
 - [ ] Polynomial identities
