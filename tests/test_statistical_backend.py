@@ -50,6 +50,12 @@ def test_statistical_parameter_inference():
                 + 0.05 * np.random.default_rng(0).normal(size=50)
             ).tolist(),
             "noise_std": 0.05,
+            "statistical_assumptions": [
+                "independent_errors",
+                "normal_errors",
+                "finite_variance",
+                "known_error_scale",
+            ],
             "data_source": "observed",
             "data_id": "test-observed-cosine-v1",
         }
@@ -469,3 +475,46 @@ def test_fit_initial_guess_does_not_use_reference_parameters():
 def test_statistical_checker_rejects_nonpositive_model_evaluation_budget():
     with pytest.raises(ValueError, match="max_model_evaluations"):
         StatisticalChecker(max_model_evaluations=0)
+
+
+def test_chi_square_requires_explicit_error_model_assumptions():
+    """A numeric sigma must not silently establish the assumptions behind chi-square inference."""
+    graph = DerivationGraph(id="stats_assumptions_test")
+    sol_node = DerivationNode(
+        id="sol",
+        expression=MathematicalExpression(raw_str="a * t + b")
+    )
+    fit_node = DerivationNode(
+        id="fit",
+        expression=MathematicalExpression(raw_str="linear_fit")
+    )
+    graph.add_node(sol_node)
+    graph.add_node(fit_node)
+    t_data = np.linspace(0.0, 5.0, 20)
+    x_obs = 2.0 * t_data + 1.0 + 0.1 * np.random.default_rng(1).normal(size=t_data.size)
+    edge = DerivationEdge(
+        id="edge_fit",
+        input_nodes=["sol"],
+        output_nodes=["fit"],
+        transformation_rule="empirical_inference",
+        checker="statistical",
+        parameters={
+            "model": "linear",
+            "a": 2.0,
+            "b": 1.0,
+            "fit_initial_guess": [1.5, 0.5],
+            "t_data": t_data.tolist(),
+            "x_obs": x_obs.tolist(),
+            "noise_std": 0.1,
+            "data_source": "observed",
+            "data_id": "stats-assumptions-v1",
+        },
+    )
+    graph.add_edge(edge)
+
+    report = StatisticalChecker().verify_edge(edge, graph)
+
+    assert report.passed is False
+    assert report.status == VerificationStatus.UNVERIFIED
+    assert "independent_errors" in report.error_message
+    assert "normal_errors" in report.error_message
