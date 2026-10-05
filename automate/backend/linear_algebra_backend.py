@@ -32,7 +32,7 @@ class LinearAlgebraChecker(BaseChecker):
         "vector_inner_product", "vector_norm", "vector_orthogonal",
         "vector_projection", "vector_gram_schmidt",
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
-        "vector_span_membership", "vector_linear_independence", "vector_basis_of_span",
+        "vector_span_membership", "vector_linear_independence", "vector_basis_of_span", "matrix_positive_definite",
     }
 
     @property
