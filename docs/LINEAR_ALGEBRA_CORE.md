@@ -34,3 +34,10 @@ Automate verifies square matrices for the symmetric condition A = A^T and the He
 ## Positive-definite matrices
 
 Positive definiteness is verified only for square matrices whose symmetric/Hermitian condition can be established. Exact symbolic cases use Sylvester's criterion through the leading principal minors; unresolved positivity or conjugation assumptions fail closed as UNVERIFIED. Numeric matrices also receive an independent NumPy Hermitian-eigenvalue check with a scale-aware tolerance.
+
+
+## Change of basis and coordinate representations
+
+For two explicit ordered bases of the same finite-dimensional vector space, Automate verifies coordinate conversion by reconstructing the represented vector in the source basis and solving for its coordinates in the target basis. Both basis matrices must be square, have the same shape, and be explicitly invertible. Numeric cases receive an independent NumPy solve cross-check; symbolic parameter domains whose nonzero determinants cannot be established fail closed as UNVERIFIED.
+
+The transformation direction is source coordinates -> physical vector -> target coordinates, so the verified relation is B_source c_source = B_target c_target. Singular, dependent, dimension-mismatched, malformed, or incorrect candidate outputs are rejected.
