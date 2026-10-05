@@ -2,6 +2,10 @@
 Structured Local Rule Registry for Automate.
 Exposes rich metadata, required assumptions, side conditions, verification backends,
 and automatic verification obligation generation across transformation steps.
+
+Each rule declares:
+  allowed_checkers: the set of checkers semantically valid for this rule.
+  A proposal using a checker NOT in allowed_checkers will be rejected.
 """
 
 from typing import Dict, Any, List, Optional
@@ -31,6 +35,15 @@ class RuleDefinition(BaseModel):
     symbolic_checker_available: bool = Field(default=True)
     citation: Optional[str] = None
 
+    # Machine-readable checker capabilities.
+    # A proposal using a checker NOT in this list will be rejected at the
+    # validation stage. An empty list means NO checker is valid (UNSUPPORTED).
+    # "dimension" is always auxiliary and never counts as semantic verification.
+    allowed_checkers: List[str] = Field(
+        default_factory=list,
+        description="Checkers that are semantically valid for this rule."
+    )
+
     def generate_obligations(self, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
         Synthesizes concrete verification obligations given step parameters.
@@ -58,12 +71,12 @@ class RuleDefinition(BaseModel):
                 "claim": f"differentiable_wrt({var})",
                 "description": f"Differentiating both sides requires target expression to be differentiable wrt '{var}'"
             })
-        elif self.rule_id == "vary_action":
+        elif self.rule_id in ("vary_action",):
             field = params.get("field", "phi")
             obligations.append({
                 "type": "stationary_action_principle",
                 "claim": f"delta_S / delta_{field} == 0",
-                "description": f"Euler-Lagrange field equation derived from stationary action variation"
+                "description": "Euler-Lagrange field equation derived from stationary action variation"
             })
         return obligations
 
@@ -96,6 +109,7 @@ class RuleRegistry:
             implementation_backend="sympy",
             formal_proof_available=True,
             symbolic_checker_available=True,
+            allowed_checkers=["sympy", "numerical", "lean4"],
             citation="Hamilton's Principle / Calculus of Variations"
         ))
 
@@ -103,14 +117,15 @@ class RuleRegistry:
             rule_id="vary_action",
             name="Functional Variation of Action",
             category="variational",
-            description="Varies action functional with respect to dynamical field to derive field equations: delta S / delta phi = 0",
+            description="Varies action functional with respect to dynamical field: delta S / delta phi = 0",
             domain="field_theory",
             inputs=["Action"],
             outputs=["Field Equation"],
             required_assumptions=["vanishing_boundary_variations"],
             implementation_backend="sympy",
             formal_proof_available=False,
-            symbolic_checker_available=True
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
         ))
 
         # 2. Conservation Laws
@@ -118,7 +133,10 @@ class RuleRegistry:
             rule_id="conserve_energy",
             name="Noether Energy Conservation",
             category="conservation",
-            description="Derives Jacobi energy function E = sum(p_i q_dot_i) - L and verifies dE/dt = 0 on-shell",
+            description=(
+                "Derives Jacobi energy function E = sum(p_i * q_dot_i) - L "
+                "and verifies dE/dt = 0 on-shell via equations of motion."
+            ),
             domain="classical_mechanics",
             inputs=["Lagrangian", "Equation of Motion"],
             outputs=["Conserved Energy"],
@@ -126,12 +144,13 @@ class RuleRegistry:
             side_conditions=["asm_pos_mass", "asm_conservative"],
             default_obligations=[{
                 "type": "on_shell_invariance",
-                "claim": "v * (m * a + k * x) == 0",
+                "claim": "dE/dt = 0 along solutions of the equations of motion",
                 "description": "Total energy derivative vanishes along equations of motion"
             }],
             implementation_backend="lean4",
             formal_proof_available=True,
             symbolic_checker_available=True,
+            allowed_checkers=["sympy", "numerical", "lean4"],
             citation="Noether's Theorem"
         ))
 
@@ -144,8 +163,9 @@ class RuleRegistry:
             domain="mathematics",
             reversible=True,
             implementation_backend="sympy",
-            formal_proof_available=True,
-            symbolic_checker_available=True
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
         ))
 
         self.register(RuleDefinition(
@@ -157,7 +177,8 @@ class RuleRegistry:
             reversible=False,
             implementation_backend="sympy",
             formal_proof_available=False,
-            symbolic_checker_available=True
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
         ))
 
         self.register(RuleDefinition(
@@ -168,8 +189,9 @@ class RuleRegistry:
             domain="mathematics",
             reversible=True,
             implementation_backend="sympy",
-            formal_proof_available=True,
-            symbolic_checker_available=True
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
         ))
 
         self.register(RuleDefinition(
@@ -179,20 +201,109 @@ class RuleRegistry:
             description="Simplifies an algebraic expression into canonical minimal form",
             domain="mathematics",
             implementation_backend="sympy",
-            formal_proof_available=True,
-            symbolic_checker_available=True
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
         ))
 
-        # 4. Tensor Calculus Rules
+        # 4. Tensor & Differential Geometry Rules
+        self.register(RuleDefinition(
+            rule_id="christoffel_symbols",
+            name="Christoffel Symbols of Second Kind",
+            category="tensors",
+            description="Derives metric connection coefficients Γ^σ_{μν} from metric tensor g_{μν}",
+            domain="differential_geometry",
+            inputs=["Metric"],
+            outputs=["Christoffel Symbols"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+            citation="Riemannian Geometry Connection"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="riemann_curvature",
+            name="Riemann Curvature Tensor",
+            category="tensors",
+            description="Computes Riemann curvature tensor R^σ_{ρμν} from Christoffel connection",
+            domain="differential_geometry",
+            inputs=["Metric"],
+            outputs=["Riemann Tensor"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+            citation="Riemannian Curvature"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="ricci_curvature",
+            name="Ricci Curvature Tensor",
+            category="tensors",
+            description="Contracts Riemann tensor to form symmetric Ricci tensor R_{μν} = R^σ_{μσν}",
+            domain="differential_geometry",
+            inputs=["Metric"],
+            outputs=["Ricci Tensor"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="ricci_scalar",
+            name="Ricci Curvature Scalar",
+            category="tensors",
+            description="Contracts Ricci tensor with inverse metric R = g^{μν} R_{μν}",
+            domain="differential_geometry",
+            inputs=["Metric"],
+            outputs=["Ricci Scalar"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="einstein_tensor",
+            name="Einstein Tensor",
+            category="tensors",
+            description="Computes trace-reversed Ricci curvature G_{μν} = R_{μν} - (1/2) g_{μν} R",
+            domain="general_relativity",
+            inputs=["Metric"],
+            outputs=["Einstein Tensor"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+            citation="Einstein Field Equations"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="geodesic_equations",
+            name="Geodesic Equations of Motion",
+            category="tensors",
+            description="Derives autoparallel curve equations d²x^σ/dτ² + Γ^σ_{μν} (dx^μ/dτ)(dx^ν/dτ) = 0",
+            domain="general_relativity",
+            inputs=["Metric"],
+            outputs=["Geodesic Equations"],
+            implementation_backend="tensor",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["tensor"],
+        ))
+
         self.register(RuleDefinition(
             rule_id="index_contract",
             name="Einstein Index Contraction",
             category="tensors",
             description="Contracts one upper and one lower index using Einstein summation convention",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True
+            symbolic_checker_available=False,
+            allowed_checkers=[],
         ))
 
         self.register(RuleDefinition(
@@ -201,9 +312,10 @@ class RuleRegistry:
             category="tensors",
             description="Raises a covariant tensor index using the inverse metric g^{mu nu}",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True
+            symbolic_checker_available=False,
+            allowed_checkers=[],
         ))
 
         self.register(RuleDefinition(
@@ -212,17 +324,23 @@ class RuleRegistry:
             category="tensors",
             description="Lowers a contravariant tensor index using the metric g_{mu nu}",
             domain="differential_geometry",
-            implementation_backend="dimension",
+            implementation_backend="tensor",
             formal_proof_available=False,
-            symbolic_checker_available=True
+            symbolic_checker_available=False,
+            allowed_checkers=[],
         ))
+
 
         # 5. Differential Equations & Solutions
         self.register(RuleDefinition(
             rule_id="solve_harmonic_oscillator",
             name="Harmonic Oscillator General Solution",
             category="differential_equations",
-            description="General analytical solution of linear 2nd-order ODE: x(t) = A*cos(omega*t + phi)",
+            description=(
+                "Verifies that a proposed solution satisfies the harmonic oscillator ODE "
+                "m*x_ddot + k*x = 0 by substitution. "
+                "Expects ODE in shorthand (x_ddot) or function notation (diff(x(t),t,2))."
+            ),
             domain="classical_mechanics",
             inputs=["Equation of Motion"],
             outputs=["Analytical Solution"],
@@ -230,13 +348,39 @@ class RuleRegistry:
             side_conditions=["asm_pos_mass", "asm_pos_k"],
             default_obligations=[{
                 "type": "ode_substitution",
-                "claim": "m * (-omega^2 * x) + k * x == 0",
-                "description": "Harmonic ansatz satisfies equation of motion"
+                "claim": "residual of ODE after substituting candidate solution == 0",
+                "description": "Candidate solution satisfies the equation of motion"
             }],
             implementation_backend="sympy",
             formal_proof_available=False,
             symbolic_checker_available=True,
+            allowed_checkers=["sympy", "numerical"],
             citation="Linear Ordinary Differential Equations"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="verify_ode_solution",
+            name="General ODE Solution Verifier",
+            category="differential_equations",
+            description=(
+                "Verifies a proposed solution to a general ODE by substitution. "
+                "Supports first- and second-order ODEs, arbitrary dependent variables, "
+                "shorthand notation (x_ddot) and function notation (x(t), diff(x(t),t,2)). "
+                "Does NOT hardcode harmonic oscillator assumptions."
+            ),
+            domain="mathematics",
+            inputs=["ODE"],
+            outputs=["Analytical Solution"],
+            required_assumptions=[],
+            default_obligations=[{
+                "type": "ode_substitution",
+                "claim": "residual after substituting candidate into ODE == 0",
+                "description": "Candidate solution satisfies the ODE by substitution"
+            }],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy", "numerical"],
         ))
 
         self.register(RuleDefinition(
@@ -247,7 +391,8 @@ class RuleRegistry:
             domain="mathematics",
             implementation_backend="sympy",
             formal_proof_available=True,
-            symbolic_checker_available=True
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy", "lean4"],
         ))
 
         # 6. Computational & Experimental
@@ -259,7 +404,8 @@ class RuleRegistry:
             domain="computational_physics",
             implementation_backend="numerical",
             formal_proof_available=False,
-            symbolic_checker_available=False
+            symbolic_checker_available=False,
+            allowed_checkers=["numerical"],
         ))
 
         self.register(RuleDefinition(
@@ -270,7 +416,8 @@ class RuleRegistry:
             domain="experimental_physics",
             implementation_backend="statistical",
             formal_proof_available=False,
-            symbolic_checker_available=False
+            symbolic_checker_available=False,
+            allowed_checkers=["statistical"],
         ))
 
     def register(self, rule: RuleDefinition) -> None:
@@ -287,3 +434,11 @@ class RuleRegistry:
 
     def list_rule_ids(self) -> List[str]:
         return list(self._rules.keys())
+
+    def is_checker_allowed(self, rule_id: str, checker_name: str) -> bool:
+        """Returns True if checker_name is semantically valid for rule_id."""
+        rule = self.get(rule_id)
+        if rule is None:
+            return False
+        return checker_name in rule.allowed_checkers
+

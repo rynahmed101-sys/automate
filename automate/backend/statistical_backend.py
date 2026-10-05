@@ -1,12 +1,28 @@
 """
 StatisticalChecker: Empirical validation and statistical inference backend using SciPy.
-Performs non-linear parameter estimation, uncertainty quantification, confidence intervals,
-residual diagnostics, and goodness-of-fit without confusing empirical evidence with formal proof.
+
+Performs parametric model fitting against observed or synthetic data.
+The model function is determined by the graph's node expressions and edge parameters,
+NOT hardcoded to a cosine/harmonic oscillator model.
+
+Supported model types (via edge.parameters['model']):
+  - 'cosine'          : A * cos(omega * t + phi)
+  - 'exponential_decay': A * exp(-lambda * t)
+  - 'power_law'       : A * t^n
+  - 'damped_oscillator': A * exp(-gamma * t) * cos(omega * t + phi)
+  - 'linear'          : a * t + b
+  - 'expression'      : arbitrary SymPy expression string (from node or params)
+
+If no model is specified and the rule is not 'empirical_inference',
+returns NOT_APPLICABLE rather than silently fitting a cosine.
 """
 
+import hashlib
+import json
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
+import sympy as sp
 import scipy
 from scipy.optimize import curve_fit
 from scipy import stats
@@ -15,9 +31,38 @@ from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge, DerivationCertificate
 from automate.core.graph import DerivationGraph
+from automate.core.sandbox import EvaluationBudget, SandboxError, SandboxLimits, VerifiedExecutionSandbox
+
+
+def _run_statistical_verification(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Spawn-safe worker entrypoint used by VerifiedExecutionSandbox."""
+    checker_config = dict(payload["checker"])
+    checker_config.pop("wall_clock_seconds", None)
+    checker_config.pop("cpu_seconds", None)
+    checker_config.pop("memory_bytes", None)
+    edge = DerivationEdge.model_validate(payload["edge"])
+    graph = DerivationGraph.model_validate(payload["graph"])
+    checker = StatisticalChecker(**checker_config)
+    return checker._verify_edge_core(edge, graph).model_dump()
 
 
 class StatisticalChecker(BaseChecker):
+    def __init__(
+        self,
+        wall_clock_seconds: float = 30.0,
+        cpu_seconds: float = 20.0,
+        memory_bytes: int = 1024 * 1024 * 1024,
+        max_model_evaluations: int = 100_000,
+    ):
+        if max_model_evaluations <= 0:
+            raise ValueError("max_model_evaluations must be positive.")
+        self.max_model_evaluations = int(max_model_evaluations)
+        self._sandbox_limits = SandboxLimits(
+            wall_clock_seconds=wall_clock_seconds,
+            cpu_seconds=cpu_seconds,
+            memory_bytes=memory_bytes,
+        )
+
     @property
     def name(self) -> str:
         return "StatisticalChecker"
@@ -27,6 +72,36 @@ class StatisticalChecker(BaseChecker):
         return f"SciPy {scipy.__version__}"
 
     def verify_edge(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
+        """Verify an empirical inference inside the shared execution sandbox."""
+        payload = {
+            "checker": {
+                "wall_clock_seconds": self._sandbox_limits.wall_clock_seconds,
+                "cpu_seconds": self._sandbox_limits.cpu_seconds,
+                "memory_bytes": self._sandbox_limits.memory_bytes,
+                "max_model_evaluations": self.max_model_evaluations,
+            },
+            "edge": edge.model_dump(),
+            "graph": graph.model_dump(),
+        }
+        try:
+            report_data = VerifiedExecutionSandbox(self._sandbox_limits).run(
+                "automate.backend.statistical_backend:_run_statistical_verification",
+                payload,
+            )
+            report = VerificationReport.model_validate(report_data)
+        except SandboxError as exc:
+            report = VerificationReport(
+                status=VerificationStatus.FAILED,
+                backend=self.name,
+                backend_version=self.version,
+                passed=False,
+                error_message=f"Statistical execution sandbox rejected or terminated task: {exc}",
+            )
+
+        graph.record_verification_report(edge.id, report)
+        return report
+
+    def _verify_edge_core(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
         start_time = time.perf_counter()
 
         in_nodes = [graph.get_node(nid) for nid in edge.input_nodes]
@@ -41,35 +116,52 @@ class StatisticalChecker(BaseChecker):
                 error_message="Referenced nodes missing from derivation graph."
             )
 
+        rule = edge.transformation_rule
         passed = False
         error_msg = None
-        details: Dict[str, Any] = {"rule": edge.transformation_rule}
+        details: Dict[str, Any] = {"rule": rule}
         certificates: List[Dict[str, Any]] = []
 
+        if rule != "empirical_inference":
+            status = VerificationStatus.NOT_APPLICABLE
+            details["reason"] = (
+                f"Rule '{rule}' is not an empirical inference rule. "
+                "StatisticalChecker only applies to 'empirical_inference'."
+            )
+            elapsed = (time.perf_counter() - start_time) * 1000
+            return self._build_report(status, False, details, [], None, edge, graph, elapsed)
+
         try:
-            passed, details, certificates, error_msg = self._fit_harmonic_data(edge.parameters)
+            passed, details, certificates, error_msg = self._fit_parametric_model(
+                in_nodes[0], out_nodes[0], edge.parameters
+            )
         except Exception as e:
             passed = False
             error_msg = f"Statistical estimation error: {type(e).__name__}: {str(e)}"
 
         elapsed = (time.perf_counter() - start_time) * 1000
+        status = VerificationStatus.STATISTICALLY_CHECKED if passed else VerificationStatus.FAILED
+        return self._build_report(status, passed, details, certificates, error_msg, edge, graph, elapsed)
 
+    def _build_report(
+        self, status, passed, details, certificates, error_msg, edge, graph, elapsed
+    ) -> VerificationReport:
+        rule = edge.transformation_rule
         if passed:
-            status = VerificationStatus.STATISTICALLY_CHECKED
             edge.status = status
             edge.checker = "statistical"
             edge.certificate = DerivationCertificate(
-                rule_name=edge.transformation_rule,
+                rule_name=rule,
                 steps=certificates,
                 backend_version=self.version,
                 execution_time_ms=elapsed,
                 metrics=details.get("goodness_of_fit", {})
             )
         else:
-            status = VerificationStatus.FAILED
             edge.status = status
             edge.checker = "statistical"
-            edge.failed_reason = error_msg
+            if error_msg:
+                edge.failed_reason = error_msg
 
         from automate.backend.base import VerificationEvidence
         evidence = VerificationEvidence(
@@ -80,7 +172,7 @@ class StatisticalChecker(BaseChecker):
             assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
             side_conditions_checked=edge.side_conditions,
             generated_obligations=edge.verification_obligations or [{"type": "parameter_fit", "model": "non_linear_least_squares"}],
-            command_invocation=f"curve_fit(model_func, t_data, x_obs)",
+            command_invocation="curve_fit(model_func, t_data, x_obs)",
             passed=passed,
             status=status,
             execution_time_ms=elapsed,
@@ -101,96 +193,698 @@ class StatisticalChecker(BaseChecker):
             evidence=evidence
         )
 
-    def _fit_harmonic_data(
-        self, params: Dict[str, Any]
-    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        # Ground truth / data generation settings
-        m_true = float(params.get("m", 1.0))
-        k_true = float(params.get("k", 4.0))
-        omega_true = np.sqrt(k_true / m_true)  # 2.0 rad/s
-        A_true = float(params.get("A", 1.0))
-        phi_true = float(params.get("phi", 0.0))
-        noise_std = float(params.get("noise_std", 0.05))
-        n_points = int(params.get("n_points", 50))
+    # ------------------------------------------------------------------
+    # Core fitting method: reads model from parameters, NOT hardcoded.
+    # ------------------------------------------------------------------
+    def _fit_parametric_model(
+        self,
+        in_node: Any,
+        out_node: Any,
+        params: Dict[str, Any]
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """
+        Fits a parametric model to data.
 
-        # Generate synthetic noisy observations or use provided sample data
-        np.random.seed(42)
-        t_data = np.linspace(0, 10.0, n_points)
-        x_pure = A_true * np.cos(omega_true * t_data + phi_true)
-        x_obs = x_pure + np.random.normal(0, noise_std, size=n_points)
-        sigma = np.full_like(x_obs, noise_std)
+        The model is determined by params['model']:
+          'cosine'            → A * cos(omega * t + phi)
+          'exponential_decay' → A * exp(-lam * t)
+          'power_law'         → A * t**n
+          'damped_oscillator' → A * exp(-gamma * t) * cos(omega * t + phi)
+          'linear'            → a * t + b
+          'expression'        → arbitrary expression from params or in_node
 
-        # Theoretical model function
-        def model_func(t, A, omega, phi):
-            return A * np.cos(omega * t + phi)
+        Data may come from:
+          - params['t_data'] + params['x_obs'] (explicit arrays)
+          - otherwise generates synthetic data based on model + true parameter values
 
-        # Parameter estimation via non-linear least squares
-        p0 = [1.2, 1.8, 0.1]  # initial guesses
-        popt, pcov = curve_fit(model_func, t_data, x_obs, p0=p0, sigma=sigma, absolute_sigma=True)
+        Returns goodness-of-fit metrics without fabricating verification.
+        """
+        model_type = params.get("model", "")
+        if not model_type:
+            # Try to infer from node expression
+            expr_str = in_node.expression.raw_str.strip()
+            if expr_str:
+                model_type = "expression"
+            else:
+                return (
+                    False, {}, [],
+                    "UNSUPPORTED: edge.parameters['model'] is required for empirical_inference. "
+                    "No default model is applied."
+                )
 
-        A_est, omega_est, phi_est = popt
-        perr = np.sqrt(np.diag(pcov))  # 1-sigma standard errors
+        # Bind the statistical model to the graph input before touching the data.
+        # A caller-supplied model selector must never allow the backend to fit a
+        # mathematically different model than the one represented by the graph.
+        claim_ok, claim_details, claim_error = self._validate_graph_model_claim(
+            in_node, out_node, model_type, params
+        )
+        if not claim_ok:
+            return False, claim_details, [], claim_error
 
-        # 95% confidence intervals (approx +/- 1.96 * sigma)
-        ci_95 = {
-            "A": [float(A_est - 1.96 * perr[0]), float(A_est + 1.96 * perr[0])],
-            "omega": [float(omega_est - 1.96 * perr[1]), float(omega_est + 1.96 * perr[1])],
-            "phi": [float(phi_est - 1.96 * perr[2]), float(phi_est + 1.96 * perr[2])]
-        }
+        model_func, param_names, p0, true_params = self._build_model(model_type, params, in_node)
+        evaluation_budget = EvaluationBudget(self.max_model_evaluations)
+        original_model_func = model_func
 
-        # Inferred spring constant: k_est = m * omega_est^2
-        k_est = m_true * (omega_est**2)
-        k_err = 2 * m_true * omega_est * perr[1]
+        def budgeted_model_func(t, *model_params):
+            evaluation_budget.consume()
+            return original_model_func(t, *model_params)
 
-        # Residuals and goodness-of-fit
+        model_func = budgeted_model_func
+        if model_func is None:
+            return False, {}, [], f"Cannot build model function for model type '{model_type}'"
+
+        # Empirical inference must consume an explicit external data payload.
+        # Synthetic data remains available to lower-level benchmark callers, but it
+        # is never silently promoted to observational evidence.
+        if "t_data" not in params or "x_obs" not in params:
+            return (
+                False,
+                {},
+                [],
+                "UNSUPPORTED: empirical_inference requires explicit t_data and x_obs. "
+                "Synthetic data generation is not observational evidence.",
+            )
+
+        data_source = params.get("data_source")
+        data_id = str(params.get("data_id", "")).strip()
+        if data_source != "observed":
+            return (
+                False,
+                {"data_source": data_source},
+                [],
+                "UNSUPPORTED: empirical_inference requires data_source='observed'. "
+                "Synthetic or unspecified data cannot receive STATISTICALLY_CHECKED status.",
+            )
+
+        if not data_id:
+            return (
+                False,
+                {"data_source": data_source},
+                [],
+                "UNSUPPORTED: empirical_inference requires a non-empty data_id for reproducible dataset provenance.",
+            )
+
+        t_data, x_obs, noise_std = self._load_data(params, model_type, model_func, true_params)
+        if len(t_data) != len(x_obs) or len(t_data) < max(3, len(param_names) + 1):
+            return (
+                False,
+                {},
+                [],
+                "Invalid observational data: t_data and x_obs must have equal length "
+                "and contain more samples than fitted parameters.",
+            )
+        if not (np.all(np.isfinite(t_data)) and np.all(np.isfinite(x_obs))):
+            return False, {}, [], "Invalid observational data: non-finite values found."
+        if np.any(np.diff(t_data) <= 0):
+            return False, {}, [], "Invalid observational data: t_data must be strictly increasing."
+        if not np.isfinite(noise_std) or noise_std < 0:
+            return False, {}, [], "Invalid observational data: noise_std must be finite and non-negative."
+
+        sigma = np.full_like(x_obs, noise_std) if noise_std > 0 else None
+
+        data_hash = hashlib.sha256(
+            np.ascontiguousarray(t_data, dtype=np.float64).tobytes()
+            + np.ascontiguousarray(x_obs, dtype=np.float64).tobytes()
+            + str(float(noise_std)).encode("utf-8")
+        ).hexdigest()
+
+        try:
+            fit_kwargs = {"p0": p0}
+            if sigma is not None:
+                fit_kwargs["sigma"] = sigma
+                fit_kwargs["absolute_sigma"] = True
+            fit_kwargs["maxfev"] = self.max_model_evaluations
+
+            popt, pcov = curve_fit(model_func, t_data, x_obs, **fit_kwargs)
+        except Exception as e:
+            return False, {}, [], f"curve_fit failed: {type(e).__name__}: {str(e)}"
+
+        # A visually excellent fit can still be statistically meaningless if
+        # multiple fitted parameters are not locally identifiable. Derive the
+        # parameter Jacobian from the symbolic model so exact redundancies are not
+        # hidden by finite-difference roundoff, then evaluate that Jacobian on the
+        # actual observation grid.
+        try:
+            jacobian, jacobian_symbolic = self._evaluate_symbolic_jacobian(
+                model_type, params, in_node, t_data, param_names, popt
+            )
+            singular_values = np.linalg.svd(jacobian, compute_uv=False)
+            relative_rank_tolerance = max(
+                np.finfo(float).eps * max(jacobian.shape) * 100.0,
+                np.sqrt(np.finfo(float).eps) * 1e-3,
+            )
+            scale = float(singular_values[0]) if len(singular_values) else 0.0
+            jacobian_rank = int(
+                np.count_nonzero(
+                    singular_values > scale * relative_rank_tolerance
+                )
+            ) if scale > 0 else 0
+        except Exception as e:
+            message = str(e)
+            if message.startswith("NOT_IDENTIFIABLE:"):
+                message = "Statistical fit is not locally identifiable: " + message.split(":", 1)[1].strip()
+            else:
+                message = f"Statistical identifiability check failed: {type(e).__name__}: {message}"
+            return (
+                False,
+                {"model": model_type},
+                [],
+                message,
+            )
+
+        if not np.all(np.isfinite(jacobian)) or not np.all(np.isfinite(singular_values)):
+            return (
+                False,
+                {"model": model_type},
+                [],
+                "Statistical identifiability check failed: non-finite symbolic model Jacobian.",
+            )
+
+        if jacobian_rank < len(popt):
+            return (
+                False,
+                {
+                    "model": model_type,
+                    "identifiability": {
+                        "identified": False,
+                        "jacobian_rank": jacobian_rank,
+                        "parameter_count": len(popt),
+                        "singular_values": [float(v) for v in singular_values],
+                        "relative_smallest_singular_value": (
+                            float(singular_values[-1] / singular_values[0])
+                            if singular_values[0] > 0 else 0.0
+                        ),
+                        "relative_rank_tolerance": relative_rank_tolerance,
+                        "symbolic_jacobian": [str(expr) for expr in jacobian_symbolic],
+                    },
+                },
+                [],
+                (
+                    "Statistical fit is not locally identifiable: "
+                    f"Jacobian rank {jacobian_rank} < parameter count {len(popt)}."
+                ),
+            )
+
+        perr = np.sqrt(np.diag(pcov))
+        if not np.all(np.isfinite(perr)):
+            return (
+                False,
+                {
+                    "model": model_type,
+                    "identifiability": {
+                        "identified": True,
+                        "jacobian_rank": jacobian_rank,
+                        "parameter_count": len(popt),
+                        "singular_values": [float(v) for v in singular_values],
+                    },
+                },
+                [],
+                "Statistical fit produced non-finite parameter uncertainty estimates.",
+            )
+
+        # Goodness-of-fit bookkeeping is defined before confidence intervals,
+        # because the confidence critical value depends on residual degrees of freedom.
+        n_points = len(t_data)
+        n_params = len(popt)
+        dof = n_points - n_params
         fitted_y = model_func(t_data, *popt)
         residuals = x_obs - fitted_y
-        dof = n_points - len(popt)
-        chi2 = float(np.sum((residuals / sigma)**2))
-        reduced_chi2 = float(chi2 / dof)
 
-        ss_res = np.sum(residuals**2)
-        ss_tot = np.sum((x_obs - np.mean(x_obs))**2)
-        r_squared = float(1.0 - (ss_res / ss_tot))
+        # 95% confidence intervals use the Student-t critical value with the
+        # actual residual degrees of freedom, not a fixed normal 1.96 shortcut.
+        if dof > 0 and np.all(np.isfinite(perr)):
+            t_critical = float(stats.t.ppf(0.975, dof))
+        else:
+            t_critical = float("nan")
 
-        # Check statistical viability: reduced chi^2 close to 1.0 (between 0.5 and 2.0), R^2 > 0.90
-        passed = (0.5 <= reduced_chi2 <= 2.0) and (r_squared > 0.90)
+        ci_95 = {
+            name: (
+                [float(popt[i] - t_critical * perr[i]), float(popt[i] + t_critical * perr[i])]
+                if np.isfinite(t_critical) and np.isfinite(perr[i])
+                else [float("nan"), float("nan")]
+            )
+            for i, name in enumerate(param_names)
+        }
+
+        ss_res = float(np.sum(residuals ** 2))
+        ss_tot = float(np.sum((x_obs - np.mean(x_obs)) ** 2))
+        r_squared = float(1.0 - (ss_res / ss_tot)) if ss_tot > 0 else 0.0
+
+        gof_confidence = float(params.get("gof_confidence_level", 0.95))
+        if not (0.0 < gof_confidence < 1.0):
+            return (
+                False,
+                {"model": model_type},
+                [],
+                "Invalid goodness-of-fit confidence level: expected 0 < gof_confidence_level < 1.",
+            )
+
+        if sigma is not None and np.all(sigma > 0) and dof > 0:
+            chi2 = float(np.sum((residuals / sigma) ** 2))
+            reduced_chi2 = float(chi2 / dof)
+            chi2_lower = float(stats.chi2.ppf((1.0 - gof_confidence) / 2.0, dof))
+            chi2_upper = float(stats.chi2.ppf((1.0 + gof_confidence) / 2.0, dof))
+            chi2_cdf = float(stats.chi2.cdf(chi2, dof))
+            chi2_sf = float(stats.chi2.sf(chi2, dof))
+            chi2_two_sided_p = float(min(1.0, 2.0 * min(chi2_cdf, chi2_sf)))
+            chi2_mode = "known_observation_sigma"
+            # Treat the stated measurement uncertainty as the statistical error
+            # model and ask whether the observed residual sum is compatible with
+            # the chi-square distribution at the configured confidence level.
+            passed = chi2_lower <= chi2 <= chi2_upper
+        else:
+            chi2 = None
+            reduced_chi2 = None
+            chi2_lower = None
+            chi2_upper = None
+            chi2_two_sided_p = None
+            chi2_mode = "unavailable_without_positive_observation_sigma"
+            # Parameter estimation remains possible without measurement
+            # uncertainty, but a STATISTICALLY_CHECKED goodness-of-fit claim does
+            # not. Do not turn R² into a substitute statistical error model.
+            passed = False
+
+        residual_mean = float(np.mean(residuals))
+        residual_std = float(np.std(residuals))
+        centered = residuals - residual_mean
+        if len(centered) > 2 and np.std(centered) > 0:
+            lag1 = float(np.corrcoef(centered[:-1], centered[1:])[0, 1])
+        else:
+            lag1 = float("nan")
+
+        if len(residuals) >= 8 and np.all(np.isfinite(residuals)):
+            normality_p = float(stats.normaltest(residuals).pvalue)
+        else:
+            normality_p = None
 
         goodness_of_fit = {
             "chi2": chi2,
             "reduced_chi2": reduced_chi2,
+            "chi2_mode": chi2_mode,
+            "chi2_compatibility_interval": (
+                [chi2_lower, chi2_upper]
+                if chi2_lower is not None and chi2_upper is not None
+                else None
+            ),
+            "chi2_two_sided_p_value": chi2_two_sided_p,
+            "gof_confidence_level": gof_confidence,
             "degrees_of_freedom": dof,
             "r_squared": r_squared,
-            "residual_mean": float(np.mean(residuals)),
-            "residual_std": float(np.std(residuals))
+            "sum_squared_residuals": ss_res,
+            "residual_mean": residual_mean,
+            "residual_std": residual_std,
+            "residual_lag1_autocorrelation": lag1,
+            "residual_normality_p_value": normality_p,
+            "confidence_level": 0.95,
+            "confidence_critical_value": t_critical,
         }
 
         estimates = {
-            "amplitude_A": {"estimate": float(A_est), "std_err": float(perr[0]), "ci_95": ci_95["A"]},
-            "frequency_omega": {"estimate": float(omega_est), "std_err": float(perr[1]), "ci_95": ci_95["omega"]},
-            "phase_phi": {"estimate": float(phi_est), "std_err": float(perr[2]), "ci_95": ci_95["phi"]},
-            "inferred_spring_constant_k": {"estimate": float(k_est), "std_err": float(k_err), "true_k": k_true}
+            name: {
+                "estimate": float(popt[i]),
+                "std_err": float(perr[i]),
+                "ci_95": ci_95[name],
+            }
+            for i, name in enumerate(param_names)
         }
 
+        evidence_payload = {
+            "claim_fingerprint_sha256": claim_details["claim_fingerprint_sha256"],
+            "dataset_sha256": data_hash,
+            "model": model_type,
+            "fit_initial_guess": [float(v) for v in p0],
+            "noise_std": float(noise_std),
+            "gof_confidence_level": gof_confidence,
+            "sample_size": n_points,
+            "max_model_evaluations": self.max_model_evaluations,
+            "model_evaluations_used": evaluation_budget.used,
+            "max_model_evaluations": self.max_model_evaluations,
+            "model_evaluations_used": evaluation_budget.used,
+        }
+        evidence_fingerprint = hashlib.sha256(
+            json.dumps(evidence_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+
         details = {
+            "model": model_type,
             "parameter_estimates": estimates,
             "goodness_of_fit": goodness_of_fit,
             "sample_size": n_points,
-            "noise_level": noise_std
+            "noise_std_used": float(noise_std),
+            "data_source": data_source,
+            **claim_details,
+            "evidence_fingerprint_sha256": evidence_fingerprint,
+            "data_provenance": {
+                "source_type": "observed",
+                "data_id": data_id,
+                "provenance_authentication": "caller_declared_not_independently_authenticated",
+                "preprocessing": "none_declared",
+                "sha256": data_hash,
+                "n_points": n_points,
+            },
         }
 
         certificates = [
             {
                 "step": "non_linear_least_squares_fit",
-                "description": f"Fit model x(t) = A*cos(omega*t + phi) on {n_points} data points",
-                "result": f"omega_est = {omega_est:.4f} +/- {perr[1]:.4f} rad/s (True: {omega_true:.4f})"
+                "description": f"Fit model '{model_type}' on {n_points} data points",
+                "result": f"Parameters: {dict(zip(param_names, [f'{v:.4f}' for v in popt]))}"
             },
             {
                 "step": "residual_goodness_of_fit",
-                "description": "Computed reduced chi-squared and coefficient of determination R^2",
-                "result": f"Reduced Chi^2 = {reduced_chi2:.3f}, R^2 = {r_squared:.4f}"
+                "description": "Computed goodness-of-fit diagnostics appropriate to the supplied uncertainty information.",
+                "result": (
+                    f"Chi^2 = {chi2:.3f}, dof = {dof}, "
+                    f"two-sided p = {chi2_two_sided_p:.4g}"
+                    if reduced_chi2 is not None
+                    else "Chi^2 = unavailable because positive observational uncertainty was not supplied."
+                )
             }
         ]
 
-        error_msg = None if passed else f"Statistical fit criteria not satisfied: reduced_chi2={reduced_chi2:.3f}, R2={r_squared:.4f}"
+        if passed:
+            error_msg = None
+        elif reduced_chi2 is not None:
+            error_msg = (
+                "Statistical goodness-of-fit rejected: "
+                f"chi2={chi2:.3f}, dof={dof}, "
+                f"two-sided p={chi2_two_sided_p:.4g}, "
+                f"compatibility interval={chi2_lower:.3f}..{chi2_upper:.3f} "
+                f"at confidence={gof_confidence:.3f}."
+            )
+        else:
+            error_msg = (
+                "UNSUPPORTED: STATISTICALLY_CHECKED status requires positive "
+                "observational uncertainty via noise_std."
+            )
         return passed, details, certificates, error_msg
+
+    def _validate_graph_model_claim(
+        self,
+        in_node: Any,
+        out_node: Any,
+        model_type: str,
+        params: Dict[str, Any],
+    ) -> Tuple[bool, Dict[str, Any], Optional[str]]:
+        """
+        Verify that the requested statistical model is mathematically equivalent
+        to the graph input expression.
+
+        The output node is retained in the claim fingerprint so the provenance
+        evidence is bound to the complete edge claim, but the semantic model
+        itself is derived from and checked against the graph input node.
+        """
+        try:
+            from automate.ir.safe_parser import SafeParser
+
+            graph_expr_text = in_node.expression.raw_str.strip()
+            parse_expr_text = graph_expr_text
+            if model_type == "exponential_decay":
+                # "lambda" is a valid historical model parameter name but a Python
+                # keyword. Normalize only that exact identifier at this parser boundary.
+                import re
+                parse_expr_text = re.sub(r"\blambda\b", "lam", parse_expr_text)
+            graph_expr = SafeParser().parse(parse_expr_text)
+
+            t = sp.Symbol("t")
+            model_symbols = {
+                name: sp.Symbol(name)
+                for name in ("A", "omega", "phi", "lambda", "lam", "gamma", "a", "b", "n")
+            }
+
+            if model_type == "cosine":
+                expected = model_symbols["A"] * sp.cos(
+                    model_symbols["omega"] * t + model_symbols["phi"]
+                )
+            elif model_type == "exponential_decay":
+                # The backend parameter name is historically "lambda", but Python
+                # syntax cannot express that identifier. Accept a graph claim using
+                # the semantically equivalent "lam" spelling as well.
+                expected = model_symbols["A"] * sp.exp(-model_symbols["lam"] * t)
+                lam_graph = graph_expr.xreplace({model_symbols["lambda"]: model_symbols["lam"]})
+                graph_expr = lam_graph
+            elif model_type == "power_law":
+                expected = model_symbols["A"] * sp.Abs(t) ** model_symbols["n"]
+            elif model_type == "damped_oscillator":
+                expected = (
+                    model_symbols["A"]
+                    * sp.exp(-model_symbols["gamma"] * t)
+                    * sp.cos(model_symbols["omega"] * t + model_symbols["phi"])
+                )
+            elif model_type == "linear":
+                expected = model_symbols["a"] * t + model_symbols["b"]
+            elif model_type == "expression":
+                expression_str = params.get("expression_str") or graph_expr_text
+                candidate = SafeParser().parse(expression_str)
+                if sp.simplify(candidate - graph_expr) != 0:
+                    return (
+                        False,
+                        {"model": model_type, "graph_input_expression": graph_expr_text},
+                        "UNSUPPORTED: statistical expression model does not match the graph input claim.",
+                    )
+                expected = candidate
+            else:
+                return (
+                    False,
+                    {"model": model_type},
+                    f"UNSUPPORTED: no graph-binding rule exists for statistical model '{model_type}'.",
+                )
+
+            if model_type != "expression":
+                if sp.simplify(graph_expr - expected) != 0:
+                    return (
+                        False,
+                        {
+                            "model": model_type,
+                            "graph_input_expression": graph_expr_text,
+                            "expected_model_expression": str(expected),
+                        },
+                        (
+                            "UNSUPPORTED: statistical model does not match the graph input claim. "
+                            f"model='{model_type}'"
+                        ),
+                    )
+
+            normalized_input = sp.srepr(graph_expr)
+            normalized_expected = sp.srepr(expected)
+            fingerprint_payload = {
+                "input_node_id": getattr(in_node, "id", None),
+                "output_node_id": getattr(out_node, "id", None),
+                "input_expression": graph_expr_text,
+                "output_expression": out_node.expression.raw_str.strip(),
+                "model": model_type,
+                "normalized_input_expression": normalized_input,
+                "normalized_model_expression": normalized_expected,
+            }
+            claim_fingerprint = hashlib.sha256(
+                json.dumps(
+                    fingerprint_payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+
+            return True, {
+                "graph_claim_binding": {
+                    "input_node_id": getattr(in_node, "id", None),
+                    "output_node_id": getattr(out_node, "id", None),
+                    "model_expression_equivalent": True,
+                    "normalized_model_expression": normalized_expected,
+                },
+                "claim_fingerprint_sha256": claim_fingerprint,
+            }, None
+        except Exception as exc:
+            return (
+                False,
+                {"model": model_type, "graph_input_expression": getattr(in_node.expression, "raw_str", "")},
+                f"UNSUPPORTED: could not safely bind statistical model to graph claim: {type(exc).__name__}: {exc}",
+            )
+
+    def _evaluate_symbolic_jacobian(
+        self,
+        model_type: str,
+        params: Dict[str, Any],
+        in_node: Any,
+        t_data: np.ndarray,
+        param_names: List[str],
+        fitted_parameters: np.ndarray,
+    ) -> Tuple[np.ndarray, List[sp.Expr]]:
+        """Evaluate an exact symbolic parameter Jacobian at fitted parameters."""
+        t = sp.Symbol("t", real=True)
+        symbols = {name: sp.Symbol(name, real=True) for name in param_names}
+
+        if model_type == "cosine":
+            expr = symbols["A"] * sp.cos(symbols["omega"] * t + symbols["phi"])
+        elif model_type == "exponential_decay":
+            lam = symbols["lambda"]
+            expr = symbols["A"] * sp.exp(-lam * t)
+        elif model_type == "power_law":
+            expr = symbols["A"] * sp.Abs(t) ** symbols["n"]
+        elif model_type == "damped_oscillator":
+            expr = (
+                symbols["A"]
+                * sp.exp(-symbols["gamma"] * t)
+                * sp.cos(symbols["omega"] * t + symbols["phi"])
+            )
+        elif model_type == "linear":
+            expr = symbols["a"] * t + symbols["b"]
+        elif model_type == "expression":
+            expr_str = params.get("expression_str") or in_node.expression.raw_str.strip()
+            from automate.ir.safe_parser import SafeParser
+            expr = SafeParser(extra_symbols={"t": t, **symbols}).parse(expr_str)
+        else:
+            raise ValueError(f"Unsupported statistical model type '{model_type}'.")
+
+        jacobian_symbolic = [
+            sp.simplify(sp.diff(expr, symbols[name]))
+            for name in param_names
+        ]
+
+        # Exact duplicate or negated sensitivities prove a structural
+        # non-identifiability without relying on floating-point rank estimates.
+        for i in range(len(jacobian_symbolic)):
+            for j in range(i + 1, len(jacobian_symbolic)):
+                if sp.simplify(jacobian_symbolic[i] - jacobian_symbolic[j]) == 0:
+                    raise ValueError(
+                        f"NOT_IDENTIFIABLE: parameters '{param_names[i]}' and "
+                        f"'{param_names[j]}' have identical sensitivity functions."
+                    )
+                if sp.simplify(jacobian_symbolic[i] + jacobian_symbolic[j]) == 0:
+                    raise ValueError(
+                        f"NOT_IDENTIFIABLE: parameters '{param_names[i]}' and "
+                        f"'{param_names[j]}' have opposite sensitivity functions."
+                    )
+
+        subs = {
+            symbols[name]: float(value)
+            for name, value in zip(param_names, fitted_parameters)
+        }
+        jac_columns = []
+        for jac_expr in jacobian_symbolic:
+            evaluated = sp.lambdify(
+                t, jac_expr.subs(subs), modules="numpy"
+            )(t_data)
+            jac_values = np.asarray(evaluated, dtype=float)
+            if jac_values.ndim == 0:
+                jac_values = np.full(t_data.shape, float(jac_values), dtype=float)
+            if jac_values.shape != t_data.shape:
+                raise ValueError("Symbolic Jacobian returned an unexpected shape.")
+            if not np.all(np.isfinite(jac_values)):
+                raise ValueError("Symbolic Jacobian contains non-finite values.")
+            jac_columns.append(jac_values)
+
+        return np.column_stack(jac_columns), jacobian_symbolic
+
+    @staticmethod
+    def _initial_guess(params: Dict[str, Any], names: List[str], defaults: List[float]) -> List[float]:
+        """Use explicit fit_initial_guess only; never use reference parameter values as p0."""
+        supplied = params.get("fit_initial_guess")
+        if isinstance(supplied, dict):
+            values = [float(supplied.get(name, default)) for name, default in zip(names, defaults)]
+        elif isinstance(supplied, (list, tuple)) and len(supplied) == len(names):
+            values = [float(v) for v in supplied]
+        else:
+            values = list(defaults)
+        if not all(np.isfinite(values)):
+            raise ValueError("fit_initial_guess must contain finite numeric values.")
+        return values
+
+    def _build_model(
+        self, model_type: str, params: Dict[str, Any], in_node: Any
+    ):
+        """Returns (model_func, param_names, p0_guesses, true_param_values)."""
+        import numpy as np
+
+        if model_type == "cosine":
+            A_true = float(params.get("A", 1.0))
+            omega_true = float(params.get("omega", 2.0))
+            phi_true = float(params.get("phi", 0.0))
+
+            def model_func(t, A, omega, phi):
+                return A * np.cos(omega * t + phi)
+
+            return model_func, ["A", "omega", "phi"], self._initial_guess(params, ["A", "omega", "phi"], [1.2, 1.8, 0.1]), [A_true, omega_true, phi_true]
+
+        elif model_type == "exponential_decay":
+            A_true = float(params.get("A", 1.0))
+            lam_true = float(params.get("lambda", 0.5))
+
+            def model_func(t, A, lam):
+                return A * np.exp(-lam * t)
+
+            return model_func, ["A", "lambda"], self._initial_guess(params, ["A", "lambda"], [1.2, 0.4]), [A_true, lam_true]
+
+        elif model_type == "power_law":
+            A_true = float(params.get("A", 1.0))
+            n_true = float(params.get("n", 2.0))
+
+            def model_func(t, A, n):
+                return A * np.abs(t) ** n
+
+            return model_func, ["A", "n"], self._initial_guess(params, ["A", "n"], [0.9, 1.8]), [A_true, n_true]
+
+        elif model_type == "damped_oscillator":
+            A_true = float(params.get("A", 1.0))
+            gamma_true = float(params.get("gamma", 0.1))
+            omega_true = float(params.get("omega", 2.0))
+            phi_true = float(params.get("phi", 0.0))
+
+            def model_func(t, A, gamma, omega, phi):
+                return A * np.exp(-gamma * t) * np.cos(omega * t + phi)
+
+            return model_func, ["A", "gamma", "omega", "phi"], self._initial_guess(params, ["A", "gamma", "omega", "phi"], [1.1, 0.05, 1.8, 0.1]), [A_true, gamma_true, omega_true, phi_true]
+
+        elif model_type == "linear":
+            a_true = float(params.get("a", 1.0))
+            b_true = float(params.get("b", 0.0))
+
+            def model_func(t, a, b):
+                return a * t + b
+
+            return model_func, ["a", "b"], self._initial_guess(params, ["a", "b"], [0.9, 0.1]), [a_true, b_true]
+
+        elif model_type == "expression":
+            # Build model function from expression string
+            expr_str = params.get("expression_str") or in_node.expression.raw_str
+            model_params = params.get("model_parameters", [])  # list of param names to fit
+            if not model_params:
+                return None, [], [], []
+
+            t_sym = sp.Symbol("t", real=True)
+            fit_syms = [sp.Symbol(p, real=True) for p in model_params]
+            local_syms = {"t": t_sym, **{p: s for p, s in zip(model_params, fit_syms)}}
+
+            try:
+                from automate.ir.safe_parser import SafeParser, SafeParseError
+                expr = SafeParser(extra_symbols=local_syms).parse(expr_str)
+                func = sp.lambdify([t_sym] + fit_syms, expr, modules="numpy")
+            except Exception as e:
+                return None, [], [], []
+
+            p0 = self._initial_guess(params, model_params, [1.0] * len(model_params))
+            return func, model_params, p0, []
+
+        else:
+            return None, [], [], []
+
+    def _load_data(
+        self, params: Dict[str, Any], model_type: str, model_func, true_params: list
+    ) -> Tuple[np.ndarray, np.ndarray, float]:
+        """Returns (t_data, x_obs, noise_std)."""
+        if "t_data" in params and "x_obs" in params:
+            t_data = np.array(params["t_data"], dtype=float)
+            x_obs = np.array(params["x_obs"], dtype=float)
+            noise_std = float(params.get("noise_std", 0.0))
+            return t_data, x_obs, noise_std
+
+        # Synthetic data with explicit labeling
+        n_points = int(params.get("n_points", 50))
+        t_max = float(params.get("t_max", 10.0))
+        noise_std = float(params.get("noise_std", 0.05))
+        t_data = np.linspace(0, t_max, n_points)
+
+        np.random.seed(int(params.get("random_seed", 42)))
+        x_pure = model_func(t_data, *true_params)
+        x_obs = x_pure + np.random.normal(0, noise_std, size=n_points)
+        return t_data, x_obs, noise_std
+

@@ -8,6 +8,11 @@ from pydantic import BaseModel, Field
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
+from automate.core.claim import (
+    build_claim_identity,
+    build_dependency_fingerprint,
+    compute_evidence_fingerprint,
+)
 
 
 import time
@@ -35,6 +40,11 @@ class VerificationEvidence(BaseModel):
     reproducibility: Dict[str, Any] = Field(default_factory=dict)
     metrics: Dict[str, Any] = Field(default_factory=dict)
     certificate_path: Optional[str] = None
+    claim_schema_version: Optional[str] = None
+    claim_fingerprint_sha256: Optional[str] = None
+    dependency_fingerprint_sha256: Optional[str] = None
+    evidence_fingerprint_sha256: Optional[str] = None
+    claim_identity: Dict[str, Any] = Field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()
@@ -54,12 +64,103 @@ class VerificationReport(BaseModel):
     proof_script: Optional[str] = None
     certificates: List[Dict[str, Any]] = Field(default_factory=list)
     evidence: Optional[VerificationEvidence] = None
+    claim_schema_version: Optional[str] = None
+    claim_fingerprint_sha256: Optional[str] = None
+    dependency_fingerprint_sha256: Optional[str] = None
+    evidence_fingerprint_sha256: Optional[str] = None
+    claim_identity: Dict[str, Any] = Field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()
 
 
 class BaseChecker(ABC):
+    """
+    Abstract interface for verification backends.
+
+    Subclasses are automatically wrapped so every backend report receives the
+    same canonical claim/dependency/evidence identity metadata. The mathematical
+    claim is not compared to any external theory here.
+    """
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        verify = cls.__dict__.get("verify_edge")
+        if verify is None or getattr(verify, "_automate_claim_stamped", False):
+            return
+
+        from functools import wraps
+
+        @wraps(verify)
+        def _claim_stamped_verify(self, edge, graph):
+            report = verify(self, edge, graph)
+            if isinstance(report, VerificationReport):
+                return self._stamp_report(report, edge, graph)
+            return report
+
+        _claim_stamped_verify._automate_claim_stamped = True
+        cls.verify_edge = _claim_stamped_verify
+
+    @staticmethod
+    def _stamp_report(report: VerificationReport, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
+        try:
+            identity = build_claim_identity(graph, edge)
+            dependency_hash = build_dependency_fingerprint(graph, edge)
+        except (KeyError, ValueError, TypeError) as exc:
+            # A malformed graph cannot have a trustworthy claim identity. Preserve
+            # the backend's controlled failure report instead of allowing the
+            # provenance layer itself to crash.
+            report.details = dict(report.details)
+            report.details["claim_identity_status"] = "UNAVAILABLE_INVALID_GRAPH"
+            report.details["claim_identity_error"] = f"{type(exc).__name__}: {exc}"
+            report.error_message = report.error_message or (
+                "Claim identity could not be computed because the derivation graph "
+                "is structurally invalid."
+            )
+            return report
+
+        evidence_hash = compute_evidence_fingerprint(report.to_dict())
+        identity_dict = identity.model_dump()
+
+        report.claim_schema_version = identity.schema_version
+        report.claim_fingerprint_sha256 = identity.claim_fingerprint_sha256
+        report.dependency_fingerprint_sha256 = dependency_hash
+        report.evidence_fingerprint_sha256 = evidence_hash
+        report.claim_identity = identity_dict
+        report.details = dict(report.details)
+        report.details.update({
+            "claim_schema_version": identity.schema_version,
+            "claim_fingerprint_sha256": identity.claim_fingerprint_sha256,
+            "dependency_fingerprint_sha256": dependency_hash,
+            "evidence_fingerprint_sha256": evidence_hash,
+            "claim_identity": identity_dict,
+        })
+
+        if report.evidence is not None:
+            report.evidence.claim_schema_version = identity.schema_version
+            report.evidence.claim_fingerprint_sha256 = identity.claim_fingerprint_sha256
+            report.evidence.dependency_fingerprint_sha256 = dependency_hash
+            report.evidence.evidence_fingerprint_sha256 = evidence_hash
+            report.evidence.claim_identity = identity_dict
+
+        # Some legacy backends still materialize a certificate directly on the
+        # edge before returning. Canonical identity is the single authority, so
+        # normalize that certificate here rather than allowing backend-local
+        # fingerprints to compete with the verification kernel.
+        certificate = getattr(edge, "certificate", None)
+        if certificate is not None:
+            certificate.claim_schema_version = identity.schema_version
+            certificate.claim_fingerprint_sha256 = identity.claim_fingerprint_sha256
+            certificate.dependency_fingerprint_sha256 = dependency_hash
+            certificate.evidence_fingerprint_sha256 = evidence_hash
+            certificate.claim_payload = identity.canonical_payload
+            certificate.metrics = dict(certificate.metrics)
+            certificate.metrics["claim_fingerprint_sha256"] = identity.claim_fingerprint_sha256
+            certificate.metrics["dependency_fingerprint_sha256"] = dependency_hash
+            certificate.metrics["evidence_fingerprint_sha256"] = evidence_hash
+
+        return report
+
     """
     Abstract interface for all verification backends.
     """

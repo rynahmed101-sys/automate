@@ -243,5 +243,10 @@ class MathematicalExpression(BaseModel):
     sympy_str: Optional[str] = None
     lean_str: Optional[str] = None
 
+    @property
+    def has_explicit_dimension(self) -> bool:
+        """Whether physical dimension metadata was explicitly supplied."""
+        return bool(self.dimension and self.dimension.strip())
+
     def get_dimension(self) -> Dimension:
         return Dimension.from_string(self.dimension)

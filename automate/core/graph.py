@@ -10,13 +10,18 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 import json
 import copy
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from automate.core.status import VerificationStatus
 from automate.core.node import DerivationNode
 from automate.core.edge import DerivationEdge, DerivationCertificate
-from automate.ir.assumptions import Assumption, AssumptionRegistry
+from automate.ir.assumptions import Assumption, AssumptionDependency, AssumptionRegistry
 from automate.ir.serialization import dump_json, load_json
+from automate.core.claim import (
+    build_claim_identity,
+    build_dependency_fingerprint,
+    compute_evidence_fingerprint,
+)
 
 
 class DerivationGraph(BaseModel):
@@ -29,7 +34,154 @@ class DerivationGraph(BaseModel):
     nodes: Dict[str, DerivationNode] = Field(default_factory=dict)
     edges: Dict[str, DerivationEdge] = Field(default_factory=dict)
     assumptions: Dict[str, Assumption] = Field(default_factory=dict)
+    assumption_dependencies: List[AssumptionDependency] = Field(
+        default_factory=list,
+        description="Explicit dependency graph between declared assumptions",
+    )
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _validate_assumption_dependencies(self) -> "DerivationGraph":
+        self.validate_assumption_dependency_graph()
+        return self
+
+    def get_claim_identity(self, edge_id: str):
+        """Return the canonical identity of an edge's mathematical claim."""
+        edge = self.get_edge(edge_id)
+        if edge is None:
+            raise KeyError(f"Edge '{edge_id}' not found in graph.")
+        return build_claim_identity(self, edge)
+
+    def get_dependency_fingerprint(self, edge_id: str) -> str:
+        """Return the current dependency fingerprint for an edge."""
+        edge = self.get_edge(edge_id)
+        if edge is None:
+            raise KeyError(f"Edge '{edge_id}' not found in graph.")
+        return build_dependency_fingerprint(self, edge)
+
+    def get_certificate_staleness(self, edge_id: str) -> Dict[str, Any]:
+        """Compare a stored certificate with the graph state it was issued for."""
+        edge = self.get_edge(edge_id)
+        if edge is None:
+            raise KeyError(f"Edge '{edge_id}' not found in graph.")
+
+        cert = edge.certificate
+        if cert is None:
+            return {
+                "current": False,
+                "reason": "NO_CERTIFICATE",
+                "claim_current": False,
+                "dependency_current": False,
+            }
+
+        if not cert.claim_fingerprint_sha256 or not cert.dependency_fingerprint_sha256:
+            return {
+                "current": None,
+                "reason": "LEGACY_CERTIFICATE_WITHOUT_IDENTITY",
+                "claim_current": None,
+                "dependency_current": None,
+                "stored_claim_fingerprint_sha256": cert.claim_fingerprint_sha256,
+                "stored_dependency_fingerprint_sha256": cert.dependency_fingerprint_sha256,
+            }
+
+        current_claim = self.get_claim_identity(edge_id)
+        current_dependency = self.get_dependency_fingerprint(edge_id)
+        claim_current = cert.claim_fingerprint_sha256 == current_claim.claim_fingerprint_sha256
+        dependency_current = cert.dependency_fingerprint_sha256 == current_dependency
+
+        if not claim_current:
+            reason = "CLAIM_CHANGED"
+        elif not dependency_current:
+            reason = "UPSTREAM_DEPENDENCY_CHANGED"
+        else:
+            reason = "CURRENT"
+
+        return {
+            "current": claim_current and dependency_current,
+            "reason": reason,
+            "claim_current": claim_current,
+            "dependency_current": dependency_current,
+            "stored_claim_fingerprint_sha256": cert.claim_fingerprint_sha256,
+            "current_claim_fingerprint_sha256": current_claim.claim_fingerprint_sha256,
+            "stored_dependency_fingerprint_sha256": cert.dependency_fingerprint_sha256,
+            "current_dependency_fingerprint_sha256": current_dependency,
+        }
+
+    def is_certificate_current(self, edge_id: str) -> bool:
+        """True only when a modern certificate matches both claim and dependencies."""
+        state = self.get_certificate_staleness(edge_id)
+        return state["current"] is True
+
+    def record_verification_report(self, edge_id: str, report: Any) -> DerivationEdge:
+        """
+        Persist a verification report as an auditable edge certificate.
+
+        This method does not decide whether a claim is physically true. It only
+        binds the evidence to the exact claim/dependency state that produced it.
+        """
+        edge = self.get_edge(edge_id)
+        if edge is None:
+            raise KeyError(f"Edge '{edge_id}' not found in graph.")
+
+        identity = self.get_claim_identity(edge_id)
+        dependency_hash = self.get_dependency_fingerprint(edge_id)
+        evidence_payload = report.to_dict()
+        evidence_hash = compute_evidence_fingerprint(evidence_payload)
+        evidence_payload.update({
+            "claim_schema_version": identity.schema_version,
+            "claim_fingerprint_sha256": identity.claim_fingerprint_sha256,
+            "dependency_fingerprint_sha256": dependency_hash,
+            "evidence_fingerprint_sha256": evidence_hash,
+            "claim_identity": identity.model_dump(),
+        })
+
+        edge.evidence = evidence_payload
+        edge.status = report.status
+        edge.failed_reason = report.error_message if not report.passed else None
+
+        # Preserve backend-specific certificate material when a checker has
+        # already attached one (for example TensorChecker's geometry proof
+        # metadata). The kernel adds its provenance fields without discarding
+        # richer evidence.
+        certificate = edge.certificate
+        if certificate is None:
+            certificate = DerivationCertificate(
+                rule_name=edge.transformation_rule,
+                steps=report.certificates,
+                proof_code=report.proof_script,
+                backend_version=report.backend_version,
+                execution_time_ms=report.execution_time_ms,
+                metrics=report.details,
+                diagnostics=[report.error_message] if report.error_message else [],
+            )
+            edge.certificate = certificate
+        else:
+            certificate.rule_name = edge.transformation_rule
+            if report.certificates:
+                certificate.steps = report.certificates
+            if report.proof_script:
+                certificate.proof_code = report.proof_script
+            if report.backend_version:
+                certificate.backend_version = report.backend_version
+            certificate.execution_time_ms = report.execution_time_ms
+            merged_metrics = dict(certificate.metrics)
+            merged_metrics.update(report.details)
+            certificate.metrics = merged_metrics
+            if report.error_message:
+                certificate.diagnostics = [*certificate.diagnostics, report.error_message]
+
+        certificate.claim_schema_version = identity.schema_version
+        certificate.claim_fingerprint_sha256 = identity.claim_fingerprint_sha256
+        certificate.dependency_fingerprint_sha256 = dependency_hash
+        certificate.evidence_fingerprint_sha256 = evidence_hash
+        certificate.claim_payload = identity.canonical_payload
+        certificate.metrics = dict(certificate.metrics)
+        certificate.metrics.update({
+            "claim_fingerprint_sha256": identity.claim_fingerprint_sha256,
+            "dependency_fingerprint_sha256": dependency_hash,
+            "evidence_fingerprint_sha256": evidence_hash,
+        })
+        return edge
 
     def add_node(self, node: DerivationNode) -> None:
         self.nodes[node.id] = node
@@ -46,6 +198,92 @@ class DerivationGraph(BaseModel):
 
     def add_assumption(self, assumption: Assumption) -> None:
         self.assumptions[assumption.id] = assumption
+
+    def add_assumption_dependency(self, dependency: AssumptionDependency) -> None:
+        """Add a declared assumption dependency and reject cycles/unknown IDs."""
+        if dependency.assumption_id not in self.assumptions:
+            raise ValueError(
+                f"Assumption dependency target '{dependency.assumption_id}' is not declared."
+            )
+        missing = [
+            aid for aid in dependency.depends_on if aid not in self.assumptions
+        ]
+        if missing:
+            raise ValueError(
+                "Assumption dependency references undeclared prerequisites: "
+                + ", ".join(sorted(missing))
+            )
+
+        self.assumption_dependencies.append(dependency)
+        try:
+            self.validate_assumption_dependency_graph()
+        except Exception:
+            self.assumption_dependencies.pop()
+            raise
+
+    def get_assumption_dependencies(self, assumption_id: str) -> List[str]:
+        """Return direct active prerequisites of an assumption."""
+        dependencies: Set[str] = set()
+        for dependency in self.assumption_dependencies:
+            if (
+                dependency.active
+                and dependency.assumption_id == assumption_id
+            ):
+                dependencies.update(dependency.depends_on)
+        return sorted(dependencies)
+
+    def get_assumption_dependency_closure(self, assumption_ids: Set[str] | List[str]) -> Set[str]:
+        """Return assumptions plus all transitive active prerequisites."""
+        roots = set(assumption_ids)
+        # Unknown assumptions remain explicit external premises. They are leaves
+        # in the dependency graph because Automate cannot invent their meaning.
+        closure: Set[str] = set()
+        stack = list(roots)
+        while stack:
+            current = stack.pop()
+            if current in closure:
+                continue
+            closure.add(current)
+            stack.extend(self.get_assumption_dependencies(current))
+        return closure
+
+    def validate_assumption_dependency_graph(self) -> bool:
+        """Validate that declared assumption prerequisites form a DAG."""
+        adjacency: Dict[str, Set[str]] = defaultdict(set)
+        for dependency in self.assumption_dependencies:
+            if not dependency.active:
+                continue
+            adjacency[dependency.assumption_id].update(dependency.depends_on)
+
+        visiting: Set[str] = set()
+        visited: Set[str] = set()
+
+        def dfs(current: str) -> None:
+            if current in visiting:
+                raise ValueError(
+                    "Assumption dependency graph contains a cycle involving "
+                    f"'{current}'."
+                )
+            if current in visited:
+                return
+            visiting.add(current)
+            for parent in adjacency.get(current, set()):
+                dfs(parent)
+            visiting.remove(current)
+            visited.add(current)
+
+        for assumption_id in self.assumptions:
+            dfs(assumption_id)
+        return True
+
+    def query_assumption_dependency_tree(self, assumption_id: str) -> Dict[str, Any]:
+        """Return direct and transitive prerequisites for one assumption."""
+        closure = self.get_assumption_dependency_closure({assumption_id})
+        return {
+            "assumption_id": assumption_id,
+            "direct_dependencies": self.get_assumption_dependencies(assumption_id),
+            "transitive_dependencies": sorted(closure - {assumption_id}),
+        }
 
     def get_node(self, node_id: str) -> Optional[DerivationNode]:
         return self.nodes.get(node_id)
@@ -137,7 +375,9 @@ class DerivationGraph(BaseModel):
             visited_nodes.add(curr_id)
             node = self.nodes.get(curr_id)
             if node:
-                accumulated_assumptions.update(node.assumptions)
+                accumulated_assumptions.update(
+                    self.get_assumption_dependency_closure(set(node.assumptions))
+                )
             for edge in self.get_incoming_edges(curr_id):
                 for parent_id in edge.input_nodes:
                     dfs(parent_id)
@@ -286,6 +526,15 @@ class DerivationGraph(BaseModel):
         is_verified = (len(failed_edges) == 0) and all(
             e.status.is_verified for e in self.edges.values()
         )
+        modern_stale_edges = [
+            eid for eid, edge in self.edges.items()
+            if edge.certificate
+            and edge.certificate.claim_fingerprint_sha256
+            and edge.certificate.dependency_fingerprint_sha256
+            and self.get_certificate_staleness(eid)["current"] is False
+        ]
+        if modern_stale_edges:
+            is_verified = False
 
         cert_data = {
             "graph_id": self.id,
@@ -300,12 +549,18 @@ class DerivationGraph(BaseModel):
             "node_status_counts": dict(node_status_counts),
             "failed_derivations": failed_edges,
             "invalidated_nodes": self.get_all_invalidated_nodes(),
+            "certificate_staleness": {
+                eid: self.get_certificate_staleness(eid) for eid in self.edges
+            },
             "metadata": self.metadata
         }
 
         # 2. assumptions.json
         assumptions_data = {
             "declared_assumptions": {aid: asm.to_dict() for aid, asm in self.assumptions.items()},
+            "assumption_dependency_graph": [
+                dependency.to_dict() for dependency in self.assumption_dependencies
+            ],
             "node_assumption_dependencies": {
                 nid: sorted(list(self.compute_inherited_assumptions(nid)))
                 for nid in self.nodes

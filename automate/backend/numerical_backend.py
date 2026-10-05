@@ -1,12 +1,26 @@
 """
-NumericalChecker: Numerical computation and ODE simulation backend using NumPy, SciPy, and mpmath.
-Validates mathematical equations of motion, trajectories, and conservation laws numerically.
-Stores algorithm, tolerances, versions, and reproducibility information.
+NumericalChecker: Numerical computation and ODE simulation backend using NumPy, SciPy.
+
+This backend reads the ODE system from the graph's node expressions and edge parameters.
+It does NOT hardcode any specific physical system. If the rule is not ODE-type or the
+required parameters are missing, it returns UNSUPPORTED rather than silently falling back
+to a harmonic oscillator simulation.
+
+Supported rules with ODE integration:
+  - euler_lagrange       : integrates EoM extracted from coordinates + params
+  - solve_harmonic_oscillator : integrates EoM string from in_node expression
+  - conserve_energy      : checks energy conservation numerically along integrated trajectory
+  - numerical_simulation : general ODE simulation using in_node expression as EoM string
+
+Unsupported rules return NOT_APPLICABLE.
 """
 
+import hashlib
+import json
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
+import sympy as sp
 import scipy
 from scipy.integrate import solve_ivp
 
@@ -14,12 +28,61 @@ from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge, DerivationCertificate
 from automate.core.graph import DerivationGraph
+from automate.core.sandbox import EvaluationBudget, SandboxError, SandboxLimits, VerifiedExecutionSandbox
+
+# Rules that involve ODE integration
+_ODE_RULES = frozenset({
+    "euler_lagrange",
+    "solve_harmonic_oscillator",
+    "conserve_energy",
+    "numerical_simulation",
+})
+
+
+def _run_numerical_verification(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Spawn-safe worker entrypoint used by VerifiedExecutionSandbox."""
+    config = dict(payload["checker"])
+    config.pop("wall_clock_seconds", None)
+    config.pop("cpu_seconds", None)
+    config.pop("memory_bytes", None)
+    edge = DerivationEdge.model_validate(payload["edge"])
+    graph = DerivationGraph.model_validate(payload["graph"])
+    checker = NumericalChecker(**config)
+    return checker._verify_edge_core(edge, graph).model_dump()
 
 
 class NumericalChecker(BaseChecker):
-    def __init__(self, rtol: float = 1e-8, atol: float = 1e-10):
+    def __init__(
+        self,
+        rtol: float = 1e-8,
+        atol: float = 1e-10,
+        convergence_tolerance: float = 1e-6,
+        refinement_factor: float = 10.0,
+        wall_clock_seconds: float = 30.0,
+        cpu_seconds: float = 20.0,
+        memory_bytes: int = 1024 * 1024 * 1024,
+        max_function_evaluations: int = 200_000,
+    ):
+        if not (0 < rtol < 1):
+            raise ValueError("rtol must be in (0, 1).")
+        if not (0 < atol < 1):
+            raise ValueError("atol must be in (0, 1).")
+        if not (convergence_tolerance > 0):
+            raise ValueError("convergence_tolerance must be positive.")
+        if not (refinement_factor > 1):
+            raise ValueError("refinement_factor must be > 1.")
         self.rtol = rtol
         self.atol = atol
+        self.convergence_tolerance = convergence_tolerance
+        self.refinement_factor = refinement_factor
+        if max_function_evaluations <= 0:
+            raise ValueError("max_function_evaluations must be positive.")
+        self.max_function_evaluations = int(max_function_evaluations)
+        self._sandbox_limits = SandboxLimits(
+            wall_clock_seconds=wall_clock_seconds,
+            cpu_seconds=cpu_seconds,
+            memory_bytes=memory_bytes,
+        )
 
     @property
     def name(self) -> str:
@@ -30,6 +93,40 @@ class NumericalChecker(BaseChecker):
         return f"NumPy {np.__version__}, SciPy {scipy.__version__}"
 
     def verify_edge(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
+        """Verify an edge inside the shared process/resource sandbox."""
+        payload = {
+            "checker": {
+                "rtol": self.rtol,
+                "atol": self.atol,
+                "convergence_tolerance": self.convergence_tolerance,
+                "refinement_factor": self.refinement_factor,
+                "wall_clock_seconds": self._sandbox_limits.wall_clock_seconds,
+                "cpu_seconds": self._sandbox_limits.cpu_seconds,
+                "memory_bytes": self._sandbox_limits.memory_bytes,
+                "max_function_evaluations": self.max_function_evaluations,
+            },
+            "edge": edge.model_dump(),
+            "graph": graph.model_dump(),
+        }
+        try:
+            report_data = VerifiedExecutionSandbox(self._sandbox_limits).run(
+                "automate.backend.numerical_backend:_run_numerical_verification",
+                payload,
+            )
+            report = VerificationReport.model_validate(report_data)
+        except SandboxError as exc:
+            report = VerificationReport(
+                status=VerificationStatus.FAILED,
+                backend=self.name,
+                backend_version=self.version,
+                passed=False,
+                error_message=f"Numerical execution sandbox rejected or terminated task: {exc}",
+            )
+
+        graph.record_verification_report(edge.id, report)
+        return report
+
+    def _verify_edge_core(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
         start_time = time.perf_counter()
 
         in_nodes = [graph.get_node(nid) for nid in edge.input_nodes]
@@ -50,23 +147,40 @@ class NumericalChecker(BaseChecker):
         details: Dict[str, Any] = {"rule": rule}
         certificates: List[Dict[str, Any]] = []
 
+        if rule not in _ODE_RULES:
+            # This backend cannot verify non-ODE rules
+            status = VerificationStatus.NOT_APPLICABLE
+            details["reason"] = (
+                f"Rule '{rule}' does not involve ODE integration; "
+                "numerical backend is not applicable."
+            )
+            elapsed = (time.perf_counter() - start_time) * 1000
+            return self._build_report(
+                status, False, details, [], None, edge, graph, elapsed
+            )
+
         try:
-            if rule in ("euler_lagrange", "solve_harmonic_oscillator", "conserve_energy", "numerical_simulation"):
-                passed, details, certificates, error_msg = self._simulate_harmonic_oscillator(
-                    edge.parameters
-                )
-            else:
-                passed, details, certificates, error_msg = self._simulate_harmonic_oscillator(
-                    edge.parameters
-                )
+            passed, details, certificates, error_msg = self._simulate_ode_from_graph(
+                rule, in_nodes, out_nodes, edge.parameters
+            )
         except Exception as e:
             passed = False
             error_msg = f"Numerical execution error: {type(e).__name__}: {str(e)}"
 
         elapsed = (time.perf_counter() - start_time) * 1000
+        status = VerificationStatus.NUMERICALLY_CHECKED if passed else VerificationStatus.FAILED
+        return self._build_report(status, passed, details, certificates, error_msg, edge, graph, elapsed)
+
+    def _build_report(
+        self, status, passed, details, certificates, error_msg, edge, graph, elapsed
+    ) -> VerificationReport:
+        rule = edge.transformation_rule
+
+        fingerprint = self._claim_fingerprint(edge, graph, [graph.get_node(nid) for nid in edge.input_nodes], [graph.get_node(nid) for nid in edge.output_nodes])
+        details.setdefault("reproducibility", {})["claim_fingerprint_sha256"] = fingerprint
+        details.setdefault("metrics", {})["claim_fingerprint_sha256"] = fingerprint
 
         if passed:
-            status = VerificationStatus.NUMERICALLY_CHECKED
             edge.status = status
             edge.checker = "numerical"
             edge.certificate = DerivationCertificate(
@@ -77,10 +191,10 @@ class NumericalChecker(BaseChecker):
                 metrics=details.get("metrics", {})
             )
         else:
-            status = VerificationStatus.FAILED
             edge.status = status
             edge.checker = "numerical"
-            edge.failed_reason = error_msg
+            if error_msg:
+                edge.failed_reason = error_msg
 
         from automate.backend.base import VerificationEvidence
         evidence = VerificationEvidence(
@@ -112,99 +226,601 @@ class NumericalChecker(BaseChecker):
             evidence=evidence
         )
 
-    def _simulate_harmonic_oscillator(
-        self, params: Dict[str, Any]
-    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        # Physical parameters
-        m = float(params.get("m", 1.0))
-        k = float(params.get("k", 4.0))
-        x0 = float(params.get("x0", 1.0))
-        v0 = float(params.get("v0", 0.0))
-        t_span = (0.0, float(params.get("t_max", 10.0)))
-        t_eval = np.linspace(t_span[0], t_span[1], 500)
+    def _claim_fingerprint(
+        self,
+        edge: DerivationEdge,
+        graph: DerivationGraph,
+        in_nodes: list,
+        out_nodes: list,
+    ) -> str:
+        """Hash the graph claim and numerical configuration for provenance."""
+        payload = {
+            "graph_id": getattr(graph, "id", None),
+            "edge_id": edge.id,
+            "rule": edge.transformation_rule,
+            "input_nodes": [
+                {"id": n.id, "expression": n.expression.raw_str}
+                for n in in_nodes
+            ],
+            "output_nodes": [
+                {"id": n.id, "expression": n.expression.raw_str}
+                for n in out_nodes
+            ],
+            "parameters": edge.parameters,
+        }
+        encoded = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
-        omega = np.sqrt(k / m)
+    def _convergence_probe(
+        self,
+        ode_sys,
+        t_span: Tuple[float, float],
+        y0: list,
+        t_eval: np.ndarray,
+        fine_result,
+    ) -> Tuple[bool, Dict[str, Any], Optional[str]]:
+        """
+        Compare the accepted solve against a deliberately coarser tolerance run.
 
-        # ODE system: y = [x, v]
-        # dy/dt = [v, -k/m * x]
+        This is empirical convergence evidence, not a rigorous global error bound.
+        The run must remain close under tolerance refinement before it is reported
+        as NUMERICALLY_CHECKED.
+        """
+        coarse_rtol = min(self.rtol * self.refinement_factor, 1e-2)
+        coarse_atol = min(self.atol * self.refinement_factor, 1e-4)
+
+        coarse_budget = EvaluationBudget(self.max_function_evaluations)
+        def coarse_ode_sys(t, y):
+            coarse_budget.consume()
+            return ode_sys(t, y)
+
+        try:
+            coarse_result = solve_ivp(
+                coarse_ode_sys,
+                t_span,
+                y0,
+                t_eval=t_eval,
+                method="RK45",
+                rtol=coarse_rtol,
+                atol=coarse_atol,
+            )
+        except Exception as exc:
+            return False, {
+                "convergence_probe": "failed",
+                "fine_rtol": self.rtol,
+                "fine_atol": self.atol,
+                "coarse_rtol": coarse_rtol,
+                "coarse_atol": coarse_atol,
+            }, f"Convergence probe execution failed: {type(exc).__name__}: {exc}"
+
+        if not coarse_result.success:
+            return False, {
+                "convergence_probe": "failed",
+                "fine_rtol": self.rtol,
+                "fine_atol": self.atol,
+                "coarse_rtol": coarse_rtol,
+                "coarse_atol": coarse_atol,
+                "coarse_solver_message": coarse_result.message,
+            }, f"Convergence probe solver failed: {coarse_result.message}"
+
+        if coarse_result.y.shape != fine_result.y.shape:
+            return False, {
+                "convergence_probe": "failed",
+                "shape_fine": list(fine_result.y.shape),
+                "shape_coarse": list(coarse_result.y.shape),
+            }, "Convergence probe returned incompatible trajectory shapes."
+
+        delta = np.abs(fine_result.y - coarse_result.y)
+        state_scale = np.maximum(np.max(np.abs(fine_result.y), axis=1), 1.0)
+        normalized = delta / state_scale[:, None]
+        max_abs = float(np.max(delta))
+        max_relative = float(np.max(normalized))
+        fine_nfev = int(getattr(fine_result, "nfev", 0))
+        coarse_nfev = int(getattr(coarse_result, "nfev", 0))
+        nfev_ratio = (
+            float(fine_nfev / coarse_nfev)
+            if coarse_nfev > 0
+            else None
+        )
+        trajectory_fingerprint = self._trajectory_fingerprint(fine_result)
+        coarse_trajectory_fingerprint = self._trajectory_fingerprint(coarse_result)
+        passed = max_relative <= self.convergence_tolerance
+
+        details = {
+            "convergence_probe": "passed" if passed else "failed",
+            "fine_solver_success": bool(fine_result.success),
+            "coarse_solver_success": bool(coarse_result.success),
+            "fine_rtol": self.rtol,
+            "fine_atol": self.atol,
+            "coarse_rtol": coarse_rtol,
+            "coarse_atol": coarse_atol,
+            "tolerance_refinement_factor": self.refinement_factor,
+            "max_abs_state_difference": max_abs,
+            "absolute_state_error_estimate": max_abs,
+            "max_relative_state_difference": max_relative,
+            "normalized_state_error_estimate": max_relative,
+            "convergence_tolerance": self.convergence_tolerance,
+            "fine_internal_steps": fine_nfev,
+            "coarse_internal_steps": coarse_nfev,
+            "fine_to_coarse_nfev_ratio": nfev_ratio,
+            "fine_trajectory_sha256": trajectory_fingerprint,
+            "coarse_trajectory_sha256": coarse_trajectory_fingerprint,
+            "trajectory_shape": list(fine_result.y.shape),
+            "max_function_evaluations": self.max_function_evaluations,
+        }
+        if passed:
+            return True, details, None
+
+        return False, details, (
+            "Numerical result did not remain stable under tolerance refinement: "
+            f"max relative state difference {max_relative:.2e} exceeds "
+            f"convergence tolerance {self.convergence_tolerance:.2e}."
+        )
+
+    @staticmethod
+    def _trajectory_fingerprint(result) -> str:
+        """Fingerprint the accepted numerical trajectory and its evaluation grid."""
+        t = np.ascontiguousarray(np.asarray(result.t, dtype=np.float64))
+        y = np.ascontiguousarray(np.asarray(result.y, dtype=np.float64))
+        payload = (
+            t.tobytes()
+            + y.shape.__repr__().encode("utf-8")
+            + y.tobytes()
+        )
+        return hashlib.sha256(payload).hexdigest()
+
+    # ------------------------------------------------------------------
+    # General ODE extractor and simulator.
+    # Reads EoM from graph nodes and edge.parameters.
+    # Never defaults to harmonic oscillator if the graph describes something else.
+    # ------------------------------------------------------------------
+    def _simulate_ode_from_graph(
+        self,
+        rule: str,
+        in_nodes: list,
+        out_nodes: list,
+        params: Dict[str, Any]
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """
+        Extracts an ODE system from the graph and integrates it.
+
+        Strategy:
+        1. Try to use LagrangianSystem (euler_lagrange / conserve_energy rules):
+           requires 'coordinates' in edge.parameters.
+        2. Fall back to parsing in_node[0].expression.raw_str as an ODE string
+           (for numerical_simulation / solve_harmonic_oscillator).
+        3. If neither is possible, return UNSUPPORTED.
+        """
+        coords = params.get("coordinates")
+        sym_params = params.get("parameters", {})
+        num_params = params.get("numerical_parameters", {})  # float values
+
+        # Common integration parameters
+        x0_map = params.get("initial_conditions", {})     # {coord: value}
+        v0_map = params.get("initial_velocities", {})     # {coord: value}
+        t_max = float(params.get("t_max", 10.0))
+        if not np.isfinite(t_max) or t_max <= 0:
+            return (
+                False,
+                {"rule": rule},
+                [],
+                "Invalid numerical interval: t_max must be finite and positive.",
+            )
+        t_span = (0.0, t_max)
+        t_eval = np.linspace(0.0, t_max, 500)
+
+        # ------------------------------------------------------------------
+        # Path A: LagrangianSystem-based (requires coordinates)
+        # ------------------------------------------------------------------
+        if coords and rule in ("euler_lagrange", "conserve_energy"):
+            lagrangian_str = in_nodes[0].expression.raw_str
+            return self._integrate_lagrangian_system(
+                lagrangian_str, coords, sym_params, num_params,
+                x0_map, v0_map, t_span, t_eval, rule
+            )
+
+        # ------------------------------------------------------------------
+        # Path B: Parse EoM string from in_node expression
+        # ------------------------------------------------------------------
+        eom_str = in_nodes[0].expression.raw_str
+        if not eom_str or eom_str.strip() == "":
+            return (
+                False, {"rule": rule}, [],
+                "UNSUPPORTED: No EoM expression found in input node and no coordinates provided."
+            )
+
+        return self._integrate_eom_string(
+            eom_str, coords or ["x"], sym_params, num_params,
+            x0_map, v0_map, t_span, t_eval, rule
+        )
+
+    def _integrate_lagrangian_system(
+        self,
+        lagrangian_str: str,
+        coords: List[str],
+        sym_params: Dict[str, Any],
+        num_params: Dict[str, float],
+        x0_map: Dict[str, float],
+        v0_map: Dict[str, float],
+        t_span: Tuple[float, float],
+        t_eval: np.ndarray,
+        rule: str
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """Derive EoMs via LagrangianSystem and integrate numerically."""
+        try:
+            from automate.mechanics.lagrangian import LagrangianSystem
+            sys = LagrangianSystem(
+                lagrangian=lagrangian_str,
+                coordinates=coords,
+                parameters=sym_params,
+            )
+            eoms, _ = sys.euler_lagrange_equations()
+        except Exception as e:
+            return False, {"lagrangian": lagrangian_str}, [], \
+                f"Failed to derive EoMs from Lagrangian: {type(e).__name__}: {str(e)}"
+
+        # Build lambdified ODE functions.
+        # Solve each eom[q] == 0 for q_ddot symbolically.
+        param_subs = {}
+        for p_name in sym_params:
+            val = num_params.get(p_name)
+            if val is None:
+                val = sym_params.get(p_name)
+            if isinstance(val, (int, float)):
+                param_subs[sys.symbols[p_name]] = float(val)
+
+        accel_exprs = {}
+        for q in coords:
+            try:
+                sol = sp.solve(eoms[q], sys.q_ddots[q])
+                if not sol:
+                    return False, {}, [], \
+                        f"Cannot solve EoM for acceleration of '{q}' — system may be implicit."
+                accel_exprs[q] = sol[0].subs(param_subs)
+            except Exception as e:
+                return False, {}, [], \
+                    f"EoM solve error for '{q}': {type(e).__name__}: {str(e)}"
+
+        # Build state vector: [q1, dq1/dt, q2, dq2/dt, ...]
+        # Lambdify each acceleration expression
+        state_syms = []
+        q_idx = {}
+        v_idx = {}
+        for i, q in enumerate(coords):
+            state_syms.append(sys.q_funcs[q])
+            state_syms.append(sys.q_dots[q])
+            q_idx[q] = 2 * i
+            v_idx[q] = 2 * i + 1
+
+        # After param substitution, remaining free symbols are q(t) and diff(q(t), t)
+        accel_funcs = {}
+        for q in coords:
+            try:
+                # Replace q(t) and dq/dt with state symbols for lambdify
+                expr = accel_exprs[q]
+                # Map q(t) and q_dot(t) to ordinary symbols for lambdify
+                lam_subs = {}
+                lam_syms = []
+                lam_names = []
+                for qn in coords:
+                    pos_sym = sp.Symbol(f"_q_{qn}")
+                    vel_sym = sp.Symbol(f"_v_{qn}")
+                    lam_subs[sys.q_funcs[qn]] = pos_sym
+                    lam_subs[sys.q_dots[qn]] = vel_sym
+                    lam_syms.extend([pos_sym, vel_sym])
+                    lam_names.extend([f"_q_{qn}", f"_v_{qn}"])
+
+                expr_lam = expr.subs(lam_subs)
+                f = sp.lambdify(lam_syms, expr_lam, modules="numpy")
+                accel_funcs[q] = (f, lam_names)
+            except Exception as e:
+                return False, {}, [], \
+                    f"Lambdify error for '{q}': {type(e).__name__}: {str(e)}"
+
+        # Build initial conditions vector
+        y0 = []
+        for q in coords:
+            y0.append(float(x0_map.get(q, 1.0)))
+            y0.append(float(v0_map.get(q, 0.0)))
+
+        eval_budget = EvaluationBudget(self.max_function_evaluations)
         def ode_sys(t, y):
-            x, v = y
-            dxdt = v
-            dvdt = - (k / m) * x
-            return [dxdt, dvdt]
+            eval_budget.consume()
+            dy = []
+            args = list(y)  # [q1, v1, q2, v2, ...]
+            for i, q in enumerate(coords):
+                v = y[v_idx[q]]
+                dy.append(v)           # dq/dt = v
+                f, _ = accel_funcs[q]
+                a = float(f(*args))    # d²q/dt² = accel
+                dy.append(a)
+            return dy
 
-        # Solve ODE using Runge-Kutta 45
         sol = solve_ivp(
-            ode_sys,
-            t_span,
-            [x0, v0],
-            t_eval=t_eval,
-            method="RK45",
-            rtol=self.rtol,
-            atol=self.atol
+            ode_sys, t_span, y0, t_eval=t_eval,
+            method="RK45", rtol=self.rtol, atol=self.atol
         )
 
         if not sol.success:
-            return False, {}, [], f"ODE solver failed: {sol.message}"
+            return False, {"lagrangian": lagrangian_str}, [], \
+                f"ODE solver failed: {sol.message}"
 
-        x_num = sol.y[0]
-        v_num = sol.y[1]
-        t = sol.t
+        convergence_passed, convergence_metrics, convergence_error = self._convergence_probe(
+            ode_sys, t_span, y0, t_eval, sol
+        )
 
-        # Analytical solution: x(t) = x0*cos(omega*t) + (v0/omega)*sin(omega*t)
-        x_exact = x0 * np.cos(omega * t) + (v0 / omega) * np.sin(omega * t)
-        v_exact = -x0 * omega * np.sin(omega * t) + v0 * np.cos(omega * t)
+        conservation_passed, energy_drift = self._check_energy_conservation_numerical(
+            sol, coords, sys, param_subs, x0_map, v0_map, num_params
+        )
 
-        # Compute trajectory errors
-        abs_err = np.abs(x_num - x_exact)
-        max_abs_error = float(np.max(abs_err))
-        rmse = float(np.sqrt(np.mean(abs_err**2)))
+        if rule == "conserve_energy":
+            if energy_drift is None:
+                passed = False
+                energy_error = (
+                    "Energy conservation could not be evaluated; numerical backend "
+                    "will not treat an unavailable diagnostic as success."
+                )
+            else:
+                passed = conservation_passed
+                energy_error = None
+        else:
+            passed = convergence_passed
+            energy_error = None
 
-        # Compute energy conservation
-        E_num = 0.5 * m * (v_num**2) + 0.5 * k * (x_num**2)
-        E0 = 0.5 * m * (v0**2) + 0.5 * k * (x0**2)
-        energy_drift = float(np.max(np.abs(E_num - E0) / E0))
-
-        # Check tolerances
-        max_allowed_error = 1e-4
-        max_allowed_drift = 1e-4
-        passed = (max_abs_error < max_allowed_error) and (energy_drift < max_allowed_drift)
+        if not convergence_passed:
+            passed = False
 
         metrics = {
-            "max_abs_error": max_abs_error,
-            "rmse": rmse,
-            "energy_drift_relative": energy_drift,
-            "initial_energy_joules": float(E0),
-            "final_energy_joules": float(E_num[-1]),
-            "num_steps": len(t),
+            "num_steps": len(sol.t),
             "solver_method": "RK45",
             "rtol": self.rtol,
-            "atol": self.atol
+            "atol": self.atol,
+            "energy_drift_relative": energy_drift if energy_drift is not None else "N/A",
+            **convergence_metrics,
         }
-
         details = {
-            "parameters": {"m": m, "k": k, "x0": x0, "v0": v0, "omega": omega},
+            "lagrangian": lagrangian_str,
+            "coordinates": coords,
+            "initial_conditions": {**x0_map, **v0_map},
+            "t_span": list(t_span),
             "metrics": metrics,
             "reproducibility": {
                 "algorithm": "Explicit Runge-Kutta method of order 5(4) Dormand-Prince",
                 "software": self.version,
                 "t_span": list(t_span),
-                "grid_points": 500
+                "grid_points": len(t_eval)
             }
         }
 
         certificates = [
             {
-                "step": "ivp_integration",
-                "description": f"Solved m*d2x/dt2 + k*x = 0 over t in {t_span}",
-                "result": f"RMSE = {rmse:.2e}, Max Error = {max_abs_error:.2e}"
-            },
-            {
-                "step": "energy_conservation_check",
-                "description": "Computed mechanical energy E(t) = 0.5*m*v^2 + 0.5*k*x^2",
-                "result": f"Max relative drift = {energy_drift:.2e} (tolerance < {max_allowed_drift})"
+                "step": "lagrangian_ode_integration",
+                "description": f"Integrated {len(coords)}-coordinate EoM over t in {t_span}",
+                "result": f"Solver success: {sol.success}, steps: {len(sol.t)}"
             }
         ]
+        certificates.append({
+            "step": "tolerance_refinement_check",
+            "description": "Compared accepted trajectory with a coarser RK45 tolerance run.",
+            "result": (
+                "Stable under refinement"
+                if convergence_passed
+                else "Unstable under refinement"
+            ),
+        })
+        if energy_drift is not None:
+            certificates.append({
+                "step": "energy_conservation_check",
+                "description": "Computed mechanical energy along trajectory",
+                "result": f"Max relative drift = {energy_drift:.2e}"
+            })
 
-        error_msg = None if passed else f"Numerical tolerances exceeded: max_err={max_abs_error:.2e}, drift={energy_drift:.2e}"
+        max_drift_threshold = 1e-4
+        if rule == "conserve_energy" and energy_drift is not None and energy_drift >= max_drift_threshold:
+            error_msg = f"Energy not conserved: max relative drift = {energy_drift:.2e} (threshold {max_drift_threshold})"
+        elif energy_error:
+            error_msg = energy_error
+        elif convergence_error:
+            error_msg = convergence_error
+        else:
+            error_msg = None
+
         return passed, details, certificates, error_msg
+
+    def _check_energy_conservation_numerical(
+        self, sol, coords, sys, param_subs, x0_map, v0_map, num_params
+    ):
+        """Compute E(t) numerically and return (passed, max_relative_drift)."""
+        try:
+            # Construct Hamiltonian symbolically and lambdify
+            H, p_syms = sys.hamiltonian()
+            H_subs = H.subs(param_subs)
+
+            # Map momenta to velocity expressions
+            # For standard kinetic Lagrangians p_i = m * v_i;
+            # we use numerical derivatives from sol.y
+            v_idx = {q: 2 * i + 1 for i, q in enumerate(coords)}
+            q_idx = {q: 2 * i for i, q in enumerate(coords)}
+
+            # Build simple kinetic+potential energy from sol data
+            # We re-use LagrangianSystem.canonical_momenta to build E
+            momenta = sys.canonical_momenta()
+
+            # Lambdify each momentum expression
+            lam_subs_map = {}
+            lam_syms_list = []
+            for q in coords:
+                ps = sp.Symbol(f"_q_{q}")
+                vs = sp.Symbol(f"_v_{q}")
+                lam_subs_map[sys.q_funcs[q]] = ps
+                lam_subs_map[sys.q_dots[q]] = vs
+                lam_syms_list.extend([ps, vs])
+
+            E_expr = sum(
+                momenta[q] * sys.q_dots[q] for q in coords
+            ) - sys.lagrangian
+            E_expr_subs = E_expr.subs(param_subs).subs(lam_subs_map)
+            E_func = sp.lambdify(lam_syms_list, E_expr_subs, modules="numpy")
+
+            args = [sol.y[v_idx[q] if i % 2 == 1 else q_idx[coords[i // 2]]]
+                    for i in range(len(lam_syms_list))]
+            # simpler approach: just pass all state components
+            all_states = list(sol.y)  # shape (2*n_coords, n_steps)
+            E_num = np.asarray(E_func(*all_states), dtype=float)
+            if E_num.ndim == 0:
+                E_num = E_num.reshape(1)
+
+            E0 = float(E_num[0])
+            abs_drift = float(np.max(np.abs(E_num - E0)))
+            if abs(E0) < 1e-12:
+                # A zero initial energy is not a free pass. Use the same
+                # normalized threshold against a unit floor so any meaningful
+                # numerical energy creation is still detected.
+                scale = max(float(np.max(np.abs(E_num))), 1.0)
+                drift = abs_drift / scale
+            else:
+                drift = abs_drift / abs(E0)
+
+            passed = drift < 1e-4
+            return passed, drift
+        except Exception:
+            return False, None  # Unavailable evidence is not a successful check
+
+    def _integrate_eom_string(
+        self,
+        eom_str: str,
+        coords: List[str],
+        sym_params: Dict[str, Any],
+        num_params: Dict[str, float],
+        x0_map: Dict[str, float],
+        v0_map: Dict[str, float],
+        t_span: Tuple[float, float],
+        t_eval: np.ndarray,
+        rule: str
+    ) -> Tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """
+        Parse the EoM expression string and integrate numerically.
+        The EoM must be written as 'expression = 0' or just 'expression'
+        that equals 0, in terms of q, q_dot, q_ddot (for first coord).
+        """
+        q_name = coords[0]
+        t_sym = sp.Symbol("t", real=True)
+        q_func = sp.Function(q_name)(t_sym)
+        q_dot = sp.diff(q_func, t_sym)
+        q_ddot = sp.diff(q_dot, t_sym)
+
+        local_syms: Dict[str, Any] = {
+            "t": t_sym,
+            q_name: q_func,
+            f"{q_name}_dot": q_dot,
+            f"{q_name}_ddot": q_ddot,
+        }
+        for p_name, p_props in sym_params.items():
+            if p_props == "positive":
+                local_syms[p_name] = sp.Symbol(p_name, positive=True, real=True)
+            else:
+                local_syms[p_name] = sp.Symbol(p_name, real=True)
+
+        try:
+            from automate.ir.safe_parser import SafeParser, SafeParseError
+            parser = SafeParser(extra_symbols=local_syms)
+            if "=" in eom_str:
+                eom_expr = parser.parse_equation(eom_str)
+            else:
+                eom_expr = parser.parse(eom_str)
+        except SafeParseError as e:
+            return False, {"eom": eom_str}, [], f"SafeParser rejected EoM expression: {e}"
+        except Exception as e:
+            return False, {"eom": eom_str}, [], \
+                f"EoM string parse error: {type(e).__name__}: {str(e)}"
+
+        # Substitute numerical parameter values
+        param_subs = {}
+        for p_name in sym_params:
+            val = num_params.get(p_name)
+            if val is not None:
+                param_subs[local_syms[p_name]] = float(val)
+        eom_expr = eom_expr.subs(param_subs)
+
+        # Solve for q_ddot
+        try:
+            sol_accel = sp.solve(eom_expr, q_ddot)
+            if not sol_accel:
+                return False, {"eom": eom_str}, [], \
+                    "Cannot solve EoM for acceleration; equation may be implicit."
+            accel_expr = sol_accel[0]
+        except Exception as e:
+            return False, {"eom": eom_str}, [], \
+                f"Cannot solve EoM for acceleration: {type(e).__name__}: {str(e)}"
+
+        # Lambdify: accel(q, v)
+        q_s = sp.Symbol("_q", real=True)
+        v_s = sp.Symbol("_v", real=True)
+        accel_lam_expr = accel_expr.subs({q_func: q_s, q_dot: v_s})
+        try:
+            accel_func = sp.lambdify([q_s, v_s], accel_lam_expr, modules="numpy")
+        except Exception as e:
+            return False, {"eom": eom_str}, [], \
+                f"Lambdify error: {type(e).__name__}: {str(e)}"
+
+        x0 = float(x0_map.get(q_name, 1.0))
+        v0 = float(v0_map.get(q_name, 0.0))
+
+        eval_budget = EvaluationBudget(self.max_function_evaluations)
+        def ode_sys(t, y):
+            eval_budget.consume()
+            q_val, v_val = y
+            return [v_val, float(accel_func(q_val, v_val))]
+
+        y0 = [x0, v0]
+        result = solve_ivp(
+            ode_sys, t_span, y0, t_eval=t_eval,
+            method="RK45", rtol=self.rtol, atol=self.atol
+        )
+
+        if not result.success:
+            return False, {"eom": eom_str}, [], \
+                f"ODE solver failed: {result.message}"
+
+        convergence_passed, convergence_metrics, convergence_error = self._convergence_probe(
+            ode_sys, t_span, y0, t_eval, result
+        )
+
+        metrics = {
+            "num_steps": len(result.t),
+            "solver_method": "RK45",
+            "rtol": self.rtol,
+            "atol": self.atol,
+            **convergence_metrics,
+        }
+        details = {
+            "eom_string": eom_str,
+            "accel_expr": str(accel_expr),
+            "initial_conditions": {q_name: x0, f"{q_name}_dot": v0},
+            "t_span": list(t_span),
+            "metrics": metrics,
+            "reproducibility": {
+                "algorithm": "Explicit Runge-Kutta method of order 5(4) Dormand-Prince",
+                "software": self.version,
+                "t_span": list(t_span),
+                "grid_points": len(t_eval)
+            }
+        }
+        certificates = [{
+            "step": "eom_string_integration",
+            "description": f"Integrated EoM '{eom_str}' over t in {t_span}",
+            "result": f"Solver success: {result.success}, steps: {len(result.t)}"
+        }, {
+            "step": "tolerance_refinement_check",
+            "description": "Compared accepted trajectory with a coarser RK45 tolerance run.",
+            "result": (
+                "Stable under refinement"
+                if convergence_passed
+                else "Unstable under refinement"
+            ),
+        }]
+
+        if convergence_error:
+            return False, details, certificates, convergence_error
+
+        return True, details, certificates, None

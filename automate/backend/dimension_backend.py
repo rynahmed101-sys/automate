@@ -1,15 +1,56 @@
 """
 DimensionChecker: Verifies physical dimensional consistency across expressions,
 equations, derivatives, and transformations.
+
+The coordinate dimension is no longer hardcoded to Length. Instead it is read from:
+The coordinate dimension is read from edge.parameters['coordinate_dimension'].
+
+Supported explicit values:
+  - 'length'       → Dimension.length()
+  - 'angle'        → Dimension.dimensionless()   (radians are dimensionless)
+  - 'dimensionless'→ Dimension.dimensionless()
+  - 'action'       → Dimension.action()
+
+Unknown coordinate dimensions are rejected rather than treated as dimensionless.
 """
 
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
 from automate.ir.dimensions import Dimension
+
+
+def _require_explicit_dimension(node: Any, role: str) -> Optional[str]:
+    """Return a failure message when applicable dimension metadata is missing."""
+    expression = getattr(node, "expression", None)
+    if expression is None or not getattr(expression, "has_explicit_dimension", False):
+        return (
+            f"Missing physical dimension metadata for {role}. "
+            "Use an explicit dimension such as 'L', 'M*L^2*T^-2', "
+            "or 'dimensionless'/'1'."
+        )
+    return None
+
+
+def _resolve_coordinate_dimension(coord_dim_str: str) -> Dimension:
+    """Map a declared coordinate-dimension descriptor to a Dimension object."""
+    mapping = {
+        "length": Dimension.length,
+        "angle": Dimension.dimensionless,
+        "dimensionless": Dimension.dimensionless,
+        "action": Dimension.action,
+    }
+    try:
+        factory = mapping[coord_dim_str]
+    except KeyError as exc:
+        raise ValueError(
+            f"Unknown coordinate_dimension '{coord_dim_str}'. "
+            f"Expected one of: {', '.join(sorted(mapping))}."
+        ) from exc
+    return factory()
 
 
 class DimensionChecker(BaseChecker):
@@ -19,7 +60,7 @@ class DimensionChecker(BaseChecker):
 
     @property
     def version(self) -> str:
-        return "1.0.0"
+        return "1.0.1"
 
     def verify_edge(self, edge: DerivationEdge, graph: DerivationGraph) -> VerificationReport:
         start_time = time.perf_counter()
@@ -41,71 +82,76 @@ class DimensionChecker(BaseChecker):
             "inspected_nodes": {}
         }
 
-        # Check dimension consistency based on rule
         rule = edge.transformation_rule
         passed = True
         error_msg = None
 
-        if rule == "euler_lagrange":
-            # Input is Lagrangian: dimension should be Energy [M*L^2*T^-2]
-            # Output is Equation of Motion: dimension should be Force [M*L*T^-2]
-            # [EoM] = [L] / [coord] = [Energy] / [Length] = [Force]
-            lagr_node = in_nodes[0]
-            eom_node = out_nodes[0]
+        try:
+            if rule == "euler_lagrange":
+                passed, error_msg, details = self._check_euler_lagrange(
+                    in_nodes, out_nodes, edge.parameters, details
+                )
 
-            lagr_dim = lagr_node.expression.get_dimension()
-            eom_dim = eom_node.expression.get_dimension()
+            elif rule == "conserve_energy":
+                # Output dimension must be Energy [M·L²·T⁻²]
+                energy_node = out_nodes[0]
+                missing = _require_explicit_dimension(energy_node, "energy output")
+                if missing:
+                    return False, f"UNSUPPORTED: {missing}", details
 
-            details["inspected_nodes"][lagr_node.id] = repr(lagr_dim)
-            details["inspected_nodes"][eom_node.id] = repr(eom_dim)
+                energy_dim = energy_node.expression.get_dimension()
+                expected_dim = Dimension.energy()
 
-            # If dimensions are specified, check [EoM] == [Lagrangian] / [Length]
-            coord_dim = Dimension.length()
-            expected_eom_dim = lagr_dim / coord_dim
-
-            if not lagr_dim.is_dimensionless() and not eom_dim.is_dimensionless():
-                if eom_dim != expected_eom_dim:
+                details["inspected_nodes"][energy_node.id] = repr(energy_dim)
+                if energy_dim != expected_dim:
                     passed = False
-                    error_msg = f"Dimensional mismatch in Euler-Lagrange: expected {expected_eom_dim}, got {eom_dim}"
+                    error_msg = (
+                        f"Energy dimension mismatch: expected {expected_dim}, got {energy_dim}"
+                    )
                 else:
-                    details["consistency"] = f"Verified: [EoM] = [L] / [L_coord] = {eom_dim}"
+                    details["consistency"] = f"Verified: Energy dimension is {energy_dim}"
 
-        elif rule == "conserve_energy":
-            # Input is Lagrangian or EoM, output is Energy
-            # Output dimension must be Energy [M*L^2*T^-2]
-            energy_node = out_nodes[0]
-            energy_dim = energy_node.expression.get_dimension()
-            expected_dim = Dimension.energy()
+            elif rule == "solve_harmonic_oscillator":
+                # Output should have same dimension as coordinate
+                sol_node = out_nodes[0]
+                missing = _require_explicit_dimension(sol_node, "trajectory output")
+                if missing:
+                    return False, f"UNSUPPORTED: {missing}", details
 
-            details["inspected_nodes"][energy_node.id] = repr(energy_dim)
-            if not energy_dim.is_dimensionless() and energy_dim != expected_dim:
-                passed = False
-                error_msg = f"Energy dimension mismatch: expected {expected_dim}, got {energy_dim}"
+                sol_dim = sol_node.expression.get_dimension()
+
+                # Coordinate dimension from parameters
+                coord_dim_str = edge.parameters.get("coordinate_dimension", "length")
+                expected_dim = _resolve_coordinate_dimension(coord_dim_str)
+
+                details["inspected_nodes"][sol_node.id] = repr(sol_dim)
+                details["coordinate_dimension_used"] = coord_dim_str
+                if sol_dim != expected_dim:
+                    passed = False
+                    error_msg = (
+                        f"Trajectory dimension mismatch: expected {expected_dim}, "
+                        f"got {sol_dim}"
+                    )
+                else:
+                    details["consistency"] = (
+                        f"Verified: Trajectory dimension is {sol_dim}"
+                    )
+
             else:
-                details["consistency"] = f"Verified: Energy dimension is {energy_dim}"
+                # Generic consistency: ensure all output nodes have valid dimensions
+                for node in out_nodes:
+                    dim = node.expression.get_dimension()
+                    details["inspected_nodes"][node.id] = repr(dim)
 
-        elif rule == "solve_harmonic_oscillator":
-            # Output is trajectory x(t) = A*cos(omega*t + phi)
-            # Output dimension must be Length [L]
-            sol_node = out_nodes[0]
-            sol_dim = sol_node.expression.get_dimension()
-            expected_dim = Dimension.length()
-
-            details["inspected_nodes"][sol_node.id] = repr(sol_dim)
-            if not sol_dim.is_dimensionless() and sol_dim != expected_dim:
-                passed = False
-                error_msg = f"Trajectory dimension mismatch: expected {expected_dim}, got {sol_dim}"
-            else:
-                details["consistency"] = f"Verified: Trajectory dimension is {sol_dim}"
-
-        else:
-            # Generic consistency: ensure all output nodes have valid dimensions
-            for node in out_nodes:
-                dim = node.expression.get_dimension()
-                details["inspected_nodes"][node.id] = repr(dim)
+        except (ValueError, TypeError) as exc:
+            passed = False
+            error_msg = f"UNSUPPORTED: invalid dimensional metadata: {exc}"
 
         elapsed = (time.perf_counter() - start_time) * 1000
-        status = VerificationStatus.DIMENSIONALLY_CHECKED if passed else VerificationStatus.FAILED
+        status = (
+            VerificationStatus.DIMENSIONALLY_CHECKED
+            if passed else VerificationStatus.FAILED
+        )
 
         from automate.backend.base import VerificationEvidence
         evidence = VerificationEvidence(
@@ -113,9 +159,14 @@ class DimensionChecker(BaseChecker):
             backend_version=self.version,
             input_node_ids=edge.input_nodes,
             output_node_ids=edge.output_nodes,
-            assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
+            assumptions_used=list(
+                graph.compute_inherited_assumptions(edge.input_nodes[0])
+            ) if edge.input_nodes else [],
             side_conditions_checked=edge.side_conditions,
-            generated_obligations=[{"rule": rule, "dimension_check": details.get("consistency", "homogeneous")}],
+            generated_obligations=[{
+                "rule": rule,
+                "dimension_check": details.get("consistency", "homogeneous")
+            }],
             command_invocation=f"DimensionChecker.verify_edge('{edge.id}')",
             passed=passed,
             status=status,
@@ -134,3 +185,60 @@ class DimensionChecker(BaseChecker):
             error_message=error_msg,
             evidence=evidence
         )
+
+    def _check_euler_lagrange(
+        self, in_nodes, out_nodes, params: Dict[str, Any], details: Dict[str, Any]
+    ):
+        """
+        Checks [EoM] == [Lagrangian] / [coordinate_dimension].
+
+        coordinate_dimension defaults to 'length' but can be overridden:
+          - 'angle'        → dimensionless (pendulum θ)
+          - 'dimensionless'→ dimensionless
+          - 'length'       → SI length
+        """
+        passed = True
+        error_msg = None
+
+        lagr_node = in_nodes[0]
+        eom_node = out_nodes[0]
+
+        missing_lagr = _require_explicit_dimension(lagr_node, "Lagrangian input")
+        missing_eom = _require_explicit_dimension(eom_node, "equation-of-motion output")
+        if missing_lagr or missing_eom:
+            missing = missing_lagr or missing_eom
+            return False, f"UNSUPPORTED: {missing}", details
+
+        lagr_dim = lagr_node.expression.get_dimension()
+        eom_dim = eom_node.expression.get_dimension()
+
+        details["inspected_nodes"][lagr_node.id] = repr(lagr_dim)
+        details["inspected_nodes"][eom_node.id] = repr(eom_dim)
+
+        # Read coordinate dimension from edge parameters
+        coord_dim_str = params.get("coordinate_dimension", "length")
+        coord_dim = _resolve_coordinate_dimension(coord_dim_str)
+        details["coordinate_dimension_used"] = coord_dim_str
+
+        # Explicit dimensionless metadata is valid and is not the same as missing metadata.
+        # For dimensionless coordinates (angles), [EoM] = [Lagrangian] / [1] = [Lagrangian]
+        if coord_dim.is_dimensionless():
+            expected_eom_dim = lagr_dim
+        else:
+            expected_eom_dim = lagr_dim / coord_dim
+
+        if eom_dim != expected_eom_dim:
+            passed = False
+            error_msg = (
+                f"Dimensional mismatch in Euler-Lagrange: "
+                f"expected [EoM] = {expected_eom_dim} "
+                f"(Lagrangian {lagr_dim} / coord {coord_dim}), "
+                f"got {eom_dim}"
+            )
+        else:
+            details["consistency"] = (
+                f"Verified: [EoM] = [L] / [coord] = "
+                f"{lagr_dim} / {coord_dim} = {eom_dim}"
+            )
+
+        return passed, error_msg, details

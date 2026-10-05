@@ -23,6 +23,7 @@ from automate.backend.dimension_backend import DimensionChecker
 from automate.backend.lean_backend import LeanChecker
 from automate.backend.numerical_backend import NumericalChecker
 from automate.backend.statistical_backend import StatisticalChecker
+from automate.backend.tensor_backend import TensorChecker
 
 
 class ProposalExecutionResult:
@@ -63,16 +64,26 @@ def apply_and_verify_proposal(
     rule_registry: Optional[RuleRegistry] = None
 ) -> ProposalExecutionResult:
     """
-    Core Automate AI verification pipeline:
-    1. Validates proposal structure and graph prerequisites.
-    2. Constructs candidate nodes and candidate edge with status AI_PROPOSED.
-    3. Synthesizes verification obligations from the RuleRegistry.
-    4. Executes the targeted verification backend (SymPy, Lean, Numerical, etc.).
-    5. Attaches evidence and updates graph (or leaves intact if dry_run=True).
+    Core Automate AI verification pipeline.
+
+    Transactional semantics:
+    - ALL mutations happen on a working clone of the canonical graph.
+    - The canonical graph is NEVER touched before verification succeeds.
+    - On success AND dry_run=False: clone state is merged back.
+    - On failure or dry_run=True: canonical graph is byte-identical to input.
+
+    Steps:
+    1.  Validate proposal schema and security constraints.
+    2.  Validate target_checker against rule capabilities.
+    3.  Build candidate state on a DEEP COPY of the canonical graph.
+    4.  Run dimensional check (on clone).
+    5.  Run semantic verification backend (on clone).
+    6.  On success + not dry_run: commit clone to canonical graph.
+    7.  On failure: discard clone; canonical graph unchanged.
     """
     reg = rule_registry or RuleRegistry()
 
-    # 1. Validate proposal
+    # 1. Validate proposal schema and security
     val_res = validate_ai_proposal(proposal.model_dump(), graph, reg)
     if not val_res.is_valid:
         return ProposalExecutionResult(
@@ -81,10 +92,37 @@ def apply_and_verify_proposal(
             errors=val_res.errors
         )
 
-    # 2. Prepare candidate objects on a clone to protect canonical graph
-    working_graph = copy.deepcopy(graph) if dry_run else graph
+    # 2. Validate checker name against known checkers and rule capabilities
+    _KNOWN_CHECKERS = {"sympy", "lean4", "numerical", "statistical", "dimension", "tensor"}
+    checker_name = proposal.target_checker
+    if checker_name not in _KNOWN_CHECKERS:
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            errors=[
+                f"Unknown checker '{checker_name}'. "
+                f"Must be one of: {', '.join(sorted(_KNOWN_CHECKERS))}. "
+                "No fallback to a different checker is permitted."
+            ]
+        )
 
-    # Register proposed assumptions
+    rule_def = reg.get(proposal.rule)
+    if rule_def and checker_name not in rule_def.allowed_checkers:
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            errors=[
+                f"Incompatible target_checker '{checker_name}' for rule '{proposal.rule}'. "
+                f"Allowed checkers: {', '.join(sorted(rule_def.allowed_checkers))}."
+            ]
+        )
+
+
+    # 3. Build candidate state on a DEEP COPY — canonical graph is never touched
+    #    until we have a verified result AND dry_run is False.
+    working_graph = copy.deepcopy(graph)
+
+    # Register proposed assumptions (on clone only)
     for asm_data in proposal.proposed_assumptions:
         asm_id = asm_data.get("id")
         if asm_id and asm_id not in working_graph.assumptions:
@@ -95,7 +133,7 @@ def apply_and_verify_proposal(
                 category=asm_data.get("category", "approximation")
             ))
 
-    # Add proposed output nodes
+    # Add proposed output nodes (on clone only)
     out_node_ids = []
     for c_node in proposal.output_nodes:
         math_expr = MathematicalExpression(
@@ -114,7 +152,7 @@ def apply_and_verify_proposal(
         working_graph.add_node(d_node)
         out_node_ids.append(c_node.id)
 
-    # 3. Create candidate edge
+    # 4. Create candidate edge (on clone)
     edge_id = f"edge_ai_{proposal.proposal_id}"
     rule_def = reg.get(proposal.rule)
     obligations = rule_def.generate_obligations(proposal.parameters) if rule_def else []
@@ -128,17 +166,70 @@ def apply_and_verify_proposal(
         checker=proposal.target_checker,
         status=VerificationStatus.AI_PROPOSED,
         parameters=proposal.parameters,
-        side_conditions=proposal.side_conditions,
+        side_conditions=list(dict.fromkeys([
+            *(rule_def.side_conditions if rule_def else []),
+            *proposal.side_conditions,
+        ])),
         verification_obligations=obligations,
         metadata={"origin": proposal.origin.model_dump()}
     )
     working_graph.add_edge(edge)
 
-    # 4. Invoke verification backend
+    # Rule prerequisites come from the trusted registry, not from the proposal.
+    # Only assumptions already declared on the canonical graph can satisfy them;
+    # an AI-proposed assumption cannot certify its own prerequisite.
+    active_assumptions = {
+        aid for aid, assumption in graph.assumptions.items() if assumption.active
+    }
+    valid_conditions, missing_conditions = edge.validate_side_conditions(active_assumptions)
+    if not valid_conditions:
+        error_message = (
+            "Missing or inactive required side condition(s): "
+            f"{', '.join(missing_conditions)}"
+        )
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            edge_id=edge_id,
+            status=VerificationStatus.CONDITIONAL,
+            report={
+                "checker": "Preflight",
+                "passed": False,
+                "status": VerificationStatus.CONDITIONAL.value,
+                "details": {"missing_side_conditions": missing_conditions},
+                "error_message": error_message,
+            },
+            errors=[error_message],
+            graph_updated=False,
+        )
+
+    # 5. Dimensional check (on clone)
     dim_checker = DimensionChecker()
     dim_report = dim_checker.verify_edge(edge, working_graph)
 
-    checker_name = proposal.target_checker
+    # A dimensional contradiction invalidates the proposed step regardless of
+    # whether its semantic checker can prove the algebraic transformation.
+    if not dim_report.passed:
+        error_message = dim_report.error_message or "Dimensional verification failed."
+        return ProposalExecutionResult(
+            success=False,
+            proposal_id=proposal.proposal_id,
+            edge_id=edge_id,
+            status=dim_report.status,
+            report={
+                "checker": dim_checker.name,
+                "passed": False,
+                "status": dim_report.status.value,
+                "execution_time_ms": dim_report.execution_time_ms,
+                "details": dim_report.details,
+                "error_message": error_message,
+                "dimension_check": dim_report.to_dict(),
+            },
+            errors=[error_message],
+            graph_updated=False,
+        )
+
+    # 6. Semantic verification backend (on clone)
     if checker_name == "sympy":
         checker = SymPyChecker()
     elif checker_name == "lean4":
@@ -147,12 +238,23 @@ def apply_and_verify_proposal(
         checker = NumericalChecker()
     elif checker_name == "statistical":
         checker = StatisticalChecker()
+    elif checker_name == "dimension":
+        checker = DimensionChecker()
+    elif checker_name == "tensor":
+        checker = TensorChecker()
     else:
-        checker = SymPyChecker()
+        # Already rejected above — this branch is unreachable
+        raise AssertionError(f"Unreachable: unknown checker '{checker_name}'")
+
+
 
     verif_report = checker.verify_edge(edge, working_graph)
 
-    # Update output nodes status to match edge verification outcome
+    # Bind the successful/failed evidence to the exact claim and dependency
+    # state observed on the transactional working graph.
+    working_graph.record_verification_report(edge_id, verif_report)
+
+    # Update output node statuses on clone
     for out_id in out_node_ids:
         node = working_graph.get_node(out_id)
         if node:
@@ -168,6 +270,24 @@ def apply_and_verify_proposal(
         "dimension_check": dim_report.to_dict()
     }
 
+    # 7. COMMIT: only merge clone → canonical graph on success AND not dry_run
+    graph_updated = False
+    if verif_report.passed and not dry_run:
+        # Commit assumptions
+        for asm_id, asm in working_graph.assumptions.items():
+            if asm_id not in graph.assumptions:
+                graph.add_assumption(asm)
+        # Commit new nodes
+        for nid in out_node_ids:
+            node = working_graph.get_node(nid)
+            if node and nid not in graph.nodes:
+                graph.add_node(node)
+        # Commit edge
+        if edge_id not in graph.edges:
+            graph.add_edge(edge)
+        graph_updated = True
+    # On failure or dry_run: canonical graph is unchanged (clone is discarded)
+
     return ProposalExecutionResult(
         success=verif_report.passed,
         proposal_id=proposal.proposal_id,
@@ -175,5 +295,5 @@ def apply_and_verify_proposal(
         status=verif_report.status,
         report=report_data,
         errors=[verif_report.error_message] if verif_report.error_message else [],
-        graph_updated=not dry_run
+        graph_updated=graph_updated
     )

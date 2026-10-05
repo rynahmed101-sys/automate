@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from automate.ai.schemas import DerivationProposal
 from automate.core.graph import DerivationGraph
 from automate.theory.rules import RuleRegistry
+from automate.ir.safe_parser import SafeParser, SafeParseError
 
 # Patterns indicative of malicious code or injection attempts
 DANGEROUS_PATTERNS = [
@@ -44,6 +45,7 @@ DANGEROUS_PATTERNS = [
 
 COMPILED_DANGEROUS = [re.compile(p, re.IGNORECASE) for p in DANGEROUS_PATTERNS]
 MAX_PROPOSAL_SIZE_BYTES = 64 * 1024  # 64 KB limit to prevent DoS via giant payload
+MAX_EXPRESSION_PARSE_SECONDS = 2.0
 
 
 class ProposalValidationResult:
@@ -111,7 +113,10 @@ def validate_ai_proposal(
         schema_errs = [f"{e['loc']}: {e['msg']}" for e in ve.errors()]
         return ProposalValidationResult(False, None, [f"Schema validation error: {'; '.join(schema_errs)}"])
 
-    # 4. Semantic rule validation against RuleRegistry
+    # 4. Semantic rule/checker validation against RuleRegistry
+    # Keep checker identity validation separate from rule capability validation:
+    # an unknown checker must be reported as unknown rather than as a
+    # rule/checker compatibility error.
     registry = rule_registry or RuleRegistry()
     rule_def = registry.get(proposal.rule)
     if not rule_def:
@@ -119,6 +124,22 @@ def validate_ai_proposal(
             f"Unknown transformation rule '{proposal.rule}'. "
             f"Must be one of approved rules: {', '.join(sorted(registry.list_rule_ids()))}."
         )
+    else:
+        checker_name = proposal.target_checker
+        known_checkers = {"sympy", "lean4", "numerical", "statistical", "dimension", "tensor"}
+        if not isinstance(checker_name, str) or not checker_name.strip():
+            errors.append("A non-empty target_checker is required.")
+        elif checker_name not in known_checkers:
+            errors.append(
+                f"Unknown checker '{checker_name}'. "
+                f"Must be one of: {', '.join(sorted(known_checkers))}. "
+                "No fallback to a different checker is permitted."
+            )
+        elif checker_name not in rule_def.allowed_checkers:
+            errors.append(
+                f"Checker '{checker_name}' is not allowed for rule '{proposal.rule}'. "
+                f"Allowed semantic checkers: {', '.join(rule_def.allowed_checkers) or 'none'}."
+            )
 
     # 5. Graph dependency validation (if graph is provided)
     if graph:
@@ -133,6 +154,28 @@ def validate_ai_proposal(
             # Validate basic expression string non-emptiness
             if not out_node.expression or not out_node.expression.strip():
                 errors.append(f"Proposed output node '{out_node.id}' has empty expression.")
+
+    # 6. Parse proposed mathematical output in an isolated process before any
+    # semantic backend sees it. This provides a killable wall-clock boundary for
+    # untrusted AI-generated expressions/equations.
+    parser = SafeParser(max_seconds=MAX_EXPRESSION_PARSE_SECONDS)
+    for out_node in proposal.output_nodes:
+        try:
+            if "=" in out_node.expression and "==" not in out_node.expression:
+                parser.parse_equation_isolated(
+                    out_node.expression,
+                    timeout=MAX_EXPRESSION_PARSE_SECONDS,
+                )
+            else:
+                parser.parse_isolated(
+                    out_node.expression,
+                    timeout=MAX_EXPRESSION_PARSE_SECONDS,
+                )
+        except SafeParseError as exc:
+            errors.append(
+                f"Unsafe mathematical expression in proposed output node "
+                f"'{out_node.id}': {exc}"
+            )
 
     # 6. Check that proposal does not attempt to assign forbidden verification statuses
     raw_status = raw_proposal.get("status")

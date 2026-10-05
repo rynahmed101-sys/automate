@@ -32,8 +32,12 @@ dependencies = [
     "click>=8.1",
     "rich>=13.0",
     "matplotlib>=3.7",
-    "jsonschema>=4.20.0"
+    "jsonschema>=4.20.0",
+    "einsteinpy==0.4.0",
+    "pint>=0.24.0",
+    "lmfit>=1.2.0"
 ]
+
 
 [project.optional-dependencies]
 dev = [
@@ -47,3 +51,13 @@ automate = "automate.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["automate*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "different_engine: Test uses two independent computation engines (highest independence)",
+    "same_engine_different_path: Test uses different code paths within the same engine",
+    "same_engine: Test uses the same engine for both computation and verification",
+    "textbook_reference: Test compares against a known analytic result from literature",
+    "adversarial: Test attempts to fool the verification system",
+    "trust_boundary: Test validates a trust boundary or security invariant",
+]

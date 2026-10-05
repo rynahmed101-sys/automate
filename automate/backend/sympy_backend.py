@@ -2,10 +2,15 @@
 SymPyChecker: Symbolic mathematics backend using SymPy.
 Verifies algebraic identities, differentiation, Euler-Lagrange equations,
 differential equation solutions, and conservation laws.
+
+All verifiers read their mathematical content from the graph's node expressions
+and edge parameters. No hardcoded solutions are accepted. Unknown rules
+return NOT_APPLICABLE rather than silently passing.
 """
 
 import time
-from typing import Dict, Any, List, Optional
+import re
+from typing import Dict, Any, List, Optional, Union
 import sympy as sp
 
 from automate.backend.base import BaseChecker, VerificationReport
@@ -67,16 +72,69 @@ class SymPyChecker(BaseChecker):
                         in_nodes, out_nodes[0], edge.parameters
                     )
                 elif rule == "solve_harmonic_oscillator":
-                    passed, details, certificates, error_msg = self._verify_harmonic_solution(
+                    passed, details, certificates, error_msg = self._verify_ode_solution(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "verify_ode_solution":
+                    # Generic ODE verifier — same substitution logic, no SHO-specific assumptions
+                    passed, details, certificates, error_msg = self._verify_ode_solution(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
                 elif rule == "algebraic_identity":
                     passed, details, certificates, error_msg = self._verify_algebraic_identity(
                         in_nodes[0], out_nodes[0]
                     )
-                else:
-                    passed, details, certificates, error_msg = self._verify_algebraic_identity(
+                elif rule == "vary_action":
+                    passed, details, certificates, error_msg = self._verify_field_equation(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "numerical_simulation":
+                    # Numerical simulation: symbolic backend cannot verify this
+                    status = VerificationStatus.NOT_APPLICABLE
+                    details = {"rule": rule, "reason": "Numerical simulation requires numerical backend."}
+                    elapsed = (time.perf_counter() - start_time) * 1000
+                    return self._build_report(status, passed, details, certificates, error_msg,
+                                              edge, graph, elapsed)
+                elif rule == "empirical_inference":
+                    # Empirical inference: symbolic backend cannot verify this
+                    status = VerificationStatus.NOT_APPLICABLE
+                    details = {"rule": rule, "reason": "Empirical inference requires statistical backend."}
+                    elapsed = (time.perf_counter() - start_time) * 1000
+                    return self._build_report(status, passed, details, certificates, error_msg,
+                                              edge, graph, elapsed)
+                elif rule == "divide_both_sides":
+                    passed, details, certificates, error_msg = self._verify_divide_both_sides(
+                        in_nodes[0], out_nodes[0], edge.parameters, graph, edge.side_conditions
+                    )
+                elif rule == "differentiate_both_sides":
+                    passed, details, certificates, error_msg = self._verify_differentiate_both_sides(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "substitute":
+                    passed, details, certificates, error_msg = self._verify_substitute(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "simplify":
+                    passed, details, certificates, error_msg = self._verify_simplify(
                         in_nodes[0], out_nodes[0]
+                    )
+
+                else:
+                    # NO FALLBACK — unknown rules must not be silently checked
+                    # by algebraic identity. Return NOT_APPLICABLE explicitly.
+                    status = VerificationStatus.NOT_APPLICABLE
+                    details = {
+                        "rule": rule,
+                        "reason": (
+                            f"Rule '{rule}' has no dedicated SymPy verifier and "
+                            "no fallback is permitted. Register a dedicated rule or "
+                            "use the correct checker. Unknown rules must not silently "
+                            "pass algebraic identity checks."
+                        ),
+                    }
+                    elapsed = (time.perf_counter() - start_time) * 1000
+                    return self._build_report(
+                        status, False, details, [], None, edge, graph, elapsed
                     )
             except Exception as e:
                 passed = False
@@ -85,8 +143,17 @@ class SymPyChecker(BaseChecker):
             status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
 
         elapsed = (time.perf_counter() - start_time) * 1000
+        return self._build_report(status, passed, details, certificates, error_msg,
+                                  edge, graph, elapsed, rule=rule)
 
-        # Update edge certificate if passed
+    # ------------------------------------------------------------------
+    # Internal helper: build the final VerificationReport and update edge
+    # ------------------------------------------------------------------
+    def _build_report(
+        self, status, passed, details, certificates, error_msg,
+        edge, graph, elapsed, rule=None
+    ) -> VerificationReport:
+        rule = rule or edge.transformation_rule
         if passed and certificates:
             edge.certificate = DerivationCertificate(
                 rule_name=rule,
@@ -131,142 +198,537 @@ class SymPyChecker(BaseChecker):
             evidence=evidence
         )
 
+    # ------------------------------------------------------------------
+    # Rule: euler_lagrange
+    # Reads Lagrangian from in_nodes[0].expression.raw_str.
+    # Reads coordinates and parameters from edge.parameters.
+    # Returns UNSUPPORTED if coordinates are not provided.
+    # ------------------------------------------------------------------
     def _verify_euler_lagrange(
         self, lagr_node: Any, eom_node: Any, params: Dict[str, Any]
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        """
-        Calculates d/dt(dL/dqdot) - dL/dq and checks equivalence with EoM.
-        """
-        t = sp.Symbol('t', real=True)
-        x = sp.Function('x')(t)
-        x_dot = sp.diff(x, t)
-        x_ddot = sp.diff(x_dot, t)
+        coords = params.get("coordinates")
+        if not coords:
+            return (
+                False, {"rule": "euler_lagrange"},
+                [],
+                "UNSUPPORTED: edge.parameters['coordinates'] is required (e.g. ['x'] or ['r','theta']). "
+                "Cannot infer coordinate without explicit specification."
+            )
 
-        m = sp.Symbol('m', positive=True)
-        k = sp.Symbol('k', positive=True)
+        sym_params = params.get("parameters", {})
+        lagrangian_str = lagr_node.expression.raw_str
+        candidate_eom_raw = eom_node.expression.raw_str
 
-        # Lagrangian: 1/2 * m * x_dot**2 - 1/2 * k * x**2
-        L = sp.Rational(1, 2) * m * x_dot**2 - sp.Rational(1, 2) * k * x**2
+        try:
+            from automate.mechanics.lagrangian import LagrangianSystem
+            sys = LagrangianSystem(
+                lagrangian=lagrangian_str,
+                coordinates=coords,
+                parameters=sym_params,
+            )
+            # candidate may be dict or single string
+            if isinstance(candidate_eom_raw, dict):
+                candidate = candidate_eom_raw
+            else:
+                candidate = candidate_eom_raw
+            passed, details, steps, err = sys.verify_euler_lagrange(candidate)
+        except Exception as e:
+            return False, {"rule": "euler_lagrange", "lagrangian": lagrangian_str}, [], \
+                f"LagrangianSystem error: {type(e).__name__}: {str(e)}"
 
-        # Step 1: Partial wrt velocity (momentum)
-        dL_dxdot = sp.diff(L, x_dot)
-        step1 = {"step": 1, "operation": "dL/dx_dot", "expr": str(dL_dxdot), "latex": sp.latex(dL_dxdot)}
+        details.update({"lagrangian_input": lagrangian_str, "candidate_eom": candidate_eom_raw})
+        return passed, details, steps, err
 
-        # Step 2: Total time derivative of momentum
-        ddt_dL_dxdot = sp.diff(dL_dxdot, t)
-        step2 = {"step": 2, "operation": "d/dt(dL/dx_dot)", "expr": str(ddt_dL_dxdot), "latex": sp.latex(ddt_dL_dxdot)}
-
-        # Step 3: Partial wrt coordinate
-        dL_dx = sp.diff(L, x)
-        step3 = {"step": 3, "operation": "dL/dx", "expr": str(dL_dx), "latex": sp.latex(dL_dx)}
-
-        # Step 4: Euler-Lagrange equation LHS
-        el_lhs = sp.simplify(ddt_dL_dxdot - dL_dx)
-        step4 = {"step": 4, "operation": "Euler-Lagrange LHS", "expr": str(el_lhs), "latex": sp.latex(el_lhs)}
-
-        # Target EoM: m*x_ddot + k*x
-        target_lhs = m * x_ddot + k * x
-
-        # Test equivalence
-        diff = sp.simplify(el_lhs - target_lhs)
-        passed = (diff == 0)
-
-        details = {
-            "computed_eom": str(el_lhs),
-            "target_eom": str(target_lhs),
-            "difference": str(diff),
-            "zero_test_passed": passed
-        }
-        steps = [step1, step2, step3, step4]
-
-        return passed, details, steps, None if passed else f"Euler-Lagrange residual non-zero: {diff}"
-
+    # ------------------------------------------------------------------
+    # Rule: conserve_energy
+    # Reads Lagrangian from in_nodes[0], candidate energy from out_node.
+    # ------------------------------------------------------------------
     def _verify_energy_conservation(
         self, in_nodes: List[Any], energy_node: Any, params: Dict[str, Any]
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        """
-        Verifies that dE/dt = 0 along solutions of m*x_ddot + k*x = 0.
-        """
-        t = sp.Symbol('t', real=True)
-        x = sp.Function('x')(t)
-        x_dot = sp.diff(x, t)
-        x_ddot = sp.diff(x_dot, t)
+        coords = params.get("coordinates")
+        if not coords:
+            return (
+                False, {"rule": "conserve_energy"}, [],
+                "UNSUPPORTED: edge.parameters['coordinates'] required for energy conservation check."
+            )
 
-        m = sp.Symbol('m', positive=True)
-        k = sp.Symbol('k', positive=True)
+        sym_params = params.get("parameters", {})
+        lagrangian_str = in_nodes[0].expression.raw_str
+        candidate_energy_str = energy_node.expression.raw_str
 
-        # Energy: 1/2 * m * x_dot**2 + 1/2 * k * x**2
-        E = sp.Rational(1, 2) * m * x_dot**2 + sp.Rational(1, 2) * k * x**2
+        try:
+            from automate.mechanics.lagrangian import LagrangianSystem
+            sys = LagrangianSystem(
+                lagrangian=lagrangian_str,
+                coordinates=coords,
+                parameters=sym_params,
+            )
+            passed, details, steps, err = sys.verify_energy_conservation(candidate_energy_str)
+        except Exception as e:
+            return False, {"rule": "conserve_energy", "lagrangian": lagrangian_str}, [], \
+                f"LagrangianSystem error: {type(e).__name__}: {str(e)}"
 
-        # dE/dt = m * x_dot * x_ddot + k * x * x_dot
-        dE_dt = sp.diff(E, t)
-        step1 = {"step": 1, "operation": "dE/dt", "expr": str(dE_dt), "latex": sp.latex(dE_dt)}
+        details.update({"lagrangian_input": lagrangian_str, "candidate_energy": candidate_energy_str})
+        return passed, details, steps, err
 
-        # Factor out x_dot: x_dot * (m * x_ddot + k * x)
-        factored = sp.factor(dE_dt)
-        step2 = {"step": 2, "operation": "factor(dE/dt)", "expr": str(factored), "latex": sp.latex(factored)}
-
-        # Along equation of motion: m*x_ddot = -k*x
-        dE_dt_on_shell = sp.simplify(dE_dt.subs(x_ddot, -k * x / m))
-        step3 = {"step": 3, "operation": "substitute_eom", "expr": str(dE_dt_on_shell), "latex": sp.latex(dE_dt_on_shell)}
-
-        passed = (dE_dt_on_shell == 0)
-        details = {
-            "dE_dt": str(dE_dt),
-            "dE_dt_on_shell": str(dE_dt_on_shell),
-            "is_conserved": passed
-        }
-        steps = [step1, step2, step3]
-
-        return passed, details, steps, None if passed else "Energy derivative is not zero along equations of motion."
-
-    def _verify_harmonic_solution(
-        self, eom_node: Any, sol_node: Any, params: Dict[str, Any]
+    # ------------------------------------------------------------------
+    # Rule: solve_harmonic_oscillator (generalised: ODE solution verifier)
+    # Reads ODE from in_nodes[0], candidate solution from out_node.
+    # Verifies by substituting candidate into ODE and checking residual == 0.
+    # ------------------------------------------------------------------
+    def _verify_ode_solution(
+        self, ode_node: Any, sol_node: Any, params: Dict[str, Any]
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        """
-        Verifies that x(t) = A*cos(omega*t + phi) with omega = sqrt(k/m)
-        satisfies m*x_ddot + k*x = 0.
-        """
-        t = sp.Symbol('t', real=True)
-        m = sp.Symbol('m', positive=True)
-        k = sp.Symbol('k', positive=True)
-        A = sp.Symbol('A', real=True)
-        phi = sp.Symbol('phi', real=True)
-        omega = sp.sqrt(k / m)
+        ode_str = ode_node.expression.raw_str
+        sol_str = sol_node.expression.raw_str
+        coords = params.get("coordinates", ["x"])
+        sym_params = params.get("parameters", {})
+        q0 = coords[0]
 
-        # Proposed solution
-        x_sol = A * sp.cos(omega * t + phi)
-        step1 = {"step": 1, "operation": "proposed_solution", "expr": str(x_sol), "latex": sp.latex(x_sol)}
+        t = sp.Symbol("t", real=True)
 
-        # 1st time derivative
-        x_dot = sp.diff(x_sol, t)
-        step2 = {"step": 2, "operation": "dx/dt", "expr": str(x_dot), "latex": sp.latex(x_dot)}
+        # Build parameter symbols
+        param_syms: Dict[str, sp.Expr] = {}
+        for p_name, p_props in sym_params.items():
+            if p_props == "positive":
+                param_syms[p_name] = sp.Symbol(p_name, positive=True, real=True)
+            else:
+                param_syms[p_name] = sp.Symbol(p_name, real=True)
 
-        # 2nd time derivative
-        x_ddot = sp.diff(x_dot, t)
-        step3 = {"step": 3, "operation": "d2x/dt2", "expr": str(x_ddot), "latex": sp.latex(x_ddot)}
+        # Common free symbols in candidate solutions
+        aux_syms: Dict[str, sp.Expr] = {}
+        for name in ["A", "phi", "omega", "C1", "C2", "B"]:
+            if name not in param_syms:
+                aux_syms[name] = sp.Symbol(name, real=True)
 
-        # Substitute into EoM: m*x_ddot + k*x
-        eom_residual = sp.simplify(m * x_ddot + k * x_sol)
-        step4 = {"step": 4, "operation": "eom_residual", "expr": str(eom_residual), "latex": sp.latex(eom_residual)}
+        # ---- Detect ODE notation style ----
+        # Shorthand mode: ODE uses x_ddot, x_dot, x  (bare symbols, no x(t))
+        # Function mode: ODE uses x(t), diff(x(t),t,2)
+        uses_function_notation = f"{q0}(t)" in ode_str or "diff(" in ode_str
 
-        passed = (eom_residual == 0)
-        details = {
-            "solution": str(x_sol),
-            "residual": str(eom_residual),
-            "satisfies_ode": passed
+        q0_func = sp.Function(q0)(t)   # x(t) — applied function
+
+        if uses_function_notation:
+            # Map "x" → Function class so "x(t)" in string → Function("x")(t)
+            fn_local: Dict[str, Any] = {"t": t, "diff": sp.diff, **param_syms, **aux_syms}
+            fn_local[q0] = sp.Function(q0)           # unapplied class
+            fn_local[f"{q0}_dot"] = sp.diff(q0_func, t)
+            fn_local[f"{q0}_ddot"] = sp.diff(q0_func, t, 2)
+            ode_syms = fn_local
+            # The applied function is what we substitute
+            q0_sym_in_ode = q0_func
+        else:
+            # Map "x" → bare Symbol for shorthand notation
+            q0_bare = sp.Symbol(q0, real=True)
+            sh_local: Dict[str, Any] = {
+                "t": t,
+                q0: q0_bare,
+                f"{q0}_dot": sp.Symbol(f"{q0}_dot", real=True),
+                f"{q0}_ddot": sp.Symbol(f"{q0}_ddot", real=True),
+                **param_syms,
+                **aux_syms,
+            }
+            ode_syms = sh_local
+            q0_sym_in_ode = q0_bare    # bare symbol to substitute in ODE
+
+        # Solution is always parsed as an expression in t (and parameters)
+        # The solution string may be "x(t) = A*cos(...)" or just "A*cos(...)"
+        sol_local: Dict[str, Any] = {
+            "t": t,
+            **param_syms,
+            **aux_syms,
         }
-        steps = [step1, step2, step3, step4]
 
-        return passed, details, steps, None if passed else f"Harmonic solution residual is non-zero: {eom_residual}"
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        sol_parser = SafeParser(extra_symbols={
+            k: v for k, v in {**param_syms, **aux_syms, "t": t}.items()
+            if isinstance(v, sp.Basic)
+        })
 
+        actual_sol_str = sol_str.strip()
+        if "=" in actual_sol_str:
+            lhs_s, rhs_s = actual_sol_str.split("=", 1)
+            lhs_s = lhs_s.strip()
+            if lhs_s in (f"{q0}(t)", q0, f"{q0}(t, )"):
+                actual_sol_str = rhs_s.strip()
+            else:
+                actual_sol_str = rhs_s.strip()
+
+        try:
+            sol_expr = sol_parser.parse(actual_sol_str, extra_locals=sol_local)
+        except SafeParseError as e:
+            return False, {"rule": "solve_ode", "ode": ode_str, "solution": sol_str}, [], \
+                f"SafeParser rejected candidate solution: {e}"
+        except Exception as e:
+            return False, {"rule": "solve_ode", "ode": ode_str, "solution": sol_str}, [], \
+                f"Candidate solution parse error: {type(e).__name__}: {str(e)}"
+
+        # Parse the ODE expression via SafeParser
+        ode_parser = SafeParser(extra_symbols={
+            k: v for k, v in {**param_syms, **aux_syms, "t": t}.items()
+            if isinstance(v, sp.Basic)
+        })
+        try:
+            if "=" in ode_str:
+                parts = ode_str.split("=", 1)
+                ode_lhs = ode_parser.parse(parts[0].strip(), extra_locals=ode_syms)
+                ode_rhs = ode_parser.parse(parts[1].strip(), extra_locals=ode_syms)
+                ode_expr = ode_lhs - ode_rhs
+            else:
+                ode_expr = ode_parser.parse(ode_str, extra_locals=ode_syms)
+        except SafeParseError as e:
+            return False, {"rule": "solve_ode", "ode": ode_str, "solution": sol_str}, [], \
+                f"SafeParser rejected ODE expression: {e}"
+        except Exception as e:
+            return False, {"rule": "solve_ode", "ode": ode_str, "solution": sol_str}, [], \
+                f"ODE parse error: {type(e).__name__}: {str(e)}"
+
+
+        steps = [{"step": 1, "operation": "candidate_solution", "parsed": str(sol_expr),
+                  "notation": "function" if uses_function_notation else "shorthand"}]
+
+        # For shorthand ODEs, need to also substitute derivatives.
+        # Compute d/dt(sol_expr) and d²/dt²(sol_expr) for x_dot and x_ddot substitution.
+        subs_map: Dict[sp.Expr, sp.Expr] = {}
+        if uses_function_notation:
+            subs_map[q0_func] = sol_expr
+        else:
+            q0_sym = ode_syms[q0]
+            q0_dot_sym = ode_syms.get(f"{q0}_dot")
+            q0_ddot_sym = ode_syms.get(f"{q0}_ddot")
+            subs_map[q0_sym] = sol_expr
+            if q0_dot_sym is not None:
+                try:
+                    subs_map[q0_dot_sym] = sp.diff(sol_expr, t)
+                except Exception:
+                    pass
+            if q0_ddot_sym is not None:
+                try:
+                    subs_map[q0_ddot_sym] = sp.diff(sol_expr, t, 2)
+                except Exception:
+                    pass
+
+        try:
+            substituted = ode_expr.subs(subs_map)
+            residual = sp.simplify(substituted)
+        except Exception as e:
+            return False, {"rule": "solve_ode", "ode": ode_str}, [], \
+                f"Substitution error: {type(e).__name__}: {str(e)}"
+
+        steps.append({"step": 2, "operation": "ode_residual_after_substitution", "expr": str(residual)})
+
+        # Substitute parameter aliases (e.g. omega = sqrt(k/m)) before zero-test.
+        # Uses SafeParser — no bare sympify.
+        alias_subs: Dict[sp.Expr, sp.Expr] = {}
+        alias_local: Dict[str, Any] = {**param_syms, **aux_syms, "t": t}
+        alias_parser = SafeParser()
+        for p_key, p_val in params.items():
+            if p_key in ("coordinates", "parameters", "numerical_parameters",
+                         "initial_conditions", "initial_velocities", "t_max"):
+                continue
+            if isinstance(p_val, str) and p_val.strip():
+                try:
+                    alias_sym = aux_syms.get(p_key) or param_syms.get(p_key) or sp.Symbol(p_key, real=True)
+                    alias_expr_parsed = alias_parser.parse(p_val.strip(), extra_locals=alias_local)
+                    if isinstance(alias_sym, sp.Symbol):
+                        alias_subs[alias_sym] = alias_expr_parsed
+                except (SafeParseError, Exception):
+                    pass
+
+        if alias_subs and residual != 0:
+            try:
+                residual = sp.simplify(residual.subs(alias_subs))
+            except Exception:
+                pass
+            steps.append({"step": 3, "operation": "residual_after_alias_substitution",
+                          "aliases": {str(k): str(v) for k, v in alias_subs.items()},
+                          "expr": str(residual)})
+
+
+        passed = (residual == 0)
+        details = {
+            "ode": ode_str,
+            "candidate_solution": sol_str,
+            "parsed_solution": str(sol_expr),
+            "notation_mode": "function" if uses_function_notation else "shorthand",
+            "alias_substitutions": {str(k): str(v) for k, v in alias_subs.items()},
+            "residual": str(residual),
+            "satisfies_ode": passed,
+        }
+        err = None if passed else f"ODE solution residual is non-zero: {residual}"
+        return passed, details, steps, err
+
+
+    # ------------------------------------------------------------------
+    # Rule: vary_action
+    # Reads Lagrangian density from in_nodes[0], field equations from out_node.
+    # Uses FieldTheoryAction engine.
+    # ------------------------------------------------------------------
+    def _verify_field_equation(
+        self, action_node: Any, feq_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        fields = params.get("fields")
+        if not fields:
+            return (
+                False, {"rule": "vary_action"}, [],
+                "UNSUPPORTED: edge.parameters['fields'] required for vary_action rule."
+            )
+
+        coords = params.get("coordinates")
+        sym_params = params.get("parameters", {})
+        lagrangian_density_str = action_node.expression.raw_str
+        candidate_feq_str = feq_node.expression.raw_str
+
+        try:
+            from automate.field_theory.variational import FieldTheoryAction
+            action = FieldTheoryAction(
+                lagrangian_density=lagrangian_density_str,
+                fields=fields,
+                coordinates=coords,
+                parameters=sym_params,
+            )
+            passed, details, steps, err = action.verify_field_equation(candidate_feq_str)
+        except Exception as e:
+            return False, {"rule": "vary_action", "lagrangian_density": lagrangian_density_str}, [], \
+                f"FieldTheoryAction error: {type(e).__name__}: {str(e)}"
+
+        details.update({
+            "lagrangian_density_input": lagrangian_density_str,
+            "candidate_field_equation": candidate_feq_str
+        })
+        return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: divide_both_sides
+    # Verifies that out_expr == in_expr / divisor.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _prove_symbolic_nonzero(
+        divisor: sp.Expr,
+        graph: DerivationGraph,
+        side_condition_ids: List[str],
+    ) -> tuple[bool, Optional[str]]:
+        """Prove a divisor is non-zero using the central assumption engine.
+
+        Backend rules do not contain their own implication heuristics. The
+        entailment layer evaluates the complete active assumption context and
+        returns proof only when its reasoning engine is affirmative.
+        """
+        from automate.ir.assumption_logic import AssumptionEntailment
+        return AssumptionEntailment(graph).entails_nonzero(
+            divisor,
+            side_condition_ids,
+        )
+
+    def _verify_divide_both_sides(
+        self,
+        in_node: Any,
+        out_node: Any,
+        params: Dict[str, Any],
+        graph: Optional[DerivationGraph] = None,
+        side_condition_ids: Optional[List[str]] = None,
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+
+        divisor_str = params.get("divisor", "")
+        if not divisor_str:
+            return False, {"rule": "divide_both_sides"}, [],                 "UNSUPPORTED: edge.parameters['divisor'] required for divide_both_sides rule."
+
+        parser = SafeParser()
+        try:
+            in_expr = parser.parse(in_node.expression.raw_str)
+            out_expr = parser.parse(out_node.expression.raw_str)
+            div_expr = parser.parse(str(divisor_str))
+        except SafeParseError as e:
+            return False, {"rule": "divide_both_sides"}, [], f"SafeParser error: {e}"
+
+        if div_expr == 0:
+            return False, {"rule": "divide_both_sides", "divisor": str(div_expr)}, [],                 "Division by zero: divisor is zero."
+
+        nonzero_proven = False
+        nonzero_source: Optional[str] = None
+
+        if div_expr.is_number:
+            nonzero_proven = bool(div_expr != 0)
+            nonzero_source = "numeric divisor"
+        elif graph is not None:
+            nonzero_proven, nonzero_source = self._prove_symbolic_nonzero(
+                div_expr, graph, side_condition_ids or []
+            )
+
+        if not nonzero_proven:
+            return (
+                False,
+                {
+                    "rule": "divide_both_sides",
+                    "divisor": str(div_expr),
+                    "nonzero_proven": False,
+                    "side_conditions_considered": side_condition_ids or [],
+                },
+                [],
+                f"UNSUPPORTED: symbolic divisor '{div_expr}' is not proven non-zero.",
+            )
+
+        expected = sp.simplify(in_expr / div_expr)
+        diff = sp.simplify(out_expr - expected)
+        passed = (diff == 0)
+        details = {
+            "in_expr": str(in_expr),
+            "divisor": str(div_expr),
+            "nonzero_proven": nonzero_proven,
+            "nonzero_source": nonzero_source,
+            "expected_out": str(expected),
+            "actual_out": str(out_expr),
+            "diff": str(diff),
+        }
+        steps = [
+            {"step": 1, "operation": "parse_divisor", "expr": str(div_expr)},
+            {"step": 2, "operation": "prove_divisor_nonzero", "source": nonzero_source},
+            {"step": 3, "operation": "in_expr / divisor", "expr": str(expected)},
+            {"step": 4, "operation": "simplify(actual - expected)", "expr": str(diff)},
+        ]
+        err = None if passed else f"divide_both_sides mismatch: expected {expected}, got {out_expr}"
+        return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: differentiate_both_sides
+    # Verifies that out_expr == d(in_expr)/d(wrt).
+    # ------------------------------------------------------------------
+    def _verify_differentiate_both_sides(
+        self, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        wrt_str = params.get("wrt", "")
+        if not wrt_str:
+            return False, {"rule": "differentiate_both_sides"}, [], \
+                "UNSUPPORTED: edge.parameters['wrt'] required for differentiate_both_sides rule."
+        parser = SafeParser()
+        try:
+            in_expr  = parser.parse(in_node.expression.raw_str)
+            out_expr = parser.parse(out_node.expression.raw_str)
+            wrt_sym  = parser.make_symbol(str(wrt_str).strip())
+        except SafeParseError as e:
+            return False, {"rule": "differentiate_both_sides"}, [], f"SafeParser error: {e}"
+
+        try:
+            expected = sp.diff(in_expr, wrt_sym)
+        except Exception as e:
+            return False, {"rule": "differentiate_both_sides"}, [], \
+                f"Differentiation error: {type(e).__name__}: {e}"
+
+        diff = sp.simplify(out_expr - expected)
+        passed = (diff == 0)
+        details = {
+            "in_expr": str(in_expr),
+            "wrt": str(wrt_sym),
+            "expected_derivative": str(expected),
+            "actual_out": str(out_expr),
+            "diff": str(diff),
+        }
+        steps = [
+            {"step": 1, "operation": f"d(in_expr)/d({wrt_sym})", "expr": str(expected)},
+            {"step": 2, "operation": "simplify(actual - expected)", "expr": str(diff)},
+        ]
+        err = None if passed else f"differentiate_both_sides mismatch: expected {expected}, got {out_expr}"
+        return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: substitute
+    # Verifies that out_expr == in_expr with `from_expr` replaced by `to_expr`.
+    # Parameters: {"from": "<expr>", "to": "<expr>"}
+    # ------------------------------------------------------------------
+    def _verify_substitute(
+        self, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        from_str = params.get("from", "")
+        to_str   = params.get("to", "")
+        if not from_str or not to_str:
+            return False, {"rule": "substitute"}, [], \
+                "UNSUPPORTED: edge.parameters['from'] and ['to'] required for substitute rule."
+        parser = SafeParser()
+        try:
+            in_expr   = parser.parse(in_node.expression.raw_str)
+            out_expr  = parser.parse(out_node.expression.raw_str)
+            from_expr = parser.parse(str(from_str))
+            to_expr   = parser.parse(str(to_str))
+        except SafeParseError as e:
+            return False, {"rule": "substitute"}, [], f"SafeParser error: {e}"
+
+        substituted = in_expr.subs(from_expr, to_expr)
+        diff = sp.simplify(out_expr - substituted)
+        passed = (diff == 0)
+        details = {
+            "in_expr": str(in_expr),
+            "from": str(from_expr),
+            "to": str(to_expr),
+            "substituted": str(substituted),
+            "actual_out": str(out_expr),
+            "diff": str(diff),
+        }
+        steps = [
+            {"step": 1, "operation": f"in_expr.subs({from_expr}, {to_expr})", "expr": str(substituted)},
+            {"step": 2, "operation": "simplify(actual - substituted)", "expr": str(diff)},
+        ]
+        err = None if passed else f"substitute mismatch: expected {substituted}, got {out_expr}"
+        return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: simplify
+    # Verifies that sp.simplify(in_expr) == out_expr.
+    # This checks that the claimed simplified form is actually equivalent.
+    # ------------------------------------------------------------------
+    def _verify_simplify(
+        self, in_node: Any, out_node: Any
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        parser = SafeParser()
+        try:
+            in_expr  = parser.parse(in_node.expression.raw_str)
+            out_expr = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as e:
+            return False, {"rule": "simplify"}, [], f"SafeParser error: {e}"
+
+        # The claim is that in_expr and out_expr are algebraically equivalent
+        # (simplify is not unique, so we check equivalence, not canonical form)
+        diff = sp.simplify(in_expr - out_expr)
+        passed = (diff == 0)
+        details = {
+            "in_expr": str(in_expr),
+            "out_expr": str(out_expr),
+            "diff": str(diff),
+            "equivalent": passed,
+        }
+        steps = [{"step": 1, "operation": "simplify(in - out)", "expr": str(diff)}]
+        err = None if passed else f"simplify: expressions are not equivalent: {diff}"
+        return passed, details, steps, err
+
+
+    # ------------------------------------------------------------------
+    # Rule: algebraic_identity
+    # Uses SafeParser — no bare sympify.
+    # ------------------------------------------------------------------
     def _verify_algebraic_identity(
         self, in_node: Any, out_node: Any
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
-        expr1 = sp.sympify(in_node.expression.raw_str)
-        expr2 = sp.sympify(out_node.expression.raw_str)
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        parser = SafeParser()
+        try:
+            expr1 = parser.parse(in_node.expression.raw_str)
+            expr2 = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as e:
+            return False, {"rule": "algebraic_identity"}, [], \
+                f"SafeParser rejected expression: {e}"
         diff = sp.simplify(expr1 - expr2)
         passed = (diff == 0)
         details = {"diff": str(diff), "equal": passed}
         steps = [{"step": 1, "operation": "simplify(expr1 - expr2)", "expr": str(diff)}]
-        return passed, details, steps, None if passed else f"Expressions are not algebraically identical: {diff}"
+        err = None if passed else f"Expressions are not algebraically identical: {diff}"
+        return passed, details, steps, err
+
+
+
+# Type alias used in type hints above
+Any = object

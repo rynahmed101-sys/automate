@@ -59,7 +59,11 @@ class MockLLMProvider(LLMProvider):
                 justification="Linear homogeneous 2nd order ordinary differential equation general ansatz",
                 side_conditions=["asm_pos_mass", "asm_pos_k"],
                 target_checker="sympy",
-                parameters={"omega": "sqrt(k/m)"},
+                parameters={
+                    "omega": "sqrt(k/m)",
+                    "coordinates": ["x"],
+                    "parameters": {"m": "positive", "k": "positive"},
+                },
                 origin=ProposalOrigin(
                     type="ai",
                     provider=self.name,

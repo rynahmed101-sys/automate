@@ -3,7 +3,7 @@ Tests for First-Class Assumption Tracking and Sensitivity Analysis.
 """
 
 import pytest
-from automate.ir.assumptions import Assumption, AssumptionRegistry
+from automate.ir.assumptions import Assumption, AssumptionDependency, AssumptionRegistry
 from automate.core.graph import DerivationGraph
 from automate.core.node import DerivationNode
 from automate.core.edge import DerivationEdge
@@ -170,3 +170,232 @@ def test_side_condition_validation():
     assert met2 is False
     assert missing2 == ["asm_real"]
 
+
+
+def test_assumption_dependency_closure_is_transitive():
+    graph = DerivationGraph(id="assumption_dependency_test")
+    for aid, predicate in (
+        ("asm_smooth", "smooth(x)"),
+        ("asm_continuous", "continuous(x)"),
+        ("asm_domain", "x in D"),
+    ):
+        graph.add_assumption(
+            Assumption(
+                id=aid,
+                description=aid,
+                category="regularity",
+                formal_predicate=predicate,
+            )
+        )
+
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_smooth",
+            depends_on=["asm_continuous"],
+            relation="requires",
+            justification="Smoothness requires continuity",
+        )
+    )
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_continuous",
+            depends_on=["asm_domain"],
+            relation="requires",
+            justification="Continuity is stated on the domain",
+        )
+    )
+
+    assert graph.get_assumption_dependencies("asm_smooth") == ["asm_continuous"]
+    assert graph.get_assumption_dependency_closure({"asm_smooth"}) == {
+        "asm_smooth",
+        "asm_continuous",
+        "asm_domain",
+    }
+    tree = graph.query_assumption_dependency_tree("asm_smooth")
+    assert tree["direct_dependencies"] == ["asm_continuous"]
+    assert tree["transitive_dependencies"] == ["asm_continuous", "asm_domain"]
+
+
+def test_assumption_dependency_cycle_is_rejected():
+    graph = DerivationGraph(id="assumption_cycle_test")
+    for aid in ("asm_a", "asm_b"):
+        graph.add_assumption(
+            Assumption(
+                id=aid,
+                description=aid,
+                formal_predicate=f"{aid}_predicate",
+            )
+        )
+
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_a",
+            depends_on=["asm_b"],
+        )
+    )
+
+    with pytest.raises(ValueError, match="contains a cycle"):
+        graph.add_assumption_dependency(
+            AssumptionDependency(
+                assumption_id="asm_b",
+                depends_on=["asm_a"],
+            )
+        )
+
+    assert len(graph.assumption_dependencies) == 1
+
+
+def test_assumption_dependency_requires_declared_prerequisites():
+    graph = DerivationGraph(id="assumption_unknown_test")
+    graph.add_assumption(
+        Assumption(
+            id="asm_a",
+            description="A",
+            formal_predicate="A",
+        )
+    )
+
+    with pytest.raises(ValueError, match="undeclared prerequisites"):
+        graph.add_assumption_dependency(
+            AssumptionDependency(
+                assumption_id="asm_a",
+                depends_on=["asm_missing"],
+            )
+        )
+
+
+def test_node_inheritance_includes_transitive_assumption_prerequisites():
+    graph = DerivationGraph(id="assumption_node_inheritance")
+    for aid in ("asm_derived", "asm_base"):
+        graph.add_assumption(
+            Assumption(
+                id=aid,
+                description=aid,
+                formal_predicate=aid,
+            )
+        )
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_derived",
+            depends_on=["asm_base"],
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="node",
+            expression=MathematicalExpression(raw_str="E"),
+            assumptions=["asm_derived"],
+        )
+    )
+
+    assert graph.compute_inherited_assumptions("node") == {
+        "asm_derived",
+        "asm_base",
+    }
+
+
+def test_external_assumption_remains_explicit_leaf():
+    graph = DerivationGraph(id="external_assumption_test")
+    graph.add_node(
+        DerivationNode(
+            id="node",
+            expression=MathematicalExpression(raw_str="E"),
+            assumptions=["asm_external"],
+        )
+    )
+
+    assert graph.compute_inherited_assumptions("node") == {"asm_external"}
+    details = graph.query_assumptions_for_node("node")
+    assert details["assumptions"] == [{
+        "id": "asm_external",
+        "description": "Undeclared external assumption",
+    }]
+
+
+def test_assumption_dependency_change_stales_certificate():
+    from automate.backend.base import BaseChecker, VerificationReport
+    from automate.core.status import VerificationStatus
+
+    class AssumptionSeedChecker(BaseChecker):
+        @property
+        def name(self):
+            return "assumption-seed"
+
+        @property
+        def version(self):
+            return "1"
+
+        def verify_edge(self, edge, graph):
+            return VerificationReport(
+                status=VerificationStatus.SYMBOLIC_CHECKED,
+                backend=self.name,
+                backend_version=self.version,
+                passed=True,
+            )
+
+    graph = DerivationGraph(id="assumption_certificate_test")
+    for aid in ("asm_derived", "asm_base", "asm_extra"):
+        graph.add_assumption(
+            Assumption(id=aid, description=aid, formal_predicate=aid)
+        )
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_derived",
+            depends_on=["asm_base"],
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="source",
+            expression=MathematicalExpression(raw_str="E"),
+            assumptions=["asm_derived"],
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="target",
+            expression=MathematicalExpression(raw_str="F"),
+        )
+    )
+    edge = DerivationEdge(
+        id="edge",
+        input_nodes=["source"],
+        output_nodes=["target"],
+        transformation_rule="candidate",
+        justification="assumption-sensitive candidate",
+    )
+    graph.add_edge(edge)
+
+    report = AssumptionSeedChecker().verify_edge(edge, graph)
+    graph.record_verification_report(edge.id, report)
+    assert graph.is_certificate_current(edge.id) is True
+
+    graph.assumption_dependencies[0].depends_on = ["asm_extra"]
+
+    state = graph.get_certificate_staleness(edge.id)
+    assert state["current"] is False
+    assert state["reason"] == "CLAIM_CHANGED"
+
+
+def test_assumption_dependency_graph_survives_serialization():
+    graph = DerivationGraph(id="assumption_serialization_test")
+    for aid in ("asm_a", "asm_b"):
+        graph.add_assumption(
+            Assumption(id=aid, description=aid, formal_predicate=aid)
+        )
+    graph.add_assumption_dependency(
+        AssumptionDependency(
+            assumption_id="asm_a",
+            depends_on=["asm_b"],
+            relation="requires",
+            justification="test dependency",
+        )
+    )
+
+    restored = DerivationGraph.from_json(graph.to_json())
+    assert len(restored.assumption_dependencies) == 1
+    dependency = restored.assumption_dependencies[0]
+    assert dependency.assumption_id == "asm_a"
+    assert dependency.depends_on == ["asm_b"]
+    assert dependency.relation == "requires"
+    assert restored.validate_assumption_dependency_graph() is True

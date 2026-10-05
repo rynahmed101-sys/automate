@@ -89,3 +89,45 @@ def test_physical_constant():
     )
     assert c.value == 299792458.0
     assert c.dimension == "L*T^-1"
+
+
+def test_unknown_dimension_name_is_rejected():
+    """Unknown physical dimensions must never collapse to dimensionless."""
+    with pytest.raises(ValueError, match="Unknown base dimension"):
+        Dimension.from_string("M*Bogus")
+
+def test_malformed_dimension_exponent_is_rejected():
+    """Malformed exponents must be rejected rather than silently coerced."""
+    with pytest.raises(ValueError, match="must be an integer"):
+        Dimension.from_string("L^not_an_integer")
+
+
+def test_dimension_metadata_presence_is_distinct_from_dimensionless():
+    unspecified = MathematicalExpression(raw_str="x")
+    explicit = MathematicalExpression(raw_str="theta", dimension="dimensionless")
+
+    assert unspecified.has_explicit_dimension is False
+    assert explicit.has_explicit_dimension is True
+    assert unspecified.get_dimension().is_dimensionless()
+    assert explicit.get_dimension().is_dimensionless()
+
+
+def test_structured_tensor_terms_cannot_disagree_with_products():
+    from automate.ir.tensors import TensorExpression, TensorIndex, TensorProduct, TensorQuantity
+
+    expression = TensorExpression(
+        terms=[[TensorIndex(symbol="a", position="lower")]],
+        products=[
+            TensorProduct(
+                factors=[
+                    TensorQuantity(
+                        name="A",
+                        indices=[TensorIndex(symbol="b", position="lower")],
+                    )
+                ]
+            )
+        ],
+    )
+    result = expression.validate_structure()
+    assert not result.is_valid
+    assert "products and legacy terms disagree" in result.errors[0]
