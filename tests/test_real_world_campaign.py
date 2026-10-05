@@ -13,6 +13,7 @@ import pytest
 import sympy as sp
 from click.testing import CliRunner
 
+from automate.cli import main
 from automate.backend.dimension_backend import DimensionChecker
 from automate.backend.numerical_backend import NumericalChecker
 from automate.backend.statistical_backend import StatisticalChecker
@@ -225,13 +226,13 @@ def test_campaign_mechanics_eom_verification(lagrangian, coords, parameters, can
 @pytest.mark.parametrize(
     "lagrangian,fields,coordinates,parameters,candidate",
     [
-        ("d_x_phi**2/2", ["phi"], ["x"], {}, "diff(phi(x),x,2)"),
+        ("d_x_phi**2/2", ["phi"], ["x"], {}, "diff(phi, x, 2)"),
         (
             "d_x_phi**2/2-m**2*phi**2/2",
             ["phi"],
             ["x"],
             {"m": "positive"},
-            "diff(phi(x),x,2)+m**2*phi(x)",
+            "diff(phi, x, 2)+m**2*phi",
         ),
     ],
 )
@@ -254,7 +255,7 @@ def test_campaign_field_wrong_equation_rejected():
     graph, edge = _graph_edge(
         "vary_action",
         ["d_x_phi**2/2-m**2*phi**2/2"],
-        "diff(phi(x),x,2)-m**2*phi(x)",
+        "diff(phi, x, 2)-m**2*phi",
         parameters={
             "fields": ["phi"],
             "coordinates": ["x"],
