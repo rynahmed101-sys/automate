@@ -12,6 +12,7 @@ import time
 import re
 from typing import Dict, Any, List, Optional, Union
 import sympy as sp
+import numpy as np
 
 from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
@@ -110,6 +111,42 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_differentiate_both_sides(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                elif rule == "differentiate":
+                    passed, details, certificates, error_msg = self._verify_differentiate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule in ("chain_rule", "product_rule", "quotient_rule"):
+                    passed, details, certificates, error_msg = self._verify_composite_derivative_rule(
+                        rule, out_nodes[0], edge.parameters
+                    )
+                elif rule == "implicit_differentiate":
+                    passed, details, certificates, error_msg = self._verify_implicit_differentiate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "integrate":
+                    passed, details, certificates, error_msg = self._verify_integrate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "nested_integrate":
+                    passed, details, certificates, error_msg = self._verify_nested_integrate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "integration_by_substitution":
+                    passed, details, certificates, error_msg = self._verify_integration_by_substitution(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "integration_by_parts":
+                    passed, details, certificates, error_msg = self._verify_integration_by_parts(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "partial_fractions_integrate":
+                    passed, details, certificates, error_msg = self._verify_partial_fractions_integrate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "trigonometric_integrate":
+                    passed, details, certificates, error_msg = self._verify_trigonometric_integrate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule == "substitute":
                     passed, details, certificates, error_msg = self._verify_substitute(
                         in_nodes[0], out_nodes[0], edge.parameters
@@ -117,6 +154,14 @@ class SymPyChecker(BaseChecker):
                 elif rule == "simplify":
                     passed, details, certificates, error_msg = self._verify_simplify(
                         in_nodes[0], out_nodes[0]
+                    )
+                elif rule == "limit":
+                    passed, details, certificates, error_msg = self._verify_limit(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "continuity":
+                    passed, details, certificates, error_msg = self._verify_continuity(
+                        in_nodes[0], out_nodes[0], edge.parameters
                     )
 
                 else:
@@ -140,7 +185,10 @@ class SymPyChecker(BaseChecker):
                 passed = False
                 error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}"
 
-            status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
+            if details.get("_status_override"):
+                status = VerificationStatus(details.pop("_status_override"))
+            else:
+                status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
 
         elapsed = (time.perf_counter() - start_time) * 1000
         return self._build_report(status, passed, details, certificates, error_msg,
@@ -593,6 +641,239 @@ class SymPyChecker(BaseChecker):
         return passed, details, steps, err
 
     # ------------------------------------------------------------------
+    # Rule: differentiate
+    # General scalar symbolic differentiation with arbitrary positive
+    # integer derivative order.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_differentiate(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip() or not variable_name.strip().isidentifier():
+            return False, {"rule": "differentiate"}, [], "Malformed derivative variable: parameters['variable'] must be a valid identifier."
+        order = params.get("order", 1)
+        if isinstance(order, bool) or not isinstance(order, int) or order < 1:
+            return False, {"rule": "differentiate", "order": order}, [], "Malformed derivative order: parameters['order'] must be a positive integer."
+        raw_assumptions = params.get("assumptions") or {}
+        if not isinstance(raw_assumptions, dict):
+            return False, {"rule": "differentiate"}, [], "Malformed assumptions: parameters['assumptions'] must be an object."
+        allowed = {"real", "positive", "negative", "nonzero", "integer"}
+        symbols: Dict[str, sp.Symbol] = {}
+        try:
+            for name, assumption in raw_assumptions.items():
+                if not isinstance(name, str) or not name.isidentifier():
+                    raise ValueError("Assumption symbol names must be valid identifiers.")
+                items = assumption if isinstance(assumption, list) else [assumption]
+                props = {}
+                for item in items:
+                    if item not in allowed:
+                        raise ValueError(f"Unsupported symbolic assumption '{item}'.")
+                    props[item] = True
+                symbols[name] = sp.Symbol(name, **props)
+        except (TypeError, ValueError) as exc:
+            return False, {"rule": "differentiate", "order": order}, [], f"Malformed assumptions: {exc}"
+        variable = symbols.get(variable_name, sp.Symbol(variable_name, real=True))
+        parser = SafeParser(extra_symbols=symbols | {variable_name: variable})
+        try:
+            in_expr = parser.parse(in_node.expression.raw_str)
+            out_expr = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "differentiate", "order": order}, [], f"SafeParser rejected derivative expression: {exc}"
+        try:
+            expected = sp.diff(in_expr, variable, order)
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return False, {"rule": "differentiate", "order": order}, [], f"UNVERIFIED: differentiation could not be established: {type(exc).__name__}: {exc}"
+        try:
+            residual = sp.simplify(out_expr - expected)
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return False, {
+                "rule": "differentiate", "order": order,
+                "expected_derivative": str(expected), "actual_derivative": str(out_expr),
+                "_status_override": VerificationStatus.UNVERIFIED.value,
+            }, [], f"UNVERIFIED: derivative comparison remained unresolved: {type(exc).__name__}: {exc}"
+        equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        if residual == 0 or equivalence is True:
+            passed, status_override, error = True, None, None
+        elif equivalence is False:
+            passed, status_override = False, None
+            error = f"Derivative mismatch: expected {expected}, got {out_expr}."
+        else:
+            passed, status_override = False, VerificationStatus.UNVERIFIED.value
+            error = "UNVERIFIED: symbolic derivative comparison could not establish equality."
+        domain_details: Dict[str, str] = {}
+        try:
+            domain_details["input_real_domain"] = str(sp.calculus.util.continuous_domain(in_expr, variable, sp.S.Reals))
+        except (NotImplementedError, ValueError, TypeError):
+            domain_details["input_real_domain"] = "UNDETERMINED"
+        try:
+            domain_details["derivative_real_domain"] = str(sp.calculus.util.continuous_domain(expected, variable, sp.S.Reals))
+        except (NotImplementedError, ValueError, TypeError):
+            domain_details["derivative_real_domain"] = "UNDETERMINED"
+        details = {
+            "rule": "differentiate", "variable": str(variable), "order": order,
+            "input_expression": str(in_expr), "expected_derivative": str(expected),
+            "actual_derivative": str(out_expr), "residual": str(residual),
+            "domain_analysis": domain_details,
+        }
+        if status_override:
+            details["_status_override"] = status_override
+        steps = [
+            {"step": 1, "operation": "differentiate", "variable": str(variable), "order": order,
+             "input": str(in_expr), "result": str(expected)},
+            {"step": 2, "operation": "simplify(actual - expected)", "residual": str(residual)},
+        ]
+        return passed, details, steps, error
+
+    # ------------------------------------------------------------------
+    # Rules: explicit composite differentiation
+    # These rules verify the named chain/product/quotient construction itself,
+    # rather than merely accepting an equivalent final derivative.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _parse_composite(cls, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        parser = SafeParser()
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip() or not variable_name.strip().isidentifier():
+            raise ValueError("parameters['variable'] must be a valid identifier.")
+        variable = parser.make_symbol(variable_name.strip())
+        kind = params.get("_rule_kind")
+        if kind == "chain_rule":
+            outer = parser.parse(str(params["outer"]))
+            inner = parser.parse(str(params["inner"]))
+            expression = outer.subs(parser.make_symbol(str(params.get("inner_variable", "u"))), inner)
+            expected = sp.diff(outer, parser.make_symbol(str(params.get("inner_variable", "u")))) * sp.diff(inner, variable)
+            return variable, expression, expected, {"outer": outer, "inner": inner}
+        if kind == "product_rule":
+            factors = params.get("factors")
+            if not isinstance(factors, list) or len(factors) < 2:
+                raise ValueError("parameters['factors'] must contain at least two expressions.")
+            factor_exprs = [parser.parse(str(v)) for v in factors]
+            expression = sp.prod(factor_exprs)
+            expected = sum(
+                sp.diff(factor_exprs[i], variable) * sp.prod(
+                    factor_exprs[j] for j in range(len(factor_exprs)) if j != i
+                ) for i in range(len(factor_exprs))
+            )
+            return variable, expression, expected, {"factors": factor_exprs}
+        if kind == "quotient_rule":
+            numerator = parser.parse(str(params["numerator"]))
+            denominator = parser.parse(str(params["denominator"]))
+            if denominator == 0:
+                raise ValueError("parameters['denominator'] must not be identically zero.")
+            expression = numerator / denominator
+            expected = (sp.diff(numerator, variable) * denominator -
+                        numerator * sp.diff(denominator, variable)) / denominator**2
+            return variable, expression, expected, {"numerator": numerator, "denominator": denominator}
+        raise ValueError("Unsupported composite derivative rule.")
+
+    @classmethod
+    def _verify_composite_derivative_rule(
+        cls, rule: str, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        params = dict(params or {})
+        params["_rule_kind"] = rule
+        try:
+            variable, expression, expected, components = cls._parse_composite(params)
+            actual = SafeParser().parse(out_node.expression.raw_str)
+        except (SafeParseError, KeyError, TypeError, ValueError) as exc:
+            return False, {"rule": rule}, [], f"Malformed {rule} parameters/expression: {exc}"
+        try:
+            residual = sp.simplify(actual - expected)
+        except Exception as exc:
+            return (
+                False, {"rule": rule, "expected_derivative": str(expected)}, [],
+                f"UNVERIFIED: {rule} comparison remained unresolved: {type(exc).__name__}: {exc}"
+            )
+        equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        if residual == 0 or equivalence is True:
+            passed, override, error = True, None, None
+        elif equivalence is False:
+            passed, override, error = False, None, f"{rule} mismatch: expected {expected}, got {actual}."
+        else:
+            passed, override, error = False, VerificationStatus.UNVERIFIED.value, f"UNVERIFIED: {rule} comparison could not establish equality."
+        details = {
+            "rule": rule, "variable": str(variable), "expression": str(expression),
+            "expected_derivative": str(expected), "actual_derivative": str(actual),
+            "residual": str(residual),
+            "components": {k: [str(x) for x in v] if isinstance(v, list) else str(v) for k, v in components.items()},
+        }
+        if override:
+            details["_status_override"] = override
+        steps = [
+            {"step": 1, "operation": rule, "expression": str(expression), "result": str(expected)},
+            {"step": 2, "operation": "simplify(actual - expected)", "residual": str(residual)},
+        ]
+        return passed, details, steps, error
+
+    # ------------------------------------------------------------------
+    # Rule: implicit_differentiate
+    # Verifies dy/dx from an explicit implicit relation F(x,y)=0.
+    # The denominator F_y must be structurally nonzero; if it cannot be
+    # established, verification fails closed as UNVERIFIED.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_implicit_differentiate(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        x_name = params.get("independent_variable", params.get("variable", ""))
+        y_name = params.get("dependent_variable", "")
+        if (not isinstance(x_name, str) or not x_name.strip().isidentifier() or
+                not isinstance(y_name, str) or not y_name.strip().isidentifier() or
+                x_name.strip() == y_name.strip()):
+            return False, {"rule": "implicit_differentiate"}, [], "Malformed implicit differentiation variables."
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(x_name.strip())
+            y = parser.make_symbol(y_name.strip())
+            relation = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "implicit_differentiate"}, [], f"SafeParser rejected implicit differentiation input: {exc}"
+        try:
+            fy = sp.diff(relation, y)
+            fx = sp.diff(relation, x)
+            expected = -fx / fy
+            if fy == 0:
+                return (
+                    False, {"rule": "implicit_differentiate", "F_x": str(fx), "F_y": str(fy)}, [],
+                    "UNVERIFIED: implicit derivative denominator F_y is identically zero."
+                )
+            residual = sp.simplify(actual - expected)
+        except Exception as exc:
+            return (
+                False, {"rule": "implicit_differentiate"}, [],
+                f"UNVERIFIED: implicit differentiation could not be established: {type(exc).__name__}: {exc}"
+            )
+        equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        if residual == 0 or equivalence is True:
+            passed, override, error = True, None, None
+        elif equivalence is False:
+            passed, override, error = False, None, f"Implicit derivative mismatch: expected {expected}, got {actual}."
+        else:
+            passed, override, error = False, VerificationStatus.UNVERIFIED.value, "UNVERIFIED: implicit derivative comparison could not establish equality."
+        details = {
+            "rule": "implicit_differentiate", "independent_variable": str(x),
+            "dependent_variable": str(y), "relation": str(relation),
+            "F_x": str(fx), "F_y": str(fy), "expected_derivative": str(expected),
+            "actual_derivative": str(actual), "residual": str(residual),
+            "local_condition": f"{y_name}'s partial derivative F_y != 0",
+        }
+        if override:
+            details["_status_override"] = override
+        steps = [
+            {"step": 1, "operation": "compute_partial_F_x", "result": str(fx)},
+            {"step": 2, "operation": "compute_partial_F_y", "result": str(fy)},
+            {"step": 3, "operation": "-F_x/F_y", "result": str(expected)},
+            {"step": 4, "operation": "simplify(actual - expected)", "residual": str(residual)},
+        ]
+        return passed, details, steps, error
+
+    # ------------------------------------------------------------------
     # Rule: differentiate_both_sides
     # Verifies that out_expr == d(in_expr)/d(wrt).
     # ------------------------------------------------------------------
@@ -633,6 +914,432 @@ class SymPyChecker(BaseChecker):
         ]
         err = None if passed else f"differentiate_both_sides mismatch: expected {expected}, got {out_expr}"
         return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: integrate
+    # Verifies definite and indefinite symbolic integration. For indefinite
+    # integration, the candidate is checked by differentiating it the
+    # requested number of times, so arbitrary integration order does not
+    # require a hard-coded antiderivative constant convention.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_integrate(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip() or not variable_name.strip().isidentifier():
+            return False, {"rule": "integrate"}, [], "Malformed integration variable: parameters['variable'] must be a valid identifier."
+        order = params.get("order", 1)
+        if isinstance(order, bool) or not isinstance(order, int) or order < 1:
+            return False, {"rule": "integrate", "order": order}, [], "Malformed integration order: parameters['order'] must be a positive integer."
+        parser = SafeParser()
+        try:
+            variable = parser.make_symbol(variable_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "integrate", "order": order}, [], f"SafeParser rejected integration expression: {exc}"
+
+        lower_raw = params.get("lower")
+        upper_raw = params.get("upper")
+        if (lower_raw is None) != (upper_raw is None):
+            return False, {"rule": "integrate"}, [], "Malformed definite integration bounds: both 'lower' and 'upper' are required together."
+        definite = lower_raw is not None
+        try:
+            if definite:
+                lower = parser.parse(str(lower_raw))
+                upper = parser.parse(str(upper_raw))
+                if order != 1:
+                    return False, {"rule": "integrate", "order": order}, [], "Unsupported: repeated definite integration is not yet represented; use order=1."
+                expected = sp.integrate(integrand, (variable, lower, upper))
+                if isinstance(expected, sp.Integral) or expected.has(sp.Integral):
+                    return False, {
+                        "rule": "integrate", "mode": "definite", "order": order,
+                        "integrand": str(integrand), "lower": str(lower), "upper": str(upper),
+                        "_status_override": VerificationStatus.UNVERIFIED.value,
+                    }, [], "UNVERIFIED: definite integral remained unevaluated."
+                residual = sp.simplify(actual - expected)
+            else:
+                lower = upper = None
+                expected = sp.integrate(integrand, variable)
+                if isinstance(expected, sp.Integral) or expected.has(sp.Integral):
+                    return False, {
+                        "rule": "integrate", "mode": "indefinite", "order": order,
+                        "integrand": str(integrand),
+                        "_status_override": VerificationStatus.UNVERIFIED.value,
+                    }, [], "UNVERIFIED: indefinite integral remained unevaluated."
+                # Verify the candidate directly rather than requiring the
+                # backend's particular choice of integration constant/polynomial.
+                actual_check = actual
+                for _ in range(order):
+                    actual_check = sp.diff(actual_check, variable)
+                residual = sp.simplify(actual_check - integrand)
+            equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return (
+                False, {"rule": "integrate", "order": order}, [],
+                f"UNVERIFIED: integration/comparison could not be established: {type(exc).__name__}: {exc}"
+            )
+        if residual == 0 or equivalence is True:
+            passed, override, error = True, None, None
+        elif equivalence is False:
+            passed, override = False, None
+            error = f"Integral mismatch: expected {expected}, got {actual}."
+        else:
+            passed, override = False, VerificationStatus.UNVERIFIED.value
+            error = "UNVERIFIED: symbolic integral comparison could not establish equality."
+        details = {
+            "rule": "integrate", "mode": "definite" if definite else "indefinite",
+            "variable": str(variable), "order": order, "integrand": str(integrand),
+            "expected_result": str(expected), "actual_result": str(actual),
+            "residual": str(residual),
+        }
+        if definite:
+            details.update({"lower": str(lower), "upper": str(upper)})
+        if override:
+            details["_status_override"] = override
+        steps = [
+            {"step": 1, "operation": "integrate" if definite else f"integrate_order_{order}", "result": str(expected)},
+            {"step": 2, "operation": "differentiate_candidate" if not definite else "simplify(actual - expected)", "residual": str(residual)},
+        ]
+        return passed, details, steps, error
+
+    # ------------------------------------------------------------------
+    # Rule: integration_by_substitution
+    # Explicitly represents u = g(x) and the transformed integrand in u.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_integration_by_substitution(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        u_name = params.get("substitution_variable")
+        g_raw = params.get("substitution_expression")
+        transformed_raw = params.get("transformed_integrand")
+        if (not isinstance(variable_name, str) or not variable_name.strip().isidentifier()
+                or not isinstance(u_name, str) or not u_name.strip().isidentifier()
+                or not isinstance(g_raw, str) or not g_raw.strip()
+                or not isinstance(transformed_raw, str) or not transformed_raw.strip()):
+            return False, {"rule": "integration_by_substitution"}, [], (
+                "Malformed substitution: variable, substitution_variable, substitution_expression, "
+                "and transformed_integrand are required."
+            )
+        if variable_name.strip() == u_name.strip():
+            return False, {"rule": "integration_by_substitution"}, [], (
+                "Malformed substitution: integration and substitution variables must differ."
+            )
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(variable_name.strip())
+            u = parser.make_symbol(u_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+            g = parser.parse(g_raw)
+            transformed = parser.parse(transformed_raw)
+        except SafeParseError as exc:
+            return False, {"rule": "integration_by_substitution"}, [], f"SafeParser rejected substitution expression: {exc}"
+        try:
+            if not g.has(x):
+                return False, {"rule": "integration_by_substitution"}, [], (
+                    "Malformed substitution: substitution_expression must depend on the integration variable."
+                )
+            du_dx = sp.diff(g, x)
+            if du_dx == 0 or du_dx.equals(0) is True:
+                return False, {"rule": "integration_by_substitution", "du_dx": str(du_dx)}, [], (
+                    "Invalid substitution: du/dx is identically zero."
+                )
+            transformed_back = sp.simplify(transformed.subs(u, g) * du_dx - integrand)
+            transform_equivalence = transformed_back.equals(0) if hasattr(transformed_back, "equals") else transformed_back == 0
+            candidate_residual = sp.simplify(sp.diff(actual, x) - integrand)
+            candidate_equivalence = candidate_residual.equals(0) if hasattr(candidate_residual, "equals") else candidate_residual == 0
+        except Exception as exc:
+            return False, {"rule": "integration_by_substitution"}, [], (
+                f"UNVERIFIED: substitution verification could not be established: {type(exc).__name__}: {exc}"
+            )
+        details = {
+            "rule": "integration_by_substitution", "variable": str(x),
+            "substitution_variable": str(u), "substitution_expression": str(g),
+            "du_dx": str(du_dx), "transformed_integrand": str(transformed),
+            "transformed_back_residual": str(transformed_back),
+            "candidate_result": str(actual), "candidate_residual": str(candidate_residual),
+            "domain_note": "The represented differential identity and antiderivative are verified; global one-to-one/invertibility is not inferred.",
+        }
+        if transform_equivalence is False or candidate_equivalence is False:
+            return False, details, [], "FAIL: substitution transformation or antiderivative candidate is incorrect."
+        if transform_equivalence is not True or candidate_equivalence is not True:
+            details["_status_override"] = VerificationStatus.UNVERIFIED.value
+            return False, details, [], "UNVERIFIED: symbolic substitution equality could not be established."
+        return True, details, [
+            {"step": 1, "operation": f"u = {g}", "result": str(u)},
+            {"step": 2, "operation": "compute_du_dx", "result": str(du_dx)},
+            {"step": 3, "operation": "substitute_u_and_restore_dx", "residual": str(transformed_back)},
+            {"step": 4, "operation": "differentiate_candidate", "residual": str(candidate_residual)},
+        ], None
+
+    # ------------------------------------------------------------------
+    # Rule: integration_by_parts
+    # Represents u, dv, and v explicitly and verifies the parts identity.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_integration_by_parts(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        u_raw, dv_raw, v_raw = params.get("u"), params.get("dv"), params.get("v")
+        if (not isinstance(variable_name, str) or not variable_name.strip().isidentifier()
+                or not all(isinstance(v, str) and v.strip() for v in (u_raw, dv_raw, v_raw))):
+            return False, {"rule": "integration_by_parts"}, [], (
+                "Malformed integration by parts: variable, u, dv, and v are required strings."
+            )
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(variable_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+            u = parser.parse(u_raw); dv = parser.parse(dv_raw); v = parser.parse(v_raw)
+        except SafeParseError as exc:
+            return False, {"rule": "integration_by_parts"}, [], f"SafeParser rejected integration-by-parts expression: {exc}"
+        try:
+            du = sp.diff(u, x)
+            v_residual = sp.simplify(sp.diff(v, x) - dv)
+            v_equivalence = v_residual.equals(0) if hasattr(v_residual, "equals") else v_residual == 0
+            integrand_residual = sp.simplify(integrand - u * dv)
+            integrand_equivalence = integrand_residual.equals(0) if hasattr(integrand_residual, "equals") else integrand_residual == 0
+            remainder = sp.integrate(v * du, x)
+            if isinstance(remainder, sp.Integral) or remainder.has(sp.Integral):
+                return False, {"rule": "integration_by_parts", "u": str(u), "dv": str(dv), "v": str(v),
+                               "du": str(du), "_status_override": VerificationStatus.UNVERIFIED.value}, [], (
+                    "UNVERIFIED: the integration-by-parts remainder remained unevaluated."
+                )
+            parts_result = sp.simplify(u * v - remainder)
+            candidate_residual = sp.simplify(sp.diff(actual - parts_result, x))
+            candidate_equivalence = candidate_residual.equals(0) if hasattr(candidate_residual, "equals") else candidate_residual == 0
+        except Exception as exc:
+            return False, {"rule": "integration_by_parts"}, [], (
+                f"UNVERIFIED: integration-by-parts verification could not be established: {type(exc).__name__}: {exc}"
+            )
+        details = {
+            "rule": "integration_by_parts", "variable": str(x), "u": str(u), "dv": str(dv),
+            "v": str(v), "du": str(du), "remainder_integral": str(remainder),
+            "parts_result": str(parts_result), "v_residual": str(v_residual),
+            "integrand_residual": str(integrand_residual), "candidate_result": str(actual),
+            "candidate_residual": str(candidate_residual),
+        }
+        if v_equivalence is False or integrand_equivalence is False or candidate_equivalence is False:
+            return False, details, [], "FAIL: the integration-by-parts identity or candidate result is incorrect."
+        if v_equivalence is not True or integrand_equivalence is not True or candidate_equivalence is not True:
+            details["_status_override"] = VerificationStatus.UNVERIFIED.value
+            return False, details, [], "UNVERIFIED: symbolic integration-by-parts equality could not be established."
+        return True, details, [
+            {"step": 1, "operation": "du = differentiate(u)", "result": str(du)},
+            {"step": 2, "operation": "verify(dv = differentiate(v))", "residual": str(v_residual)},
+            {"step": 3, "operation": "integrate(v*du)", "result": str(remainder)},
+            {"step": 4, "operation": "u*v - integral(v*du)", "result": str(parts_result)},
+            {"step": 5, "operation": "differentiate_candidate_minus_parts_result", "residual": str(candidate_residual)},
+        ], None
+
+    # ------------------------------------------------------------------
+    # Rule: partial_fractions_integrate
+    # Represents a rational integrand and its proposed partial-fraction
+    # decomposition, then verifies both decomposition and antiderivative.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_partial_fractions_integrate(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        decomposition_raw = params.get("decomposition")
+        if (not isinstance(variable_name, str) or not variable_name.strip().isidentifier()
+                or not isinstance(decomposition_raw, str) or not decomposition_raw.strip()):
+            return False, {"rule": "partial_fractions_integrate"}, [], (
+                "Malformed partial-fractions integration: variable and decomposition are required strings."
+            )
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(variable_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+            decomposition = parser.parse(decomposition_raw)
+        except SafeParseError as exc:
+            return False, {"rule": "partial_fractions_integrate"}, [], f"SafeParser rejected partial-fractions expression: {exc}"
+        try:
+            rational = sp.together(integrand)
+            denominator = sp.factor(sp.denom(rational))
+            if denominator == 0:
+                return False, {"rule": "partial_fractions_integrate"}, [], "Invalid rational integrand: denominator is identically zero."
+            if denominator == 1 or not denominator.has(x):
+                return False, {"rule": "partial_fractions_integrate", "denominator": str(denominator)}, [], (
+                    "Input is not a nontrivial rational function of the integration variable."
+                )
+            try:
+                sp.Poly(sp.numer(rational), x); sp.Poly(sp.denom(rational), x)
+            except (sp.PolynomialError, NotImplementedError):
+                return False, {"rule": "partial_fractions_integrate", "denominator": str(denominator)}, [], (
+                    "Input is not a rational function in the integration variable."
+                )
+            decomposition_residual = sp.cancel(sp.together(decomposition - integrand))
+            decomposition_equivalence = decomposition_residual.equals(0) if hasattr(decomposition_residual, "equals") else decomposition_residual == 0
+            canonical = sp.apart(integrand, x)
+            canonical_residual = sp.cancel(sp.together(decomposition - canonical))
+            canonical_equivalence = canonical_residual.equals(0) if hasattr(canonical_residual, "equals") else canonical_residual == 0
+            candidate_residual = sp.simplify(sp.diff(actual, x) - integrand)
+            candidate_equivalence = candidate_residual.equals(0) if hasattr(candidate_residual, "equals") else candidate_residual == 0
+        except Exception as exc:
+            return False, {"rule": "partial_fractions_integrate"}, [], (
+                f"UNVERIFIED: partial-fractions verification could not be established: {type(exc).__name__}: {exc}"
+            )
+        details = {
+            "rule": "partial_fractions_integrate", "variable": str(x), "integrand": str(integrand),
+            "decomposition": str(decomposition), "canonical_decomposition": str(canonical),
+            "decomposition_residual": str(decomposition_residual), "canonical_residual": str(canonical_residual),
+            "candidate_result": str(actual), "candidate_residual": str(candidate_residual),
+            "domain_restriction": f"{denominator} != 0",
+        }
+        if decomposition_equivalence is False or canonical_equivalence is False or candidate_equivalence is False:
+            return False, details, [], "FAIL: partial-fraction decomposition or integrated candidate is incorrect."
+        if decomposition_equivalence is not True or canonical_equivalence is not True or candidate_equivalence is not True:
+            details["_status_override"] = VerificationStatus.UNVERIFIED.value
+            return False, details, [], "UNVERIFIED: symbolic partial-fraction equality could not be established."
+        return True, details, [
+            {"step": 1, "operation": "compute_denominator_and_domain", "result": f"{denominator} != 0"},
+            {"step": 2, "operation": "verify_partial_fraction_decomposition", "residual": str(decomposition_residual)},
+            {"step": 3, "operation": "compare_with_canonical_apart", "residual": str(canonical_residual)},
+            {"step": 4, "operation": "differentiate_candidate", "residual": str(candidate_residual)},
+        ], None
+
+    # ------------------------------------------------------------------
+    # Rule: trigonometric_integrate
+    # Dedicated tractable trig/hyperbolic integration path. Candidate and
+    # backend primitive are both differentiated back to the integrand.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_trigonometric_integrate(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        from sympy.integrals.manualintegrate import manualintegrate
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip().isidentifier():
+            return False, {"rule": "trigonometric_integrate"}, [], "Malformed trigonometric integration: variable must be a valid identifier."
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(variable_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "trigonometric_integrate"}, [], f"SafeParser rejected trigonometric integration expression: {exc}"
+        try:
+            if not any(integrand.has(fn) for fn in (sp.sin, sp.cos, sp.tan, sp.sec, sp.csc, sp.cot, sp.sinh, sp.cosh, sp.tanh, sp.sech, sp.csch, sp.coth)):
+                return False, {"rule": "trigonometric_integrate"}, [], "Malformed trigonometric integration: integrand contains no supported trigonometric or hyperbolic function."
+            expected = manualintegrate(integrand, x)
+            if isinstance(expected, sp.Integral) or expected.has(sp.Integral):
+                return False, {"rule": "trigonometric_integrate", "integrand": str(integrand), "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: trigonometric integration remained unevaluated."
+            residual = sp.simplify(sp.diff(actual, x) - integrand)
+            equivalence = residual.equals(0) if hasattr(residual, "equals") else residual == 0
+            backend_residual = sp.simplify(sp.diff(expected, x) - integrand)
+            backend_equivalence = backend_residual.equals(0) if hasattr(backend_residual, "equals") else backend_residual == 0
+        except Exception as exc:
+            return False, {"rule": "trigonometric_integrate"}, [], f"UNVERIFIED: trigonometric integration could not be established: {type(exc).__name__}: {exc}"
+        details = {
+            "rule": "trigonometric_integrate", "variable": str(x), "integrand": str(integrand),
+            "expected_result": str(expected), "actual_result": str(actual),
+            "residual": str(residual), "backend_residual": str(backend_residual),
+            "method": "sympy.manualintegrate", "verification": "differentiate_candidate_and_backend_result",
+        }
+        if equivalence is False or backend_equivalence is False:
+            return False, details, [], "FAIL: trigonometric antiderivative is incorrect."
+        if equivalence is not True or backend_equivalence is not True:
+            details["_status_override"] = VerificationStatus.UNVERIFIED.value
+            return False, details, [], "UNVERIFIED: symbolic trigonometric comparison could not establish equality."
+        return True, details, [
+            {"step": 1, "operation": "manualintegrate", "result": str(expected)},
+            {"step": 2, "operation": "differentiate_backend_result", "residual": str(backend_residual)},
+            {"step": 3, "operation": "differentiate_candidate", "residual": str(residual)},
+        ], None
+
+    # ------------------------------------------------------------------
+    # Rule: nested_integrate
+    # Verifies a represented sequence of indefinite integrations. The
+    # sequence is explicit: variables are applied from left to right to
+    # the integrand, and the proposed final expression is differentiated
+    # back in reverse order. This supports mixed/repeated variables
+    # without an arbitrary depth ceiling.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_nested_integrate(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variables = params.get("variables")
+        if not isinstance(variables, list) or not variables:
+            return False, {"rule": "nested_integrate"}, [], "Malformed nested integration: parameters['variables'] must be a non-empty list."
+        if any(not isinstance(v, str) or not v.strip() or not v.strip().isidentifier() for v in variables):
+            return False, {"rule": "nested_integrate", "variables": variables}, [], "Malformed nested integration variable list."
+        parser = SafeParser()
+        try:
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+            symbols = [parser.make_symbol(v.strip()) for v in variables]
+        except SafeParseError as exc:
+            return False, {"rule": "nested_integrate", "variables": variables}, [], f"SafeParser rejected nested integration expression: {exc}"
+
+        try:
+            expected = integrand
+            forward_steps = []
+            for symbol in symbols:
+                expected = sp.integrate(expected, symbol)
+                forward_steps.append(str(expected))
+                if isinstance(expected, sp.Integral) or expected.has(sp.Integral):
+                    return (
+                        False,
+                        {"rule": "nested_integrate", "variables": [str(v) for v in symbols], "_status_override": VerificationStatus.UNVERIFIED.value},
+                        forward_steps,
+                        f"UNVERIFIED: integration with respect to {symbol} remained unevaluated."
+                    )
+
+            recovered = actual
+            reverse_steps = []
+            for symbol in reversed(symbols):
+                recovered = sp.diff(recovered, symbol)
+                reverse_steps.append(str(recovered))
+            residual = sp.simplify(recovered - integrand)
+            equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        except Exception as exc:
+            return (
+                False,
+                {"rule": "nested_integrate", "variables": [str(v) for v in symbols]},
+                [],
+                f"UNVERIFIED: nested integration could not be established: {type(exc).__name__}: {exc}"
+            )
+
+        if residual == 0 or equivalence is True:
+            passed, override, error = True, None, None
+        elif equivalence is False:
+            passed, override = False, None
+            error = f"Nested integral mismatch: expected a valid antiderivative chain, got {actual}."
+        else:
+            passed, override = False, VerificationStatus.UNVERIFIED.value
+            error = "UNVERIFIED: nested integration comparison could not establish equality."
+
+        details = {
+            "rule": "nested_integrate",
+            "variables": [str(v) for v in symbols],
+            "integrand": str(integrand),
+            "expected_result": str(expected),
+            "actual_result": str(actual),
+            "recovered_integrand": str(recovered),
+            "residual": str(residual),
+            "integration_depth": len(symbols),
+            "forward_steps": forward_steps,
+            "reverse_steps": reverse_steps,
+        }
+        if override:
+            details["_status_override"] = override
+        steps = [
+            {"step": i + 1, "operation": f"integrate_d{symbol}", "result": result}
+            for i, (symbol, result) in enumerate(zip(symbols, forward_steps))
+        ]
+        steps.extend(
+            {"step": len(steps) + i + 1, "operation": f"differentiate_d{symbol}", "result": result}
+            for i, (symbol, result) in enumerate(zip(reversed(symbols), reverse_steps))
+        )
+        return passed, details, steps, error
 
     # ------------------------------------------------------------------
     # Rule: substitute
@@ -704,6 +1411,341 @@ class SymPyChecker(BaseChecker):
         steps = [{"step": 1, "operation": "simplify(in - out)", "expr": str(diff)}]
         err = None if passed else f"simplify: expressions are not equivalent: {diff}"
         return passed, details, steps, err
+
+
+    # ------------------------------------------------------------------
+    # Rules: limit / continuity
+    # Limits are deliberately evaluated with explicit direction semantics.
+    # A two-sided finite-point limit is established only when the left and
+    # right limits both exist and agree. Direct substitution is never used
+    # as a substitute for the limiting operation.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _limit_assumption_symbols(raw: Any) -> Dict[str, sp.Symbol]:
+        assumptions = raw or {}
+        if not isinstance(assumptions, dict):
+            raise ValueError("parameters['assumptions'] must be an object mapping symbol names to assumption names.")
+        allowed = {"real", "positive", "negative", "nonzero", "integer"}
+        symbols: Dict[str, sp.Symbol] = {}
+        for name, assumption in assumptions.items():
+            if not isinstance(name, str) or not name.isidentifier():
+                raise ValueError("Assumption symbol names must be valid identifiers.")
+            items = assumption if isinstance(assumption, list) else [assumption]
+            props = {}
+            for item in items:
+                if item not in allowed:
+                    raise ValueError(f"Unsupported symbolic assumption '{item}'.")
+                props[item] = True
+            symbols[name] = sp.Symbol(name, **props)
+        return symbols
+
+    @classmethod
+    def _parse_limit_inputs(cls, in_node: Any, params: Dict[str, Any]) -> tuple[sp.Expr, sp.Symbol, sp.Expr, str]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip() or not variable_name.strip().isidentifier():
+            raise ValueError("parameters['variable'] must be a valid identifier.")
+        assumptions = cls._limit_assumption_symbols(params.get("assumptions"))
+        variable = assumptions.get(variable_name, sp.Symbol(variable_name, real=True))
+        parser = SafeParser(extra_symbols=assumptions | {variable_name: variable})
+        try:
+            expr = parser.parse(in_node.expression.raw_str)
+        except SafeParseError as exc:
+            raise ValueError(f"SafeParser rejected limit expression: {exc}") from exc
+        point_raw = params.get("point")
+        if point_raw is None:
+            raise ValueError("parameters['point'] is required.")
+        try:
+            point = parser.parse(str(point_raw))
+        except SafeParseError as exc:
+            raise ValueError(f"SafeParser rejected limit point: {exc}") from exc
+        direction = params.get("direction", "two_sided")
+        if direction in {"-", "left"}:
+            direction = "left"
+        elif direction in {"+", "right"}:
+            direction = "right"
+        elif direction in {"two-sided", "both", "+-"}:
+            direction = "two_sided"
+        elif direction in {"infinity", "+infinity", "plus_infinity"}:
+            direction = "+infinity"
+        elif direction in {"-infinity", "minus_infinity"}:
+            direction = "-infinity"
+        elif direction not in {"two_sided", "left", "right"}:
+            raise ValueError("Unsupported limit direction. Use two_sided, left, right, +infinity, or -infinity.")
+        if direction in {"two_sided", "left", "right"} and point in {sp.oo, -sp.oo}:
+            raise ValueError("Finite-point limit directions require a finite target point.")
+        if direction == "+infinity":
+            point = sp.oo
+        elif direction == "-infinity":
+            point = -sp.oo
+        return expr, variable, point, direction
+
+    @staticmethod
+    def _limit_known(value: sp.Expr) -> bool:
+        if isinstance(value, sp.Limit) or value is None:
+            return False
+        if value in {sp.nan, sp.zoo}:
+            return False
+        return not bool(value.has(sp.Limit))
+
+    @classmethod
+    def _limit_numeric_evidence(cls, expr: sp.Expr, variable: sp.Symbol, point: sp.Expr,
+                                direction: str, expected: Any) -> Dict[str, Any]:
+        """Independent NumPy sampling; evidence only, never the proof."""
+        if expr.free_symbols - {variable}:
+            return {"available": False, "independence_class": "NOT_AVAILABLE",
+                    "reason": "Numeric limit evidence requires no unresolved symbols besides the limit variable."}
+        if point not in {sp.oo, -sp.oo} and point.free_symbols:
+            return {"available": False, "independence_class": "NOT_AVAILABLE",
+                    "reason": "Numeric limit evidence requires a numeric target point."}
+        try:
+            fn = sp.lambdify(variable, expr, "numpy")
+            if point in {sp.oo, -sp.oo}:
+                samples = np.asarray([10.0, 30.0, 100.0, 300.0, 1000.0])
+                if point == -sp.oo:
+                    samples = -samples
+            else:
+                p = float(sp.N(point))
+                deltas = np.asarray([1e-2, 3e-3, 1e-3, 3e-4, 1e-4])
+                if direction == "left":
+                    samples = p - deltas
+                elif direction == "right":
+                    samples = p + deltas
+                else:
+                    samples = np.concatenate([p - deltas, p + deltas])
+            values = np.asarray(fn(samples), dtype=np.complex128).reshape(-1)
+            finite_mask = np.isfinite(values.real) & np.isfinite(values.imag)
+            samples = samples[finite_mask]
+            values = values[finite_mask]
+            if values.size == 0:
+                return {"available": False, "independence_class": "NOT_AVAILABLE",
+                        "reason": "Numeric sampling produced no finite sample values."}
+            expected_value = None
+            if expected != "DNE":
+                try:
+                    expected_value = complex(sp.N(expected))
+                except Exception:
+                    expected_value = None
+            if expected_value is not None and np.isfinite(expected_value.real) and np.isfinite(expected_value.imag):
+                scale = max(1.0, abs(expected_value))
+                error = float(np.max(np.abs(values - expected_value)))
+                passed = error <= 2e-3 + 2e-3 * scale
+            elif expected == sp.oo:
+                passed, error = bool(abs(values[-1]) > max(10.0, abs(values[0]) * 1.5)), None
+            elif expected == -sp.oo:
+                passed, error = bool(values[-1].real < min(-10.0, values[0].real * 1.5)), None
+            else:
+                passed, error = None, None
+            return {
+                "available": True, "independence_class": "DIFFERENT_ENGINE",
+                "engine": "numpy.lambdify_sampling", "version": np.__version__,
+                "operation": "limit", "direction": direction,
+                "sample_count": int(values.size), "sample_points": samples.tolist(),
+                "sample_values": [str(complex(v)) for v in values],
+                "passed": passed, "max_abs_error": error, "evidence_only": True,
+            }
+        except (TypeError, ValueError, OverflowError, ZeroDivisionError, FloatingPointError):
+            return {"available": False, "independence_class": "NOT_AVAILABLE",
+                    "reason": "Independent numerical limit sampling failed."}
+
+    @classmethod
+    def _limit_domain_supported(cls, expr: sp.Expr, variable: sp.Symbol, point: sp.Expr,
+                                direction: str) -> tuple[bool, str]:
+        """Conservatively require an approach path in the real scalar domain."""
+        if point in {sp.oo, -sp.oo}:
+            return True, "infinite_target"
+        if point.free_symbols:
+            if all(symbol.is_real is True for symbol in point.free_symbols):
+                return True, "symbolic_real_target_under_explicit_assumptions"
+            return False, "symbolic target is not established as real; add an explicit real assumption."
+        extra_symbols = expr.free_symbols - {variable}
+        if extra_symbols:
+            if all(symbol.is_real is True for symbol in extra_symbols):
+                return True, "explicitly_real_symbolic_parameters"
+            return False, "symbolic parameter domain is not established as real."
+        try:
+            from sympy.calculus.util import continuous_domain
+            domain = continuous_domain(expr, variable, sp.S.Reals)
+            punctured = sp.Complement(sp.S.Reals, sp.FiniteSet(point))
+            if domain == punctured:
+                return True, "punctured_real_domain"
+            if direction in {"two_sided", "left"}:
+                left = sp.Interval.open(point - 1, point)
+                if left.is_subset(domain) is not True:
+                    if direction == "left":
+                        return False, f"real-domain analysis did not establish a left punctured neighborhood: {domain}"
+                    return False, f"real-domain analysis did not establish a left punctured neighborhood: {domain}"
+            if direction in {"two_sided", "right"}:
+                right = sp.Interval.open(point, point + 1)
+                if right.is_subset(domain) is not True:
+                    return False, f"real-domain analysis did not establish a right punctured neighborhood: {domain}"
+            return True, str(domain)
+        except (NotImplementedError, ValueError, TypeError):
+            return False, "real-domain analysis was unavailable"
+    
+    @classmethod
+    def _verify_limit(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        expr, variable, point, direction = cls._parse_limit_inputs(in_node, params)
+        expected_raw = out_node.expression.raw_str.strip()
+        if not expected_raw:
+            return False, {"rule": "limit"}, [], "Malformed limit result."
+        if expected_raw.upper() in {"DNE", "DOES_NOT_EXIST", "NONEXISTENT"}:
+            expected_marker, expected = "DNE", "DNE"
+        else:
+            expected_symbols = cls._limit_assumption_symbols(params.get("assumptions"))
+            expected_symbols[str(variable)] = variable
+            parser = SafeParser(extra_symbols=expected_symbols)
+            try:
+                expected = parser.parse(expected_raw)
+            except SafeParseError as exc:
+                return False, {"rule": "limit"}, [], f"SafeParser rejected claimed limit: {exc}"
+            expected_marker = None
+        try:
+            domain_ok, domain_detail = cls._limit_domain_supported(expr, variable, point, direction)
+            if not domain_ok:
+                return False, {"rule": "limit", "direction": direction, "variable": str(variable),
+                               "point": str(point), "domain_analysis": domain_detail,
+                               "_status_override": VerificationStatus.UNVERIFIED.value}, [],                        "Limit domain/approach path could not be established safely."
+            if direction == "two_sided":
+                left = sp.limit(expr, variable, point, dir="-")
+                right = sp.limit(expr, variable, point, dir="+")
+                if not cls._limit_known(left) or not cls._limit_known(right):
+                    return False, {"rule": "limit", "direction": direction, "variable": str(variable),
+                                   "point": str(point), "left_limit": str(left), "right_limit": str(right),
+                                   "_status_override": VerificationStatus.UNVERIFIED.value}, \
+                           "Two-sided limit could not be established from both one-sided limits."
+                if isinstance(left, sp.AccumBounds) or isinstance(right, sp.AccumBounds):
+                    actual, existence = "DNE", "nonexistent"
+                elif left == right:
+                    actual, existence = left, "finite_or_infinite"
+                else:
+                    actual, existence = "DNE", "nonexistent"
+            else:
+                sympy_dir = "-" if direction == "left" else "+" if direction == "right" else "+"
+                actual = sp.limit(expr, variable, point, dir=sympy_dir)
+                if not cls._limit_known(actual):
+                    return False, {"rule": "limit", "direction": direction, "variable": str(variable),
+                                   "point": str(point), "computed_limit": str(actual),
+                                   "_status_override": VerificationStatus.UNVERIFIED.value}, \
+                           "Limit computation remained unresolved."
+                existence = "finite" if actual.is_finite is True else "infinite" if actual in {sp.oo, -sp.oo} else "undetermined"
+            if expected_marker == "DNE":
+                passed = actual == "DNE"
+                error_msg = None if passed else f"Limit exists as {actual}; claimed DNE."
+            else:
+                if actual == expected:
+                    passed, error_msg = True, None
+                else:
+                    comparison = sp.simplify(actual - expected) if actual != "DNE" else sp.Integer(1)
+                    if comparison == 0:
+                        passed, error_msg = True, None
+                    elif getattr(comparison, "is_zero", None) is False or comparison.is_number:
+                        passed, error_msg = False, f"Limit mismatch: expected {expected}, computed {actual}."
+                    else:
+                        return False, {"rule": "limit", "direction": direction, "variable": str(variable),
+                                       "point": str(point), "computed_limit": str(actual), "claimed_limit": str(expected),
+                                       "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                               "Limit comparison depends on unresolved symbolic assumptions."
+            numeric = cls._limit_numeric_evidence(expr, variable, point, direction, actual)
+            details = {"rule": "limit", "direction": direction, "variable": str(variable), "point": str(point),
+                       "computed_limit": str(actual), "claimed_limit": expected_raw,
+                       "existence_class": existence, "domain_analysis": domain_detail,
+                       "numeric_evidence": numeric}
+            steps = [{"step": 1, "operation": "compute explicit directional limit", "direction": direction},
+                     {"step": 2, "operation": "compare computed limit with claimed result",
+                      "computed": str(actual), "claimed": expected_raw}]
+            return passed, details, steps, error_msg
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return False, {"rule": "limit", "direction": direction,
+                           "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                   f"UNVERIFIED: limit computation unavailable: {type(exc).__name__}: {exc}"
+
+    @classmethod
+    def _verify_continuity(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        expr, variable, point, direction = cls._parse_limit_inputs(in_node, params)
+        if direction != "two_sided" or point in {sp.oo, -sp.oo}:
+            return False, {"rule": "continuity"}, [], \
+                "UNSUPPORTED: continuity is pointwise at a finite ordinary point; use limit for one-sided or infinite targets."
+
+        domain_ok, domain_detail = cls._limit_domain_supported(expr, variable, point, "two_sided")
+        value = expr.subs(variable, point)
+        value_defined = value not in {sp.nan, sp.zoo, sp.oo, -sp.oo} and not value.has(sp.zoo, sp.nan)
+
+        # Continuity is defined through the two-sided limit, so compute the
+        # same left/right obligations used by the limit rule even when f(a)
+        # itself is undefined (the removable-discontinuity case).
+        if not domain_ok:
+            if value_defined:
+                return False, {"rule": "continuity", "function_value": str(value),
+                               "domain_analysis": domain_detail,
+                               "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                       "Continuity could not be established because the real approach domain is unresolved."
+            actual_indicator = 0
+            left = right = None
+        else:
+            left = sp.limit(expr, variable, point, dir="-")
+            right = sp.limit(expr, variable, point, dir="+")
+            if not cls._limit_known(left) or not cls._limit_known(right):
+                return False, {"rule": "continuity", "function_value": str(value),
+                               "function_value_defined": value_defined,
+                               "left_limit": str(left), "right_limit": str(right),
+                               "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                       "Continuity could not be established because the two-sided limit is unresolved."
+            if not value_defined:
+                actual_indicator = 0
+            elif isinstance(left, sp.AccumBounds) or isinstance(right, sp.AccumBounds):
+                actual_indicator = 0
+            elif left != right:
+                actual_indicator = 0
+            else:
+                difference = sp.simplify(left - value)
+                if difference == 0:
+                    actual_indicator = 1
+                elif difference.is_zero is False or difference.is_number:
+                    actual_indicator = 0
+                else:
+                    return False, {"rule": "continuity", "function_value": str(value),
+                                   "two_sided_limit": str(left),
+                                   "domain_analysis": domain_detail,
+                                   "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                           "Continuity comparison depends on unresolved symbolic assumptions."
+
+        expected_raw = out_node.expression.raw_str.strip()
+        if expected_raw not in {"0", "1"}:
+            return False, {"rule": "continuity", "function_value": str(value)}, [], \
+                   "Continuity output must be the explicit indicator 1 (continuous) or 0 (not continuous)."
+        passed = int(expected_raw) == actual_indicator
+        details = {
+            "rule": "continuity",
+            "variable": str(variable),
+            "point": str(point),
+            "function_value": str(value),
+            "function_value_defined": value_defined,
+            "left_limit": str(left) if left is not None else None,
+            "right_limit": str(right) if right is not None else None,
+            "two_sided_limit": str(left) if left is not None and left == right else "DNE",
+            "continuous_indicator": actual_indicator,
+            "domain_analysis": domain_detail,
+            "interpretation": "1 means lim(x->a) f(x) = f(a); 0 means continuity is not established.",
+        }
+        if value_defined and left is not None and left == right:
+            details["numeric_evidence"] = cls._limit_numeric_evidence(expr, variable, point, "two_sided", left)
+        else:
+            details["numeric_evidence"] = {
+                "available": False, "independence_class": "NOT_AVAILABLE",
+                "reason": "Independent numeric evidence is not decisive for an undefined value or nonexistent two-sided limit.",
+                "evidence_only": True,
+            }
+        steps = [
+            {"step": 1, "operation": "evaluate function value at the point", "value": str(value)},
+            {"step": 2, "operation": "compute left and right limits",
+             "left": str(left) if left is not None else None,
+             "right": str(right) if right is not None else None},
+            {"step": 3, "operation": "verify lim(x->a) f(x) = f(a)"},
+        ]
+        return passed, details, steps, None if passed else \
+               f"Continuity mismatch: expected indicator {expected_raw}, computed {actual_indicator}"
 
 
     # ------------------------------------------------------------------
