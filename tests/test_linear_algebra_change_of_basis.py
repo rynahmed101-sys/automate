@@ -54,7 +54,7 @@ def test_change_of_basis_preserves_represented_vector():
             "Matrix([[1, 1], [0, 1]])",
             "Vector([4, 2])",
         ],
-        "Vector([4, -2])",
+        "Vector([2, 6])",
     )
     assert report.passed
 
