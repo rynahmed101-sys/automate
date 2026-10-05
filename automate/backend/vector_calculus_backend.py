@@ -316,7 +316,7 @@ class VectorCalculusChecker(BaseChecker):
                     substitution = {sp.Symbol(str(name)): curve[i] for i, name in enumerate(coords)}
                     field_on_curve = sp.Matrix(inputs[0].value).subs(substitution)
                     integrand = sp.simplify(field_on_curve.dot(tangent))
-                    expected = sp.integrate(integrand, bounds[0])
+                    expected = sp.integrate(integrand, (t, bounds[0][0], bounds[0][1]))
                 expected_parsed = ParsedLinearAlgebra("scalar", sp.sympify(expected))
                 if not self._equal(outputs[0], expected_parsed):
                     return self._report(edge, graph, start, VerificationStatus.FAILED, False,
