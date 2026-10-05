@@ -27,7 +27,7 @@ def test_continuous_charge_field_kernel():
 
 def test_continuous_charge_potential_kernel():
     r = _check("continuous_charge_potential", "rho", "Vector([x,y,z])",
-               "k*rho/sqrt(x**2+y**2+z**2)", measure="dx")
+               "k*rho*dx/sqrt(x**2+y**2+z**2)", measure="dx")
     assert r.passed
 
 
