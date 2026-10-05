@@ -948,7 +948,7 @@ class SymPyChecker(BaseChecker):
                     else:
                         return False, {"rule": "limit", "direction": direction, "variable": str(variable),
                                        "point": str(point), "computed_limit": str(actual), "claimed_limit": str(expected),
-                                       "_status_override": VerificationStatus.UNVERIFIED.value}, \
+                                       "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
                                "Limit comparison depends on unresolved symbolic assumptions."
             numeric = cls._limit_numeric_evidence(expr, variable, point, direction, actual)
             details = {"rule": "limit", "direction": direction, "variable": str(variable), "point": str(point),
