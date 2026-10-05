@@ -66,6 +66,7 @@ def verify_translated_expression(
         expected_output=expected,
         sandbox_limits=sandbox_limits,
         claim_fingerprint_sha256=translation["ir_fingerprint_sha256"],
+        comparison_target_source="independent_renderer",
     )
     result["comparison_scope"] = "structural_tensor_round_trip"
     result["independent_result"] = expected
