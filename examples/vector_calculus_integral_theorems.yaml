@@ -1,0 +1,19 @@
+theory: vector_calculus_integral_theorems
+name: Cartesian Integral Theorems
+description: Bounded theorem verification over explicit Cartesian domains.
+nodes:
+  field:
+    expression: "Vector([-y, x])"
+  result:
+    expression: "0"
+derivations:
+  green:
+    input_nodes: [field]
+    output_nodes: [result]
+    transformation_rule: green_theorem
+    justification: Green theorem residual for a smooth planar field on the unit rectangle.
+    checker: vector_calculus
+    parameters:
+      coordinates: [x, y]
+      bounds: [[0, 1], [0, 1]]
+      orientation: ccw
