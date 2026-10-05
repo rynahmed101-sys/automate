@@ -46,7 +46,7 @@ def test_lorentz_force():
     verifier = MaxwellVerifier(system)
     expected = verifier._parse_scalar("q*(1+2*v)")
     assert sp.simplify(force[0] - expected) == 0
-    assert force[1:] == sp.zeros(2, 1)
+    assert list(force[1:]) == [0, 0]
 
 
 def test_poynting_theorem_for_uniform_static_fields():
