@@ -92,7 +92,7 @@ def test_safe_parser_rejects_malicious_derivative_expression():
     assert not report.passed
 
 def test_unresolved_symbolic_comparison_is_unverified():
-    graph, edge = _graph_edge("sqrt(a**2)*x", "a", parameters={"variable": "x", "order": 1})
+    graph, edge = _graph_edge("Abs(a)*x", "a", parameters={"variable": "x", "order": 1})
     report = SymPyChecker().verify_edge(edge, graph)
     assert report.status == VerificationStatus.UNVERIFIED
     assert not report.passed
