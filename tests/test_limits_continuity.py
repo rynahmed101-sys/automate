@@ -155,7 +155,7 @@ def test_real_domain_is_respected_for_two_sided_limits():
 
 def test_symbolic_parameter_and_assumption():
     graph, edge = _graph_edge(
-        "limit", "sqrt(a**2 + x**2)", "a",
+        "limit", "sin(a*x)/x", "a",
         parameters={
             "variable": "x",
             "point": "0",
