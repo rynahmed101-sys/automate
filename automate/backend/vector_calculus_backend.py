@@ -300,12 +300,13 @@ class VectorCalculusChecker(BaseChecker):
                 if rule == "line_integral_scalar":
                     if inputs[0].kind != "scalar":
                         raise ValueError("line_integral_scalar requires a scalar field.")
-                    composed = inputs[0].value.subs({sp.Symbol(str(s)): curve[i] for i, s in enumerate(edge.parameters.get("coordinates", []))})
-                    if not edge.parameters.get("coordinates"):
-                        coordinates = sorted(composed.free_symbols - {t}, key=str)
-                        if coordinates:
-                            raise ValueError("Scalar field coordinates must be supplied explicitly.")
-                    expected = sp.integrate(composed * sp.sqrt(tangent.dot(tangent)), bounds[0])
+                    coords = edge.parameters.get("coordinates")
+                    if not isinstance(coords, list) or len(coords) != len(curve):
+                        raise ValueError("coordinates must match the curve dimension.")
+                    substitution = {sp.Symbol(str(name)): curve[i] for i, name in enumerate(coords)}
+                    composed = inputs[0].value.subs(substitution)
+                    integrand = sp.simplify(composed * sp.sqrt(tangent.dot(tangent)))
+                    expected = sp.integrate(integrand, bounds[0])
                 else:
                     if inputs[0].kind != "vector" or len(inputs[0].value) != len(curve):
                         raise ValueError("line_integral_vector requires a vector field matching the curve dimension.")
@@ -314,7 +315,8 @@ class VectorCalculusChecker(BaseChecker):
                         raise ValueError("coordinates must match the curve dimension.")
                     substitution = {sp.Symbol(str(name)): curve[i] for i, name in enumerate(coords)}
                     field_on_curve = sp.Matrix(inputs[0].value).subs(substitution)
-                    expected = sp.integrate(field_on_curve.dot(tangent), bounds[0])
+                    integrand = sp.simplify(field_on_curve.dot(tangent))
+                    expected = sp.integrate(integrand, bounds[0])
                 expected_parsed = ParsedLinearAlgebra("scalar", sp.sympify(expected))
                 if not self._equal(outputs[0], expected_parsed):
                     return self._report(edge, graph, start, VerificationStatus.FAILED, False,
@@ -322,7 +324,7 @@ class VectorCalculusChecker(BaseChecker):
                                         f"{rule} result is mathematically incorrect.")
                 details["symbolic_equivalence"] = True
                 details["independent_numerical_check"] = self._independent_integral_check(
-                    rule, inputs, outputs[0], integrand, outputs[0], variables, bounds
+                    rule, integrand, outputs[0], variables, bounds
                 )
                 return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
             elif rule in {"surface_integral_scalar", "surface_flux"}:
@@ -354,7 +356,7 @@ class VectorCalculusChecker(BaseChecker):
                                         f"{rule} result is mathematically incorrect.")
                 details["symbolic_equivalence"] = True
                 details["independent_numerical_check"] = self._independent_integral_check(
-                    rule, inputs, outputs[0], variables, bounds, expected_parsed.value
+                    rule, integrand, outputs[0], variables, bounds
                 )
                 return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
             elif rule == "volume_integral":
@@ -362,7 +364,8 @@ class VectorCalculusChecker(BaseChecker):
                     raise ValueError("volume_integral requires one scalar field and one scalar output.")
                 variables = self._integration_variables(edge.parameters, 3)
                 bounds = self._integration_bounds(edge.parameters, 3)
-                expected = sp.integrate(inputs[0].value, *[(var, lo, hi) for var, (lo, hi) in zip(variables, bounds)])
+                integrand = inputs[0].value
+                expected = sp.integrate(integrand, *[(var, lo, hi) for var, (lo, hi) in zip(variables, bounds)])
                 expected_parsed = ParsedLinearAlgebra("scalar", sp.sympify(expected))
                 if not self._equal(outputs[0], expected_parsed):
                     return self._report(edge, graph, start, VerificationStatus.FAILED, False,
