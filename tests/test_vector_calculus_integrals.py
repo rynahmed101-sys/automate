@@ -46,7 +46,7 @@ def test_scalar_and_vector_line_integrals():
         "2",
         parameters={"variables": ["t"], "bounds": [[0, 2]], "coordinates": ["x", "y"]},
     )
-    assert report.passed
+    assert report.passed, report.details
     assert report.details["independent_numerical_check"]["passed"] is True
 
 
