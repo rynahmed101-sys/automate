@@ -28,7 +28,7 @@ class LinearAlgebraChecker(BaseChecker):
         "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_trace",
         "matrix_inverse", "matrix_rank", "matrix_rref", "linear_system_solve",
         "matrix_characteristic_polynomial", "matrix_eigenvalues",
-        "matrix_eigenvector", "matrix_diagonalize",
+        "matrix_eigenvector", "matrix_diagonalize", "quadratic_form",
         "vector_inner_product", "vector_norm", "vector_orthogonal",
         "vector_projection", "vector_gram_schmidt",
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
@@ -193,6 +193,41 @@ class LinearAlgebraChecker(BaseChecker):
                     "available": False,
                     "independence_class": "NOT_AVAILABLE",
                     "reason": f"Characteristic-polynomial numeric cross-check unavailable: {type(exc).__name__}: {exc}",
+                }
+
+        if operation == "quadratic_form":
+            try:
+                matrix = np.asarray(expected["matrix"])
+                vector = np.asarray(expected["vector"]).reshape(-1)
+                independent_value = np.asarray(vector.T @ matrix @ vector)
+                candidate_value = np.asarray(actual_np if "actual_np" in locals() else cls._numeric_array(actual)).reshape(-1)
+                if candidate_value.size != 1:
+                    raise ValueError("Quadratic-form candidate must be scalar.")
+                candidate_value = candidate_value[0]
+                passed = bool(np.allclose(
+                    candidate_value,
+                    independent_value,
+                    rtol=1e-9,
+                    atol=1e-10,
+                    equal_nan=False,
+                ))
+                max_abs_error = float(np.abs(candidate_value - independent_value))
+                return {
+                    "available": True,
+                    "independence_class": "DIFFERENT_ENGINE",
+                    "engine": "numpy.matmul",
+                    "version": np.__version__,
+                    "operation": operation,
+                    "passed": passed,
+                    "rtol": 1e-9,
+                    "atol": 1e-10,
+                    "max_abs_error": max_abs_error,
+                }
+            except (KeyError, TypeError, ValueError, np.linalg.LinAlgError) as exc:
+                return {
+                    "available": False,
+                    "independence_class": "NOT_AVAILABLE",
+                    "reason": f"Quadratic-form numeric cross-check unavailable: {type(exc).__name__}: {exc}",
                 }
 
         actual_np = cls._numeric_array(actual)
@@ -1043,6 +1078,75 @@ class LinearAlgebraChecker(BaseChecker):
                 steps = [
                     {"step": 1, "operation": "verify_basis_invertibility", "determinant": str(determinant)},
                     {"step": 2, "operation": "reconstruct_matrix_from_basis_images", "relation": "M * B = C"},
+                ]
+
+            elif rule == "quadratic_form":
+                if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "vector" or parsed_inputs[1].kind != "matrix" or output.kind != "scalar":
+                    raise LinearAlgebraParseError(
+                        "quadratic_form requires a vector x, a square matrix A, and one scalar output."
+                    )
+                vector = sp.Matrix(parsed_inputs[0].value)
+                matrix = sp.Matrix(parsed_inputs[1].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(
+                        f"Quadratic-form matrix must be square; received {matrix.shape}."
+                    )
+                if vector.rows != matrix.rows:
+                    raise ValueError(
+                        f"Quadratic-form shape mismatch: x has length {vector.rows} but A is {matrix.shape}."
+                    )
+
+                entries = list(vector) + list(matrix)
+                if any(entry.is_real is False or entry.has(sp.I) for entry in entries):
+                    return self._unverified(
+                        edge, graph, start, details,
+                        "Complex-valued quadratic forms are unsupported until the project defines an explicit "
+                        "bilinear-versus-Hermitian convention; the current rule is the real transpose form x^T*A*x."
+                    )
+
+                expected = ParsedLinearAlgebra("scalar", (vector.T * matrix * vector)[0])
+                symmetric_part = sp.Rational(1, 2) * (matrix + matrix.T)
+                antisymmetric_part = sp.Rational(1, 2) * (matrix - matrix.T)
+                symmetric_form = (vector.T * symmetric_part * vector)[0]
+                antisymmetric_form = (vector.T * antisymmetric_part * vector)[0]
+
+                if not self._equal_scalar(expected.value, symmetric_form):
+                    return self._unverified(
+                        edge, graph, start, details,
+                        "The symbolic engine could not establish equivalence between x^T*A*x and "
+                        "x^T*((A+A^T)/2)*x."
+                    )
+                if not self._equal_scalar(antisymmetric_form, sp.Integer(0)):
+                    return self._unverified(
+                        edge, graph, start, details,
+                        "The symbolic engine could not establish that the antisymmetric part contributes zero."
+                    )
+
+                if self._has_free_symbols(parsed_inputs[0]) or self._has_free_symbols(parsed_inputs[1]):
+                    # Symbolic variables are evaluated under the rule's explicit real-form convention.
+                    # Equality remains exact; no numerical cross-check is claimed for symbolic entries.
+                    pass
+
+                nx = self._numeric_array(parsed_inputs[0])
+                nA = self._numeric_array(parsed_inputs[1])
+                if nx is not None and nA is not None:
+                    numpy_expected = {"vector": nx, "matrix": nA}
+
+                details["domain"] = "real_transpose_form"
+                details["matrix_is_symmetric"] = bool(matrix == matrix.T)
+                details["symmetric_part"] = self._display(
+                    ParsedLinearAlgebra("matrix", symmetric_part)
+                )
+                details["antisymmetric_part"] = self._display(
+                    ParsedLinearAlgebra("matrix", antisymmetric_part)
+                )
+                details["symmetric_part_equivalent"] = True
+                details["antisymmetric_contribution"] = str(sp.simplify(antisymmetric_form))
+                steps = [
+                    {"step": 1, "operation": "validate_square_matrix", "shape": list(matrix.shape)},
+                    {"step": 2, "operation": "evaluate_x_transpose_A_x"},
+                    {"step": 3, "operation": "decompose_A_into_symmetric_and_antisymmetric_parts"},
+                    {"step": 4, "operation": "verify_symmetric_part_equivalence"},
                 ]
 
             elif rule == "matrix_characteristic_polynomial":
