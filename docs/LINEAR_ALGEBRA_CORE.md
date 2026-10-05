@@ -15,3 +15,12 @@ Gaussian-elimination evidence records pivots and reduced row-echelon form. All s
 AI agents should discover these capabilities with automate capabilities --json, retrieve context with automate context, and submit automate.proposal.v1 using target_checker linear_algebra. AI output remains untrusted until the checker returns SYMBOLIC_CHECKED.
 
 Named acceptance campaign: tests/test_linear_algebra_acceptance.py.
+
+
+## Linear transformations and matrix representations
+
+A finite-dimensional linear transformation is represented by a matrix A and applied to an input vector x as y = A x. Rectangular matrices are supported, so domain and codomain dimensions may differ. Verification rejects incompatible dimensions and compares the candidate output against exact symbolic matrix action; numeric inputs also receive an independent NumPy matrix-vector cross-check.
+
+The matrix representation rule reconstructs a unique map from an explicit invertible domain basis B and the corresponding image columns C by verifying M B = C, equivalently M = C B^-1. Singular bases are rejected, while symbolic parameterized bases whose invertibility cannot be established are returned as UNVERIFIED rather than assumed valid.
+
+These rules establish reusable transformation semantics without depending on the pending change-of-basis capability.

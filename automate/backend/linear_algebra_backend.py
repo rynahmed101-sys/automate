@@ -33,6 +33,7 @@ class LinearAlgebraChecker(BaseChecker):
         "vector_projection", "vector_gram_schmidt",
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
         "vector_span_membership", "vector_linear_independence", "vector_basis_of_span",
+        "linear_transformation_apply", "matrix_representation",
     }
 
     @property
@@ -970,6 +971,79 @@ class LinearAlgebraChecker(BaseChecker):
                 numeric_b = self._numeric_array(parsed_inputs[1])
                 if numeric_g is not None and numeric_b is not None:
                     numpy_expected = {"generators": numeric_g, "basis": numeric_b}
+
+            elif rule == "linear_transformation_apply":
+                if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "vector":
+                    raise LinearAlgebraParseError(
+                        "linear_transformation_apply requires a transformation matrix, input vector, and output vector."
+                    )
+                transformation = sp.Matrix(parsed_inputs[0].value)
+                vector = sp.Matrix(parsed_inputs[1].value)
+                candidate = sp.Matrix(output.value)
+                if transformation.cols != vector.rows:
+                    raise ValueError(
+                        f"Linear-transformation shape mismatch: matrix {transformation.shape} cannot act on vector length {vector.rows}."
+                    )
+                if candidate.rows != transformation.rows:
+                    raise ValueError(
+                        f"Linear-transformation output mismatch: expected length {transformation.rows}, received {candidate.rows}."
+                    )
+                expected = ParsedLinearAlgebra("vector", transformation * vector)
+                numeric_matrix = self._numeric_array(parsed_inputs[0])
+                numeric_vector = self._numeric_array(parsed_inputs[1])
+                if numeric_matrix is not None and numeric_vector is not None:
+                    numpy_expected = numeric_matrix @ numeric_vector.reshape(-1)
+                steps.append({
+                    "step": 1,
+                    "operation": "linear_transformation_matrix_action",
+                    "domain_dimension": int(transformation.cols),
+                    "codomain_dimension": int(transformation.rows),
+                })
+
+            elif rule == "matrix_representation":
+                if len(parsed_inputs) != 2 or any(x.kind != "matrix" for x in parsed_inputs) or output.kind != "matrix":
+                    raise LinearAlgebraParseError(
+                        "matrix_representation requires a domain-basis matrix, its image matrix, and a candidate representation matrix."
+                    )
+                basis = sp.Matrix(parsed_inputs[0].value)
+                images = sp.Matrix(parsed_inputs[1].value)
+                candidate = sp.Matrix(output.value)
+                if basis.rows != basis.cols:
+                    raise ValueError(
+                        f"matrix_representation requires a square full-domain basis matrix; received {basis.shape}."
+                    )
+                if images.cols != basis.cols:
+                    raise ValueError(
+                        f"Basis-image mismatch: basis has {basis.cols} vectors but images contain {images.cols} columns."
+                    )
+                if candidate.shape != (images.rows, basis.rows):
+                    raise ValueError(
+                        f"Representation shape mismatch: expected {(images.rows, basis.rows)}, received {candidate.shape}."
+                    )
+                determinant = sp.simplify(basis.det())
+                if determinant == 0:
+                    raise ValueError("The supplied domain basis is singular and cannot represent a full basis.")
+                if determinant.free_symbols:
+                    return self._unverified(
+                        edge,
+                        graph,
+                        start,
+                        details,
+                        "Basis invertibility cannot be established for symbolic parameters without explicit domain assumptions.",
+                    )
+                expected_matrix = sp.simplify(images * basis.inv())
+                expected = ParsedLinearAlgebra("matrix", expected_matrix)
+                numeric_basis = self._numeric_array(parsed_inputs[0])
+                numeric_images = self._numeric_array(parsed_inputs[1])
+                if numeric_basis is not None and numeric_images is not None:
+                    try:
+                        numpy_expected = numeric_images @ np.linalg.inv(numeric_basis)
+                    except np.linalg.LinAlgError as exc:
+                        return self._failure(edge, graph, start, details, f"Independent matrix-representation cross-check failed: {exc}")
+                steps = [
+                    {"step": 1, "operation": "verify_basis_invertibility", "determinant": str(determinant)},
+                    {"step": 2, "operation": "reconstruct_matrix_from_basis_images", "relation": "M * B = C"},
+                ]
 
             elif rule == "matrix_characteristic_polynomial":
                 if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
