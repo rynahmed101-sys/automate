@@ -111,6 +111,10 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_differentiate_both_sides(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                elif rule == "differentiate":
+                    passed, details, certificates, error_msg = self._verify_differentiate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule == "substitute":
                     passed, details, certificates, error_msg = self._verify_substitute(
                         in_nodes[0], out_nodes[0], edge.parameters
@@ -603,6 +607,91 @@ class SymPyChecker(BaseChecker):
         ]
         err = None if passed else f"divide_both_sides mismatch: expected {expected}, got {out_expr}"
         return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: differentiate
+    # General scalar symbolic differentiation with arbitrary positive
+    # integer derivative order.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_differentiate(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip() or not variable_name.strip().isidentifier():
+            return False, {"rule": "differentiate"}, [], "Malformed derivative variable: parameters['variable'] must be a valid identifier."
+        order = params.get("order", 1)
+        if isinstance(order, bool) or not isinstance(order, int) or order < 1:
+            return False, {"rule": "differentiate", "order": order}, [], "Malformed derivative order: parameters['order'] must be a positive integer."
+        raw_assumptions = params.get("assumptions") or {}
+        if not isinstance(raw_assumptions, dict):
+            return False, {"rule": "differentiate"}, [], "Malformed assumptions: parameters['assumptions'] must be an object."
+        allowed = {"real", "positive", "negative", "nonzero", "integer"}
+        symbols: Dict[str, sp.Symbol] = {}
+        try:
+            for name, assumption in raw_assumptions.items():
+                if not isinstance(name, str) or not name.isidentifier():
+                    raise ValueError("Assumption symbol names must be valid identifiers.")
+                items = assumption if isinstance(assumption, list) else [assumption]
+                props = {}
+                for item in items:
+                    if item not in allowed:
+                        raise ValueError(f"Unsupported symbolic assumption '{item}'.")
+                    props[item] = True
+                symbols[name] = sp.Symbol(name, **props)
+        except (TypeError, ValueError) as exc:
+            return False, {"rule": "differentiate", "order": order}, [], f"Malformed assumptions: {exc}"
+        variable = symbols.get(variable_name, sp.Symbol(variable_name, real=True))
+        parser = SafeParser(extra_symbols=symbols | {variable_name: variable})
+        try:
+            in_expr = parser.parse(in_node.expression.raw_str)
+            out_expr = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "differentiate", "order": order}, [], f"SafeParser rejected derivative expression: {exc}"
+        try:
+            expected = sp.diff(in_expr, variable, order)
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return False, {"rule": "differentiate", "order": order}, [], f"UNVERIFIED: differentiation could not be established: {type(exc).__name__}: {exc}"
+        try:
+            residual = sp.simplify(out_expr - expected)
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return False, {
+                "rule": "differentiate", "order": order,
+                "expected_derivative": str(expected), "actual_derivative": str(out_expr),
+                "_status_override": VerificationStatus.UNVERIFIED.value,
+            }, [], f"UNVERIFIED: derivative comparison remained unresolved: {type(exc).__name__}: {exc}"
+        if residual == 0:
+            passed, status_override, error = True, None, None
+        elif residual.is_zero is False:
+            passed, status_override = False, None
+            error = f"Derivative mismatch: expected {expected}, got {out_expr}."
+        else:
+            passed, status_override = False, VerificationStatus.UNVERIFIED.value
+            error = "UNVERIFIED: symbolic derivative comparison could not establish equality."
+        domain_details: Dict[str, str] = {}
+        try:
+            domain_details["input_real_domain"] = str(sp.calculus.util.continuous_domain(in_expr, variable, sp.S.Reals))
+        except (NotImplementedError, ValueError, TypeError):
+            domain_details["input_real_domain"] = "UNDETERMINED"
+        try:
+            domain_details["derivative_real_domain"] = str(sp.calculus.util.continuous_domain(expected, variable, sp.S.Reals))
+        except (NotImplementedError, ValueError, TypeError):
+            domain_details["derivative_real_domain"] = "UNDETERMINED"
+        details = {
+            "rule": "differentiate", "variable": str(variable), "order": order,
+            "input_expression": str(in_expr), "expected_derivative": str(expected),
+            "actual_derivative": str(out_expr), "residual": str(residual),
+            "domain_analysis": domain_details,
+        }
+        if status_override:
+            details["_status_override"] = status_override
+        steps = [
+            {"step": 1, "operation": "differentiate", "variable": str(variable), "order": order,
+             "input": str(in_expr), "result": str(expected)},
+            {"step": 2, "operation": "simplify(actual - expected)", "residual": str(residual)},
+        ]
+        return passed, details, steps, error
 
     # ------------------------------------------------------------------
     # Rule: differentiate_both_sides
