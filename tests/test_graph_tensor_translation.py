@@ -103,10 +103,11 @@ def test_graph_to_cadabra_boundary_binds_canonical_ir_fingerprint(monkeypatch):
     ))
     captured = {}
 
-    def fake_run(source, *, expected_output=None, sandbox_limits=None, claim_fingerprint_sha256=None):
+    def fake_run(source, *, expected_output=None, sandbox_limits=None, claim_fingerprint_sha256=None, comparison_target_source="caller_supplied"):
         captured["source"] = source
         captured["expected_output"] = expected_output
         captured["claim"] = claim_fingerprint_sha256
+        captured["comparison_target_source"] = comparison_target_source
         return {
             "execution_status": "COMPLETED",
             "independence_class": "DIFFERENT_ENGINE",
@@ -121,6 +122,7 @@ def test_graph_to_cadabra_boundary_binds_canonical_ir_fingerprint(monkeypatch):
     result = verify_graph_tensor_node_with_cadabra(graph, "n")
     assert result["independence_class"] == "DIFFERENT_ENGINE"
     assert captured["claim"]
+    assert captured["comparison_target_source"] == "independent_renderer"
     assert len(captured["claim"]) == 64
     assert captured["expected_output"] == "R_{a}^{b} v_{b}"
     assert "ex := R_{a}^{b} v_{b}:" in captured["source"]
