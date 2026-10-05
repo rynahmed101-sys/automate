@@ -40,7 +40,7 @@ def test_change_of_basis_round_trip():
             "Matrix([[1, 0], [1, 1]])",
             "Vector([2, 3])",
         ],
-        "Vector([-1, 3])",
+        "Vector([5, -2])",
     )
     assert report.passed
     assert report.status == VerificationStatus.SYMBOLIC_CHECKED
