@@ -15,11 +15,11 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 ## Current position
 
-**Current main:** `36aeddcfe99e04f122db8721de039b7933e7e74a`
+**Current main:** `bb5fe79ce5be6db978c39a810fdf2803273f7e1e`
 
-**Current work:** Linear Algebra Phase 1A eigenproblem extension has been merged.
+**Current work:** The development-vs-exact-head CI policy is now merged. Linear Algebra Phase 1A eigenproblem extension remains the active mathematical milestone.
 
-**Current verification gate:** Exact `main` CI + Security Audit are queued for the merged SHA, so this batch is **[!] Verification pending**, not complete.
+**Current verification gate:** Exact-head CI + Security Audit are queued for `bb5fe79ce5be6db978c39a810fdf2803273f7e1e`. The eigenproblem batch remains **[!] Verification pending**, not complete.
 
 **Next capability after this gate:** Linear Algebra inner-product / orthogonality extension, then Vector Calculus.
 
