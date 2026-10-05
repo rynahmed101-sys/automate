@@ -261,6 +261,7 @@ def test_campaign_field_wrong_equation_rejected():
             "fields": ["phi"],
             "coordinates": ["x"],
             "parameters": {"m": "positive"},
+            "assumptions": ["vanishing_boundary_variations"],
         },
     )
     report = SymPyChecker().verify_edge(edge, graph)
