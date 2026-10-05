@@ -174,6 +174,38 @@ class DifferentialEquationNode(BaseModel):
     is_linear: bool = True
 
 
+
+class TransformNode(BaseModel):
+    """Canonical representation of a one-dimensional integral transform."""
+    kind: Literal["transform"] = "transform"
+    transform: Literal["fourier", "laplace"] 
+    direction: Literal["forward", "inverse"] = "forward"
+    expression: Dict[str, Any]
+    source_variable: str
+    target_variable: str
+    convention: str
+    assumptions: List[str] = Field(default_factory=list)
+
+class FourierSeriesNode(BaseModel):
+    """Fourier-series representation with explicit period and convention."""
+    kind: Literal["fourier_series"] = "fourier_series"
+    expression: Dict[str, Any]
+    variable: str
+    period: str
+    coefficients: Dict[str, Any] = Field(default_factory=dict)
+    interval: Optional[List[str]] = None
+    assumptions: List[str] = Field(default_factory=list)
+
+class ConvolutionNode(BaseModel):
+    """Continuous convolution with explicit integration variable."""
+    kind: Literal["convolution"] = "convolution"
+    left: Dict[str, Any]
+    right: Dict[str, Any]
+    variable: str
+    output_variable: str
+    assumptions: List[str] = Field(default_factory=list)
+
+
 class StatisticalModelNode(BaseModel):
     kind: Literal["statistical_model"] = "statistical_model"
     name: str
