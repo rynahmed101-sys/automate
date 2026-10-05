@@ -288,6 +288,69 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="integration_by_substitution",
+            name="Integration by Substitution",
+            category="calculus",
+            description="Verifies an explicit u=g(x) substitution, including the du/dx factor, transformed integrand identity, and proposed antiderivative.",
+            domain="mathematics",
+            inputs=["Scalar Integrand", "Substitution", "Transformed Integrand"],
+            outputs=["Scalar Antiderivative"],
+            required_assumptions=["explicit_integration_variable", "explicit_substitution"],
+            side_conditions=["represented_du_dx"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Change of variables / u-substitution",
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="integration_by_parts",
+            name="Integration by Parts",
+            category="calculus",
+            description="Verifies an explicit u, dv, v representation using integral(u dv) = u*v - integral(v du), then verifies the proposed antiderivative.",
+            domain="mathematics",
+            inputs=["Scalar Integrand", "u", "dv", "v"],
+            outputs=["Scalar Antiderivative"],
+            required_assumptions=["explicit_integration_variable", "explicit_parts_components"],
+            side_conditions=["differentiate_v_equals_dv"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Integration by Parts",
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="partial_fractions_integrate",
+            name="Partial Fractions Integration",
+            category="calculus",
+            description="Verifies a rational integrand's explicit partial-fraction decomposition, preserves denominator restrictions, and verifies the proposed antiderivative.",
+            domain="mathematics",
+            inputs=["Rational Integrand", "Partial-Fraction Decomposition"],
+            outputs=["Scalar Antiderivative"],
+            required_assumptions=["explicit_integration_variable", "nonzero_denominator_on_domain"],
+            side_conditions=["rational_function_in_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Partial Fractions",
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="trigonometric_integrate",
+            name="Trigonometric Integration",
+            category="calculus",
+            description="Verifies tractable trigonometric or hyperbolic integration using a symbolic backend primitive and differentiation of both backend and candidate results.",
+            domain="mathematics",
+            inputs=["Trigonometric Scalar Integrand"],
+            outputs=["Scalar Antiderivative"],
+            required_assumptions=["explicit_integration_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Trigonometric Integration",
+        ))
+
+        self.register(RuleDefinition(
             rule_id="limit",
             name="Scalar Limit",
             category="calculus",
