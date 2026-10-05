@@ -1,29 +1,18 @@
-# Stage 2C Classical Mechanics Foundation
+# Stage 2C Classical Mechanics
 
-This branch establishes a reusable representation layer for classical mechanics. It does not claim the full Stage 2C roadmap.
+Stage 2C now has a reusable representation layer plus core verification layers built on the existing Lagrangian engine.
 
-## Representation
+## Implemented
 
-MechanicalSystemRepresentation captures generalized coordinates, kinetic and potential energy, generalized forces, constraints, parameters, assumptions, and time. The typed components make the structure explicit.
+- generalized-coordinate, kinetic/potential energy, force, and constraint representations;
+- Euler-Lagrange derivation with the existing independent SymPy cross-check;
+- canonical momenta, Hamiltonian construction, energy conservation, and Noether checks;
+- holonomic constraint augmentation with explicit Lagrange multipliers;
+- verification of both canonical Hamilton equations for regular Lagrangians;
+- fail-closed rejection of nonholonomic constraints by the multiplier verifier.
 
-The representation composes into the existing LagrangianSystem rather than duplicating Euler-Lagrange machinery. This preserves the existing symbolic derivation and SymPy cross-check path.
+## Boundaries
 
-## Current reusable operations
+Not claimed: general nonholonomic dynamics, canonical transformations, Poisson-bracket algebra, central-force/Kepler solution families, normal-mode diagonalization, rigid-body dynamics, rotating-frame dynamics, or closed-form solution generation.
 
-- kinematic first/second derivatives for arbitrary listed coordinates;
-- canonical L = T - V and E = T + V construction;
-- generalized-force mapping with unknown-coordinate rejection;
-- explicit constraint residuals;
-- conversion to the existing Euler-Lagrange/Hamiltonian/Noether engine.
-
-## Existing mechanics before this branch
-
-automate/mechanics/lagrangian.py already provides generalized-coordinate Lagrangian derivation, canonical momenta, Euler-Lagrange verification, Hamiltonian construction, energy-conservation verification, and a SymPy Euler-Lagrange cross-check. Existing tests cover harmonic oscillator, pendulum, central-force polar motion, coupled oscillators, free particle, and a relativistic free-particle cross-check.
-
-Those are reusable primitives/examples, but the prior architecture lacked a canonical high-level mechanical-system representation.
-
-## Deliberate boundaries
-
-This branch does not claim implementation of all roadmap items: constraint enforcement with multipliers, general work/impulse integrals, Hamilton equation verification, Poisson brackets, canonical transformations, central-force/Kepler solution families, normal-mode diagonalization, rigid-body kinematics, or rotating-frame dynamics remain future capability work.
-
-Malformed and structurally inconsistent representations fail closed rather than being inferred.
+Unsupported or ambiguous symbolic cases remain unresolved rather than inferred.
