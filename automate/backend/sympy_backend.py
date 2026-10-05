@@ -10,7 +10,6 @@ return NOT_APPLICABLE rather than silently passing.
 
 import time
 import re
-import traceback
 from typing import Dict, Any, List, Optional, Union
 import sympy as sp
 import numpy as np
@@ -121,12 +120,9 @@ class SymPyChecker(BaseChecker):
                         in_nodes[0], out_nodes[0]
                     )
                 elif rule == "limit":
-                    limit_result = self._verify_limit(
+                    passed, details, certificates, error_msg = self._verify_limit(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
-                    if len(limit_result) != 4:
-                        raise ValueError(f"limit verifier returned {len(limit_result)} values: {limit_result!r}")
-                    passed, details, certificates, error_msg = limit_result
                 elif rule == "continuity":
                     passed, details, certificates, error_msg = self._verify_continuity(
                         in_nodes[0], out_nodes[0], edge.parameters
@@ -151,7 +147,7 @@ class SymPyChecker(BaseChecker):
                     )
             except Exception as e:
                 passed = False
-                error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}\n{traceback.format_exc(limit=6)}"
+                error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}"
 
             if details.get("_status_override"):
                 status = VerificationStatus(details.pop("_status_override"))
