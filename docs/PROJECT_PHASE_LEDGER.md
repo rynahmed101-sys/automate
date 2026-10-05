@@ -175,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Current main is ab563a7709fbbb21a901603c22082750f98c9d84; Exact-head run #15, Automate CI run #983, and Security Audit run #539 all pass on that exact HEAD. Linear transformations, symmetric/Hermitian matrices, and positive-definite matrices are authoritatively verified on the current merged main. Change-of-basis remains in-progress on an unmerged branch. SVD, quadratic forms, pseudoinverse/least-squares, and complex semantics remain implementation/review work on open PRs. Stage 1B and 1C remain unfinished.
+**Current status:** [~] Active. Current main is 1556e2e40c2a97eccf30790445da5e7faa0bcf67. Linear transformations, symmetric/Hermitian matrices, and positive-definite matrices remain authoritatively verified on merged main. Change-of-basis and quadratic forms are implemented and merged but still awaiting authoritative post-merge verification. SVD has been rebuilt onto the current main as PR #74 and is awaiting CI/review. Pseudoinverse/least-squares and complex semantics remain open implementation/review work. Stage 1B and 1C remain unfinished.
 
 ---
 
