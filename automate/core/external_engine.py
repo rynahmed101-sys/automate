@@ -29,7 +29,7 @@ class ExternalEngineEvidence(BaseModel):
     executable_fingerprint_sha256: Optional[str] = None
     runtime_environment_fingerprint_sha256: Optional[str] = None
     adapter_version: str = "v1"
-    provenance_schema_version: str = "v1"
+    provenance_schema_version: str = "v2"
     execution_status: ExternalExecutionStatus
     independence_class: ExternalIndependence
     input_fingerprint_sha256: str
