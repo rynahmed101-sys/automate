@@ -1,0 +1,20 @@
+theory: uniform_line_charge
+name: Finite Uniform Line Charge Potential
+nodes:
+  density:
+    expression: "1"
+  observation:
+    expression: "Vector([0,1,0])"
+  potential:
+    expression: "2*k*asinh(1)"
+derivations:
+  potential:
+    input_nodes: [density, observation]
+    output_nodes: [potential]
+    transformation_rule: uniform_line_charge_potential
+    justification: Exact finite line-charge potential integral on x in [-1,1].
+    checker: electrostatics
+    parameters:
+      axis: x
+      source_bounds: ["-1", "1"]
+      coordinates: [x, y, z]

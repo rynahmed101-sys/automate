@@ -72,3 +72,56 @@ def test_distribution_rules_registered():
     assert {"continuous_charge_field","continuous_charge_potential"}.issubset(
         set(RuleRegistry().list_rule_ids())
     )
+
+
+def _line_check(density, observation, output, parameters):
+    graph = DerivationGraph(id="line_charge")
+    for nid, expr in [("density", density), ("obs", observation), ("out", output)]:
+        graph.add_node(DerivationNode(id=nid, expression=MathematicalExpression(raw_str=expr)))
+    edge = DerivationEdge(
+        id="e", input_nodes=["density", "obs"], output_nodes=["out"],
+        transformation_rule="uniform_line_charge_potential",
+        justification="Phase 2B finite line-charge acceptance",
+        checker="electrostatics", parameters=parameters,
+    )
+    return ElectrostaticsChecker().verify_edge(edge, graph)
+
+
+def test_uniform_finite_x_line_charge_potential():
+    result = _line_check("1", "Vector([0,1,0])", "2*k*asinh(1)",
+        {"axis": "x", "source_bounds": ["-1", "1"], "coordinates": ["x", "y", "z"]})
+    assert result.passed
+
+
+def test_uniform_finite_y_line_charge_potential():
+    result = _line_check("2", "Vector([1,0,0])", "4*k*asinh(1)",
+        {"axis": "y", "source_bounds": ["-1", "1"], "coordinates": ["x", "y", "z"]})
+    assert result.passed
+
+
+def test_uniform_line_charge_wrong_claim_rejected():
+    result = _line_check("1", "Vector([0,1,0])", "1",
+        {"axis": "x", "source_bounds": ["-1", "1"], "coordinates": ["x", "y", "z"]})
+    assert not result.passed
+
+
+def test_uniform_line_charge_rejects_missing_geometry_contract():
+    assert not _line_check("1", "Vector([0,1,0])", "2*k*asinh(1)",
+        {"axis": "x", "source_bounds": ["-1", "1"]}).passed
+    assert not _line_check("1", "Vector([0,0,0])", "0",
+        {"axis": "x", "source_bounds": ["-1", "1"], "coordinates": ["x", "y", "z"]}).passed
+
+
+def test_uniform_line_charge_rejects_unsafe_bounds():
+    assert not _line_check("1", "Vector([0,1,0])", "2*k*asinh(1)",
+        {"axis": "x", "source_bounds": ["-1", "__import__('os').system('id')"], "coordinates": ["x", "y", "z"]}).passed
+
+
+def test_uniform_line_charge_rejects_nonpositive_interval():
+    assert not _line_check("1", "Vector([0,1,0])", "2*k*asinh(1)",
+        {"axis": "x", "source_bounds": ["1", "-1"], "coordinates": ["x", "y", "z"]}).passed
+
+
+def test_uniform_line_charge_registry_exposes_rule():
+    from automate.theory.rules import RuleRegistry
+    assert "uniform_line_charge_potential" in RuleRegistry().list_rule_ids()

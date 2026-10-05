@@ -17,13 +17,13 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 ## Current position
 
-**Last recorded capability baseline main:** `de66de7bd9394bf56038931e17ae3dbb1312ded4`
+**Last recorded capability baseline main:** `823d141d0395f085f4bd98bc09079ae8e5a95198`
 
-**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics is also covered by the certified main head; the next bounded batch is electrostatics beyond isolated point charges.
+**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B now includes verified point-charge electrostatics and bounded continuous-charge kernels on the certified main head. The next bounded batch is finite uniform line-charge potential.
 
-**Latest authoritative verification:** Exact-head Python 3.10/3.11/3.12/3.13, Lean 4, CodeQL, and pip-audit all passed on merged main SHA `de66de7bd9394bf56038931e17ae3dbb1312ded4`.
+**Latest authoritative verification:** Exact-head Python 3.10/3.11/3.12/3.13, full tests, adversarial tests, the exact 50-problem acceptance campaign, Phase 1A Linear Algebra Core/Eigenproblem campaigns, Lean 4, CodeQL, and pip-audit passed on merged main SHA `823d141d0395f085f4bd98bc09079ae8e5a95198`.
 
-**Next capability:** Continuous charge distributions and electrostatic superposition. Gauss-law verification, conductors, capacitors, dipoles, and boundary conditions remain later bounded batches.
+**Next capability:** Finite uniform line-charge potential as the next bounded continuous-distribution batch. Gauss-law verification, conductors, capacitors, dipoles, and boundary conditions remain later bounded batches.
 
 ---
 
@@ -91,7 +91,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 ## Electrostatics
 - [ ] Coulomb law
 - [ ] Electric field and potential
-- [ ] Charge distributions
+- [x] Charge distributions
 - [ ] Gauss law
 - [ ] Conductors and capacitors
 - [ ] Dipoles and electrostatic energy
@@ -115,7 +115,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Poynting vector
 - [ ] Electromagnetic wave equation
 
-**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge electrostatics are verified. Continuous charge distributions are next.
+**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge/continuous-charge kernels are verified. Finite uniform line-charge potential is the current bounded batch.
 
 ---
 
@@ -364,8 +364,8 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 ## Next move
 
-**1. Verify the current eigenproblem batch on its exact merged main SHA.**
+**1. Implement the bounded finite uniform line-charge potential batch on current main.**
 
-**2. Expand Linear Algebra into inner products, norms, orthogonality, projections, and Gram-Schmidt.**
+**2. Verify it with positive, negative, edge, and parser-adversarial acceptance tests.**
 
-**3. Move into Phase 2A: Vector Calculus.**
+**3. After authoritative verification, advance to the next bounded Phase 2B electrostatics capability, with Gauss-law verification as the next major candidate.**
