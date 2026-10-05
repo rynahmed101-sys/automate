@@ -226,7 +226,9 @@ class SymPyChecker(BaseChecker):
     ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str], VerificationStatus]:
         """Route all reusable ODE capabilities through one semantic engine."""
         variable = str(params.get("variable", "t"))
-        function = str(params.get("function", params.get("dependent_variable", "y")))
+        coordinate_names = params.get("coordinates")
+        default_function = coordinate_names[0] if isinstance(coordinate_names, list) and coordinate_names else "y"
+        function = str(params.get("function", params.get("dependent_variable", default_function)))
         engine = ODEEngine(variable=variable, function=function)
         equation = in_nodes[0].expression.raw_str
         candidate = out_nodes[0].expression.raw_str
