@@ -859,6 +859,10 @@ class SymPyChecker(BaseChecker):
         """Conservatively require an approach path in the real scalar domain."""
         if point in {sp.oo, -sp.oo}:
             return True, "infinite_target"
+        if point.free_symbols:
+            if all(symbol.is_real is True for symbol in point.free_symbols):
+                return True, "symbolic_real_target_under_explicit_assumptions"
+            return False, "symbolic target is not established as real; add an explicit real assumption."
         try:
             from sympy.calculus.util import continuous_domain
             domain = continuous_domain(expr, variable, sp.S.Reals)
