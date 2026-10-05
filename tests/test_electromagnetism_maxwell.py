@@ -43,8 +43,10 @@ def test_lorentz_force():
         field=ElectromagneticField(electric="1,0,0", magnetic="0,0,2")
     )
     force = LorentzForceCalculator(system).force("q", "0,v,0")
-    q, v = sp.Symbol("q", real=True), sp.Symbol("v", real=True)
-    assert force == sp.Matrix([q * (1 + 2*v), 0, 0])
+    verifier = MaxwellVerifier(system)
+    expected = verifier._parse_scalar("q*(1+2*v)")
+    assert sp.simplify(force[0] - expected) == 0
+    assert force[1:] == sp.zeros(2, 1)
 
 
 def test_poynting_theorem_for_uniform_static_fields():
