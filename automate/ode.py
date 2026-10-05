@@ -75,7 +75,13 @@ class ODEEngine:
         )
 
     def parse_candidate(self, text: str) -> sp.Expr:
-        return self.parse_expression(text)
+        raw = str(text).strip()
+        if "=" in raw:
+            lhs, rhs = raw.split("=", 1)
+            if not lhs.strip() or not rhs.strip():
+                raise SafeParseError("Candidate solution equation must have both sides.")
+            raw = rhs.strip()
+        return self.parse_expression(raw)
 
     def parse_parameters(self, params: Dict[str, Any], key: str) -> sp.Expr:
         value = params.get(key)
@@ -154,6 +160,25 @@ class ODEEngine:
             eq = self.parse_equation(normalized_equation)
             candidate = self.parse_candidate(candidate_text)
             residual, order, zero = self._candidate_residual(eq, candidate)
+            alias_substitutions: Dict[sp.Expr, sp.Expr] = {}
+            for name, value in params.items():
+                if name in {"variable", "function", "dependent_variable", "coordinates",
+                            "parameters", "domain", "assumptions", "initial_conditions",
+                            "boundary_conditions", "state_variables", "functions"}:
+                    continue
+                if isinstance(value, str) and value.strip():
+                    try:
+                        alias_substitutions[sp.Symbol(str(name))] = self.parse_expression(value)
+                    except SafeParseError:
+                        continue
+            if alias_substitutions:
+                try:
+                    residual = sp.simplify(residual.subs(alias_substitutions))
+                    residual = sp.trigsimp(residual)
+                    residual = sp.simplify(residual)
+                    zero = self._zero_state(residual)
+                except Exception:
+                    pass
         except SafeParseError as exc:
             return self._result(
                 False,
@@ -184,6 +209,7 @@ class ODEEngine:
             "variable": self.variable_name,
             "dependent_function": self.function_name,
             "residual": str(residual),
+            "alias_substitutions": {str(k): str(v) for k, v in alias_substitutions.items()},
             "satisfies_ode": zero is True,
             "domain": params.get("domain"),
             "assumptions": params.get("assumptions", []),
