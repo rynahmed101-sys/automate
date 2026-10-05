@@ -919,9 +919,59 @@ class LinearAlgebraChecker(BaseChecker):
 
             if rule == "matrix_diagonalize":
                 cross = self._numpy_diagonalization_compare(parsed_inputs[0], parsed_outputs[0], parsed_outputs[1])
+            elif rule == "vector_gram_schmidt":
+                numeric_inputs = [self._numeric_array(x) for x in parsed_inputs]
+                if all(x is not None for x in numeric_inputs):
+                    reference = []
+                    orthonormal = edge.parameters.get("orthonormal", False)
+                    for vector in numeric_inputs:
+                        q = np.asarray(vector, dtype=complex).reshape(-1).copy()
+                        for prior in reference:
+                            q = q - (np.vdot(prior, q) / np.vdot(prior, prior)) * prior
+                        if orthonormal:
+                            q = q / np.linalg.norm(q)
+                        reference.append(q)
+                    candidate = [self._numeric_array(x).reshape(-1) for x in parsed_outputs]
+                    passed = (
+                        len(candidate) == len(reference)
+                        and all(
+                            np.allclose(
+                                actual_vector,
+                                reference_vector,
+                                rtol=1e-8,
+                                atol=1e-10,
+                                equal_nan=False,
+                            )
+                            for actual_vector, reference_vector in zip(candidate, reference)
+                        )
+                    )
+                    max_abs_error = max(
+                        (
+                            float(np.max(np.abs(actual_vector - reference_vector)))
+                            for actual_vector, reference_vector in zip(candidate, reference)
+                        ),
+                        default=0.0,
+                    )
+                    cross = {
+                        "available": True,
+                        "independence_class": "DIFFERENT_ENGINE",
+                        "engine": "numpy.modified_gram_schmidt",
+                        "version": np.__version__,
+                        "operation": rule,
+                        "passed": bool(passed),
+                        "max_abs_error": max_abs_error,
+                        "rtol": 1e-8,
+                        "atol": 1e-10,
+                    }
+                else:
+                    cross = {
+                        "available": False,
+                        "independence_class": "NOT_AVAILABLE",
+                        "reason": "Gram-Schmidt cross-check requires numeric input vectors.",
+                    }
             else:
                 cross = {"available": False, "independence_class": "NOT_AVAILABLE",
-                         "reason": "Inputs are symbolic or no independent numeric algorithm is configured."}
+                         "reason": "Inputs are symbolic or no independent numerical algorithm is configured."}
                 if numpy_expected is not None:
                     cross = self._numpy_compare(output, numpy_expected, rule)
             if cross.get("available") and not cross.get("passed"):
