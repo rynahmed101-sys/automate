@@ -192,6 +192,21 @@ class ObservableNode(BaseModel):
     operator_form: Optional[str] = None
 
 
+class MatrixNode(BaseModel):
+    kind: Literal["matrix"] = "matrix"
+    entries: List[List[Union[int, float, str]]] = Field(default_factory=list)
+    dimension: str = ""
+    coordinate_system: str = "matrix"
+
+    @property
+    def rows(self) -> int:
+        return len(self.entries)
+
+    @property
+    def cols(self) -> int:
+        return len(self.entries[0]) if self.entries else 0
+
+
 class VectorNode(BaseModel):
     kind: Literal["vector"] = "vector"
     components: List[Dict[str, Any]]

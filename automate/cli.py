@@ -16,6 +16,7 @@ from automate.backend.sympy_backend import SymPyChecker
 from automate.backend.lean_backend import LeanChecker
 from automate.backend.numerical_backend import NumericalChecker
 from automate.backend.statistical_backend import StatisticalChecker
+from automate.backend.linear_algebra_backend import LinearAlgebraChecker
 from automate.visualization.html_graph import generate_interactive_html
 from automate.visualization.terminal import print_graph_summary, print_assumption_report, console
 from automate.demo import run_harmonic_oscillator_demo
@@ -62,6 +63,7 @@ def capabilities(as_json: bool):
         "dimensions": True,
         "numerical": True,
         "statistics": True,
+        "linear_algebra": True,
         "lean4": lean_checker.is_available(),
         "lean4_version": lean_checker.version,
         "ai": True,
@@ -273,6 +275,7 @@ def check(graph_file: str, as_json: bool):
 
     dim_checker = DimensionChecker()
     sympy_checker = SymPyChecker()
+    linear_algebra_checker = LinearAlgebraChecker()
     results = {}
 
     if not as_json:
@@ -285,6 +288,17 @@ def check(graph_file: str, as_json: bool):
         if edge.checker == "sympy":
             report = sympy_checker.verify_edge(edge, graph)
             results[eid] = {"status": report.status.value, "passed": report.passed, "dim": dim_report.passed}
+            if not as_json:
+                status_color = "green" if report.passed else "red"
+                console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")
+        elif edge.checker == "linear_algebra":
+            report = linear_algebra_checker.verify_edge(edge, graph)
+            results[eid] = {
+                "status": report.status.value,
+                "passed": report.passed,
+                "dim": dim_report.passed,
+                "independence": report.details.get("numpy_cross_check", {}).get("independence_class"),
+            }
             if not as_json:
                 status_color = "green" if report.passed else "red"
                 console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")

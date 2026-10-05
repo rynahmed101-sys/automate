@@ -126,7 +126,7 @@ def validate_ai_proposal(
         )
     else:
         checker_name = proposal.target_checker
-        known_checkers = {"sympy", "lean4", "numerical", "statistical", "dimension", "tensor"}
+        known_checkers = {"sympy", "lean4", "numerical", "statistical", "dimension", "tensor", "linear_algebra"}
         if not isinstance(checker_name, str) or not checker_name.strip():
             errors.append("A non-empty target_checker is required.")
         elif checker_name not in known_checkers:
@@ -161,7 +161,14 @@ def validate_ai_proposal(
     parser = SafeParser(max_seconds=MAX_EXPRESSION_PARSE_SECONDS)
     for out_node in proposal.output_nodes:
         try:
-            if "=" in out_node.expression and "==" not in out_node.expression:
+            if proposal.rule in {
+                "vector_add", "vector_subtract", "vector_scalar_multiply", "vector_dot",
+                "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_trace",
+                "matrix_inverse", "matrix_rank", "matrix_rref", "linear_system_solve",
+            }:
+                from automate.ir.linear_algebra import parse_linear_algebra_expression
+                parse_linear_algebra_expression(out_node.expression)
+            elif "=" in out_node.expression and "==" not in out_node.expression:
                 parser.parse_equation_isolated(
                     out_node.expression,
                     timeout=MAX_EXPRESSION_PARSE_SECONDS,

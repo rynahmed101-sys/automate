@@ -1,0 +1,101 @@
+theory: linear_algebra_core
+name: Linear Algebra Core Example
+description: Core vectors, matrices, and a linear system.
+domain: mathematics
+
+nodes:
+  v1:
+    expression: "Vector([1, 2, 3])"
+    node_kind: vector
+  v2:
+    expression: "Vector([4, 5, 6])"
+    node_kind: vector
+  v_sum:
+    expression: "Vector([5, 7, 9])"
+    node_kind: vector
+  A:
+    expression: "Matrix([[2, 1], [1, -1]])"
+    node_kind: matrix
+  B:
+    expression: "Matrix([[1, 3], [2, 4]])"
+    node_kind: matrix
+  AB:
+    expression: "Matrix([[4, 10], [-1, -1]])"
+    node_kind: matrix
+  At:
+    expression: "Matrix([[2, 1], [1, -1]])"
+    node_kind: matrix
+  detA:
+    expression: "-3"
+  traceA:
+    expression: "1"
+  invA:
+    expression: "Matrix([[1/3, 1/3], [1/3, -2/3]])"
+    node_kind: matrix
+  rankA:
+    expression: "2"
+  rrefA:
+    expression: "Matrix([[1, 0], [0, 1]])"
+    node_kind: matrix
+  b:
+    expression: "Vector([5, 1])"
+    node_kind: vector
+  x:
+    expression: "Vector([2, 1])"
+    node_kind: vector
+
+derivations:
+  edge_vector_add:
+    input_nodes: [v1, v2]
+    output_nodes: [v_sum]
+    transformation_rule: vector_add
+    justification: Componentwise vector addition.
+    checker: linear_algebra
+  edge_matrix_multiply:
+    input_nodes: [A, B]
+    output_nodes: [AB]
+    transformation_rule: matrix_multiply
+    justification: Matrix product AB.
+    checker: linear_algebra
+  edge_matrix_transpose:
+    input_nodes: [A]
+    output_nodes: [At]
+    transformation_rule: matrix_transpose
+    justification: Matrix transpose.
+    checker: linear_algebra
+  edge_determinant:
+    input_nodes: [A]
+    output_nodes: [detA]
+    transformation_rule: matrix_determinant
+    justification: Exact determinant.
+    checker: linear_algebra
+  edge_trace:
+    input_nodes: [A]
+    output_nodes: [traceA]
+    transformation_rule: matrix_trace
+    justification: Exact trace.
+    checker: linear_algebra
+  edge_inverse:
+    input_nodes: [A]
+    output_nodes: [invA]
+    transformation_rule: matrix_inverse
+    justification: Exact inverse.
+    checker: linear_algebra
+  edge_rank:
+    input_nodes: [A]
+    output_nodes: [rankA]
+    transformation_rule: matrix_rank
+    justification: Exact rank.
+    checker: linear_algebra
+  edge_rref:
+    input_nodes: [A]
+    output_nodes: [rrefA]
+    transformation_rule: matrix_rref
+    justification: Gaussian elimination to RREF.
+    checker: linear_algebra
+  edge_solve:
+    input_nodes: [A, b]
+    output_nodes: [x]
+    transformation_rule: linear_system_solve
+    justification: Solve Ax=b by elimination.
+    checker: linear_algebra

@@ -331,6 +331,60 @@ class RuleRegistry:
         ))
 
 
+
+        # 4B. Phase 1A Linear Algebra Core
+        for linear_rule in [
+            RuleDefinition(rule_id="vector_add", name="Vector Addition", category="linear_algebra",
+                description="Adds two vectors componentwise.", domain="mathematics",
+                inputs=["Vector", "Vector"], outputs=["Vector"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="vector_subtract", name="Vector Subtraction", category="linear_algebra",
+                description="Subtracts two vectors componentwise.", domain="mathematics",
+                inputs=["Vector", "Vector"], outputs=["Vector"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="vector_scalar_multiply", name="Vector Scalar Multiplication", category="linear_algebra",
+                description="Multiplies each vector component by an explicit scalar.", domain="mathematics",
+                inputs=["Vector"], outputs=["Vector"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="vector_dot", name="Vector Dot Product", category="linear_algebra",
+                description="Computes the ordinary dot product of equal-length vectors.", domain="mathematics",
+                inputs=["Vector", "Vector"], outputs=["Scalar"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_multiply", name="Matrix Multiplication", category="linear_algebra",
+                description="Computes A*B when A.cols equals B.rows.", domain="mathematics",
+                inputs=["Matrix", "Matrix"], outputs=["Matrix"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_transpose", name="Matrix Transpose", category="linear_algebra",
+                description="Exchanges matrix rows and columns.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Matrix"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_determinant", name="Matrix Determinant", category="linear_algebra",
+                description="Computes the determinant of a square matrix.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Scalar"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_trace", name="Matrix Trace", category="linear_algebra",
+                description="Computes the trace of a square matrix.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Scalar"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_inverse", name="Matrix Inverse", category="linear_algebra",
+                description="Computes the exact inverse of an invertible square matrix.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Matrix"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_rank", name="Matrix Rank", category="linear_algebra",
+                description="Computes exact matrix rank.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Scalar"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_rref", name="Reduced Row-Echelon Form", category="linear_algebra",
+                description="Computes reduced row-echelon form through Gaussian elimination.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Matrix"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="linear_system_solve", name="Linear System Solver", category="linear_algebra",
+                description="Solves unique square systems Ax=b and records elimination evidence.", domain="mathematics",
+                inputs=["Matrix", "Vector"], outputs=["Vector"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"]),
+        ]:
+            self.register(linear_rule)
+
         # 5. Differential Equations & Solutions
         self.register(RuleDefinition(
             rule_id="solve_harmonic_oscillator",

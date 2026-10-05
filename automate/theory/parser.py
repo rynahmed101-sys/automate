@@ -12,6 +12,11 @@ from automate.core.node import DerivationNode
 from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
 from automate.ir.ast import MathematicalExpression
+from automate.ir.linear_algebra import (
+    LinearAlgebraParseError,
+    linear_algebra_ast,
+    parse_linear_algebra_expression,
+)
 from automate.ir.assumptions import Assumption
 
 
@@ -74,13 +79,26 @@ def parse_theory_dict(data: Dict[str, Any]) -> DerivationGraph:
     for nid, ninfo in nodes_dict.items():
         raw_expr = ninfo.get("expression", "")
         dim_str = ninfo.get("dimension", "")
+        node_kind_val = ninfo.get("node_kind", ninfo.get("kind", "expression"))
+        typed_ast = {}
+        if str(node_kind_val) in {"vector", "matrix"}:
+            try:
+                typed_ast = linear_algebra_ast(
+                    parse_linear_algebra_expression(raw_expr)
+                )
+            except LinearAlgebraParseError as exc:
+                raise ValueError(
+                    f"Node '{nid}' declares node_kind '{node_kind_val}' "
+                    f"but its linear-algebra expression is invalid: {exc}"
+                ) from exc
+
         math_expr = MathematicalExpression(
             raw_str=raw_expr,
+            ast=typed_ast,
             dimension=dim_str,
             latex=ninfo.get("latex"),
             sympy_str=ninfo.get("sympy")
         )
-        node_kind_val = ninfo.get("node_kind", ninfo.get("kind", "expression"))
         node = DerivationNode(
             id=nid,
             expression=math_expr,

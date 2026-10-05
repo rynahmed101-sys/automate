@@ -16,6 +16,8 @@ from automate.ir.ast import (
     DifferentialEquationNode,
     StatisticalModelNode,
     ObservableNode,
+    VectorNode,
+    MatrixNode,
 )
 from automate.ir.serialization import dump_json, load_json, dump_yaml, load_yaml
 
@@ -34,6 +36,8 @@ __all__ = [
     "DifferentialEquationNode",
     "StatisticalModelNode",
     "ObservableNode",
+    "VectorNode",
+    "MatrixNode",
     "dump_json",
     "load_json",
     "dump_yaml",

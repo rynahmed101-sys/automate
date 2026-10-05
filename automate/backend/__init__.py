@@ -22,3 +22,5 @@ __all__ = [
     "TensorChecker",
 ]
 
+
+from automate.backend.linear_algebra_backend import LinearAlgebraChecker
