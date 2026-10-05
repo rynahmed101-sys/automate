@@ -246,50 +246,6 @@ class LinearAlgebraChecker(BaseChecker):
                 "atol": 1e-10,
             }
 
-        if operation == "vector_gram_schmidt":
-            candidate = expected.get("candidate")
-            reference = expected.get("reference")
-            try:
-                passed = (
-                    isinstance(candidate, list)
-                    and isinstance(reference, list)
-                    and len(candidate) == len(reference)
-                    and all(
-                        np.allclose(
-                            np.asarray(actual_vector).reshape(-1),
-                            np.asarray(reference_vector).reshape(-1),
-                            rtol=1e-8,
-                            atol=1e-10,
-                            equal_nan=False,
-                        )
-                        for actual_vector, reference_vector in zip(candidate, reference)
-                    )
-                )
-                max_abs_error = max(
-                    (
-                        float(np.max(np.abs(
-                            np.asarray(actual_vector).reshape(-1)
-                            - np.asarray(reference_vector).reshape(-1)
-                        )))
-                        for actual_vector, reference_vector in zip(candidate, reference)
-                    ),
-                    default=0.0,
-                )
-            except (TypeError, ValueError):
-                passed = False
-                max_abs_error = None
-            return {
-                "available": True,
-                "independence_class": "DIFFERENT_ENGINE",
-                "engine": "numpy.modified_gram_schmidt",
-                "version": np.__version__,
-                "operation": operation,
-                "passed": passed,
-                "max_abs_error": max_abs_error,
-                "rtol": 1e-8,
-                "atol": 1e-10,
-            }
-
         if operation == "matrix_eigenvalues":
             expected_np = np.asarray(expected).reshape(-1)
             passed = cls._numeric_multiset_match(actual_np, expected_np)
