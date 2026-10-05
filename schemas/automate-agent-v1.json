@@ -198,7 +198,10 @@
       "divergence-curl identity",
       "equivalent Cartesian Laplacian identity",
       "continuous charge electric-field kernels",
-      "continuous charge potential kernels"
+      "continuous charge potential kernels",
+      "explicit Fourier and Laplace transform representations",
+      "bounded Fourier/Laplace forward and inverse verification",
+      "continuous convolution representation and verification"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -1104,6 +1107,78 @@
       "implementation_backend": "linear_algebra",
       "allowed_checkers": [
         "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "fourier_transform",
+      "category": "transforms",
+      "domain": "mathematics",
+      "implementation_backend": "transform",
+      "allowed_checkers": [
+        "transform"
+      ]
+    },
+    {
+      "rule_id": "inverse_fourier_transform",
+      "category": "transforms",
+      "domain": "mathematics",
+      "implementation_backend": "transform",
+      "allowed_checkers": [
+        "transform"
+      ]
+    },
+    {
+      "rule_id": "verify_fourier_pair",
+      "category": "transforms",
+      "domain": "mathematics",
+      "implementation_backend": "transform",
+      "allowed_checkers": [
+        "transform"
+      ]
+    },
+    {
+      "rule_id": "laplace_transform",
+      "category": "transforms",
+      "domain": "mathematics",
+      "implementation_backend": "transform",
+      "allowed_checkers": [
+        "transform"
+      ]
+    },
+    {
+      "rule_id": "inverse_laplace_transform",
+      "category": "transforms",
+      "domain": "mathematics",
+      "implementation_backend": "transform",
+      "allowed_checkers": [
+        "transform"
+      ]
+    },
+    {
+      "rule_id": "verify_laplace_pair",
+      "category": "transforms",
+      "domain": "mathematics",
+      "implementation_backend": "transform",
+      "allowed_checkers": [
+        "transform"
+      ]
+    },
+    {
+      "rule_id": "convolution",
+      "category": "transforms",
+      "domain": "mathematics",
+      "implementation_backend": "transform",
+      "allowed_checkers": [
+        "transform"
+      ]
+    },
+    {
+      "rule_id": "verify_convolution_theorem",
+      "category": "transforms",
+      "domain": "mathematics",
+      "implementation_backend": "transform",
+      "allowed_checkers": [
+        "transform"
       ]
     }
   ],
