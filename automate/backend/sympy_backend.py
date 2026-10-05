@@ -863,6 +863,11 @@ class SymPyChecker(BaseChecker):
             if all(symbol.is_real is True for symbol in point.free_symbols):
                 return True, "symbolic_real_target_under_explicit_assumptions"
             return False, "symbolic target is not established as real; add an explicit real assumption."
+        extra_symbols = expr.free_symbols - {variable}
+        if extra_symbols:
+            if all(symbol.is_real is True for symbol in extra_symbols):
+                return True, "explicitly_real_symbolic_parameters"
+            return False, "symbolic parameter domain is not established as real."
         try:
             from sympy.calculus.util import continuous_domain
             domain = continuous_domain(expr, variable, sp.S.Reals)
