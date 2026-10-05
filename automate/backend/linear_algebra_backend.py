@@ -279,6 +279,18 @@ class LinearAlgebraChecker(BaseChecker):
                 "atol": 1e-10,
             }
 
+        if operation == "quadratic_form_evaluate":
+            expected_value = expected["value"]
+            try:
+                actual_scalar = complex(np.asarray(actual_np).reshape(()))
+                expected_scalar = complex(expected_value)
+                passed = bool(np.isclose(actual_scalar, expected_scalar, rtol=1e-9, atol=1e-10, equal_nan=False))
+                max_abs_error = float(abs(actual_scalar - expected_scalar))
+            except (TypeError, ValueError):
+                passed = False
+                max_abs_error = None
+            return {"available": True, "independence_class": "DIFFERENT_ENGINE", "engine": expected.get("operation", "numpy.quadratic_form"), "version": np.__version__, "operation": operation, "domain": expected.get("domain"), "passed": passed, "max_abs_error": max_abs_error, "rtol": 1e-9, "atol": 1e-10}
+
         if operation == "matrix_eigenvalues":
             expected_np = np.asarray(expected).reshape(-1)
             passed = cls._numeric_multiset_match(actual_np, expected_np)
@@ -1110,6 +1122,55 @@ class LinearAlgebraChecker(BaseChecker):
                     "indicator_convention": "1=property holds, 0=property does not hold",
                 }]
 
+            elif rule == "quadratic_form_evaluate":
+                if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "scalar":
+                    raise LinearAlgebraParseError("quadratic_form_evaluate requires one square matrix, one vector, and one scalar output.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                vector = sp.Matrix(parsed_inputs[1].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(f"Quadratic-form matrix must be square; received {matrix.shape}.")
+                if vector.rows != matrix.cols:
+                    raise ValueError(f"Quadratic-form dimension mismatch: matrix is {matrix.shape}, vector has length {vector.rows}.")
+                domain = edge.parameters.get("domain", "complex")
+                if domain not in {"real", "complex"}:
+                    raise LinearAlgebraParseError("parameters['domain'] must be 'real' or 'complex'.")
+                require_hermitian = edge.parameters.get("require_hermitian", False)
+                if not isinstance(require_hermitian, bool):
+                    raise LinearAlgebraParseError("parameters['require_hermitian'] must be boolean when provided.")
+                if require_hermitian:
+                    residual = matrix - matrix.conjugate().T
+                    simplified = [sp.simplify(value) for value in residual]
+                    if all(value == 0 for value in simplified):
+                        hermitian_status = "verified"
+                    elif any(value.is_zero is False for value in simplified):
+                        raise ValueError("Quadratic-form Hermitian requirement is false for the supplied matrix.")
+                    else:
+                        return self._unverified(edge, graph, start, details, "Hermitian requirement cannot be established from the supplied symbolic matrix without additional assumptions.")
+                else:
+                    hermitian_status = "not_required"
+                if domain == "real":
+                    expected_value = sp.simplify(vector.T * matrix * vector)[0]
+                    numpy_operation = "numpy.dot_real_quadratic_form"
+                else:
+                    expected_value = sp.simplify(vector.conjugate().T * matrix * vector)[0]
+                    numpy_operation = "numpy.conjugate_dot_complex_quadratic_form"
+                expected = ParsedLinearAlgebra("scalar", expected_value)
+                numeric_matrix = self._numeric_array(parsed_inputs[0])
+                numeric_vector = self._numeric_array(parsed_inputs[1])
+                if numeric_matrix is not None and numeric_vector is not None:
+                    a_np = np.asarray(numeric_matrix)
+                    x_np = np.asarray(numeric_vector).reshape(-1)
+                    try:
+                        numpy_value = np.dot(x_np, a_np @ x_np) if domain == "real" else np.conjugate(x_np) @ (a_np @ x_np)
+                        numpy_expected = {"value": numpy_value, "domain": domain, "operation": numpy_operation}
+                    except (TypeError, ValueError):
+                        numpy_expected = None
+                steps = [
+                    {"step": 1, "operation": "validate_square_matrix_and_vector_dimension", "matrix_shape": list(matrix.shape), "vector_shape": list(vector.shape)},
+                    {"step": 2, "operation": "select_quadratic_form_semantics", "domain": domain, "left_factor": "x.T" if domain == "real" else "x.conjugate().T"},
+                    {"step": 3, "operation": "evaluate_x_star_A_x", "hermitian_requirement": require_hermitian, "hermitian_status": hermitian_status},
+                ]
+
             elif rule == "matrix_characteristic_polynomial":
                 if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
                     raise LinearAlgebraParseError("matrix_characteristic_polynomial requires one square matrix input and one scalar output.")
@@ -1189,6 +1250,11 @@ class LinearAlgebraChecker(BaseChecker):
                 steps.append({"step": 1, "operation": "eigenvector_residual",
                               "eigenvalue": str(eigenvalue.value), "nonzero_vector": True})
 
+            elif rule == "quadratic_form_evaluate":
+                if numpy_expected is not None:
+                    cross = self._numpy_compare(output, numpy_expected, rule)
+                else:
+                    cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "Quadratic-form numerical cross-check requires numeric matrix and vector."}
             elif rule == "matrix_diagonalize":
                 if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix":
                     raise LinearAlgebraParseError("matrix_diagonalize requires one square matrix input.")
