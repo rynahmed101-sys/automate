@@ -49,3 +49,17 @@ def test_schema_tensor_returns_canonical_tensor_contract():
     assert payload["$id"].endswith("/automate-tensor-v1.json")
     assert "lhs" in payload["properties"]
     assert "TensorExpression" in payload.get("$defs", {})
+
+
+def test_schema_agent_returns_machine_agent_contract():
+    result = CliRunner().invoke(main, ["schema", "--name", "agent"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["schema_version"] == "automate.agent.v1"
+    assert len(payload["rules"]) == 21
+    assert {"discover", "context", "validate", "propose_dry_run", "propose_apply",
+            "research", "check", "prove", "simulate", "stats",
+            "query_assumptions", "expand", "report", "export_certificate",
+            "schema"}.issubset(payload["commands"])
+    assert "capability_catalog" in payload

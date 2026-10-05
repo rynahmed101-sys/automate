@@ -11,6 +11,7 @@ Automate uses explicit, versioned JSON schemas for all canonical data representa
 | **Automate IR** | `automate.ir.v0.2` | Core derivation graph, ASTs, tensor indices, actions | `schemas/automate-ir-v0.1.json`, `automate/ir/ast.py` |
 | **Agent Context** | `automate.context.v1` | Sanitized mathematical state exposed to AI models | `automate/ai/schemas.py::AIContext` |
 | **Agent Proposal** | `automate.proposal.v1` | Structured mathematical derivation proposal from AI | `automate/ai/schemas.py::DerivationProposal` |
+| **Machine Agent Contract** | `automate.agent.v1` | Stable machine-readable capability, command, rule, and trust manifest for external AI agents | `schemas/automate-agent-v1.json` |
 | **Certificate Package** | `automate.cert.v0.2` | Complete machine-auditable verification package | `automate/core/graph.py::export_certificate_package` |
 
 ---

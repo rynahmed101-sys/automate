@@ -43,6 +43,22 @@ The response indicates which backends are active. If Lean 4 is installed locally
 
 ---
 
+## 1.5 Machine-Agent Capability Contract
+
+The authoritative machine-agent manifest is available directly from the CLI:
+
+```bash
+automate schema --name agent
+```
+
+The manifest is versioned as `automate.agent.v1`. It describes the complete current machine-facing command surface, supported mathematics and physics capability families, all registered transformation rules, optional provider/back-end availability, verification statuses, trust rules, and certificate artifacts.
+
+Agents should run `automate capabilities --json` first to discover runtime availability, then retrieve the stable contract with `automate schema --name agent`. The intended workflow is:
+
+`discover → context → construct proposal → validate → dry-run → apply → inspect evidence → export certificate`
+
+This is an interface over the existing Automate system, not a second implementation. Agents should rely on the declared JSON contracts and status semantics rather than importing private Python implementation details.
+
 ## 2. Extracting Controlled Mathematical Context
 
 To propose mathematically sound derivation steps, an agent needs to know the existing equations, variables, active physical assumptions, and approved transformation rules. 
