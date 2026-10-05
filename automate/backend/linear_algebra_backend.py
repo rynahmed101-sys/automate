@@ -197,10 +197,13 @@ class LinearAlgebraChecker(BaseChecker):
 
         if operation == "quadratic_form":
             try:
+                actual_np = cls._numeric_array(actual)
+                if actual_np is None:
+                    raise ValueError("Quadratic-form candidate is not numeric.")
                 matrix = np.asarray(expected["matrix"])
                 vector = np.asarray(expected["vector"]).reshape(-1)
                 independent_value = np.asarray(vector.T @ matrix @ vector)
-                candidate_value = np.asarray(actual_np if "actual_np" in locals() else cls._numeric_array(actual)).reshape(-1)
+                candidate_value = np.asarray(actual_np).reshape(-1)
                 if candidate_value.size != 1:
                     raise ValueError("Quadratic-form candidate must be scalar.")
                 candidate_value = candidate_value[0]
