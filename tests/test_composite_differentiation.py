@@ -22,7 +22,7 @@ def _edge(rule, output_expr, parameters):
 @pytest.mark.parametrize("rule,output,params", [
     ("chain_rule", "cos(x**2)*2*x", {"variable":"x","outer":"sin(u)","inner":"x**2","inner_variable":"u"}),
     ("product_rule", "2*x*exp(x) + x**2*exp(x)", {"variable":"x","factors":["x**2","exp(x)"]}),
-    ("product_rule", "2*x + 2", {"variable":"x","factors":["x**2 + 2*x","x + 1"]}),
+    ("product_rule", "(2*x + 2)*(x + 1) + (x**2 + 2*x)", {"variable":"x","factors":["x**2 + 2*x","x + 1"]}),
     ("quotient_rule", "((2*x)*(x+1) - (x**2+1))/((x+1)**2)", {"variable":"x","numerator":"x**2+1","denominator":"x+1"}),
 ])
 def test_composite_rules(rule, output, params):
