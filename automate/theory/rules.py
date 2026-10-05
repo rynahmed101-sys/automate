@@ -475,6 +475,141 @@ class RuleRegistry:
                 description="Computes a scalar volume integral over explicit Cartesian bounds.",
                 domain="mathematics", inputs=["Scalar Field"], outputs=["Scalar"],
                 implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="curl_gradient_identity", name="Curl of Gradient Identity", category="vector_calculus",
+                description="Verifies curl(grad f)=0 for a scalar Cartesian field.",
+                domain="mathematics", inputs=["Scalar Field"], outputs=["Scalar Residual"],
+                required_assumptions=["second_partial_derivatives_exist"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="divergence_curl_identity", name="Divergence of Curl Identity", category="vector_calculus",
+                description="Verifies div(curl F)=0 for a 3D Cartesian vector field.",
+                domain="mathematics", inputs=["3D Vector Field"], outputs=["Scalar Residual"],
+                required_assumptions=["second_partial_derivatives_exist"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="laplacian_identity", name="Laplacian Identity", category="vector_calculus",
+                description="Verifies the equivalent Cartesian definitions of the scalar Laplacian.",
+                domain="mathematics", inputs=["Scalar Field"], outputs=["Scalar Residual"],
+                required_assumptions=["second_partial_derivatives_exist"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="stokes_theorem", name="Stokes' Theorem", category="vector_calculus",
+                description="Verifies circulation around an explicitly oriented planar Cartesian rectangle equals the surface integral of curl.",
+                domain="mathematics", inputs=["3D Vector Field"], outputs=["Scalar Equality Residual"],
+                required_assumptions=["continuous_first_partial_derivatives_on_surface"],
+                side_conditions=["ccw_positive_normal_orientation", "explicit_cartesian_planar_surface"],
+                implementation_backend="vector_calculus", formal_proof_available=False, symbolic_checker_available=True,
+                allowed_checkers=["vector_calculus"]),
+        ]:
+            self.register(vector_rule)
+
+        # 5. Differential Equations & Solutions
+        self.register(RuleDefinition(
+            rule_id="solve_harmonic_oscillator",
+            name="Harmonic Oscillator General Solution",
+            category="differential_equations",
+            description=(
+                "Verifies that a proposed solution satisfies the harmonic oscillator ODE "
+                "m*x_ddot + k*x = 0 by substitution. "
+                "Expects ODE in shorthand (x_ddot) or function notation (diff(x(t),t,2))."
+            ),
+            domain="classical_mechanics",
+            inputs=["Equation of Motion"],
+            outputs=["Analytical Solution"],
+            required_assumptions=["asm_pos_mass", "asm_pos_k"],
+            side_conditions=["asm_pos_mass", "asm_pos_k"],
+            default_obligations=[{
+                "type": "ode_substitution",
+                "claim": "residual of ODE after substituting candidate solution == 0",
+                "description": "Candidate solution satisfies the equation of motion"
+            }],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy", "numerical"],
+            citation="Linear Ordinary Differential Equations"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="verify_ode_solution",
+            name="General ODE Solution Verifier",
+            category="differential_equations",
+            description=(
+                "Verifies a proposed solution to a general ODE by substitution. "
+                "Supports first- and second-order ODEs, arbitrary dependent variables, "
+                "shorthand notation (x_ddot) and function notation (x(t), diff(x(t),t,2)). "
+                "Does NOT hardcode harmonic oscillator assumptions."
+            ),
+            domain="mathematics",
+            inputs=["ODE"],
+            outputs=["Analytical Solution"],
+            required_assumptions=[],
+            default_obligations=[{
+                "type": "ode_substitution",
+                "claim": "residual after substituting candidate into ODE == 0",
+                "description": "Candidate solution satisfies the ODE by substitution"
+            }],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy", "numerical"],
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="algebraic_identity",
+            name="Algebraic Identity",
+            category="algebra",
+            description="Symbolic simplification, expansion, or algebraic equality",
+            domain="mathematics",
+            implementation_backend="sympy",
+            formal_proof_available=True,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy", "lean4"],
+        ))
+
+        # 6. Computational & Experimental
+        self.register(RuleDefinition(
+            rule_id="numerical_simulation",
+            name="Numerical IVP Integration",
+            category="numerics",
+            description="Numerical integration of equations of motion using Runge-Kutta ODE solver",
+            domain="computational_physics",
+            implementation_backend="numerical",
+            formal_proof_available=False,
+            symbolic_checker_available=False,
+            allowed_checkers=["numerical"],
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="empirical_inference",
+            name="Empirical Parameter Estimation",
+            category="statistics",
+            description="Non-linear least squares parameter estimation against observational data",
+            domain="experimental_physics",
+            implementation_backend="statistical",
+            formal_proof_available=False,
+            symbolic_checker_available=False,
+            allowed_checkers=["statistical"],
+        ))
+
+    def register(self, rule: RuleDefinition) -> None:
+        self._rules[rule.rule_id] = rule
+
+    def get(self, rule_id: str) -> Optional[RuleDefinition]:
+        return self._rules.get(rule_id)
+
+    def get_rule(self, rule_id: str) -> Optional[RuleDefinition]:
+        return self.get(rule_id)
+
+    def list_rules(self) -> List[RuleDefinition]:
+        return list(self._rules.values())
+
+    def list_rule_ids(self) -> List[str]:
+        return list(self._rules.keys())
+
+    def is_checker_allowed(self, rule_id: str, checker_name: str) -> bool:
+        """Returns True if checker_name is semantically valid for rule_id."""
+        rule = self.get(rule_id)
+        if rule is None:
+            return False
+        return checker_name in rule.allowed_checkers
             RuleDefinition(rule_id="green_theorem", name="Green's Theorem", category="vector_calculus",
                 description="Verifies circulation around an explicitly oriented Cartesian rectangle equals the double integral of planar curl.",
                 domain="mathematics", inputs=["2D Vector Field"], outputs=["Scalar Equality Residual"],
