@@ -131,6 +131,22 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_nested_integrate(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                elif rule == "integration_by_substitution":
+                    passed, details, certificates, error_msg = self._verify_integration_by_substitution(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "integration_by_parts":
+                    passed, details, certificates, error_msg = self._verify_integration_by_parts(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "partial_fractions_integrate":
+                    passed, details, certificates, error_msg = self._verify_partial_fractions_integrate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "trigonometric_integrate":
+                    passed, details, certificates, error_msg = self._verify_trigonometric_integrate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule == "substitute":
                     passed, details, certificates, error_msg = self._verify_substitute(
                         in_nodes[0], out_nodes[0], edge.parameters
@@ -988,6 +1004,254 @@ class SymPyChecker(BaseChecker):
             {"step": 2, "operation": "differentiate_candidate" if not definite else "simplify(actual - expected)", "residual": str(residual)},
         ]
         return passed, details, steps, error
+
+    # ------------------------------------------------------------------
+    # Rule: integration_by_substitution
+    # Explicitly represents u = g(x) and the transformed integrand in u.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_integration_by_substitution(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        u_name = params.get("substitution_variable")
+        g_raw = params.get("substitution_expression")
+        transformed_raw = params.get("transformed_integrand")
+        if (not isinstance(variable_name, str) or not variable_name.strip().isidentifier()
+                or not isinstance(u_name, str) or not u_name.strip().isidentifier()
+                or not isinstance(g_raw, str) or not g_raw.strip()
+                or not isinstance(transformed_raw, str) or not transformed_raw.strip()):
+            return False, {"rule": "integration_by_substitution"}, [], (
+                "Malformed substitution: variable, substitution_variable, substitution_expression, "
+                "and transformed_integrand are required."
+            )
+        if variable_name.strip() == u_name.strip():
+            return False, {"rule": "integration_by_substitution"}, [], (
+                "Malformed substitution: integration and substitution variables must differ."
+            )
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(variable_name.strip())
+            u = parser.make_symbol(u_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+            g = parser.parse(g_raw)
+            transformed = parser.parse(transformed_raw)
+        except SafeParseError as exc:
+            return False, {"rule": "integration_by_substitution"}, [], f"SafeParser rejected substitution expression: {exc}"
+        try:
+            if not g.has(x):
+                return False, {"rule": "integration_by_substitution"}, [], (
+                    "Malformed substitution: substitution_expression must depend on the integration variable."
+                )
+            du_dx = sp.diff(g, x)
+            if du_dx == 0 or du_dx.equals(0) is True:
+                return False, {"rule": "integration_by_substitution", "du_dx": str(du_dx)}, [], (
+                    "Invalid substitution: du/dx is identically zero."
+                )
+            transformed_back = sp.simplify(transformed.subs(u, g) * du_dx - integrand)
+            transform_equivalence = transformed_back.equals(0) if hasattr(transformed_back, "equals") else transformed_back == 0
+            candidate_residual = sp.simplify(sp.diff(actual, x) - integrand)
+            candidate_equivalence = candidate_residual.equals(0) if hasattr(candidate_residual, "equals") else candidate_residual == 0
+        except Exception as exc:
+            return False, {"rule": "integration_by_substitution"}, [], (
+                f"UNVERIFIED: substitution verification could not be established: {type(exc).__name__}: {exc}"
+            )
+        details = {
+            "rule": "integration_by_substitution", "variable": str(x),
+            "substitution_variable": str(u), "substitution_expression": str(g),
+            "du_dx": str(du_dx), "transformed_integrand": str(transformed),
+            "transformed_back_residual": str(transformed_back),
+            "candidate_result": str(actual), "candidate_residual": str(candidate_residual),
+            "domain_note": "The represented differential identity and antiderivative are verified; global one-to-one/invertibility is not inferred.",
+        }
+        if transform_equivalence is False or candidate_equivalence is False:
+            return False, details, [], "FAIL: substitution transformation or antiderivative candidate is incorrect."
+        if transform_equivalence is not True or candidate_equivalence is not True:
+            details["_status_override"] = VerificationStatus.UNVERIFIED.value
+            return False, details, [], "UNVERIFIED: symbolic substitution equality could not be established."
+        return True, details, [
+            {"step": 1, "operation": f"u = {g}", "result": str(u)},
+            {"step": 2, "operation": "compute_du_dx", "result": str(du_dx)},
+            {"step": 3, "operation": "substitute_u_and_restore_dx", "residual": str(transformed_back)},
+            {"step": 4, "operation": "differentiate_candidate", "residual": str(candidate_residual)},
+        ], None
+
+    # ------------------------------------------------------------------
+    # Rule: integration_by_parts
+    # Represents u, dv, and v explicitly and verifies the parts identity.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_integration_by_parts(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        u_raw, dv_raw, v_raw = params.get("u"), params.get("dv"), params.get("v")
+        if (not isinstance(variable_name, str) or not variable_name.strip().isidentifier()
+                or not all(isinstance(v, str) and v.strip() for v in (u_raw, dv_raw, v_raw))):
+            return False, {"rule": "integration_by_parts"}, [], (
+                "Malformed integration by parts: variable, u, dv, and v are required strings."
+            )
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(variable_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+            u = parser.parse(u_raw); dv = parser.parse(dv_raw); v = parser.parse(v_raw)
+        except SafeParseError as exc:
+            return False, {"rule": "integration_by_parts"}, [], f"SafeParser rejected integration-by-parts expression: {exc}"
+        try:
+            du = sp.diff(u, x)
+            v_residual = sp.simplify(sp.diff(v, x) - dv)
+            v_equivalence = v_residual.equals(0) if hasattr(v_residual, "equals") else v_residual == 0
+            integrand_residual = sp.simplify(integrand - u * dv)
+            integrand_equivalence = integrand_residual.equals(0) if hasattr(integrand_residual, "equals") else integrand_residual == 0
+            remainder = sp.integrate(v * du, x)
+            if isinstance(remainder, sp.Integral) or remainder.has(sp.Integral):
+                return False, {"rule": "integration_by_parts", "u": str(u), "dv": str(dv), "v": str(v),
+                               "du": str(du), "_status_override": VerificationStatus.UNVERIFIED.value}, [], (
+                    "UNVERIFIED: the integration-by-parts remainder remained unevaluated."
+                )
+            parts_result = sp.simplify(u * v - remainder)
+            candidate_residual = sp.simplify(sp.diff(actual - parts_result, x))
+            candidate_equivalence = candidate_residual.equals(0) if hasattr(candidate_residual, "equals") else candidate_residual == 0
+        except Exception as exc:
+            return False, {"rule": "integration_by_parts"}, [], (
+                f"UNVERIFIED: integration-by-parts verification could not be established: {type(exc).__name__}: {exc}"
+            )
+        details = {
+            "rule": "integration_by_parts", "variable": str(x), "u": str(u), "dv": str(dv),
+            "v": str(v), "du": str(du), "remainder_integral": str(remainder),
+            "parts_result": str(parts_result), "v_residual": str(v_residual),
+            "integrand_residual": str(integrand_residual), "candidate_result": str(actual),
+            "candidate_residual": str(candidate_residual),
+        }
+        if v_equivalence is False or integrand_equivalence is False or candidate_equivalence is False:
+            return False, details, [], "FAIL: the integration-by-parts identity or candidate result is incorrect."
+        if v_equivalence is not True or integrand_equivalence is not True or candidate_equivalence is not True:
+            details["_status_override"] = VerificationStatus.UNVERIFIED.value
+            return False, details, [], "UNVERIFIED: symbolic integration-by-parts equality could not be established."
+        return True, details, [
+            {"step": 1, "operation": "du = differentiate(u)", "result": str(du)},
+            {"step": 2, "operation": "verify(dv = differentiate(v))", "residual": str(v_residual)},
+            {"step": 3, "operation": "integrate(v*du)", "result": str(remainder)},
+            {"step": 4, "operation": "u*v - integral(v*du)", "result": str(parts_result)},
+            {"step": 5, "operation": "differentiate_candidate_minus_parts_result", "residual": str(candidate_residual)},
+        ], None
+
+    # ------------------------------------------------------------------
+    # Rule: partial_fractions_integrate
+    # Represents a rational integrand and its proposed partial-fraction
+    # decomposition, then verifies both decomposition and antiderivative.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_partial_fractions_integrate(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        decomposition_raw = params.get("decomposition")
+        if (not isinstance(variable_name, str) or not variable_name.strip().isidentifier()
+                or not isinstance(decomposition_raw, str) or not decomposition_raw.strip()):
+            return False, {"rule": "partial_fractions_integrate"}, [], (
+                "Malformed partial-fractions integration: variable and decomposition are required strings."
+            )
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(variable_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+            decomposition = parser.parse(decomposition_raw)
+        except SafeParseError as exc:
+            return False, {"rule": "partial_fractions_integrate"}, [], f"SafeParser rejected partial-fractions expression: {exc}"
+        try:
+            rational = sp.together(integrand)
+            denominator = sp.factor(sp.denom(rational))
+            if denominator == 0:
+                return False, {"rule": "partial_fractions_integrate"}, [], "Invalid rational integrand: denominator is identically zero."
+            if denominator == 1 or not denominator.has(x):
+                return False, {"rule": "partial_fractions_integrate", "denominator": str(denominator)}, [], (
+                    "Input is not a nontrivial rational function of the integration variable."
+                )
+            try:
+                sp.Poly(sp.numer(rational), x); sp.Poly(sp.denom(rational), x)
+            except (sp.PolynomialError, NotImplementedError):
+                return False, {"rule": "partial_fractions_integrate", "denominator": str(denominator)}, [], (
+                    "Input is not a rational function in the integration variable."
+                )
+            decomposition_residual = sp.cancel(sp.together(decomposition - integrand))
+            decomposition_equivalence = decomposition_residual.equals(0) if hasattr(decomposition_residual, "equals") else decomposition_residual == 0
+            canonical = sp.apart(integrand, x)
+            canonical_residual = sp.cancel(sp.together(decomposition - canonical))
+            canonical_equivalence = canonical_residual.equals(0) if hasattr(canonical_residual, "equals") else canonical_residual == 0
+            candidate_residual = sp.simplify(sp.diff(actual, x) - integrand)
+            candidate_equivalence = candidate_residual.equals(0) if hasattr(candidate_residual, "equals") else candidate_residual == 0
+        except Exception as exc:
+            return False, {"rule": "partial_fractions_integrate"}, [], (
+                f"UNVERIFIED: partial-fractions verification could not be established: {type(exc).__name__}: {exc}"
+            )
+        details = {
+            "rule": "partial_fractions_integrate", "variable": str(x), "integrand": str(integrand),
+            "decomposition": str(decomposition), "canonical_decomposition": str(canonical),
+            "decomposition_residual": str(decomposition_residual), "canonical_residual": str(canonical_residual),
+            "candidate_result": str(actual), "candidate_residual": str(candidate_residual),
+            "domain_restriction": f"{denominator} != 0",
+        }
+        if decomposition_equivalence is False or canonical_equivalence is False or candidate_equivalence is False:
+            return False, details, [], "FAIL: partial-fraction decomposition or integrated candidate is incorrect."
+        if decomposition_equivalence is not True or canonical_equivalence is not True or candidate_equivalence is not True:
+            details["_status_override"] = VerificationStatus.UNVERIFIED.value
+            return False, details, [], "UNVERIFIED: symbolic partial-fraction equality could not be established."
+        return True, details, [
+            {"step": 1, "operation": "compute_denominator_and_domain", "result": f"{denominator} != 0"},
+            {"step": 2, "operation": "verify_partial_fraction_decomposition", "residual": str(decomposition_residual)},
+            {"step": 3, "operation": "compare_with_canonical_apart", "residual": str(canonical_residual)},
+            {"step": 4, "operation": "differentiate_candidate", "residual": str(candidate_residual)},
+        ], None
+
+    # ------------------------------------------------------------------
+    # Rule: trigonometric_integrate
+    # Dedicated tractable trig/hyperbolic integration path. Candidate and
+    # backend primitive are both differentiated back to the integrand.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_trigonometric_integrate(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        from sympy.integrals.manualintegrate import manualintegrate
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip().isidentifier():
+            return False, {"rule": "trigonometric_integrate"}, [], "Malformed trigonometric integration: variable must be a valid identifier."
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(variable_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "trigonometric_integrate"}, [], f"SafeParser rejected trigonometric integration expression: {exc}"
+        try:
+            if not any(integrand.has(fn) for fn in (sp.sin, sp.cos, sp.tan, sp.sec, sp.csc, sp.cot, sp.sinh, sp.cosh, sp.tanh, sp.sech, sp.csch, sp.coth)):
+                return False, {"rule": "trigonometric_integrate"}, [], "Malformed trigonometric integration: integrand contains no supported trigonometric or hyperbolic function."
+            expected = manualintegrate(integrand, x)
+            if isinstance(expected, sp.Integral) or expected.has(sp.Integral):
+                return False, {"rule": "trigonometric_integrate", "integrand": str(integrand), "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: trigonometric integration remained unevaluated."
+            residual = sp.simplify(sp.diff(actual, x) - integrand)
+            equivalence = residual.equals(0) if hasattr(residual, "equals") else residual == 0
+            backend_residual = sp.simplify(sp.diff(expected, x) - integrand)
+            backend_equivalence = backend_residual.equals(0) if hasattr(backend_residual, "equals") else backend_residual == 0
+        except Exception as exc:
+            return False, {"rule": "trigonometric_integrate"}, [], f"UNVERIFIED: trigonometric integration could not be established: {type(exc).__name__}: {exc}"
+        details = {
+            "rule": "trigonometric_integrate", "variable": str(x), "integrand": str(integrand),
+            "expected_result": str(expected), "actual_result": str(actual),
+            "residual": str(residual), "backend_residual": str(backend_residual),
+            "method": "sympy.manualintegrate", "verification": "differentiate_candidate_and_backend_result",
+        }
+        if equivalence is False or backend_equivalence is False:
+            return False, details, [], "FAIL: trigonometric antiderivative is incorrect."
+        if equivalence is not True or backend_equivalence is not True:
+            details["_status_override"] = VerificationStatus.UNVERIFIED.value
+            return False, details, [], "UNVERIFIED: symbolic trigonometric comparison could not establish equality."
+        return True, details, [
+            {"step": 1, "operation": "manualintegrate", "result": str(expected)},
+            {"step": 2, "operation": "differentiate_backend_result", "residual": str(backend_residual)},
+            {"step": 3, "operation": "differentiate_candidate", "residual": str(residual)},
+        ], None
 
     # ------------------------------------------------------------------
     # Rule: nested_integrate
