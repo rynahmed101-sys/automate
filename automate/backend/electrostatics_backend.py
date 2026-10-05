@@ -17,7 +17,7 @@ from automate.ir.linear_algebra import ParsedLinearAlgebra, parse_linear_algebra
 class ElectrostaticsChecker(BaseChecker):
     """Verify exact point-charge electrostatics claims in Cartesian coordinates."""
 
-    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential", "continuous_charge_field", "continuous_charge_potential", "uniform_line_charge_potential", "gauss_law_box", "conductor_boundary_field", "parallel_plate_field", "parallel_plate_capacitance", "capacitor_energy"}
+    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential", "continuous_charge_field", "continuous_charge_potential", "uniform_line_charge_potential", "gauss_law_box", "dipole_potential", "dipole_field", "conductor_boundary_field", "parallel_plate_field", "parallel_plate_capacitance", "capacitor_energy"}
 
     @property
     def name(self) -> str:
@@ -191,6 +191,61 @@ class ElectrostaticsChecker(BaseChecker):
                 details["contract"] = {"geometry":"closed Cartesian rectangular box","orientation":"outward","law":"surface_flux(E) = enclosed_charge / epsilon0"}
                 details["independent_evidence"] = {"available":True,"independence_class":"TWO_INTEGRALS_SYMBOLIC","claim":"Closed-surface flux and enclosed charge were independently integrated and compared."}
                 return VerificationReport(status=VerificationStatus.SYMBOLIC_CHECKED, backend=self.name, backend_version=self.version, execution_time_ms=(time.perf_counter()-start)*1000, passed=True, details=details)
+            elif rule in {"dipole_potential", "dipole_field"}:
+                if len(inputs) != 2 or len(outputs) != 1:
+                    raise ValueError(f"{rule} requires dipole moment, displacement vector, and one output.")
+                dipole, displacement = inputs
+                if dipole.kind != "vector" or displacement.kind != "vector":
+                    raise ValueError(f"{rule} requires vector dipole moment and vector displacement.")
+                if outputs[0].kind != ("scalar" if rule == "dipole_potential" else "vector"):
+                    raise ValueError(f"{rule} output has the wrong mathematical type.")
+                if len(dipole.value) != 3 or len(displacement.value) != 3:
+                    raise ValueError(f"{rule} is bounded to 3D Cartesian vectors.")
+                if edge.parameters.get("coordinates") != ["x", "y", "z"]:
+                    raise ValueError(f"{rule} requires explicit Cartesian coordinates.")
+                if edge.parameters.get("model") != "point_electric_dipole":
+                    raise ValueError(f"{rule} requires the explicit point electric dipole model.")
+                source = edge.parameters.get("source_position")
+                if source is None:
+                    raise ValueError(f"{rule} requires an explicit source_position.")
+                source_parsed = self._parse(str(source))
+                if source_parsed.kind != "vector" or len(source_parsed.value) != 3:
+                    raise ValueError("source_position must be a 3D vector.")
+                if not all(sp.simplify(component) == 0 for component in sp.Matrix(source_parsed.value)):
+                    raise ValueError(f"{rule} is bounded to a dipole located at the Cartesian origin.")
+                r = sp.Matrix(displacement.value)
+                p = sp.Matrix(dipole.value)
+                r2 = sp.simplify(r.dot(r))
+                if r2 == 0:
+                    raise ValueError("Dipole potential and field are singular at zero displacement.")
+                p_dot_r = sp.simplify(p.dot(r))
+                if rule == "dipole_potential":
+                    expected = sp.simplify(k * p_dot_r / sp.sqrt(r2)**3)
+                    expected_parsed = ParsedLinearAlgebra("scalar", expected)
+                    relation = "V = k * (p dot r) / |r|^3"
+                else:
+                    expected = sp.simplify(k * (3 * p_dot_r * r / (sp.sqrt(r2)**5) - p / (sp.sqrt(r2)**3)))
+                    expected_parsed = ParsedLinearAlgebra("vector", expected)
+                    relation = "E = k * (3 * (p dot r) r / |r|^5 - p / |r|^3)"
+                if not self._equal(outputs[0], expected_parsed):
+                    details.update({"expected": self._display(expected_parsed), "actual": self._display(outputs[0])})
+                    return VerificationReport(
+                        passed=False, status=VerificationStatus.FAILED, backend=self.name,
+                        backend_version=self.version, details=details,
+                        error_message=f"{rule} mathematical relation is incorrect.",
+                        execution_time_ms=(time.perf_counter()-start)*1000,
+                    )
+                details["relation"] = relation
+                details["model"] = "point_electric_dipole"
+                details["source_position"] = ["0", "0", "0"]
+                details["coordinates"] = ["x", "y", "z"]
+                details["non_singular_observation"] = True
+                details["symbolic_equivalence"] = True
+                return VerificationReport(
+                    status=VerificationStatus.SYMBOLIC_CHECKED, backend=self.name,
+                    backend_version=self.version, execution_time_ms=(time.perf_counter()-start)*1000,
+                    passed=True, details=details,
+                )
             elif rule == "conductor_boundary_field":
                 if len(inputs) != 2 or len(outputs) != 1:
                     raise ValueError("conductor_boundary_field requires electric field, conductor normal, and one tangential-field output.")
