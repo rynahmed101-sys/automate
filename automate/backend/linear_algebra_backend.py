@@ -53,6 +53,22 @@ class LinearAlgebraChecker(BaseChecker):
             return False
 
     @classmethod
+    def _eigenvalues_equal(cls, actual: ParsedLinearAlgebra, expected: ParsedLinearAlgebra) -> bool:
+        if actual.kind != "vector" or expected.kind != "vector" or actual.shape != expected.shape:
+            return False
+        actual_values = list(sp.Matrix(actual.value))
+        expected_values = list(sp.Matrix(expected.value))
+        unmatched = expected_values.copy()
+        for value in actual_values:
+            for index, candidate in enumerate(unmatched):
+                if cls._equal_scalar(value, candidate):
+                    unmatched.pop(index)
+                    break
+            else:
+                return False
+        return not unmatched
+
+    @classmethod
     def _equal(cls, actual: ParsedLinearAlgebra, expected: ParsedLinearAlgebra) -> bool:
         if actual.kind != expected.kind or actual.shape != expected.shape:
             return False
@@ -321,7 +337,11 @@ class LinearAlgebraChecker(BaseChecker):
             details["output_shape"] = list(output.shape)
             details["expected"] = self._display(expected)
             details["actual"] = self._display(output)
-            symbolic_passed = self._equal(output, expected)
+            symbolic_passed = (
+                self._eigenvalues_equal(output, expected)
+                if rule == "matrix_eigenvalues"
+                else self._equal(output, expected)
+            )
             details["symbolic_equivalence"] = symbolic_passed
             cross = {"available": False, "independence_class": "NOT_AVAILABLE",
                      "reason": "Inputs are symbolic or no independent numeric algorithm is configured."}

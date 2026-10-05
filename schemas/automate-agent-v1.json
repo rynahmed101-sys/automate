@@ -271,10 +271,13 @@
       "vector scalar multiplication and dot products",
       "explicit matrices and shape validation",
       "matrix multiplication and transpose",
-      "determinant and trace",
-      "inverse and exact rank",
+      "determinant, trace, inverse, and exact rank",
       "Gaussian elimination and reduced row-echelon form",
       "unique square-system solving Ax=b",
+      "eigenvalues with algebraic multiplicity",
+      "explicit eigenvector verification for a supplied eigenvalue",
+      "characteristic polynomials",
+      "diagonalization A=P*D*P^-1 with invertible P and diagonal D",
       "numeric cross-checks using NumPy where inputs are numeric"
     ]
   },
@@ -570,6 +573,42 @@
     },
     {
       "rule_id": "linear_system_solve",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_eigenvalues",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_eigenvector",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_characteristic_polynomial",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_diagonalize",
       "category": "linear_algebra",
       "domain": "mathematics",
       "implementation_backend": "linear_algebra",

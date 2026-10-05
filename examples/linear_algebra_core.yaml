@@ -99,3 +99,51 @@ derivations:
     transformation_rule: linear_system_solve
     justification: Solve Ax=b by elimination.
     checker: linear_algebra
+
+
+  E:
+    expression: "Matrix([[2, 1], [0, 3]])"
+    node_kind: matrix
+  evals:
+    expression: "Vector([2, 3])"
+    node_kind: vector
+  evec3:
+    expression: "Vector([1, 1])"
+    node_kind: vector
+  charE:
+    expression: "lam**2 - 5*lam + 6"
+  P:
+    expression: "Matrix([[1, 1], [0, 1]])"
+    node_kind: matrix
+  D:
+    expression: "Matrix([[2, 0], [0, 3]])"
+    node_kind: matrix
+
+  edge_eigenvalues:
+    input_nodes: [E]
+    output_nodes: [evals]
+    transformation_rule: matrix_eigenvalues
+    justification: Algebraic eigenvalue spectrum.
+    checker: linear_algebra
+  edge_eigenvector:
+    input_nodes: [E]
+    output_nodes: [evec3]
+    transformation_rule: matrix_eigenvector
+    justification: Eigenvector for eigenvalue 3.
+    checker: linear_algebra
+    parameters:
+      eigenvalue: "3"
+  edge_characteristic:
+    input_nodes: [E]
+    output_nodes: [charE]
+    transformation_rule: matrix_characteristic_polynomial
+    justification: Characteristic polynomial.
+    checker: linear_algebra
+    parameters:
+      variable: "lam"
+  edge_diagonalize:
+    input_nodes: [E]
+    output_nodes: [P, D]
+    transformation_rule: matrix_diagonalize
+    justification: A = P*D*P^-1.
+    checker: linear_algebra

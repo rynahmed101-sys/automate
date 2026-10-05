@@ -385,6 +385,27 @@ class RuleRegistry:
         ]:
             self.register(linear_rule)
 
+        # 4C. Phase 1A Linear Algebra eigenstructure
+        for linear_eigen_rule in [
+            RuleDefinition(rule_id="matrix_eigenvalues", name="Matrix Eigenvalues", category="linear_algebra",
+                description="Computes the algebraic eigenvalue spectrum of a square matrix.",
+                domain="mathematics", inputs=["Matrix"], outputs=["Vector"],
+                implementation_backend="linear_algebra", allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_eigenvector", name="Matrix Eigenvector", category="linear_algebra",
+                description="Verifies an explicit non-zero eigenvector for a supplied eigenvalue.",
+                domain="mathematics", inputs=["Matrix"], outputs=["Vector"],
+                implementation_backend="linear_algebra", allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_characteristic_polynomial", name="Characteristic Polynomial",
+                category="linear_algebra",
+                description="Computes det(lam*I - A) for a square matrix and explicit polynomial variable.",
+                domain="mathematics", inputs=["Matrix"], outputs=["Scalar"],
+                implementation_backend="linear_algebra", allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_diagonalize", name="Matrix Diagonalization", category="linear_algebra",
+                description="Verifies A = P*D*P^-1 with invertible P and diagonal D.",
+                domain="mathematics", inputs=["Matrix"], outputs=["Matrix", "Matrix"],
+                implementation_backend="linear_algebra", allowed_checkers=["linear_algebra"]),
+        ]:
+            self.register(linear_eigen_rule)
         # 5. Differential Equations & Solutions
         self.register(RuleDefinition(
             rule_id="solve_harmonic_oscillator",

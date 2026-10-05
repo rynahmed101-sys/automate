@@ -176,3 +176,222 @@ def test_registry_exposes_core_family():
         "matrix_inverse", "matrix_rank", "matrix_rref", "linear_system_solve",
     }
     assert expected.issubset(set(RuleRegistry().list_rule_ids()))
+
+
+def test_eigenvalues_numeric():
+    report = _check(
+        "matrix_eigenvalues",
+        ["Matrix([[2, 0], [0, 3]])"],
+        "Vector([3, 2])",
+    )
+    assert report.passed
+    assert report.details["numpy_cross_check"]["independence_class"] == "DIFFERENT_ENGINE"
+
+
+def test_eigenvalues_repeated_multiplicity():
+    report = _check(
+        "matrix_eigenvalues",
+        ["Matrix([[2, 1], [0, 2]])"],
+        "Vector([2, 2])",
+    )
+    assert report.passed
+
+
+def test_eigenvector_verification():
+    report = _check(
+        "matrix_eigenvector",
+        ["Matrix([[2, 1], [0, 3]])"],
+        "Vector([1, 0])",
+        parameters={"eigenvalue": "2"},
+    )
+    assert report.passed
+    assert report.details["numpy_cross_check"]["independence_class"] == "DIFFERENT_ENGINE"
+
+
+def test_second_eigenvector_verification():
+    report = _check(
+        "matrix_eigenvector",
+        ["Matrix([[2, 1], [0, 3]])"],
+        "Vector([1, 1])",
+        parameters={"eigenvalue": "3"},
+    )
+    assert report.passed
+
+
+def test_characteristic_polynomial():
+    report = _check(
+        "matrix_characteristic_polynomial",
+        ["Matrix([[1, 2], [3, 4]])"],
+        "lam**2 - 5*lam - 2",
+        parameters={"variable": "lam"},
+    )
+    assert report.passed
+
+
+def test_diagonalization():
+    graph = DerivationGraph(id="linear_algebra_diagonalization")
+    for node_id, expression, kind in [
+        ("A", "Matrix([[2, 1], [0, 3]])", "matrix"),
+        ("P", "Matrix([[1, 1], [0, 1]])", "matrix"),
+        ("D", "Matrix([[2, 0], [0, 3]])", "matrix"),
+    ]:
+        graph.add_node(
+            DerivationNode(
+                id=node_id,
+                expression=MathematicalExpression(raw_str=expression),
+                node_kind=kind,
+            )
+        )
+    graph.add_edge(
+        DerivationEdge(
+            id="edge",
+            input_nodes=["A"],
+            output_nodes=["P", "D"],
+            transformation_rule="matrix_diagonalize",
+            justification="A = P*D*P^-1",
+            checker="linear_algebra",
+        )
+    )
+    report = LinearAlgebraChecker().verify_edge(graph.edges["edge"], graph)
+    assert report.passed
+    assert report.certificates
+    assert report.details["numpy_cross_check"]["independence_class"] == "DIFFERENT_ENGINE"
+
+
+def test_wrong_eigenvalues_rejected():
+    report = _check(
+        "matrix_eigenvalues",
+        ["Matrix([[2, 0], [0, 3]])"],
+        "Vector([2, 2])",
+    )
+    assert not report.passed
+
+
+def test_wrong_eigenvector_rejected():
+    report = _check(
+        "matrix_eigenvector",
+        ["Matrix([[2, 1], [0, 3]])"],
+        "Vector([0, 1])",
+        parameters={"eigenvalue": "2"},
+    )
+    assert not report.passed
+
+
+def test_zero_eigenvector_rejected():
+    report = _check(
+        "matrix_eigenvector",
+        ["Matrix([[2, 0], [0, 3]])"],
+        "Vector([0, 0])",
+        parameters={"eigenvalue": "2"},
+    )
+    assert not report.passed
+
+
+def test_wrong_characteristic_polynomial_rejected():
+    report = _check(
+        "matrix_characteristic_polynomial",
+        ["Matrix([[1, 2], [3, 4]])"],
+        "lam**2 + 5*lam - 2",
+        parameters={"variable": "lam"},
+    )
+    assert not report.passed
+
+
+def test_non_diagonalizable_matrix_rejected():
+    graph = DerivationGraph(id="linear_algebra_non_diagonalizable")
+    for node_id, expression in [
+        ("A", "Matrix([[2, 1], [0, 2]])"),
+        ("P", "Matrix([[1, 1], [0, 0]])"),
+        ("D", "Matrix([[2, 0], [0, 2]])"),
+    ]:
+        graph.add_node(
+            DerivationNode(
+                id=node_id,
+                expression=MathematicalExpression(raw_str=expression),
+                node_kind="matrix",
+            )
+        )
+    graph.add_edge(
+        DerivationEdge(
+            id="edge",
+            input_nodes=["A"],
+            output_nodes=["P", "D"],
+            transformation_rule="matrix_diagonalize",
+            justification="Invalid diagonalization should fail.",
+            checker="linear_algebra",
+        )
+    )
+    report = LinearAlgebraChecker().verify_edge(graph.edges["edge"], graph)
+    assert not report.passed
+
+
+def test_diagonalization_requires_two_outputs():
+    graph = DerivationGraph(id="linear_algebra_bad_diagonalize_shape")
+    graph.add_node(
+        DerivationNode(
+            id="A",
+            expression=MathematicalExpression(raw_str="Matrix([[2, 1], [0, 3]])"),
+            node_kind="matrix",
+        )
+    )
+    graph.add_node(
+        DerivationNode(
+            id="P",
+            expression=MathematicalExpression(raw_str="Matrix([[1, 1], [0, 1]])"),
+            node_kind="matrix",
+        )
+    )
+    graph.add_edge(
+        DerivationEdge(
+            id="edge",
+            input_nodes=["A"],
+            output_nodes=["P"],
+            transformation_rule="matrix_diagonalize",
+            justification="Malformed diagonalization output count.",
+            checker="linear_algebra",
+        )
+    )
+    report = LinearAlgebraChecker().verify_edge(graph.edges["edge"], graph)
+    assert not report.passed
+
+
+def test_ai_diagonalization_proposal():
+    graph = DerivationGraph(id="ai_diagonalize")
+    graph.add_node(
+        DerivationNode(
+            id="A",
+            expression=MathematicalExpression(raw_str="Matrix([[2, 1], [0, 3]])"),
+            node_kind="matrix",
+        )
+    )
+    proposal = DerivationProposal(
+        proposal_id="la_diag_agent_001",
+        input_nodes=["A"],
+        output_nodes=[
+            {"id": "P", "expression": "Matrix([[1, 1], [0, 1]])", "node_kind": "matrix"},
+            {"id": "D", "expression": "Matrix([[2, 0], [0, 3]])", "node_kind": "matrix"},
+        ],
+        rule="matrix_diagonalize",
+        justification="A = P*D*P^-1.",
+        target_checker="linear_algebra",
+        origin={"type": "ai", "provider": "acceptance"},
+    )
+    dry = apply_and_verify_proposal(proposal, graph, dry_run=True)
+    assert dry.success
+    assert not dry.graph_updated
+    assert "P" not in graph.nodes and "D" not in graph.nodes
+
+    applied = apply_and_verify_proposal(proposal, graph, dry_run=False)
+    assert applied.success
+    assert applied.graph_updated
+
+
+def test_registry_exposes_eigenstructure_family():
+    from automate.theory.rules import RuleRegistry
+    expected = {
+        "matrix_eigenvalues",
+        "matrix_eigenvector",
+        "matrix_characteristic_polynomial",
+        "matrix_diagonalize",
+    }
+    assert expected.issubset(set(RuleRegistry().list_rule_ids()))

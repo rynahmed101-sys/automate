@@ -164,7 +164,8 @@ def validate_ai_proposal(
             if proposal.rule in {
                 "vector_add", "vector_subtract", "vector_scalar_multiply", "vector_dot",
                 "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_trace",
-                "matrix_inverse", "matrix_rank", "matrix_rref", "linear_system_solve",
+                "matrix_inverse", "matrix_rank", "matrix_rref", "matrix_eigenvalues",
+                "matrix_eigenvector", "matrix_characteristic_polynomial", "matrix_diagonalize", "linear_system_solve",
             }:
                 from automate.ir.linear_algebra import parse_linear_algebra_expression
                 parse_linear_algebra_expression(out_node.expression)

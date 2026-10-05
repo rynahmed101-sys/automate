@@ -15,3 +15,18 @@ Gaussian-elimination evidence records pivots and reduced row-echelon form. All s
 AI agents should discover these capabilities with automate capabilities --json, retrieve context with automate context, and submit automate.proposal.v1 using target_checker linear_algebra. AI output remains untrusted until the checker returns SYMBOLIC_CHECKED.
 
 Named acceptance campaign: tests/test_linear_algebra_acceptance.py.
+
+
+## Eigenstructure batch
+
+The next bounded Phase 1A slice adds eigenvalues, explicit eigenvector verification, characteristic polynomials, and diagonalization.
+
+For eigenvalues, the candidate is a Vector containing the algebraic spectrum including multiplicity. Candidate order is not semantically significant.
+
+For an eigenvector, the edge must provide an explicit scalar parameter `eigenvalue`, and the checker verifies the non-zero vector residual `A*v - eigenvalue*v`.
+
+Characteristic-polynomial verification accepts a simple symbolic variable parameter such as `lam` and checks the exact polynomial returned by SymPy's `charpoly`.
+
+Diagonalization accepts two output matrices in order `P`, `D` and verifies that P is invertible, D is diagonal, A = P*D*P^-1, and every column of P is an eigenvector associated with the corresponding diagonal entry.
+
+Numeric eigenvalue/eigenvector/diagonalization results receive NumPy cross-checks where inputs permit. These are recorded as DIFFERENT_ENGINE evidence, not proof.
