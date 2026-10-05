@@ -25,7 +25,7 @@ def test_constraints_and_forces_are_explicit():
         coordinates=[GeneralizedCoordinate(name="x")], kinetic_energy="m*x_dot**2/2",
         forces=[GeneralizedForce(coordinate="x", expression="F")],
         constraints=[MechanicalConstraint(expression="x-L")])
-    assert model.generalized_force_map()["x"] == sp.Symbol("F", real=True)
+    assert sp.simplify(model.generalized_force_map()["x"] - sp.Symbol("F", real=True)) == 0
     assert model.constraint_residuals()["x-L"] == sp.Symbol("x", real=True) - sp.Symbol("L", real=True)
 def test_unknown_force_coordinate_fails_closed():
     model = MechanicalSystemRepresentation(
