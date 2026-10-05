@@ -21,7 +21,7 @@ The primary roadmap is mathematical and physical capability expansion. Prefer mi
 
 Infrastructure is supporting work. It must have a demonstrated capability reason and must not become the milestone merely because it is easier to enumerate.
 
-See **[Mathematics & Physics Capability Roadmap](MATH_PHYSICS_ROADMAP.md)** for the ordered capability program.
+See **[Development Stages & Capability Ledger](PROJECT_PHASE_LEDGER.md)** for the single ordered capability program and next mathematical/physics move. `MATH_PHYSICS_ROADMAP.md` is retained only as a compatibility pointer.
 
 ## 📦 Change batching policy
 
