@@ -47,6 +47,9 @@ class OrthogonalCoordinateSystem:
             if any(v.kind != "scalar" for v in parsed):
                 raise ValueError("scale_factors must be scalar expressions")
             factors = tuple(v.value for v in parsed)
+        exclusions = p.get("domain_exclusions", [])
+        if name in {"cylindrical", "spherical"} and (not isinstance(exclusions, list) or not exclusions):
+            raise ValueError("domain_exclusions must explicitly exclude coordinate singularities for cylindrical/spherical systems")
         if any(sp.simplify(h) == 0 for h in factors):
             raise ValueError("scale factors must be nonzero on the declared domain")
         return cls(name, symbols, tuple(factors))
@@ -130,6 +133,6 @@ class CoordinateVectorCalculusChecker(BaseChecker):
             expected_p=ParsedLinearAlgebra("vector" if isinstance(expected,sp.MatrixBase) else "scalar", expected)
             if not self._equal(outputs[0],expected_p):
                 return self._report(edge,graph,VerificationStatus.FAILED,False,{**details,"expected":str(expected),"actual":str(outputs[0].value)},"Coordinate-aware result is incorrect.")
-            return self._report(edge,graph,VerificationStatus.SYMBOLIC_CHECKED,True,{**details,"symbolic_equivalence":True,"coordinate_system":cs.name,"coordinates":[str(x) for x in cs.coordinates],"scale_factors":[str(x) for x in cs.scale_factors]})
+            return self._report(edge,graph,VerificationStatus.SYMBOLIC_CHECKED,True,{**details,"symbolic_equivalence":True,"coordinate_system":cs.name,"coordinates":[str(x) for x in cs.coordinates],"scale_factors":[str(x) for x in cs.scale_factors], "domain_exclusions": edge.parameters.get("domain_exclusions", [])})
         except (KeyError,TypeError,ValueError,LinearAlgebraParseError,sp.SympifyError) as exc:
             return self._report(edge,graph,VerificationStatus.FAILED,False,details,f"Coordinate-aware verification failed: {exc}")
