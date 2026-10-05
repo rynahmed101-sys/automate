@@ -1,0 +1,23 @@
+theory: electrostatics_core
+name: Point Charge Electrostatics
+description: Basic Coulomb-law verification.
+nodes:
+  q1:
+    expression: "q1"
+  q2:
+    expression: "q2"
+  r1:
+    expression: "Vector([0, 0])"
+  r2:
+    expression: "Vector([r, 0])"
+  force:
+    expression: "Vector([k*q1*q2/r**2, 0])"
+derivations:
+  coulomb:
+    input_nodes: [q1, q2, r1, r2]
+    output_nodes: [force]
+    transformation_rule: coulomb_force
+    justification: Coulomb force for two noncoincident point charges.
+    checker: electrostatics
+    parameters:
+      k: k
