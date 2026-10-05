@@ -33,7 +33,7 @@ class LinearAlgebraChecker(BaseChecker):
         "vector_projection", "vector_gram_schmidt",
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
         "vector_span_membership", "vector_linear_independence", "vector_basis_of_span", "vector_change_of_basis",
-        "linear_transformation_apply", "matrix_representation",
+        "linear_transformation_apply", "matrix_representation", "matrix_svd",
         "matrix_positive_definite",
         "matrix_symmetric", "matrix_hermitian",
     }
