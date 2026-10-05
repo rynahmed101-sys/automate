@@ -7,7 +7,7 @@ from typing import Any
 
 import sympy as sp
 
-from automate.backend.base import BaseChecker, VerificationEvidence, VerificationReport
+from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
 from automate.core.status import VerificationStatus
@@ -96,22 +96,24 @@ class ElectrostaticsChecker(BaseChecker):
                 details.update({"expected": self._display(expected_parsed), "actual": self._display(outputs[0])})
                 return VerificationReport(
                     passed=False, status=VerificationStatus.FAILED,
-                    message=f"{rule} result is mathematically incorrect.", checker=self.name,
-                    evidence=VerificationEvidence(details=details),
-                    elapsed_seconds=time.perf_counter()-start,
+                    backend="electrostatics", backend_version=self.version,
+                    details=details,
+                    error_message=f"{rule} result is mathematically incorrect.",
+                    execution_time_ms=(time.perf_counter()-start)*1000,
                 )
             details["symbolic_equivalence"] = True
             details["constant_contract"] = {"k": str(k), "interpretation": "Coulomb constant or equivalent unit-system constant"}
             return VerificationReport(
                 passed=True, status=VerificationStatus.SYMBOLIC_CHECKED,
-                message=f"{rule} verified exactly.", checker=self.name,
-                evidence=VerificationEvidence(details=details),
-                elapsed_seconds=time.perf_counter()-start,
+                backend="electrostatics", backend_version=self.version,
+                details=details,
+                execution_time_ms=(time.perf_counter()-start)*1000,
             )
         except (KeyError, TypeError, ValueError, sp.SympifyError) as exc:
             return VerificationReport(
                 passed=False, status=VerificationStatus.FAILED,
-                message=f"Electrostatics verification failed: {exc}", checker=self.name,
-                evidence=VerificationEvidence(details=details),
-                elapsed_seconds=time.perf_counter()-start,
+                backend="electrostatics", backend_version=self.version,
+                details=details,
+                error_message=f"Electrostatics verification failed: {exc}",
+                execution_time_ms=(time.perf_counter()-start)*1000,
             )
