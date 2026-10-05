@@ -1,0 +1,34 @@
+theory: vector_calculus_integrals
+name: Cartesian Vector Calculus Integrals
+description: Basic line, surface, flux, and volume integral examples.
+nodes:
+  scalar_one:
+    expression: "1"
+  curve:
+    expression: "Vector([t, 0])"
+  line_result:
+    expression: "2"
+  volume_field:
+    expression: "x + y + z"
+  volume_result:
+    expression: "3/2"
+derivations:
+  line:
+    input_nodes: [scalar_one, curve]
+    output_nodes: [line_result]
+    transformation_rule: line_integral_scalar
+    justification: Scalar line integral of 1 along a straight segment of length 2.
+    checker: vector_calculus
+    parameters:
+      variables: [t]
+      bounds: [[0, 2]]
+      coordinates: [x, y]
+  volume:
+    input_nodes: [volume_field]
+    output_nodes: [volume_result]
+    transformation_rule: volume_integral
+    justification: Integral of x+y+z over the unit cube.
+    checker: vector_calculus
+    parameters:
+      variables: [x, y, z]
+      bounds: [[0, 1], [0, 1], [0, 1]]
