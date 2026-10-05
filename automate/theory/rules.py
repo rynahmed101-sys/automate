@@ -677,6 +677,29 @@ class RuleRegistry:
         ]:
             self.register(coordinate_rule)
 
+        # Stage 2B reusable PDE residual verification
+        for pde_rule in [
+            RuleDefinition(rule_id="verify_pde_solution", name="General PDE Solution Verifier", category="differential_equations",
+                description="Constructs a symbolic PDE residual after substituting an explicit candidate solution.", domain="mathematics",
+                inputs=["PDE"], outputs=["Analytical Solution"], implementation_backend="pde", allowed_checkers=["pde"]),
+            RuleDefinition(rule_id="heat_equation", name="Heat Equation", category="differential_equations",
+                description="Verifies a candidate against an explicitly parameterized heat-equation residual.", domain="mathematics",
+                inputs=["Heat PDE"], outputs=["Analytical Solution"], required_assumptions=["explicit_diffusivity"],
+                implementation_backend="pde", allowed_checkers=["pde"]),
+            RuleDefinition(rule_id="wave_equation", name="Wave Equation", category="differential_equations",
+                description="Verifies a candidate against an explicitly parameterized wave-equation residual.", domain="mathematics",
+                inputs=["Wave PDE"], outputs=["Analytical Solution"], required_assumptions=["explicit_wave_speed"],
+                implementation_backend="pde", allowed_checkers=["pde"]),
+            RuleDefinition(rule_id="laplace_equation", name="Laplace Equation", category="differential_equations",
+                description="Verifies a candidate against the homogeneous Laplace equation.", domain="mathematics",
+                inputs=["Laplace PDE"], outputs=["Analytical Solution"], implementation_backend="pde", allowed_checkers=["pde"]),
+            RuleDefinition(rule_id="poisson_equation", name="Poisson Equation", category="differential_equations",
+                description="Verifies a candidate against a sourced Poisson equation with explicit source term.", domain="mathematics",
+                inputs=["Poisson PDE"], outputs=["Analytical Solution"], required_assumptions=["explicit_source"],
+                implementation_backend="pde", allowed_checkers=["pde"]),
+        ]:
+            self.register(pde_rule)
+
         # 5. Differential Equations & Solutions
         self.register(RuleDefinition(
             rule_id="solve_harmonic_oscillator",
