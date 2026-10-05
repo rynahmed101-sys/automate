@@ -198,7 +198,10 @@
       "divergence-curl identity",
       "equivalent Cartesian Laplacian identity",
       "continuous charge electric-field kernels",
-      "continuous charge potential kernels"
+      "continuous charge potential kernels",
+      "explicit orthogonal coordinate systems with metric scale factors",
+      "coordinate-aware gradient, divergence, curl, and Laplacian",
+      "verified axis-path conservative-field potential reconstruction"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -1104,6 +1107,51 @@
       "implementation_backend": "linear_algebra",
       "allowed_checkers": [
         "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "coordinate_gradient",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "coordinate_vector_calculus",
+      "allowed_checkers": [
+        "coordinate_vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "coordinate_divergence",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "coordinate_vector_calculus",
+      "allowed_checkers": [
+        "coordinate_vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "coordinate_curl",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "coordinate_vector_calculus",
+      "allowed_checkers": [
+        "coordinate_vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "coordinate_laplacian",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "coordinate_vector_calculus",
+      "allowed_checkers": [
+        "coordinate_vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "reconstruct_potential",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
       ]
     }
   ],
