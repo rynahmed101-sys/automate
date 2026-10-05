@@ -40,6 +40,33 @@ def test_distribution_kernel_zero_separation_rejected():
                        "Vector([0,0,0])").passed
 
 
+def test_distribution_kernel_requires_explicit_measure():
+    graph = DerivationGraph(id="continuous_charge_field")
+    for nid, raw in [("rho", "rho"), ("d", "Vector([1,0,0])"), ("out", "Vector([k*rho,0,0])")]:
+        graph.add_node(DerivationNode(id=nid, expression=MathematicalExpression(raw_str=raw)))
+    edge = DerivationEdge(
+        id="e", input_nodes=["rho", "d"], output_nodes=["out"],
+        transformation_rule="continuous_charge_field",
+        justification="Explicit-measure contract",
+        checker="electrostatics", parameters={"k": "k"},
+    )
+    assert not ElectrostaticsChecker().verify_edge(edge, graph).passed
+
+
+def test_distribution_kernel_rejects_vector_measure():
+    assert not _check(
+        "continuous_charge_field", "rho", "Vector([1,0,0])",
+        "Vector([k*rho,0,0])", measure="Vector([1,2])"
+    ).passed
+
+
+def test_distribution_kernel_rejects_unsafe_measure_expression():
+    assert not _check(
+        "continuous_charge_field", "rho", "Vector([1,0,0])",
+        "Vector([k*rho,0,0])", measure="__import__('os').system('id')"
+    ).passed
+
+
 def test_distribution_rules_registered():
     from automate.theory.rules import RuleRegistry
     assert {"continuous_charge_field","continuous_charge_potential"}.issubset(
