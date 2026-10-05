@@ -245,6 +245,7 @@ def test_campaign_field_equations(lagrangian, fields, coordinates, parameters, c
             "fields": fields,
             "coordinates": coordinates,
             "parameters": parameters,
+            "assumptions": ["vanishing_boundary_variations"],
         },
     )
     report = SymPyChecker().verify_edge(edge, graph)
