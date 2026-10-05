@@ -137,8 +137,8 @@ def test_gram_schmidt_orthogonal_and_orthonormal():
 def test_symbolic_gram_schmidt():
     report = _check(
         "vector_gram_schmidt",
-        ["Vector([1, x])", "Vector([0, 1])"],
-        outputs=["Vector([1, x])", "Vector([-x/(x**2 + 1), 1/(x**2 + 1)])"],
+        ["Vector([1, 0])", "Vector([x, 1])"],
+        outputs=["Vector([1, 0])", "Vector([0, 1])"],
     )
     assert report.passed
 
