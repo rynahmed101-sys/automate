@@ -646,6 +646,37 @@ class RuleRegistry:
         ]:
             self.register(vector_rule)
 
+        # Stage 2A coordinate-aware vector calculus and potential reconstruction
+        for coordinate_rule in [
+            RuleDefinition(rule_id="coordinate_gradient", name="Coordinate-Aware Gradient", category="vector_calculus",
+                description="Computes the physical-component gradient in a supported explicit orthogonal coordinate system using its metric scale factors.",
+                domain="mathematics", inputs=["Scalar Field"], outputs=["Vector Field"],
+                required_assumptions=["explicit_supported_coordinate_system", "non_singular_coordinate_domain"],
+                implementation_backend="coordinate_vector_calculus", allowed_checkers=["coordinate_vector_calculus"]),
+            RuleDefinition(rule_id="coordinate_divergence", name="Coordinate-Aware Divergence", category="vector_calculus",
+                description="Computes divergence of an orthogonal-coordinate vector field from explicit scale factors.",
+                domain="mathematics", inputs=["Vector Field"], outputs=["Scalar"],
+                required_assumptions=["explicit_supported_coordinate_system", "non_singular_coordinate_domain"],
+                implementation_backend="coordinate_vector_calculus", allowed_checkers=["coordinate_vector_calculus"]),
+            RuleDefinition(rule_id="coordinate_curl", name="Coordinate-Aware Curl", category="vector_calculus",
+                description="Computes curl of a three-dimensional orthogonal-coordinate vector field using explicit scale factors.",
+                domain="mathematics", inputs=["Vector Field"], outputs=["Vector Field"],
+                required_assumptions=["explicit_supported_3d_coordinate_system", "non_singular_coordinate_domain"],
+                implementation_backend="coordinate_vector_calculus", allowed_checkers=["coordinate_vector_calculus"]),
+            RuleDefinition(rule_id="coordinate_laplacian", name="Coordinate-Aware Laplacian", category="vector_calculus",
+                description="Computes the scalar Laplacian in a supported orthogonal coordinate system from explicit scale factors.",
+                domain="mathematics", inputs=["Scalar Field"], outputs=["Scalar"],
+                required_assumptions=["explicit_supported_coordinate_system", "non_singular_coordinate_domain"],
+                implementation_backend="coordinate_vector_calculus", allowed_checkers=["coordinate_vector_calculus"]),
+            RuleDefinition(rule_id="reconstruct_potential", name="Conservative-Field Potential Reconstruction", category="vector_calculus",
+                description="Constructs a scalar potential by an explicit axis-aligned path integral and verifies its gradient equals the supplied vector field.",
+                domain="mathematics", inputs=["Vector Field"], outputs=["Potential"],
+                required_assumptions=["path_avoids_singularities"],
+                side_conditions=["explicit_coordinate_domain", "verification_by_gradient"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+        ]:
+            self.register(coordinate_rule)
+
         # 5. Differential Equations & Solutions
         self.register(RuleDefinition(
             rule_id="solve_harmonic_oscillator",
