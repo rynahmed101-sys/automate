@@ -28,6 +28,10 @@ class ODEResult:
     error: Optional[str] = None
 
 
+class _ODEStructuralUnverified(Exception):
+    """Structural ODE classification could not be established safely."""
+
+
 class ODEEngine:
     """Reusable scalar/system ODE representation and verification engine."""
 
@@ -236,8 +240,13 @@ class ODEEngine:
         # Canonical form is yp - RHS = 0. The coefficient of yp must be one.
         coeff = sp.expand(eq).coeff(yp)
         if coeff != 1:
-            if coeff == 0:
+            coefficient_state = self._zero_state(coeff)
+            if coefficient_state is True:
                 raise SafeParseError("Equation is not explicitly first-order in the dependent function.")
+            if coefficient_state is None:
+                raise _ODEStructuralUnverified(
+                    "UNVERIFIED: derivative coefficient could not be established as non-zero."
+                )
             eq = sp.simplify(eq / coeff)
         rhs = sp.simplify(-eq.subs(yp, 0))
         return eq, rhs, y
@@ -293,6 +302,8 @@ class ODEEngine:
                 return self._result(False, details, steps,
                                     "Candidate residual is symbolically unresolved.", unresolved=True)
             return self._result(False, details, steps, f"Candidate residual is non-zero: {residual}")
+        except _ODEStructuralUnverified as exc:
+            return self._result(False, {"rule": "solve_separable_ode"}, [], str(exc), unresolved=True)
         except SafeParseError as exc:
             return self._result(False, {"rule": "solve_separable_ode"}, [], str(exc))
         except Exception as exc:
@@ -346,6 +357,8 @@ class ODEEngine:
             if zero is None:
                 return self._result(False, details, steps, "Candidate residual unresolved.", unresolved=True)
             return self._result(False, details, steps, f"Candidate residual is non-zero: {residual}")
+        except _ODEStructuralUnverified as exc:
+            return self._result(False, {"rule": "solve_linear_first_order_ode"}, [], str(exc), unresolved=True)
         except SafeParseError as exc:
             return self._result(False, {"rule": "solve_linear_first_order_ode"}, [], str(exc))
         except Exception as exc:
@@ -408,6 +421,8 @@ class ODEEngine:
             if zero is None:
                 return self._result(False, details, steps, "Candidate residual unresolved.", unresolved=True)
             return self._result(False, details, steps, f"Candidate residual is non-zero: {residual}")
+        except _ODEStructuralUnverified as exc:
+            return self._result(False, {"rule": "solve_bernoulli_ode"}, [], str(exc), unresolved=True)
         except SafeParseError as exc:
             return self._result(False, {"rule": "solve_bernoulli_ode"}, [], str(exc))
         except Exception as exc:
