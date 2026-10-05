@@ -19,11 +19,11 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 **Last recorded capability baseline main:** `082d83b0d2b17e0dc9c97a10fea118ae4c65d7cf`
 
-**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics, bounded continuous-charge kernels, finite uniform line-charge potential, bounded Cartesian Gauss-law verification, and conductor/capacitor verification are certified on main. Bounded point-dipole potential and electric-field verification is merged on main and is [!] awaiting authoritative Exact-head verification. Electrostatic dipole energy and general boundary conditions remain unfinished.
+**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics, bounded continuous-charge kernels, finite uniform line-charge potential, bounded Cartesian Gauss-law verification, conductor/capacitor verification, and bounded point-dipole potential/electric-field verification are certified on main. Electrostatic dipole energy and general boundary conditions remain unfinished.
 
-**Latest authoritative verification:** The previous certified baseline `0f6591300f06b9ab3c444327e5db2fa6dc8ed96b` passed Exact-head run `37295223953` and Security Audit run `37295224004`. The current main SHA `4e705d8b0a806c4b7a732f54cfbdc6e3d091bcc1` is verification-pending and must receive a new authoritative Exact-head run before this dipole milestone can be marked [x].
+**Latest authoritative verification:** Dipole potential/field feature merge `082d83b0d2b17e0dc9c97a10fea118ae4c65d7cf` is covered by authoritative Exact-head run `37298925648` and Security Audit run `37298925633`, both successful on merged main SHA `ae73912108eb44a65c5c352328b8698e84b31af8`. This ledger update will create a new main SHA that must itself pass the same authoritative gates.
 
-**Next capability:** Complete authoritative verification of the merged dipole potential/field milestone, then add dipole electrostatic energy and bounded electrostatic boundary-condition verification. Magnetostatics remains a later Phase 2 batch.
+**Next capability:** Add dipole electrostatic energy verification, then bounded electrostatic boundary-condition verification. Magnetostatics remains a later Phase 2 batch.
 
 ---
 
@@ -96,7 +96,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [x] Finite uniform line-charge potential
 - [x] Gauss law
 - [x] Conductors and capacitors
-- [~] Dipole potential and electric-field verification implemented; electrostatic energy remains
+- [x] Dipole potential and electric-field verification
 - [ ] Boundary conditions
 
 ## Magnetostatics
@@ -117,7 +117,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Poynting vector
 - [ ] Electromagnetic wave equation
 
-**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge, bounded continuous-charge, finite line-charge potential, bounded Cartesian Gauss-law, and conductor/capacitor verification are certified. Dipole potential/field verification is in progress; dipole energy and bounded electrostatic boundary conditions remain.
+**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge, bounded continuous-charge, finite line-charge potential, bounded Cartesian Gauss-law, conductor/capacitor, and dipole potential/field verification are certified. Dipole energy and bounded electrostatic boundary conditions remain.
 
 ---
 
@@ -366,8 +366,8 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 ## Next move
 
-**1. Implement bounded conductor/capacitor verification for explicit Cartesian configurations.**
+**1. Implement dipole electrostatic energy verification with an explicit point-dipole model and fail-closed domain restrictions.**
 
-**2. Verify equipotential/conductor-field constraints and capacitance relations with positive, negative, geometry-edge, and adversarial cases.**
+**2. Verify positive/negative dipole orientations, reference-potential conventions, invalid source/displacement configurations, and adversarial unsafe expressions.**
 
-**3. Preserve explicit geometry, units/measure semantics, and fail-closed behavior before advancing to dipoles and boundary conditions.**
+**3. Then implement bounded electrostatic boundary-condition verification with explicit Cartesian geometry and no hidden medium/interface assumptions.**
