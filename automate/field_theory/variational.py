@@ -75,7 +75,7 @@ class FieldTheoryAction:
         higher_order = []
         for derivative in self.lagrangian_density.atoms(sp.Derivative):
             if any(derivative.expr == self.field_funcs[f] for f in self.field_names):
-                if sum(derivative.derivative_count for _ in [0]) > 1:
+                if derivative.derivative_count > 1:
                     higher_order.append(derivative)
         if higher_order:
             raise ValueError(
