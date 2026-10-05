@@ -180,7 +180,12 @@
       "division with explicit nonzero proof requirements",
       "substitution",
       "differentiation of both sides",
-      "ordinary differential equation solution verification by residual substitution"
+      "ordinary differential equation solution verification by residual substitution",
+      "scalar and vector field representation in Cartesian coordinates",
+      "gradient and directional derivative",
+      "divergence and three-dimensional curl",
+      "scalar Laplacian",
+      "conservative-field and potential checks"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -629,6 +634,78 @@
       "implementation_backend": "linear_algebra",
       "allowed_checkers": [
         "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "scalar_field",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "vector_field",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "gradient",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "directional_derivative",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "divergence",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "curl",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "laplacian",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "conservative_field",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
       ]
     },
     {
