@@ -298,6 +298,9 @@
       "complete eigenvalue multisets with algebraic multiplicity",
       "claimed eigenvector residual verification for explicit eigenvalues",
       "diagonalization certificates verifying A = P*D*P^-1",
+      "general quadratic forms q(x) = x^T*A*x for compatible real vectors and square matrices",
+      "quadratic-form verification does not require A to be symmetric and records symmetric-part equivalence",
+      "explicit complex-valued quadratic forms fail closed until a bilinear/Hermitian convention is defined",
       "exact Hermitian inner products for vectors",
       "exact Euclidean vector norms",
       "orthogonality claims with explicit indicator semantics",
@@ -997,6 +1000,15 @@
     },
     {
       "rule_id": "vector_basis_of_span",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "quadratic_form",
       "category": "linear_algebra",
       "domain": "mathematics",
       "implementation_backend": "linear_algebra",
