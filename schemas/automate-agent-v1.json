@@ -180,6 +180,10 @@
       "division with explicit nonzero proof requirements",
       "substitution",
       "differentiation of both sides",
+      "scalar differentiation of arbitrary positive integer order",
+      "scalar limits with explicit two-sided and one-sided direction semantics",
+      "limits toward positive and negative infinity",
+      "pointwise continuity derived from explicit limit equality with the function value",
       "ordinary differential equation solution verification by residual substitution",
       "scalar and vector field representation in Cartesian coordinates",
       "gradient and directional derivative",
@@ -198,7 +202,13 @@
       "divergence-curl identity",
       "equivalent Cartesian Laplacian identity",
       "continuous charge electric-field kernels",
-      "continuous charge potential kernels"
+      "continuous charge potential kernels",
+      "explicit chain-rule differentiation",
+      "explicit product-rule differentiation",
+      "explicit quotient-rule differentiation",
+      "implicit differentiation under a local nonzero-partial condition",
+      "definite and indefinite symbolic integration",
+      "represented repeated and nested indefinite integration"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -308,8 +318,7 @@
       "column-space basis verification",
       "vector span-membership verification",
       "linear-independence verification by exact rank",
-      "basis-of-span verification",
-      "vector coordinate change-of-basis verification"
+      "basis-of-span verification"
     ],
     "physics": [
       "Coulomb force for point charges",
@@ -364,6 +373,33 @@
     },
     {
       "rule_id": "differentiate_both_sides",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "differentiate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "limit",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "continuity",
       "category": "calculus",
       "domain": "mathematics",
       "implementation_backend": "sympy",
@@ -1008,15 +1044,6 @@
       ]
     },
     {
-      "rule_id": "vector_change_of_basis",
-      "category": "linear_algebra",
-      "domain": "mathematics",
-      "implementation_backend": "linear_algebra",
-      "allowed_checkers": [
-        "linear_algebra"
-      ]
-    },
-    {
       "rule_id": "matrix_characteristic_polynomial",
       "category": "linear_algebra",
       "domain": "mathematics",
@@ -1062,15 +1089,6 @@
       ]
     },
     {
-      "rule_id": "quadratic_form_evaluate",
-      "category": "linear_algebra",
-      "domain": "mathematics",
-      "implementation_backend": "linear_algebra",
-      "allowed_checkers": [
-        "linear_algebra"
-      ]
-    },
-    {
       "rule_id": "matrix_symmetric",
       "category": "linear_algebra",
       "domain": "mathematics",
@@ -1089,7 +1107,7 @@
       ]
     },
     {
-      "rule_id": "matrix_positive_definite",
+      "rule_id": "matrix_diagonalize",
       "category": "linear_algebra",
       "domain": "mathematics",
       "implementation_backend": "linear_algebra",
@@ -1098,7 +1116,115 @@
       ]
     },
     {
-      "rule_id": "matrix_diagonalize",
+      "rule_id": "chain_rule",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "product_rule",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "quotient_rule",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "implicit_differentiate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "integrate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "nested_integrate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "integration_by_substitution",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "integration_by_parts",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "partial_fractions_integrate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "trigonometric_integrate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "vector_change_of_basis",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "quadratic_form_evaluate",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_positive_definite",
       "category": "linear_algebra",
       "domain": "mathematics",
       "implementation_backend": "linear_algebra",
