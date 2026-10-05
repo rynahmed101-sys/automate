@@ -971,6 +971,70 @@ class LinearAlgebraChecker(BaseChecker):
                 if numeric_g is not None and numeric_b is not None:
                     numpy_expected = {"generators": numeric_g, "basis": numeric_b}
 
+            elif rule == "matrix_positive_definite":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
+                    raise LinearAlgebraParseError(
+                        "matrix_positive_definite requires one square matrix input and one scalar indicator output."
+                    )
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(f"matrix_positive_definite requires a square matrix; received {matrix.shape}.")
+                hermitian_residual = matrix - matrix.conjugate().T
+                hermitian_components = [sp.simplify(value) for value in hermitian_residual]
+                if any(value.is_zero is False for value in hermitian_components):
+                    expected_value = sp.Integer(0)
+                    hermitian_verified = False
+                elif any(value != 0 for value in hermitian_components):
+                    return self._unverified(
+                        edge,
+                        graph,
+                        start,
+                        details,
+                        "Positive-definiteness requires a symmetric/Hermitian matrix, but the Hermitian condition cannot be established for the supplied symbolic entries.",
+                    )
+                else:
+                    hermitian_verified = True
+                    principal_minors = []
+                    for size in range(1, matrix.rows + 1):
+                        minor = sp.simplify(matrix[:size, :size].det())
+                        principal_minors.append(minor)
+                        positive = sp.ask(sp.Q.positive(minor))
+                        if positive is False:
+                            expected_value = sp.Integer(0)
+                            break
+                        if positive is not True:
+                            return self._unverified(
+                                edge,
+                                graph,
+                                start,
+                                details,
+                                f"Positive-definiteness cannot be established because leading principal minor {size} is not provably positive.",
+                            )
+                    else:
+                        expected_value = sp.Integer(1)
+                expected = ParsedLinearAlgebra("scalar", expected_value)
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    matrix_np = np.asarray(numeric)
+                    try:
+                        eigenvalues = np.linalg.eigvalsh(matrix_np)
+                        scale = max(1.0, float(np.linalg.norm(matrix_np, ord=2)))
+                        tolerance = 1e-10 * scale
+                        numpy_expected = int(bool(np.min(eigenvalues) > tolerance))
+                    except np.linalg.LinAlgError:
+                        numpy_expected = None
+                steps = [{
+                    "step": 1,
+                    "operation": "verify_hermitian_or_symmetric",
+                    "verified": hermitian_verified if "hermitian_verified" in locals() else False,
+                }]
+                if expected_value == 1:
+                    steps.append({
+                        "step": 2,
+                        "operation": "sylvester_criterion",
+                        "leading_principal_minors": [str(value) for value in principal_minors],
+                    })
+
             elif rule == "matrix_characteristic_polynomial":
                 if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
                     raise LinearAlgebraParseError("matrix_characteristic_polynomial requires one square matrix input and one scalar output.")
