@@ -58,7 +58,7 @@ jobs:
           pytest -q --tb=short --strict-markers
 
   exact-head:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
     name: Exact-head / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
