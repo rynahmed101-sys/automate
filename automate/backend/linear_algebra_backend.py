@@ -402,13 +402,13 @@ class LinearAlgebraChecker(BaseChecker):
                 metric = {"residual_max_abs": float(np.max(np.abs(residual))) if residual.size else 0.0}
             elif rule == "matrix_row_space":
                 matrix = inputs[0]
-                if candidate.shape[1] != matrix.shape[1]:
+                if candidate.shape[0] != matrix.shape[1]:
                     passed = False
                     metric = {"shape_match": False}
                 else:
                     rank_a = np.linalg.matrix_rank(matrix)
                     rank_c = np.linalg.matrix_rank(candidate)
-                    combined = np.vstack([matrix, candidate])
+                    combined = np.vstack([matrix.T, candidate])
                     combined_rank = np.linalg.matrix_rank(combined)
                     passed = rank_c == rank_a == combined_rank
                     metric = {"rank_input": int(rank_a), "rank_candidate": int(rank_c), "rank_combined": int(combined_rank)}
@@ -885,11 +885,13 @@ class LinearAlgebraChecker(BaseChecker):
                         {"step": 2, "operation": "verify_nullity_basis_dimension", "expected_dimension": int(target_rank), "candidate_rank": int(candidate_rank)},
                     ]
                 elif rule == "matrix_row_space":
-                    if candidate.cols != matrix.cols:
-                        raise ValueError(f"Row-space basis must have {matrix.cols} columns; received {candidate.shape}.")
+                    # Represent row-space basis vectors as columns so zero-dimensional
+                    # row spaces remain representable as an n x 0 matrix.
+                    if candidate.rows != matrix.cols:
+                        raise ValueError(f"Row-space basis must have {matrix.cols} rows; received {candidate.shape}.")
                     rank_a = matrix.rank()
                     rank_c = candidate.rank()
-                    combined_rank = matrix.col_join(candidate).rank()
+                    combined_rank = matrix.T.row_join(candidate).rank()
                     symbolic_passed = rank_c == rank_a == combined_rank
                     steps = [
                         {"step": 1, "operation": "verify_row_space_basis_rank", "input_rank": int(rank_a), "candidate_rank": int(rank_c), "combined_rank": int(combined_rank)},
