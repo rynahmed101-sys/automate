@@ -496,6 +496,21 @@ class RuleRegistry:
                 side_conditions=["ccw_positive_normal_orientation", "explicit_cartesian_planar_surface"],
                 implementation_backend="vector_calculus", formal_proof_available=False, symbolic_checker_available=True,
                 allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="coulomb_force", name="Coulomb Force", category="electromagnetism",
+                description="Verifies the vector force between two point charges in an explicit Cartesian displacement.",
+                domain="electromagnetism", inputs=["Charge", "Charge", "Position Vector", "Position Vector"], outputs=["Force Vector"],
+                required_assumptions=["point_charges", "noncoincident_positions"],
+                implementation_backend="electrostatics", allowed_checkers=["electrostatics"]),
+            RuleDefinition(rule_id="point_charge_field", name="Point-Charge Electric Field", category="electromagnetism",
+                description="Verifies the electric field of a point charge at a nonzero displacement.",
+                domain="electromagnetism", inputs=["Charge", "Displacement Vector"], outputs=["Electric Field Vector"],
+                required_assumptions=["point_charge", "nonzero_displacement"],
+                implementation_backend="electrostatics", allowed_checkers=["electrostatics"]),
+            RuleDefinition(rule_id="point_charge_potential", name="Point-Charge Electric Potential", category="electromagnetism",
+                description="Verifies the electric potential of a point charge at a nonzero displacement.",
+                domain="electromagnetism", inputs=["Charge", "Displacement Vector"], outputs=["Electric Potential"],
+                required_assumptions=["point_charge", "nonzero_displacement"],
+                implementation_backend="electrostatics", allowed_checkers=["electrostatics"]),
         ]:
             self.register(vector_rule)
 

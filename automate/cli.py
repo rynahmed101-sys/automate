@@ -18,6 +18,7 @@ from automate.backend.numerical_backend import NumericalChecker
 from automate.backend.statistical_backend import StatisticalChecker
 from automate.backend.linear_algebra_backend import LinearAlgebraChecker
 from automate.backend.vector_calculus_backend import VectorCalculusChecker
+from automate.backend.electrostatics_backend import ElectrostaticsChecker
 from automate.visualization.html_graph import generate_interactive_html
 from automate.visualization.terminal import print_graph_summary, print_assumption_report, console
 from automate.demo import run_harmonic_oscillator_demo
@@ -279,6 +280,7 @@ def check(graph_file: str, as_json: bool):
     sympy_checker = SymPyChecker()
     linear_algebra_checker = LinearAlgebraChecker()
     vector_calculus_checker = VectorCalculusChecker()
+    electrostatics_checker = ElectrostaticsChecker()
     results = {}
 
     if not as_json:
@@ -307,6 +309,8 @@ def check(graph_file: str, as_json: bool):
                 console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")
         elif edge.checker == "vector_calculus":
             report = vector_calculus_checker.verify_edge(edge, graph)
+        elif edge.checker == "electrostatics":
+            report = electrostatics_checker.verify_edge(edge, graph)
             results[eid] = {
                 "status": report.status.value,
                 "passed": report.passed,
