@@ -32,7 +32,7 @@ def test_derivative_acceptance_cases(expr, expected, order):
     assert report.details["order"] == order
 
 def test_first_and_higher_orders_share_one_general_rule():
-    for order, expected in [(1, "6*x**2"), (2, "12*x"), (3, "12"), (4, "0")]:
+    for order, expected in [(1, "3*x**2"), (2, "6*x"), (3, "6"), (4, "0")]:
         graph, edge = _graph_edge("x**3", expected, parameters={"variable": "x", "order": order})
         report = SymPyChecker().verify_edge(edge, graph)
         assert report.passed, report.error_message
@@ -64,7 +64,7 @@ def test_boundary_domain_metadata_is_preserved():
     assert "0" in report.details["domain_analysis"]["input_real_domain"]
     assert "0" in report.details["domain_analysis"]["derivative_real_domain"]
 
-@pytest.mark.parametrize("expected", ["3*x**2", "3*x**2 + 1"])
+@pytest.mark.parametrize("expected", ["4*x**2", "3*x**2 + 1"])
 def test_incorrect_derivative_is_rejected(expected):
     graph, edge = _graph_edge("x**3", expected, parameters={"variable": "x", "order": 1})
     report = SymPyChecker().verify_edge(edge, graph)
@@ -98,6 +98,6 @@ def test_unresolved_symbolic_comparison_is_unverified():
     assert not report.passed
 
 def test_order_is_not_artificially_capped():
-    graph, edge = _graph_edge("x**12", "0", parameters={"variable": "x", "order": 12})
+    graph, edge = _graph_edge("x**12", "479001600", parameters={"variable": "x", "order": 12})
     report = SymPyChecker().verify_edge(edge, graph)
     assert report.passed, report.error_message
