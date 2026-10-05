@@ -207,7 +207,8 @@
       "explicit product-rule differentiation",
       "explicit quotient-rule differentiation",
       "implicit differentiation under a local nonzero-partial condition",
-      "definite and indefinite symbolic integration"
+      "definite and indefinite symbolic integration",
+      "represented repeated and nested indefinite integration"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -1152,6 +1153,15 @@
     },
     {
       "rule_id": "integrate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "nested_integrate",
       "category": "calculus",
       "domain": "mathematics",
       "implementation_backend": "sympy",
