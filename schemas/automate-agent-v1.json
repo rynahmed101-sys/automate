@@ -201,7 +201,9 @@
       "continuous charge potential kernels",
       "explicit orthogonal coordinate systems with metric scale factors",
       "coordinate-aware gradient, divergence, curl, and Laplacian",
-      "verified axis-path conservative-field potential reconstruction"
+      "verified axis-path conservative-field potential reconstruction",
+      "generic PDE residual representation and verification",
+      "bounded heat, wave, Laplace, and Poisson candidate-solution verification"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -1152,6 +1154,51 @@
       "implementation_backend": "vector_calculus",
       "allowed_checkers": [
         "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "verify_pde_solution",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "pde",
+      "allowed_checkers": [
+        "pde"
+      ]
+    },
+    {
+      "rule_id": "heat_equation",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "pde",
+      "allowed_checkers": [
+        "pde"
+      ]
+    },
+    {
+      "rule_id": "wave_equation",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "pde",
+      "allowed_checkers": [
+        "pde"
+      ]
+    },
+    {
+      "rule_id": "laplace_equation",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "pde",
+      "allowed_checkers": [
+        "pde"
+      ]
+    },
+    {
+      "rule_id": "poisson_equation",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "pde",
+      "allowed_checkers": [
+        "pde"
       ]
     }
   ],
