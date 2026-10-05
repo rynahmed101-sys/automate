@@ -23,7 +23,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 **Latest authoritative verification:** Exact-head CI + Security Audit passed on merged main SHA `ff7d7821b45685a96c18b6e7f422cdda35c2c788`.
 
-**Next capability:** Green's theorem, divergence theorem, and Stokes' theorem, implemented as separate theorem rules with explicit domain, boundary, orientation, and regularity contracts.
+**Next capability:** Coulomb force, point-charge electric field, and point-charge electric potential. Continuous charge distributions and Gauss-law verification remain later bounded batches.
 
 ---
 
@@ -80,7 +80,8 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [x] Curl
 - [x] Laplacian
 - [x] Line / surface / volume integrals
-- [!] Green's theorem / divergence theorem / Stokes' theorem
+- [x] Green's theorem / divergence theorem / Stokes' theorem
+- [!] Coulomb force / point-charge field / point-charge potential
 - [x] Conservative fields and potentials
 - [ ] Flux
 - [ ] Green's theorem
@@ -114,7 +115,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Poynting vector
 - [ ] Electromagnetic wave equation
 
-**Phase 2 status:** [!] Differential operators and Cartesian integrals are verified; integral-theorem batch is now verification pending.
+**Phase 2 status:** [!] Vector-calculus theorem batch is verified; Phase 2B point-charge electrostatics is now verification pending.
 
 ---
 
