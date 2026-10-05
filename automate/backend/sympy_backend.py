@@ -744,7 +744,7 @@ class SymPyChecker(BaseChecker):
             outer = parser.parse(str(params["outer"]))
             inner = parser.parse(str(params["inner"]))
             expression = outer.subs(parser.make_symbol(str(params.get("inner_variable", "u"))), inner)
-            expected = sp.diff(outer, parser.make_symbol(str(params.get("inner_variable", "u")))) * sp.diff(inner, variable)
+            expected = sp.diff(outer, parser.make_symbol(str(params.get("inner_variable", "u")))).subs(parser.make_symbol(str(params.get("inner_variable", "u"))), inner) * sp.diff(inner, variable)
             return variable, expression, expected, {"outer": outer, "inner": inner}
         if kind == "product_rule":
             factors = params.get("factors")
@@ -840,7 +840,8 @@ class SymPyChecker(BaseChecker):
             expected = -fx / fy
             if fy == 0:
                 return (
-                    False, {"rule": "implicit_differentiate", "F_x": str(fx), "F_y": str(fy)}, [],
+                    False, {"rule": "implicit_differentiate", "F_x": str(fx), "F_y": str(fy),
+                           "_status_override": VerificationStatus.UNVERIFIED.value}, [],
                     "UNVERIFIED: implicit derivative denominator F_y is identically zero."
                 )
             residual = sp.simplify(actual - expected)
@@ -1289,7 +1290,10 @@ class SymPyChecker(BaseChecker):
                     return (
                         False,
                         {"rule": "nested_integrate", "variables": [str(v) for v in symbols], "_status_override": VerificationStatus.UNVERIFIED.value},
-                        forward_steps,
+                        [
+                            {"step": i + 1, "operation": f"integrate_d{v}", "result": result}
+                            for i, (v, result) in enumerate(zip(symbols, forward_steps))
+                        ],
                         f"UNVERIFIED: integration with respect to {symbol} remained unevaluated."
                     )
 
