@@ -386,6 +386,36 @@ class LinearAlgebraChecker(BaseChecker):
             error_message=message, evidence=evidence
         )
 
+    def _unverified(self, edge, graph, start, details, message):
+        elapsed = (time.perf_counter() - start) * 1000
+        evidence = VerificationEvidence(
+            backend=self.name,
+            backend_version=self.version,
+            graph_id=graph.id,
+            edge_id=edge.id,
+            input_node_ids=edge.input_nodes,
+            output_node_ids=edge.output_nodes,
+            assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
+            side_conditions_checked=edge.side_conditions,
+            generated_obligations=edge.verification_obligations,
+            command_invocation=f"LinearAlgebraChecker.verify_edge('{edge.id}')",
+            passed=False,
+            status=VerificationStatus.UNVERIFIED,
+            execution_time_ms=elapsed,
+            reproducibility={"sympy": sp.__version__, "numpy": np.__version__},
+            metrics={"operation": details.get("operation")},
+        )
+        return VerificationReport(
+            status=VerificationStatus.UNVERIFIED,
+            backend=self.name,
+            backend_version=self.version,
+            execution_time_ms=elapsed,
+            passed=False,
+            details=details,
+            error_message=message,
+            evidence=evidence,
+        )
+
     def _success(self, edge, graph, start, details, steps):
         elapsed = (time.perf_counter() - start) * 1000
         numpy_cross = details.get("numpy_cross_check", {})
