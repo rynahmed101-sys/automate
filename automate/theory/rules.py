@@ -459,6 +459,15 @@ class RuleRegistry:
                 description="Converts coordinates of a vector from one explicit ordered basis to another by preserving the represented vector.",
                 domain="mathematics", inputs=["Source Basis", "Target Basis", "Source Coordinates"], outputs=["Target Coordinates"],
                 implementation_backend="linear_algebra", allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_svd", name="Singular Value Decomposition", category="linear_algebra",
+                description=("Verifies a reduced/thin SVD A = U Sigma V* for a general m x n matrix, with k=min(m,n), "
+                             "U shape m x k, Sigma shape k x k, V* shape k x n, ordered non-negative singular values, "
+                             "orthonormal columns/rows, and exact reconstruction where decidable."), domain="mathematics",
+                inputs=["Matrix"], outputs=["Left Singular Vectors U", "Singular Values Sigma", "Right Singular Vectors V*"],
+                required_assumptions=["explicit_reduced_svd_representation"],
+                implementation_backend="linear_algebra", symbolic_checker_available=True,
+                formal_proof_available=False, allowed_checkers=["linear_algebra"],
+                citation="Singular Value Decomposition / NumPy and SciPy SVD conventions"),
             RuleDefinition(rule_id="matrix_characteristic_polynomial", name="Characteristic Polynomial", category="linear_algebra",
                 description="Computes det(lam*I - A) for a square matrix using an explicit polynomial generator.", domain="mathematics",
                 inputs=["Matrix"], outputs=["Scalar Polynomial"], implementation_backend="linear_algebra",
