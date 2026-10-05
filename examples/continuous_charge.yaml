@@ -1,0 +1,19 @@
+theory: continuous_charge
+name: Differential Charge Kernel
+nodes:
+  rho:
+    expression: "rho"
+  displacement:
+    expression: "Vector([x,y,z])"
+  field:
+    expression: "Vector([k*rho*x/(x**2+y**2+z**2)**(3/2), k*rho*y/(x**2+y**2+z**2)**(3/2), k*rho*z/(x**2+y**2+z**2)**(3/2)])"
+derivations:
+  field_kernel:
+    input_nodes: [rho, displacement]
+    output_nodes: [field]
+    transformation_rule: continuous_charge_field
+    justification: Coulomb kernel applied to an explicit differential charge sample.
+    checker: electrostatics
+    parameters:
+      k: k
+      density_measure: dV
