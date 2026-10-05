@@ -24,7 +24,8 @@ def test_holonomic_multiplier_equation():
         parameters={"m": "positive"},
     )
     equations = ConstraintMechanicsVerifier(model).equations()
-    expr = str(equations["x"])\n    assert "m" in expr and "x_ddot" in expr and "lambda_1" in expr
+    expr = str(equations["x"])
+    assert "m" in expr and "x_ddot" in expr and "lambda_1" in expr
 
 
 def test_nonholonomic_constraint_is_not_silently_accepted():
