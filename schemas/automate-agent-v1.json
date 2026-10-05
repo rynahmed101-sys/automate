@@ -1168,6 +1168,34 @@
       "allowed_checkers": [
         "sympy"
       ]
+    },
+    {
+      "rule_id": "integration_by_substitution",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": ["sympy"]
+    },
+    {
+      "rule_id": "integration_by_parts",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": ["sympy"]
+    },
+    {
+      "rule_id": "partial_fractions_integrate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": ["sympy"]
+    },
+    {
+      "rule_id": "trigonometric_integrate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": ["sympy"]
     }
   ],
   "ai_workflow": {
