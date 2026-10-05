@@ -646,6 +646,34 @@ class RuleRegistry:
         ]:
             self.register(vector_rule)
 
+        # Stage 2C reusable transform rules
+        for transform_rule in [
+            RuleDefinition(rule_id="fourier_transform", name="Fourier Transform", category="transforms", domain="mathematics",
+                inputs=["Function"], outputs=["Transform"], required_assumptions=["explicit_fourier_convention"],
+                implementation_backend="transform", allowed_checkers=["transform"]),
+            RuleDefinition(rule_id="inverse_fourier_transform", name="Inverse Fourier Transform", category="transforms", domain="mathematics",
+                inputs=["Transform"], outputs=["Function"], required_assumptions=["explicit_fourier_convention"],
+                implementation_backend="transform", allowed_checkers=["transform"]),
+            RuleDefinition(rule_id="verify_fourier_pair", name="Fourier Transform Pair Verification", category="transforms", domain="mathematics",
+                inputs=["Function","Transform"], outputs=["Verified Pair"], required_assumptions=["explicit_fourier_convention"],
+                implementation_backend="transform", allowed_checkers=["transform"]),
+            RuleDefinition(rule_id="laplace_transform", name="Laplace Transform", category="transforms", domain="mathematics",
+                inputs=["Function"], outputs=["Transform"], required_assumptions=["explicit_laplace_convention"],
+                implementation_backend="transform", allowed_checkers=["transform"]),
+            RuleDefinition(rule_id="inverse_laplace_transform", name="Inverse Laplace Transform", category="transforms", domain="mathematics",
+                inputs=["Transform"], outputs=["Function"], required_assumptions=["explicit_laplace_convention"],
+                implementation_backend="transform", allowed_checkers=["transform"]),
+            RuleDefinition(rule_id="verify_laplace_pair", name="Laplace Transform Pair Verification", category="transforms", domain="mathematics",
+                inputs=["Function","Transform"], outputs=["Verified Pair"], required_assumptions=["explicit_laplace_convention"],
+                implementation_backend="transform", allowed_checkers=["transform"]),
+            RuleDefinition(rule_id="convolution", name="Continuous Convolution", category="transforms", domain="mathematics",
+                inputs=["Function","Function"], outputs=["Function"], implementation_backend="transform", allowed_checkers=["transform"]),
+            RuleDefinition(rule_id="verify_convolution_theorem", name="Convolution Theorem Verification", category="transforms", domain="mathematics",
+                inputs=["Function","Function"], outputs=["Verified Transform Relation"], required_assumptions=["explicit_fourier_convention"],
+                implementation_backend="transform", allowed_checkers=["transform"]),
+        ]:
+            self.register(transform_rule)
+
         # 5. Differential Equations & Solutions
         self.register(RuleDefinition(
             rule_id="solve_harmonic_oscillator",
