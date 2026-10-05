@@ -196,7 +196,9 @@
       "Stokes' theorem on planar Cartesian rectangles",
       "curl-gradient identity",
       "divergence-curl identity",
-      "equivalent Cartesian Laplacian identity"
+      "equivalent Cartesian Laplacian identity",
+      "continuous charge electric-field kernels",
+      "continuous charge potential kernels"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -722,6 +724,24 @@
       "implementation_backend": "vector_calculus",
       "allowed_checkers": [
         "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "continuous_charge_field",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "continuous_charge_potential",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
       ]
     },
     {
