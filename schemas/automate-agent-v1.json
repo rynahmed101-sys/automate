@@ -185,7 +185,12 @@
       "gradient and directional derivative",
       "divergence and three-dimensional curl",
       "scalar Laplacian",
-      "conservative-field and potential checks"
+      "conservative-field and potential checks",
+      "Cartesian scalar line integrals",
+      "vector line-work integrals",
+      "parameterized scalar surface integrals",
+      "oriented surface flux integrals",
+      "Cartesian volume integrals"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -701,6 +706,51 @@
     },
     {
       "rule_id": "conservative_field",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "line_integral_scalar",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "line_integral_vector",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "surface_integral_scalar",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "surface_flux",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "volume_integral",
       "category": "vector_calculus",
       "domain": "mathematics",
       "implementation_backend": "vector_calculus",
