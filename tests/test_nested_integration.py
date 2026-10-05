@@ -21,7 +21,7 @@ def _edge(integrand, result, variables):
 @pytest.mark.parametrize("integrand,result,variables", [
     ("x", "x**3/6", ["x", "x"]),
     ("x*y", "x**2*y**2/4", ["x", "y"]),
-    ("sin(x)", "-x*cos(x) + sin(x)", ["x", "x"]),
+    ("sin(x)", "-sin(x)", ["x", "x"]),
 ])
 def test_nested_indefinite_integration(integrand, result, variables):
     graph, edge = _edge(integrand, result, variables)
