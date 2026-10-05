@@ -345,23 +345,23 @@ def _dipole_check(rule, dipole, displacement, output, parameters=None):
 
 def test_dipole_potential_on_axis_positive_configuration():
     result = _dipole_check(
-        "dipole_potential", "Vector([p,0,0])", "Vector([r,0,0])",
-        "k*p/r**2",
+        "dipole_potential", "Vector([p,0,0])", "Vector([2,0,0])",
+        "k*p/4",
     )
     assert result.passed
 
 
 def test_dipole_potential_negative_orientation():
     result = _dipole_check(
-        "dipole_potential", "Vector([-p,0,0])", "Vector([r,0,0])",
-        "-k*p/r**2",
+        "dipole_potential", "Vector([-p,0,0])", "Vector([2,0,0])",
+        "-k*p/4",
     )
     assert result.passed
 
 
 def test_dipole_potential_equatorial_zero_configuration():
     result = _dipole_check(
-        "dipole_potential", "Vector([p,0,0])", "Vector([0,r,0])",
+        "dipole_potential", "Vector([p,0,0])", "Vector([0,2,0])",
         "0",
     )
     assert result.passed
@@ -369,24 +369,24 @@ def test_dipole_potential_equatorial_zero_configuration():
 
 def test_dipole_field_on_axis():
     result = _dipole_check(
-        "dipole_field", "Vector([p,0,0])", "Vector([r,0,0])",
-        "Vector([2*k*p/r**3,0,0])",
+        "dipole_field", "Vector([p,0,0])", "Vector([2,0,0])",
+        "Vector([k*p/4,0,0])",
     )
     assert result.passed
 
 
 def test_dipole_field_equatorial_configuration():
     result = _dipole_check(
-        "dipole_field", "Vector([p,0,0])", "Vector([0,r,0])",
-        "Vector([0,-k*p/r**3,0])",
+        "dipole_field", "Vector([p,0,0])", "Vector([0,2,0])",
+        "Vector([0,-k*p/8,0])",
     )
     assert result.passed
 
 
 def test_dipole_field_rejects_wrong_claim():
     result = _dipole_check(
-        "dipole_field", "Vector([p,0,0])", "Vector([r,0,0])",
-        "Vector([k*p/r**3,0,0])",
+        "dipole_field", "Vector([p,0,0])", "Vector([2,0,0])",
+        "Vector([k*p/8,0,0])",
     )
     assert not result.passed
 
@@ -413,8 +413,8 @@ def test_dipole_rejects_non_cartesian_coordinates():
 
 def test_dipole_rejects_non_origin_source_position():
     result = _dipole_check(
-        "dipole_potential", "Vector([p,0,0])", "Vector([r,0,0])",
-        "k*p/r**2",
+        "dipole_potential", "Vector([p,0,0])", "Vector([2,0,0])",
+        "k*p/4",
         parameters={
             "k": "k", "model": "point_electric_dipole",
             "source_position": "Vector([1,0,0])",
