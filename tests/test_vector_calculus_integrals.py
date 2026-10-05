@@ -42,11 +42,11 @@ def test_scalar_and_vector_line_integrals():
 
     report = _check(
         "line_integral_vector",
-        ["Vector([1, 0])", "Vector([t, 0])"],
+        ["Vector([x, 0])", "Vector([t, 0])"],
         "2",
         parameters={"variables": ["t"], "bounds": [[0, 2]], "coordinates": ["x", "y"]},
     )
-    assert report.passed, report.error_message
+    assert report.passed
     assert report.details["independent_numerical_check"]["passed"] is True
 
 
