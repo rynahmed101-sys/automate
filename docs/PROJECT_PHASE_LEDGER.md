@@ -17,13 +17,13 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 ## Current position
 
-**Last recorded capability baseline main:** `848b837ffa1f965421da235ef65113cf5fc01132`
+**Last recorded capability baseline main:** `de66de7bd9394bf56038931e17ae3dbb1312ded4`
 
-**Current work:** Phase 2A Vector Calculus differential-operator capability family is completed and verified. The next bounded batch is Cartesian line, surface, and volume integration.
+**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics is also covered by the certified main head; the next bounded batch is electrostatics beyond isolated point charges.
 
-**Latest authoritative verification:** Exact-head CI + Security Audit passed on merged main SHA `ff7d7821b45685a96c18b6e7f422cdda35c2c788`.
+**Latest authoritative verification:** Exact-head Python 3.10/3.11/3.12/3.13, Lean 4, CodeQL, and pip-audit all passed on merged main SHA `de66de7bd9394bf56038931e17ae3dbb1312ded4`.
 
-**Next capability:** Coulomb force, point-charge electric field, and point-charge electric potential. Continuous charge distributions and Gauss-law verification remain later bounded batches.
+**Next capability:** Continuous charge distributions and electrostatic superposition. Gauss-law verification, conductors, capacitors, dipoles, and boundary conditions remain later bounded batches.
 
 ---
 
@@ -81,12 +81,12 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [x] Laplacian
 - [x] Line / surface / volume integrals
 - [x] Green's theorem / divergence theorem / Stokes' theorem
-- [!] Coulomb force / point-charge field / point-charge potential
+- [x] Coulomb force / point-charge field / point-charge potential
 - [x] Conservative fields and potentials
-- [ ] Flux
-- [ ] Green's theorem
-- [ ] Divergence theorem
-- [ ] Stokes' theorem
+- [x] Flux / surface-flux capability
+- [x] Green's theorem
+- [x] Divergence theorem
+- [x] Stokes' theorem
 
 ## Electrostatics
 - [ ] Coulomb law
@@ -115,7 +115,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Poynting vector
 - [ ] Electromagnetic wave equation
 
-**Phase 2 status:** [!] Vector-calculus theorem batch is verified; Phase 2B point-charge electrostatics is now verification pending.
+**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge electrostatics are verified. Continuous charge distributions are next.
 
 ---
 
