@@ -1,27 +1,21 @@
-# Stage 2D Electromagnetism Foundation
+# Stage 2D Electromagnetism
 
-This branch establishes reusable representations for electromagnetic fields,
-sources, potentials, and constitutive assumptions. It does not claim full
-Maxwell or Stage 2D completion.
+Stage 2D now has reusable electromagnetic representations plus core field-equation and energy-force verification.
 
-## Existing repository capability
+## Implemented
 
-The current repository already contains a substantial electrostatics backend:
-point-charge fields/potentials, Coulomb force, continuous charge kernels,
-finite line-charge potential, Gauss-law box verification, dipole field/potential,
-conductor boundary field, parallel-plate field/capacitance, and capacitor energy.
-These capabilities are preserved rather than duplicated.
+- typed electric/magnetic field, source, potential, and constitutive representations;
+- all four Maxwell residuals for homogeneous isotropic SI media;
+- Lorentz-force construction from explicit field and velocity components;
+- Poynting-theorem residual verification for homogeneous media;
+- existing electrostatics machinery remains the source for point-charge, continuous-charge, dipole, conductor, capacitor, and Gauss-law capabilities.
 
-## New reusable layer
+## Explicit assumptions
 
-ElectromagneticSystem composes electric/magnetic fields, charge/current sources,
-optional scalar/vector potentials and gauge metadata, constitutive relations,
-and explicit assumptions and independent variables.
+Maxwell verification assumes Cartesian components, SI units, scalar homogeneous permittivity and permeability, and source terms represented as rho and J. Vector inputs are explicit three-component comma-separated expressions.
 
-## Boundary
+## Boundaries
 
-Not claimed here: full Maxwell-equation verification, gauge-transformation verification,
-electromagnetic wave derivation, Lorentz-force dynamics, Poynting theorem,
-boundary/interface conditions, radiation, or relativistic field transformations.
+Not claimed: spatially varying/tensor constitutive media, material interfaces, radiation/retarded potentials, relativistic field transformations, general gauge transformations, or closed-form electromagnetic wave solution families.
 
-Unsupported or ambiguous cases must remain unresolved rather than being inferred.
+Unsupported or ambiguous cases remain unresolved rather than inferred.
