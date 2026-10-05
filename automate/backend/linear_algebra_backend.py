@@ -398,7 +398,8 @@ class LinearAlgebraChecker(BaseChecker):
                 scale = max(1.0, float(np.linalg.norm(matrix, ord=np.inf)) * float(np.linalg.norm(candidate, ord=np.inf)) if candidate.size else 1.0)
                 tolerance = 1e-9 + 1e-8 * scale
                 candidate_rank = np.linalg.matrix_rank(candidate)
-                passed = residual.size == 0 or (float(np.max(np.abs(residual))) <= tolerance and candidate_rank == expected_dim)
+                residual_ok = residual.size == 0 or float(np.max(np.abs(residual))) <= tolerance
+                passed = residual_ok and candidate_rank == expected_dim
                 metric = {"residual_max_abs": float(np.max(np.abs(residual))) if residual.size else 0.0}
             elif rule == "matrix_row_space":
                 matrix = inputs[0]
