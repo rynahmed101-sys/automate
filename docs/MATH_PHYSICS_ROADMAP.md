@@ -642,7 +642,7 @@ A capability family is complete when:
 | Numerical ODEs | Working foundation |
 | Statistics | Working foundation |
 | Lean formal path | Working foundation |
-| Linear algebra | NEXT MAJOR GAP |
+| Linear algebra | Core batch verified; eigenproblem extension in progress |
 | Vector calculus | NEXT MAJOR GAP |
 | Electromagnetism | NEXT MAJOR GAP |
 | General ODE families | EXPANSION TARGET |
@@ -653,7 +653,11 @@ A capability family is complete when:
 
 Immediate execution order:
 
-**Phase 1A — Linear Algebra**
+**Phase 1A — Linear Algebra Core — completed on main**
+
+then
+
+**Phase 1A — Eigenvalues, eigenvectors, characteristic polynomial, diagonalization**
 
 then
 
