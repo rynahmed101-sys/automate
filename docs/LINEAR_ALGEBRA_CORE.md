@@ -15,3 +15,8 @@ Gaussian-elimination evidence records pivots and reduced row-echelon form. All s
 AI agents should discover these capabilities with automate capabilities --json, retrieve context with automate context, and submit automate.proposal.v1 using target_checker linear_algebra. AI output remains untrusted until the checker returns SYMBOLIC_CHECKED.
 
 Named acceptance campaign: tests/test_linear_algebra_acceptance.py.
+
+
+## Symmetric and Hermitian matrices
+
+Automate verifies square matrices for the symmetric condition A = A^T and the Hermitian condition A = A†. Numeric inputs receive independent NumPy checks. Symbolic Hermitian claims that depend on unresolved conjugation assumptions fail closed as UNVERIFIED rather than treating an unconstrained symbol as real.
