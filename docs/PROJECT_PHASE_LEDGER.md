@@ -34,6 +34,54 @@ Every capability family introduced at any stage is developed through the same la
 
 A capability is not considered mature merely because one formula or named example works.
 
+## External research and reuse policy
+
+Before substantial mathematical reimplementation:
+
+1. Audit current representations, rules, backends, tests, and contracts.
+2. Research mature scientific/open-source implementations.
+3. Prefer safe composition or bounded backend use where appropriate.
+4. Check licensing before copying or importing code.
+5. Use independent implementations for cross-checks where practical.
+6. Keep Automate's canonical semantics independent of any single external package.
+
+External libraries are references/backends, not authorities. Their output still requires Automate's evidence classification and provenance.
+
+## Capability-batch definition of done
+
+A coherent capability family is complete only when, as applicable:
+
+- real problems can be represented;
+- a named rule/checker applies;
+- evidence is produced;
+- assumptions/domains are respected;
+- false or malformed claims fail closed;
+- positive, negative, edge, and adversarial tests exist;
+- independent cross-checking is performed where practical;
+- the machine-agent contract exposes the capability;
+- semantic boundaries are documented;
+- a named acceptance campaign records honest classifications;
+- provenance/certificate requirements are satisfied;
+- the feature is merged through the normal reviewable PR boundary;
+- authoritative Exact-head verification passes for the exact merged main SHA;
+- relevant Security Audit evidence is available.
+
+
+## Capability maturity inherited from the existing roadmap
+
+For each capability family, the development ladder must preserve these distinct maturity states:
+
+1. **Represented** — canonical IR can express the mathematical object.
+2. **Applicable** — a named rule/checker recognizes the problem class.
+3. **Verified** — representative positive cases produce evidence-backed verification.
+4. **Negative-tested** — incorrect claims, malformed inputs, and edge cases fail closed.
+5. **Independently cross-checked** — an independent implementation or route agrees where practical.
+6. **AI-usable** — the machine-agent contract exposes the capability.
+7. **Certified** — durable provenance/certificate evidence exists and the exact merged main milestone has passed the authoritative verification boundary.
+
+These states must never be silently collapsed. A capability can be implemented and tested while still remaining uncertified.
+
+
 ## Development-stage rules
 
 - Work on the **earliest incomplete stage** unless a prerequisite defect blocks it.
