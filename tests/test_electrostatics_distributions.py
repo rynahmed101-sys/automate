@@ -185,3 +185,140 @@ def test_gauss_law_rejects_unsafe_bound_expression():
 def test_gauss_law_registry_exposes_rule():
     from automate.theory.rules import RuleRegistry
     assert "gauss_law_box" in RuleRegistry().list_rule_ids()
+
+
+def _boundary_check(field, normal, output, parameters=None):
+    graph = DerivationGraph(id="conductor_boundary")
+    for nid, raw in [("field", field), ("normal", normal), ("out", output)]:
+        graph.add_node(DerivationNode(id=nid, expression=MathematicalExpression(raw_str=raw)))
+    edge = DerivationEdge(
+        id="e", input_nodes=["field", "normal"], output_nodes=["out"],
+        transformation_rule="conductor_boundary_field",
+        justification="Phase 2B ideal conductor boundary acceptance",
+        checker="electrostatics", parameters=parameters or {"coordinates":["x","y","z"]},
+    )
+    return ElectrostaticsChecker().verify_edge(edge, graph)
+
+
+def test_conductor_boundary_requires_zero_tangential_field():
+    result = _boundary_check("Vector([x,0,0])", "Vector([1,0,0])", "Vector([0,0,0])")
+    assert result.passed
+
+
+def test_conductor_boundary_rejects_tangential_field():
+    result = _boundary_check("Vector([x,y,0])", "Vector([1,0,0])", "Vector([0,y,0])")
+    assert not result.passed
+
+
+def test_conductor_boundary_rejects_non_cartesian_normal():
+    result = _boundary_check("Vector([x,x,0])", "Vector([1,1,0])", "Vector([0,0,0])")
+    assert not result.passed
+
+
+def test_conductor_boundary_rejects_unsafe_normal_expression():
+    result = _boundary_check(
+        "Vector([x,0,0])",
+        "__import__('os').system('id')",
+        "Vector([0,0,0])",
+    )
+    assert not result.passed
+
+
+def _capacitor_check(rule, inputs, output, parameters):
+    graph = DerivationGraph(id=rule)
+    ids = []
+    for index, raw in enumerate(inputs):
+        nid = f"in_{index}"
+        ids.append(nid)
+        graph.add_node(DerivationNode(id=nid, expression=MathematicalExpression(raw_str=raw)))
+    graph.add_node(DerivationNode(id="out", expression=MathematicalExpression(raw_str=output)))
+    edge = DerivationEdge(
+        id="e", input_nodes=ids, output_nodes=["out"],
+        transformation_rule=rule,
+        justification="Phase 2B conductor/capacitor acceptance",
+        checker="electrostatics", parameters=parameters,
+    )
+    return ElectrostaticsChecker().verify_edge(edge, graph)
+
+
+def test_parallel_plate_field_relation():
+    result = _capacitor_check(
+        "parallel_plate_field",
+        ["sigma", "epsilon0"],
+        "Vector([0,0,sigma/epsilon0])",
+        {"model":"ideal_parallel_plates","coordinates":["x","y","z"],"plate_normal":"Vector([0,0,1])"},
+    )
+    assert result.passed
+
+
+def test_parallel_plate_field_rejects_wrong_field():
+    result = _capacitor_check(
+        "parallel_plate_field",
+        ["sigma", "epsilon0"],
+        "Vector([sigma/epsilon0,0,0])",
+        {"model":"ideal_parallel_plates","coordinates":["x","y","z"],"plate_normal":"Vector([0,0,1])"},
+    )
+    assert not result.passed
+
+
+def test_parallel_plate_capacitance_relation():
+    result = _capacitor_check(
+        "parallel_plate_capacitance",
+        ["epsilon0", "6", "2"],
+        "3*epsilon0",
+        {"geometry":"parallel_rectangular_plates","fringing":"neglected","coordinates":["x","y","z"]},
+    )
+    assert result.passed
+
+
+def test_parallel_plate_capacitance_requires_negligible_fringing_assumption():
+    result = _capacitor_check(
+        "parallel_plate_capacitance",
+        ["epsilon0", "6", "2"],
+        "3*epsilon0",
+        {"geometry":"parallel_rectangular_plates","fringing":"included","coordinates":["x","y","z"]},
+    )
+    assert not result.passed
+
+
+def test_parallel_plate_capacitance_rejects_nonpositive_geometry():
+    result = _capacitor_check(
+        "parallel_plate_capacitance",
+        ["epsilon0", "6", "0"],
+        "0",
+        {"geometry":"parallel_rectangular_plates","fringing":"neglected","coordinates":["x","y","z"]},
+    )
+    assert not result.passed
+
+
+def test_parallel_plate_capacitance_rejects_unsafe_geometry_expression():
+    result = _capacitor_check(
+        "parallel_plate_capacitance",
+        ["epsilon0", "__import__('os').system('id')", "2"],
+        "epsilon0",
+        {"geometry":"parallel_rectangular_plates","fringing":"neglected","coordinates":["x","y","z"]},
+    )
+    assert not result.passed
+
+
+def test_capacitor_energy_relation():
+    result = _capacitor_check(
+        "capacitor_energy", ["2", "3"], "9",
+        {"model":"electrostatic_capacitor"},
+    )
+    assert result.passed
+
+
+def test_capacitor_energy_rejects_wrong_claim():
+    result = _capacitor_check(
+        "capacitor_energy", ["2", "3"], "6",
+        {"model":"electrostatic_capacitor"},
+    )
+    assert not result.passed
+
+
+def test_conductor_capacitor_rules_registered():
+    from automate.theory.rules import RuleRegistry
+    assert {"conductor_boundary_field", "parallel_plate_field", "parallel_plate_capacitance", "capacitor_energy"}.issubset(
+        set(RuleRegistry().list_rule_ids())
+    )
