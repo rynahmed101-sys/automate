@@ -1,0 +1,63 @@
+theory: linear_algebra_inner_products
+name: Linear Algebra Inner Products Example
+description: Exact inner products, norms, projections, and Gram-Schmidt.
+domain: mathematics
+
+nodes:
+  a:
+    expression: "Vector([1, 2])"
+    node_kind: vector
+  b:
+    expression: "Vector([3, 4])"
+    node_kind: vector
+  inner:
+    expression: "11"
+  norm:
+    expression: "sqrt(5)"
+  target:
+    expression: "Vector([1, 0])"
+    node_kind: vector
+  projection:
+    expression: "Vector([1, 0])"
+    node_kind: vector
+  g1:
+    expression: "Vector([1, 1])"
+    node_kind: vector
+  g2:
+    expression: "Vector([1, 0])"
+    node_kind: vector
+  q1:
+    expression: "Vector([1, 1])"
+    node_kind: vector
+  q2:
+    expression: "Vector([1/2, -1/2])"
+    node_kind: vector
+
+derivations:
+  edge_inner_product:
+    input_nodes: [a, b]
+    output_nodes: [inner]
+    transformation_rule: vector_inner_product
+    justification: Hermitian inner product of real vectors.
+    checker: linear_algebra
+
+  edge_norm:
+    input_nodes: [a]
+    output_nodes: [norm]
+    transformation_rule: vector_norm
+    justification: Euclidean vector norm.
+    checker: linear_algebra
+
+  edge_projection:
+    input_nodes: [a, target]
+    output_nodes: [projection]
+    transformation_rule: vector_projection
+    justification: Orthogonal projection of a onto target.
+    checker: linear_algebra
+
+  edge_gram_schmidt:
+    input_nodes: [g1, g2]
+    output_nodes: [q1, q2]
+    transformation_rule: vector_gram_schmidt
+    justification: Orthogonalize the supplied vectors.
+    checker: linear_algebra
