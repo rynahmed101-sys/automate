@@ -15,6 +15,24 @@ The working environment should feel constructive: every large goal becomes a sma
 5. **Record what is actually verified.**
 6. **Keep the next step visible.**
 
+## 🎯 Capability-first expansion
+
+The primary roadmap is mathematical and physical capability expansion. Prefer missing mathematical representations, domain rules/checkers, real-problem acceptance suites, independent cross-engine comparisons, and AI-agent exposure of completed capabilities.
+
+Infrastructure is supporting work. It must have a demonstrated capability reason and must not become the milestone merely because it is easier to enumerate.
+
+See **[Mathematics & Physics Capability Roadmap](MATH_PHYSICS_ROADMAP.md)** for the ordered capability program.
+
+## 📦 Change batching policy
+
+Automate is a single-developer engineering workspace. The preferred delivery unit is **one coherent capability family → one feature branch → one reviewable PR → squash merge**. Small local commits are acceptable during implementation, but the main branch should receive meaningful capability milestones rather than a commit for every helper function or test tweak.
+
+Before reimplementing substantial mathematics, inspect established open-source implementations and libraries, check licensing, and prefer safe composition or bounded backend use where appropriate. External implementations remain references/backends, not authorities.
+
+## ✅ Capability batch definition of done
+
+A capability batch should include a canonical representation, named rule/checker, positive/negative/edge cases, assumption handling, independent cross-check where practical, agent-contract exposure, documented semantic boundaries, a named acceptance campaign, and exact-head CI verification after merge.
+
 ## 🗂️ GitHub workspace model
 
 Use GitHub as the project control plane:

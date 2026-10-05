@@ -37,6 +37,12 @@ Automate is developed as a verification-first engineering workspace: small steps
 
 Current principle: **build carefully, verify honestly, keep the next step visible.** 🌤️
 
+## Mathematics & Physics Capability Roadmap
+
+The active expansion program is capability-first: Automate is being extended from its current symbolic, mechanics, tensor/geometry, and numerical foundations into linear algebra, vector calculus, electromagnetism, broader differential equations, PDEs, relativity, thermodynamics, quantum mechanics, and advanced mathematical physics.
+
+See **[Mathematics & Physics Capability Roadmap](docs/MATH_PHYSICS_ROADMAP.md)** for the dependency-ordered roadmap, external-research policy, and capability-batch workflow. The project deliberately favors coherent capability PRs and squash merges over thousands of micro-commits.
+
 ## Direct AI Coding Agent Interface
 
 Automate 0.2 is purpose-built for direct interaction with autonomous AI coding agents without requiring internet access, cloud accounts, or proprietary APIs.
