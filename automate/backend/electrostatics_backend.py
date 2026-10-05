@@ -17,7 +17,7 @@ from automate.ir.linear_algebra import ParsedLinearAlgebra, parse_linear_algebra
 class ElectrostaticsChecker(BaseChecker):
     """Verify exact point-charge electrostatics claims in Cartesian coordinates."""
 
-    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential", "continuous_charge_field", "continuous_charge_potential", "uniform_line_charge_potential", "gauss_law_box"}
+    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential", "continuous_charge_field", "continuous_charge_potential", "uniform_line_charge_potential", "gauss_law_box", "conductor_boundary_field", "parallel_plate_field", "parallel_plate_capacitance", "capacitor_energy"}
 
     @property
     def name(self) -> str:
@@ -191,6 +191,115 @@ class ElectrostaticsChecker(BaseChecker):
                 details["contract"] = {"geometry":"closed Cartesian rectangular box","orientation":"outward","law":"surface_flux(E) = enclosed_charge / epsilon0"}
                 details["independent_evidence"] = {"available":True,"independence_class":"TWO_INTEGRALS_SYMBOLIC","claim":"Closed-surface flux and enclosed charge were independently integrated and compared."}
                 return VerificationReport(status=VerificationStatus.SYMBOLIC_CHECKED, backend=self.name, backend_version=self.version, execution_time_ms=(time.perf_counter()-start)*1000, passed=True, details=details)
+            elif rule == "conductor_boundary_field":
+                if len(inputs) != 2 or len(outputs) != 1:
+                    raise ValueError("conductor_boundary_field requires electric field, conductor normal, and one tangential-field output.")
+                field, normal = inputs
+                if field.kind != "vector" or normal.kind != "vector" or outputs[0].kind != "vector":
+                    raise ValueError("conductor_boundary_field requires vector field, vector normal, and vector output.")
+                if len(field.value) != 3 or len(normal.value) != 3:
+                    raise ValueError("conductor_boundary_field is bounded to 3D Cartesian vectors.")
+                if edge.parameters.get("coordinates") != ["x", "y", "z"]:
+                    raise ValueError("conductor_boundary_field requires explicit Cartesian coordinates.")
+                n = sp.Matrix(normal.value)
+                n2 = sp.simplify(n.dot(n))
+                if n2 == 0:
+                    raise ValueError("Conductor surface normal must be nonzero.")
+                nonzero = [sp.simplify(component) != 0 for component in n]
+                if sum(bool(v) for v in nonzero) != 1:
+                    raise ValueError("Conductor boundary normal must be axis-aligned for the bounded Cartesian model.")
+                n_hat = n / sp.sqrt(n2)
+                F = sp.Matrix(field.value)
+                tangential = sp.simplify(F - n_hat * (n_hat.dot(F)))
+                expected_parsed = ParsedLinearAlgebra("vector", tangential)
+                if not self._equal(outputs[0], expected_parsed):
+                    raise ValueError("Reported tangential electric field does not match the boundary projection.")
+                if not self._equal(expected_parsed, ParsedLinearAlgebra("vector", sp.zeros(3, 1))):
+                    raise ValueError("Ideal conductor boundary requires zero tangential electric field.")
+                details["boundary_condition"] = "E_tangential = 0"
+                details["normal"] = [str(v) for v in n]
+                details["coordinates"] = ["x", "y", "z"]
+                details["symbolic_equivalence"] = True
+                return VerificationReport(status=VerificationStatus.SYMBOLIC_CHECKED, backend=self.name, backend_version=self.version,
+                    execution_time_ms=(time.perf_counter()-start)*1000, passed=True, details=details)
+            elif rule == "parallel_plate_field":
+                if len(inputs) != 2 or len(outputs) != 1:
+                    raise ValueError("parallel_plate_field requires surface charge density, permittivity, and one field output.")
+                sigma, epsilon = inputs
+                if sigma.kind != "scalar" or epsilon.kind != "scalar" or outputs[0].kind != "vector":
+                    raise ValueError("parallel_plate_field requires scalar sigma, scalar epsilon, and vector output.")
+                if edge.parameters.get("coordinates") != ["x", "y", "z"] or edge.parameters.get("model") != "ideal_parallel_plates":
+                    raise ValueError("parallel_plate_field requires the bounded ideal Cartesian parallel-plate model.")
+                normal_raw = edge.parameters.get("plate_normal")
+                if normal_raw is None:
+                    raise ValueError("parallel_plate_field requires an explicit plate_normal.")
+                normal = self._parse(str(normal_raw))
+                if normal.kind != "vector" or len(normal.value) != 3:
+                    raise ValueError("plate_normal must be a 3D vector.")
+                n = sp.Matrix(normal.value)
+                n2 = sp.simplify(n.dot(n))
+                if n2 == 0:
+                    raise ValueError("plate_normal must be nonzero.")
+                if sum(bool(sp.simplify(v) != 0) for v in n) != 1:
+                    raise ValueError("plate_normal must be axis-aligned for the bounded Cartesian model.")
+                if epsilon.value == 0:
+                    raise ValueError("Permittivity must be nonzero.")
+                expected_parsed = ParsedLinearAlgebra("vector", (sigma.value / epsilon.value) * n / sp.sqrt(n2))
+                if not self._equal(outputs[0], expected_parsed):
+                    details.update({"expected": self._display(expected_parsed), "actual": self._display(outputs[0])})
+                    return VerificationReport(passed=False, status=VerificationStatus.FAILED, backend=self.name,
+                        backend_version=self.version, details=details, error_message="Parallel-plate electric field is mathematically incorrect.",
+                        execution_time_ms=(time.perf_counter()-start)*1000)
+                details["relation"] = "E = sigma / epsilon * n_hat"
+                details["model"] = "ideal_parallel_plates"
+                details["symbolic_equivalence"] = True
+                return VerificationReport(status=VerificationStatus.SYMBOLIC_CHECKED, backend=self.name, backend_version=self.version,
+                    execution_time_ms=(time.perf_counter()-start)*1000, passed=True, details=details)
+            elif rule == "parallel_plate_capacitance":
+                if len(inputs) != 3 or len(outputs) != 1:
+                    raise ValueError("parallel_plate_capacitance requires permittivity, plate area, separation, and one capacitance output.")
+                epsilon, area, separation = inputs
+                if any(value.kind != "scalar" for value in inputs) or outputs[0].kind != "scalar":
+                    raise ValueError("parallel_plate_capacitance requires scalar permittivity, area, separation, and output.")
+                if edge.parameters.get("coordinates") != ["x", "y", "z"] or edge.parameters.get("geometry") != "parallel_rectangular_plates":
+                    raise ValueError("parallel_plate_capacitance requires explicit Cartesian parallel rectangular plates.")
+                if edge.parameters.get("fringing") != "neglected":
+                    raise ValueError("The bounded capacitor relation requires the explicit negligible-fringing idealization.")
+                if sp.ask(sp.Q.positive(area.value)) is not True or sp.ask(sp.Q.positive(separation.value)) is not True:
+                    raise ValueError("Plate area and separation must be provably positive.")
+                if epsilon.value == 0:
+                    raise ValueError("Permittivity must be nonzero.")
+                expected_parsed = ParsedLinearAlgebra("scalar", epsilon.value * area.value / separation.value)
+                if not self._equal(outputs[0], expected_parsed):
+                    details.update({"expected": self._display(expected_parsed), "actual": self._display(outputs[0])})
+                    return VerificationReport(passed=False, status=VerificationStatus.FAILED, backend=self.name,
+                        backend_version=self.version, details=details, error_message="Parallel-plate capacitance is mathematically incorrect.",
+                        execution_time_ms=(time.perf_counter()-start)*1000)
+                details["relation"] = "C = epsilon * A / d"
+                details["geometry"] = "parallel_rectangular_plates"
+                details["fringing"] = "neglected"
+                details["symbolic_equivalence"] = True
+                return VerificationReport(status=VerificationStatus.SYMBOLIC_CHECKED, backend=self.name, backend_version=self.version,
+                    execution_time_ms=(time.perf_counter()-start)*1000, passed=True, details=details)
+            elif rule == "capacitor_energy":
+                if len(inputs) != 2 or len(outputs) != 1:
+                    raise ValueError("capacitor_energy requires capacitance, voltage, and one energy output.")
+                capacitance, voltage = inputs
+                if capacitance.kind != "scalar" or voltage.kind != "scalar" or outputs[0].kind != "scalar":
+                    raise ValueError("capacitor_energy requires scalar capacitance, voltage, and output.")
+                if edge.parameters.get("model") != "electrostatic_capacitor":
+                    raise ValueError("capacitor_energy requires the explicit electrostatic capacitor model.")
+                expected_parsed = ParsedLinearAlgebra("scalar", sp.Rational(1, 2) * capacitance.value * voltage.value**2)
+                if not self._equal(outputs[0], expected_parsed):
+                    details.update({"expected": self._display(expected_parsed), "actual": self._display(outputs[0])})
+                    return VerificationReport(passed=False, status=VerificationStatus.FAILED, backend=self.name,
+                        backend_version=self.version, details=details, error_message="Capacitor stored energy is mathematically incorrect.",
+                        execution_time_ms=(time.perf_counter()-start)*1000)
+                details["relation"] = "U = 1/2 * C * V**2"
+                details["model"] = "electrostatic_capacitor"
+                details["symbolic_equivalence"] = True
+                return VerificationReport(status=VerificationStatus.SYMBOLIC_CHECKED, backend=self.name, backend_version=self.version,
+                    execution_time_ms=(time.perf_counter()-start)*1000, passed=True, details=details)
             elif rule == "point_charge_field":
                 if len(inputs) != 2 or len(outputs) != 1:
                     raise ValueError("point_charge_field requires charge and observation-minus-source displacement.")
