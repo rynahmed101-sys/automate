@@ -938,8 +938,36 @@ class RuleRegistry:
             rule_id="empirical_inference",
             name="Empirical Parameter Estimation",
             category="statistics",
-            description="Non-linear least squares parameter estimation against observational data",
+            description=(
+                "Non-linear least squares parameter estimation against explicitly "
+                "identified observational data, with graph-bound model identity, "
+                "parameter identifiability, uncertainty evidence, residual diagnostics, "
+                "and conditional chi-square goodness-of-fit."
+            ),
             domain="experimental_physics",
+            required_assumptions=[],
+            side_conditions=[
+                "observed_data_required",
+                "graph_model_binding_required",
+                "chi_square_requires_explicit_error_model_assumptions",
+            ],
+            default_obligations=[
+                {
+                    "type": "dataset_provenance",
+                    "claim": "observed_data_has_nonempty_data_id_and_fingerprint",
+                    "description": "Observed statistical evidence must be bound to a reproducible dataset fingerprint.",
+                },
+                {
+                    "type": "parameter_identifiability",
+                    "claim": "local_model_jacobian_has_full_parameter_rank",
+                    "description": "Parameter uncertainty is not accepted when the fitted parameter sensitivities are locally rank-deficient.",
+                },
+                {
+                    "type": "error_model_assumptions",
+                    "claim": "independent_errors and normal_errors and finite_variance and known_error_scale",
+                    "description": "Chi-square compatibility is UNVERIFIED unless these assumptions are explicitly declared.",
+                },
+            ],
             implementation_backend="statistical",
             formal_proof_available=False,
             symbolic_checker_available=False,
