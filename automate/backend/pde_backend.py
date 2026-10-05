@@ -76,5 +76,5 @@ class PDEChecker(BaseChecker):
                 details["symbolic_equivalence"]=True
                 return self._report(edge,graph,VerificationStatus.SYMBOLIC_CHECKED,True,details)
             return self._report(edge,graph,VerificationStatus.FAILED,False,details,"Candidate does not satisfy PDE; nonzero residual.")
-        except (KeyError,TypeError,ValueError,sp.SympifyError,sp.ParseError) as exc:
+        except (KeyError,TypeError,ValueError,sp.SympifyError,AttributeError) as exc:
             return self._report(edge,graph,VerificationStatus.FAILED,False,details,f"PDE verification failed: {exc}")
