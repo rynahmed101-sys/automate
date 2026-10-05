@@ -40,11 +40,12 @@ def test_independent_equation_renderer():
 def test_verified_path_generates_internal_comparison_target(monkeypatch):
     captured = {}
 
-    def fake_run(source, *, expected_output=None, sandbox_limits=None, claim_fingerprint_sha256=None):
+    def fake_run(source, *, expected_output=None, sandbox_limits=None, claim_fingerprint_sha256=None, comparison_target_source="caller_supplied"):
         captured.update({
             "source": source,
             "expected_output": expected_output,
             "claim_fingerprint_sha256": claim_fingerprint_sha256,
+            "comparison_target_source": comparison_target_source,
         })
         return {
             "execution_status": "COMPLETED",
@@ -59,4 +60,5 @@ def test_verified_path_generates_internal_comparison_target(monkeypatch):
     assert result["independence_class"] == "DIFFERENT_ENGINE"
     assert captured["expected_output"] == "R_{a}^{b} v_{b}"
     assert captured["claim_fingerprint_sha256"]
+    assert captured["comparison_target_source"] == "independent_renderer"
     assert "print(str(ex))" in captured["source"]
