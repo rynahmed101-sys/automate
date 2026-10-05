@@ -90,7 +90,7 @@ def test_orthogonality_indicator_and_scaling():
     report = _check("vector_orthogonal", ["Vector([1, 2])", "Vector([2, 1])"], "0")
     assert report.passed
 
-    report = _check("vector_orthogonal", ["Vector([1, 0])", "Vector([0, 2])"], "0")
+    report = _check("vector_orthogonal", ["Vector([1, 0])", "Vector([0, 2])"], "1")
     assert report.passed
 
 
@@ -119,7 +119,7 @@ def test_gram_schmidt_orthogonal_and_orthonormal():
     )
     assert report.passed
     assert report.details["numpy_cross_check"]["passed"] is True
-    assert report.details["output_shapes"] == [[2, 1], [2, 1]]
+    assert report.details["output_shapes"] == [[2], [2]]
 
     report = _check(
         "vector_gram_schmidt",
