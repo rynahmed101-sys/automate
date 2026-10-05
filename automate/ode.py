@@ -109,6 +109,14 @@ class ODEEngine:
             return True
         if reduced.is_zero is False:
             return False
+        try:
+            proved_zero = reduced.equals(0)
+            if proved_zero is False:
+                return False
+            if proved_zero is True:
+                return True
+        except Exception:
+            pass
         return None
 
     def _candidate_residual(
@@ -711,7 +719,7 @@ class ODEEngine:
         state_names = params.get("state_variables") or [f"z{i}" for i in range(order)]
         if not isinstance(state_names, list) or len(state_names) != order:
             raise SafeParseError("state_variables must contain exactly one name per derivative state.")
-        states = [sp.Symbol(str(name), real=True) for name in state_names]
+        states = [sp.Symbol(str(name)) for name in state_names]
         substitution = {sp.diff(y, self.variable, i): states[i] for i in range(order)}
         expected = [states[i + 1] for i in range(order - 1)] + [sp.simplify(highest_rhs.subs(substitution))]
         candidate = self._parse_tuple(candidate_text, [])
