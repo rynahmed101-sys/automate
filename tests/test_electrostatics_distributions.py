@@ -148,7 +148,7 @@ def test_gauss_law_uniform_field_zero_charge_box():
 
 def test_gauss_law_radial_field_uniform_density_box():
     r = _gauss_check("Vector([rho*x/(3*epsilon0),rho*y/(3*epsilon0),rho*z/(3*epsilon0)])",
-        "rho", "6*rho/epsilon0",
+        "rho", "8*rho/epsilon0",
         {"coordinates":["x","y","z"],"bounds":[["-1","1"],["-1","1"],["-1","1"]],
          "epsilon0":"epsilon0","orientation":"outward"})
     assert r.passed
@@ -163,7 +163,7 @@ def test_gauss_law_rejects_wrong_flux():
 
 def test_gauss_law_requires_outward_orientation():
     assert not _gauss_check("Vector([rho*x/(3*epsilon0),rho*y/(3*epsilon0),rho*z/(3*epsilon0)])",
-        "rho", "6*rho/epsilon0",
+        "rho", "8*rho/epsilon0",
         {"coordinates":["x","y","z"],"bounds":[["-1","1"],["-1","1"],["-1","1"]],
          "epsilon0":"epsilon0","orientation":"inward"}).passed
 
