@@ -140,7 +140,14 @@ class StatisticalChecker(BaseChecker):
             error_msg = f"Statistical estimation error: {type(e).__name__}: {str(e)}"
 
         elapsed = (time.perf_counter() - start_time) * 1000
-        status = VerificationStatus.STATISTICALLY_CHECKED if passed else VerificationStatus.FAILED
+        if passed:
+            status = VerificationStatus.STATISTICALLY_CHECKED
+        elif error_msg and error_msg.startswith("UNSUPPORTED:"):
+            status = VerificationStatus.NOT_APPLICABLE
+        elif error_msg and error_msg.startswith("UNVERIFIED:"):
+            status = VerificationStatus.UNVERIFIED
+        else:
+            status = VerificationStatus.FAILED
         return self._build_report(status, passed, details, certificates, error_msg, edge, graph, elapsed)
 
     def _build_report(
@@ -439,7 +446,46 @@ class StatisticalChecker(BaseChecker):
                 "Invalid goodness-of-fit confidence level: expected 0 < gof_confidence_level < 1.",
             )
 
+        statistical_assumptions = params.get("statistical_assumptions", [])
+        if not isinstance(statistical_assumptions, (list, tuple, set)):
+            return (
+                False,
+                {"model": model_type},
+                [],
+                "INVALID: statistical_assumptions must be a list-like collection of explicit assumption identifiers.",
+            )
+        statistical_assumptions = {str(item).strip() for item in statistical_assumptions if str(item).strip()}
+
+        # A chi-square goodness-of-fit compatibility claim is conditional on an
+        # explicit stochastic error model. A positive sigma value by itself does
+        # not establish independence, Gaussian errors, or finite variance.
+        chi2_required_assumptions = {
+            "independent_errors",
+            "normal_errors",
+            "finite_variance",
+            "known_error_scale",
+        }
+        missing_assumptions = sorted(chi2_required_assumptions - statistical_assumptions)
+
         if sigma is not None and np.all(sigma > 0) and dof > 0:
+            if missing_assumptions:
+                return (
+                    False,
+                    {
+                        "model": model_type,
+                        "statistical_assumptions_declared": sorted(statistical_assumptions),
+                        "required_for_chi_square": sorted(chi2_required_assumptions),
+                        "missing_assumptions": missing_assumptions,
+                        "goodness_of_fit": {
+                            "chi2_mode": "unverified_missing_error_model_assumptions",
+                            "degrees_of_freedom": dof,
+                            "r_squared": r_squared,
+                        },
+                    },
+                    [],
+                    "UNVERIFIED: chi-square goodness-of-fit requires explicit assumptions: "
+                    + ", ".join(missing_assumptions),
+                )
             chi2 = float(np.sum((residuals / sigma) ** 2))
             reduced_chi2 = float(chi2 / dof)
             chi2_lower = float(stats.chi2.ppf((1.0 - gof_confidence) / 2.0, dof))
@@ -532,6 +578,7 @@ class StatisticalChecker(BaseChecker):
             "sample_size": n_points,
             "noise_std_used": float(noise_std),
             "data_source": data_source,
+            "statistical_assumptions_declared": sorted(statistical_assumptions),
             **claim_details,
             "evidence_fingerprint_sha256": evidence_fingerprint,
             "data_provenance": {
