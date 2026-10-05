@@ -27,3 +27,4 @@ from automate.backend.linear_algebra_backend import LinearAlgebraChecker
 
 from automate.backend.vector_calculus_backend import VectorCalculusChecker
 from automate.backend.coordinate_vector_calculus_backend import CoordinateVectorCalculusChecker
+\nfrom automate.backend.pde_backend import PDEChecker\n
