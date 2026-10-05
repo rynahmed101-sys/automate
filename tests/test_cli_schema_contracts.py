@@ -57,7 +57,7 @@ def test_schema_agent_returns_machine_agent_contract():
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["schema_version"] == "automate.agent.v1"
-    assert len(payload["rules"]) == 67
+    assert len(payload["rules"]) == 68
     assert {"vector_add", "vector_dot", "matrix_multiply", "matrix_inverse", "matrix_rref", "linear_system_solve", "matrix_characteristic_polynomial", "matrix_eigenvalues", "matrix_eigenvector", "matrix_diagonalize"}.issubset({rule["rule_id"] for rule in payload["rules"]})
     assert {"discover", "context", "validate", "propose_dry_run", "propose_apply",
             "research", "check", "prove", "simulate", "stats",

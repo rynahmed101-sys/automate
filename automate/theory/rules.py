@@ -544,6 +544,12 @@ class RuleRegistry:
                 required_assumptions=["uniform_linear_density", "observation_off_segment"],
                 side_conditions=["explicit_cartesian_axis", "explicit_source_bounds"],
                 implementation_backend="electrostatics", allowed_checkers=["electrostatics"]),
+            RuleDefinition(rule_id="gauss_law_box", name="Gauss Law for Cartesian Box", category="electrostatics",
+                description="Verifies closed-surface electric flux equals enclosed charge divided by explicit epsilon0 for a bounded Cartesian box.",
+                domain="electromagnetism", inputs=["Electric Field", "Charge Density"], outputs=["Electric Flux"],
+                required_assumptions=["closed_rectangular_box", "outward_orientation", "explicit_epsilon0"],
+                side_conditions=["explicit_cartesian_coordinates", "positive_finite_bounds"],
+                implementation_backend="electrostatics", allowed_checkers=["electrostatics"]),
         ]:
             self.register(vector_rule)
 

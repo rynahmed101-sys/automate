@@ -17,7 +17,7 @@ from automate.ir.linear_algebra import ParsedLinearAlgebra, parse_linear_algebra
 class ElectrostaticsChecker(BaseChecker):
     """Verify exact point-charge electrostatics claims in Cartesian coordinates."""
 
-    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential", "continuous_charge_field", "continuous_charge_potential", "uniform_line_charge_potential"}
+    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential", "continuous_charge_field", "continuous_charge_potential", "uniform_line_charge_potential", "gauss_law_box"}
 
     @property
     def name(self) -> str:
@@ -140,6 +140,57 @@ class ElectrostaticsChecker(BaseChecker):
                 distance_sq = sp.simplify((obs - source).dot(obs - source))
                 integrand = k * lam.value / sp.sqrt(distance_sq)
                 expected_parsed = ParsedLinearAlgebra("scalar", sp.integrate(integrand, (parameter, lo, hi)))
+            elif rule == "gauss_law_box":
+                if len(inputs) != 2 or len(outputs) != 1:
+                    raise ValueError("gauss_law_box requires electric field, charge density, and one flux output.")
+                field, rho = inputs
+                if field.kind != "vector" or rho.kind != "scalar" or outputs[0].kind != "scalar" or len(field.value) != 3:
+                    raise ValueError("gauss_law_box requires a 3D vector field, scalar charge density, and scalar flux output.")
+                if edge.parameters.get("coordinates") != ["x", "y", "z"]:
+                    raise ValueError("gauss_law_box is bounded to Cartesian x,y,z coordinates.")
+                raw_bounds = edge.parameters.get("bounds")
+                if not isinstance(raw_bounds, list) or len(raw_bounds) != 3:
+                    raise ValueError("gauss_law_box requires three explicit [lower, upper] bounds.")
+                bounds = []
+                for pair in raw_bounds:
+                    if not isinstance(pair, list) or len(pair) != 2:
+                        raise ValueError("Each gauss_law_box bound must be a [lower, upper] pair.")
+                    lo, hi = self._parse(str(pair[0])), self._parse(str(pair[1]))
+                    if lo.kind != "scalar" or hi.kind != "scalar":
+                        raise ValueError("Gauss-law box bounds must be scalar expressions.")
+                    if sp.ask(sp.Q.positive(sp.simplify(hi.value - lo.value))) is not True:
+                        raise ValueError("Gauss-law box bounds must define provably positive finite intervals.")
+                    bounds.append((lo.value, hi.value))
+                epsilon = self._parse(str(edge.parameters.get("epsilon0", "epsilon0")))
+                if epsilon.kind != "scalar" or not epsilon.value.is_commutative:
+                    raise ValueError("epsilon0 must be an explicit scalar commutative factor.")
+                if edge.parameters.get("orientation") != "outward":
+                    raise ValueError("gauss_law_box requires explicit outward orientation.")
+                x, y, z = sp.symbols("x y z")
+                F = sp.Matrix(field.value)
+                (x0, x1), (y0, y1), (z0, z1) = bounds
+                flux = (
+                    sp.integrate(sp.integrate(-F[0].subs(x, x0), (z, z0, z1)), (y, y0, y1)) +
+                    sp.integrate(sp.integrate(F[0].subs(x, x1), (z, z0, z1)), (y, y0, y1)) +
+                    sp.integrate(sp.integrate(-F[1].subs(y, y0), (z, z0, z1)), (x, x0, x1)) +
+                    sp.integrate(sp.integrate(F[1].subs(y, y1), (z, z0, z1)), (x, x0, x1)) +
+                    sp.integrate(sp.integrate(-F[2].subs(z, z0), (y, y0, y1)), (x, x0, x1)) +
+                    sp.integrate(sp.integrate(F[2].subs(z, z1), (y, y0, y1)), (x, x0, x1))
+                )
+                enclosed_charge = sp.integrate(sp.integrate(sp.integrate(rho.value, (z, z0, z1)), (y, y0, y1)), (x, x0, x1))
+                expected_flux = sp.simplify(enclosed_charge / epsilon.value)
+                actual_flux = ParsedLinearAlgebra("scalar", flux)
+                if not self._equal(outputs[0], actual_flux):
+                    raise ValueError("Reported closed-surface flux does not match the field's actual box flux.")
+                if not self._equal(actual_flux, ParsedLinearAlgebra("scalar", expected_flux)):
+                    raise ValueError("Gauss-law equality fails: closed-surface flux is not enclosed_charge / epsilon0.")
+                details["flux"] = str(sp.simplify(flux))
+                details["enclosed_charge"] = str(sp.simplify(enclosed_charge))
+                details["expected_flux"] = str(expected_flux)
+                details["symbolic_equivalence"] = True
+                details["contract"] = {"geometry":"closed Cartesian rectangular box","orientation":"outward","law":"surface_flux(E) = enclosed_charge / epsilon0"}
+                details["independent_evidence"] = {"available":True,"independence_class":"TWO_INTEGRALS_SYMBOLIC","claim":"Closed-surface flux and enclosed charge were independently integrated and compared."}
+                return VerificationReport(status=VerificationStatus.SYMBOLIC_CHECKED, backend=self.name, backend_version=self.version, execution_time_ms=(time.perf_counter()-start)*1000, passed=True, details=details)
             elif rule == "point_charge_field":
                 if len(inputs) != 2 or len(outputs) != 1:
                     raise ValueError("point_charge_field requires charge and observation-minus-source displacement.")
