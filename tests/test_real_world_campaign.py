@@ -435,13 +435,13 @@ def test_campaign_machine_contract_and_capabilities():
     assert capabilities.exit_code == 0, capabilities.output
     caps = json.loads(capabilities.output)
     assert caps["agent_contract"]["schema_version"] == "automate.agent.v1"
-    assert caps["rule_registry"]["count"] == 66
+    assert caps["rule_registry"]["count"] == 67
 
     contract_result = runner.invoke(main, ["schema", "--name", "agent"])
     assert contract_result.exit_code == 0, contract_result.output
     contract = json.loads(contract_result.output)
     assert contract["schema_version"] == "automate.agent.v1"
-    assert len(contract["rules"]) == 66
+    assert len(contract["rules"]) == 67
     assert set([
         "discover","parse","context","validate","propose_dry_run","propose_apply",
         "research","check","prove","simulate","stats","query_assumptions",

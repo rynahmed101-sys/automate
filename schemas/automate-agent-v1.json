@@ -307,7 +307,10 @@
     "physics": [
       "Coulomb force for point charges",
       "point-charge electric field",
-      "point-charge electric potential"
+      "point-charge electric potential",
+      "continuous charge electric-field kernels",
+      "continuous charge potential kernels",
+      "uniform finite line-charge potential"
     ]
   },
   "rules": [
@@ -764,6 +767,14 @@
     },
     {
       "rule_id": "point_charge_potential",
+      "category": "electromagnetism",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },    {
+      "rule_id": "uniform_line_charge_potential",
       "category": "electromagnetism",
       "domain": "electromagnetism",
       "implementation_backend": "electrostatics",
