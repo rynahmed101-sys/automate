@@ -35,7 +35,7 @@ class LinearAlgebraChecker(BaseChecker):
         "vector_span_membership", "vector_linear_independence", "vector_basis_of_span", "vector_change_of_basis",
         "linear_transformation_apply", "matrix_representation",
         "matrix_positive_definite",
-        "matrix_symmetric", "matrix_hermitian",
+        "matrix_symmetric", "matrix_hermitian", "quadratic_form_evaluate",
     }
 
     @property
