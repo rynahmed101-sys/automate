@@ -423,6 +423,12 @@ class RuleRegistry:
                 domain="mathematics", inputs=["Generator Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
                 allowed_checkers=["linear_algebra"]),
             RuleDefinition(rule_id="vector_basis_of_span", name="Basis of a Span", category="linear_algebra",
+            self.register(RuleDefinition(rule_id="matrix_positive_definite", name="Positive-Definite Matrix", category="linear_algebra",
+                description="Verifies positive definiteness through the symmetric/Hermitian condition and Sylvester's criterion, with numeric eigenvalue cross-checking.",
+                domain="mathematics", inputs=["Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
+                required_assumptions=["symmetric_or_hermitian_matrix"],
+                allowed_checkers=["linear_algebra"]))
+
                 description="Verifies that the columns of a candidate matrix form a basis for the same span as the columns of a generator matrix.",
                 domain="mathematics", inputs=["Generator Matrix", "Basis Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
                 allowed_checkers=["linear_algebra"]),
