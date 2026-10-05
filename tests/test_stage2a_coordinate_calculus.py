@@ -28,7 +28,7 @@ def test_spherical_gradient():
     assert _check("coordinate_gradient",["r**2*cos(theta)"],["Vector([2*r*cos(theta), -sin(theta), 0])"],"coordinate_vector_calculus",p).passed
 
 def test_coordinate_divergence_and_curl_differ_from_cartesian():
-    p={"coordinate_system":"cylindrical","coordinates":["r","phi","z"]}
+    p={"coordinate_system":"cylindrical","coordinates":["r","phi","z"],"domain_exclusions":["r != 0"]}
     assert _check("coordinate_divergence",["Vector([r**2,0,0])"],["3*r"],"coordinate_vector_calculus",p).passed
     assert _check("coordinate_curl",["Vector([0,r**2,0])"],["Vector([0,0,2*r])"],"coordinate_vector_calculus",p).passed
 
