@@ -122,16 +122,16 @@ This stage contains the mathematical basics that later physics must be able to r
 - [x] Diagonalization
 - [x] Null space, row space, column space
 - [x] Basis, span, linear independence
-- [ ] Change of basis and coordinate representations
-- [~] Linear transformations and matrix representations
-- [~] Symmetric / Hermitian matrices
+- [~] Change of basis and coordinate representations
+- [x] Linear transformations and matrix representations
+- [x] Symmetric / Hermitian matrices
 - [x] Norms, inner products, orthogonality
 - [x] Projections and Gram-Schmidt
-- [~] Positive-definite matrices
-- [ ] Quadratic forms
-- [ ] Singular-value decomposition
-- [ ] Moore-Penrose pseudoinverse and least-squares solutions
-- [ ] Complex scalar/vector/matrix semantics needed by later quantum and spectral reasoning
+- [x] Positive-definite matrices
+- [~] Quadratic forms
+- [~] Singular-value decomposition
+- [~] Moore-Penrose pseudoinverse and least-squares solutions
+- [~] Complex scalar/vector/matrix semantics needed by later quantum and spectral reasoning
 
 **Depth rule:** vector/matrix operations should be dimension-generic where represented; subspace and basis operations must correctly handle rectangular, rank-deficient, zero-dimensional, symbolic, and degenerate cases.
 
@@ -175,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. The subspace/basis family is authoritatively verified on merged `main` commit `7b2f8bff5bbfca40465abe3d9a2a51a0272bae` by the Exact-head matrix and Security Audit run #398. The remaining Stage 1A families and all Stage 1B/1C families are unfinished.
+**Current status:** [~] Active. Current main is ab563a7709fbbb21a901603c22082750f98c9d84; Exact-head run #15, Automate CI run #983, and Security Audit run #539 all pass on that exact HEAD. Linear transformations, symmetric/Hermitian matrices, and positive-definite matrices are authoritatively verified on the current merged main. Change-of-basis remains in-progress on an unmerged branch. SVD, quadratic forms, pseudoinverse/least-squares, and complex semantics remain implementation/review work on open PRs. Stage 1B and 1C remain unfinished.
 
 ---
 
@@ -567,7 +567,22 @@ When entering a new chat:
 
 **Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
 
-**Current authoritative baseline:** main contains the merged Phase 1A subspace/basis implementation at `e0ad0e7c4e46b562913028d75c6d46bbd0bcd02d`. Its authoritative Exact-head/Security outcome is not currently observable through the available GitHub workflow interface, so the affected capabilities must remain [!] rather than being falsely certified.
+**Current authoritative baseline:** main is ab563a7709fbbb21a901603c22082750f98c9d84. Exact-head #15 and Security Audit #539 both pass on this exact merged HEAD. The Security Audit concurrency defect was corrected before this certification boundary. The ledger must not claim certification for capabilities that are only present on unmerged branches.
+
+---
+
+## Delegated implementation queue
+
+The primary agent owns repository ground work, reconciliation, defect repair, certification bookkeeping, and this ledger. Other AIs may implement isolated capability families, but their branches are not authoritative until reconciled and certified on merged main.
+
+- PR #48 — change of basis: open and stale against current main; implementation exists but is not merged. Reconcile before certification.
+- PR #57 — SVD: open; implementation was repaired on its branch after a missing verifier/cross-check defect was found. Review current head before merge.
+- PR #58 — quadratic forms: open; implementation/review work only.
+- PR #59 — complex semantics: open; currently requires reconciliation/CI repair before merge.
+- PR #60 — pseudoinverse/least-squares: open; currently requires substantive review/repair before merge.
+- PR #61 — limits/continuity: open and intentionally parallel Stage 1B implementation; it must not advance the roadmap ahead of unfinished Stage 1A.
+
+These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The earliest incomplete Stage 1A capability remains the controlling priority.
 
 ---
 
