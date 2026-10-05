@@ -55,6 +55,15 @@ def test_singular_expression_preserves_domain_information():
     assert "0" in report.details["domain_analysis"]["input_real_domain"]
     assert "0" in report.details["domain_analysis"]["derivative_real_domain"]
 
+def test_boundary_domain_metadata_is_preserved():
+    graph, edge = _graph_edge(
+        "sqrt(x)", "1/(2*sqrt(x))", parameters={"variable": "x", "order": 1}
+    )
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert report.passed, report.error_message
+    assert "0" in report.details["domain_analysis"]["input_real_domain"]
+    assert "0" in report.details["domain_analysis"]["derivative_real_domain"]
+
 @pytest.mark.parametrize("expected", ["3*x**2", "3*x**2 + 1"])
 def test_incorrect_derivative_is_rejected(expected):
     graph, edge = _graph_edge("x**3", expected, parameters={"variable": "x", "order": 1})
@@ -85,7 +94,7 @@ def test_safe_parser_rejects_malicious_derivative_expression():
 def test_unresolved_symbolic_comparison_is_unverified():
     graph, edge = _graph_edge("sqrt(x**2)", "1", parameters={"variable": "x", "order": 1})
     report = SymPyChecker().verify_edge(edge, graph)
-    assert report.status in {VerificationStatus.FAILED, VerificationStatus.UNVERIFIED}
+    assert report.status == VerificationStatus.UNVERIFIED
     assert not report.passed
 
 def test_order_is_not_artificially_capped():
