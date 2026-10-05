@@ -615,7 +615,7 @@ When entering a new chat:
 
 **Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
 
-**Current authoritative baseline:** main is 818c9dd155e50960a83a9048e0b84d2e1606e792. This HEAD contains the expanded Stage 2B ledger scope and therefore requires fresh authoritative Exact-head verification and Security Audit evidence. The ledger must not claim certification for capabilities that are only present on unmerged branches.
+**Current authoritative baseline:** the current `main` HEAD. The latest merged Stage 2C and Stage 2D implementation passes are present on main but remain `[!]` until authoritative Exact-head verification and Security Audit evidence exist for the exact current HEAD. The ledger must not claim certification for capabilities that are only present on unmerged branches.
 
 ---
 
@@ -623,12 +623,10 @@ When entering a new chat:
 
 The primary agent owns repository ground work, reconciliation, defect repair, certification bookkeeping, and this ledger. Other AIs may implement isolated capability families, but their branches are not authoritative until reconciled and certified on merged main.
 
-- PR #48 — change of basis: open and stale against current main; implementation exists but is not merged. Reconcile before certification.
-- PR #57 — SVD: open; implementation was repaired on its branch after a missing verifier/cross-check defect was found. Review current head before merge.
-- PR #58 — quadratic forms: open; implementation/review work only.
-- PR #59 — complex semantics: open; currently requires reconciliation/CI repair before merge.
-- PR #60 — pseudoinverse/least-squares: open; currently requires substantive review/repair before merge.
-- PR #61 — limits/continuity: open and intentionally parallel Stage 1B implementation; it must not advance the roadmap ahead of unfinished Stage 1A.
+- Stage 1A linear-algebra branches remain delegated implementation/review work and must be reconciled against the current main before certification.
+- PR #82 — Stage 2C completion: merged to main; constraints/Lagrange multipliers, Lagrangian mechanics, and Hamilton-equation verification are now `[!]`.
+- PR #83 — Stage 2D completion: merged to main; differential Maxwell equations, Lorentz force, and Poynting-vector/energy-balance verification are now `[!]`.
+- Existing Stage 2B/Stage 2C/Stage 2D branches that predate the current main may be stale; do not blindly merge them.
 
 These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The earliest incomplete Stage 1A capability remains the controlling priority.
 
