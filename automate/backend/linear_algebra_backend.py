@@ -256,6 +256,48 @@ class LinearAlgebraChecker(BaseChecker):
                 "atol": 1e-10,
             }
 
+        if operation == "matrix_unitary":
+            try:
+                expected_value = np.asarray(expected["value"])
+                actual_value = np.asarray(actual_np)
+                passed = bool(np.allclose(actual_value, expected_value, rtol=1e-9, atol=1e-10, equal_nan=False))
+                return {
+                    "available": True,
+                    "independence_class": "DIFFERENT_ENGINE",
+                    "engine": "numpy.conj@numpy.linalg",
+                    "version": np.__version__,
+                    "operation": operation,
+                    "passed": passed,
+                    "max_abs_error": expected.get("max_abs_error"),
+                    "tolerance": expected.get("tolerance"),
+                }
+            except (KeyError, TypeError, ValueError):
+                return {
+                    "available": False,
+                    "independence_class": "NOT_AVAILABLE",
+                    "reason": "Unitary numeric cross-check unavailable.",
+                }
+
+        if operation == "matrix_conjugate_transpose":
+            expected_np = np.asarray(expected)
+            try:
+                passed = bool(np.allclose(actual_np, expected_np, rtol=1e-9, atol=1e-10, equal_nan=False))
+                max_abs_error = float(np.max(np.abs(actual_np - expected_np)))
+            except (TypeError, ValueError):
+                passed = False
+                max_abs_error = None
+            return {
+                "available": True,
+                "independence_class": "DIFFERENT_ENGINE",
+                "engine": "numpy.conjugate.T",
+                "version": np.__version__,
+                "operation": operation,
+                "passed": passed,
+                "max_abs_error": max_abs_error,
+                "rtol": 1e-9,
+                "atol": 1e-10,
+            }
+
         if operation == "matrix_eigenvalues":
             expected_np = np.asarray(expected).reshape(-1)
             passed = cls._numeric_multiset_match(actual_np, expected_np)
