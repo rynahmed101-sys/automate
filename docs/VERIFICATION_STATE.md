@@ -204,13 +204,27 @@ Automate treats verification as an evidence discipline, not a requirement that e
 
 The canonical claim identity deliberately excludes backend-specific tolerances, execution controls, sampled observations, and machine details. Those belong to evidence provenance. This separation allows different backends to examine the same mathematical claim and allows genuinely new claims to accumulate reproducible evidence without pretending that the current knowledge base is complete.
 
-## Remaining work
+## Completed roadmap
 
-1. Expand tensor claim binding and independent EinsteinPy/textbook coverage without marking unsupported whole-tensor or index-operation claims as verified.
-2. Pin external-engine versions and strengthen machine-level resource controls where the host supports them; Cadabra already executes through the shared sandbox, while POSIX resource enforcement still requires fallback to wall-clock termination on unsupported systems.
-3. Generalize structured ODEs, mechanics, field variation, and numerical error certificates only where semantics are explicit and testable.
-4. Expand statistical provenance beyond caller-declared labels to authenticated or externally resolved dataset lineage where the execution environment permits it, and formalize more of the statistical model assumptions.
-5. Generalize graph-to-Lean translation beyond the restricted integer-polynomial subset; reuse mathlib/physlib theorems only when proposition identity is preserved.
-6. Extend graph-bound Cadabra comparison from structural round-trip agreement to independently computed semantic results where the canonical IR carries sufficient information; never infer missing symmetries or index spaces.\n7. Pin external-engine versions, licenses, inputs/results and independence metadata in `docs/ECOSYSTEM.md` and verification certificates.
+The previously tracked verification-hardening, Phase 4.2/4.3 Cadabra integration, canonical Tensor IR, independent semantic comparison, runtime provenance, CI/security verification, and dependency-maintenance milestones are **COMPLETED**.
+
+The authoritative current integration head is `72efcbb67bbaf09d9fa1e26cd3e2d93da41a0599`. GitHub Actions Automate CI and Security Audit both pass on that exact `main` head.
+
+The GitHub workspace/private-repository activation request was administrative rather than an engineering dependency and has been closed as superseded. The repository currently remains public only for this engineering window; the single developer will change visibility to private from GitHub administrator settings after this checkpoint.
+
+## Next development upgrades
+
+These are intentionally future development items, not claims of incomplete baseline verification:
+
+1. **Broader independent tensor coverage.** Expand EinsteinPy/textbook cross-checks for tensor identities, contractions, curvature components, and supported index operations where the canonical IR carries sufficient semantics. Unsupported semantics must remain `UNSUPPORTED_SEMANTICS` or `UNVERIFIED`.
+2. **Semantic Cadabra comparison.** Extend the current structural round-trip check toward independently computed semantic comparison only where index spaces, variance, metric data, and symmetries are explicitly represented. Never infer missing semantics.
+3. **Structured mathematics coverage.** Expand ODEs, mechanics, field variation, and numerical certificates in small, testable rule families with explicit contracts rather than a generic “solve anything” interface.
+4. **Stronger numerical evidence.** Add more reproducible error/convergence certificates, deterministic solver configurations, and host-aware resource quotas while keeping empirical convergence distinct from rigorous mathematical error bounds.
+5. **Authenticated statistical provenance.** Move beyond caller-declared dataset labels toward resolvable dataset lineage, immutable source identifiers, and stronger model-assumption provenance where the execution environment permits it.
+6. **Graph-bound formal verification.** Generalize Lean translation beyond the current integer-polynomial subset and reuse mathlib/physlib results only when proposition identity is mechanically preserved.
+7. **Versioned external-engine registry.** Consolidate engine version, executable identity, license, input/output fingerprints, comparison method, sandbox limits, and independence classification into a reusable registry/certificate contract for future adapters.
+8. **Machine-agent contract surface.** Publish and test a versioned Tensor IR JSON contract, capability discovery, deterministic schema negotiation, and stable CLI/API behavior so external AI agents can use Automate without relying on internal Python implementation details.
+9. **Certificate lifecycle and reproducibility.** Add explicit certificate schema/version migration, evidence invalidation/reverification workflows, and deterministic export/import checks without conflating provenance with proof.
+10. **Single-developer maintenance discipline.** Prefer consolidated changes and squash merges, avoid unnecessary repository/workspace machinery, and require exact-head CI/security verification before declaring an engineering milestone complete.
 
 Claims not supported by source inspection or an executed check remain **UNVERIFIED**.
