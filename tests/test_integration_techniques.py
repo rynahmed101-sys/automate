@@ -201,7 +201,7 @@ def test_partial_fractions_wrong_decomposition_is_rejected():
         "partial_fractions_integrate",
         "1/((x+1)*(x+2))",
         "1/(x+1)+1/(x+2)",
-        "0",
+        {"variable": "x", "decomposition": "1/(x+1)+1/(x+2)"},
     )
     # Preserve fail-closed behavior even for malformed parameter types.
     assert report.status == VerificationStatus.FAILED
