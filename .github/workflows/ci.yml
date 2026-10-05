@@ -2,8 +2,7 @@ name: Automate CI
 
 on:
   push:
-    branches:
-      - "feat/**"
+    branches-ignore:
       - main
   pull_request:
     branches:
@@ -23,7 +22,7 @@ on:
 
 jobs:
   development:
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feat/'))
+    if: github.ref != 'refs/heads/main'
     name: Development / Python 3.12
     runs-on: ubuntu-latest
 
