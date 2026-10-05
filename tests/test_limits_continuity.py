@@ -235,7 +235,7 @@ def test_numerical_evidence_is_independent_and_not_the_proof():
 
 def test_unsupported_output_marker_is_rejected():
     graph, edge = _graph_edge(
-        "limit", "x", "not_a_limit_marker",
+        "limit", "x", "x***2",
         parameters={"variable": "x", "point": "0", "direction": "two_sided"},
     )
     report = SymPyChecker().verify_edge(edge, graph)
