@@ -1676,13 +1676,11 @@ class SymPyChecker(BaseChecker):
         # same left/right obligations used by the limit rule even when f(a)
         # itself is undefined (the removable-discontinuity case).
         if not domain_ok:
-            if value_defined:
-                return False, {"rule": "continuity", "function_value": str(value),
-                               "domain_analysis": domain_detail,
-                               "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
-                       "Continuity could not be established because the real approach domain is unresolved."
-            actual_indicator = 0
-            left = right = None
+            return False, {"rule": "continuity", "function_value": str(value),
+                           "function_value_defined": value_defined,
+                           "domain_analysis": domain_detail,
+                           "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                   "Continuity could not be established because the real approach domain is unresolved."
         else:
             left = sp.limit(expr, variable, point, dir="-")
             right = sp.limit(expr, variable, point, dir="+")
