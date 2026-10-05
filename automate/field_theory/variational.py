@@ -21,12 +21,23 @@ class FieldTheoryAction:
         fields: List[str],
         coordinates: Optional[List[str]] = None,
         parameters: Optional[Dict[str, Any]] = None,
-        metric_signature: str = "(-,+,+,+)"
+        metric_signature: str = "(-,+,+,+)",
+        assumptions: Optional[List[str]] = None,
     ):
         self.field_names = list(fields)
         self.coord_names = list(coordinates) if coordinates else ["t", "x", "y", "z"]
         self.signature = metric_signature
         self.param_dict = parameters or {}
+        self.assumptions = {str(a).strip() for a in (assumptions or []) if str(a).strip()}
+
+        if not self.field_names or any(not isinstance(f, str) or not f.strip() for f in self.field_names):
+            raise ValueError("Field specification must contain at least one non-empty field name.")
+        if len(set(self.field_names)) != len(self.field_names):
+            raise ValueError("Field specification contains duplicate field names.")
+        if not self.coord_names or any(not isinstance(c, str) or not c.strip() for c in self.coord_names):
+            raise ValueError("Coordinate specification must contain at least one non-empty coordinate name.")
+        if len(set(self.coord_names)) != len(self.coord_names):
+            raise ValueError("Coordinate specification contains duplicate coordinate names.")
 
         # Spacetime coordinate symbols
         self.coord_syms = [sp.Symbol(c, real=True) for c in self.coord_names]
@@ -60,6 +71,17 @@ class FieldTheoryAction:
                 self.grad_syms[f][c] = sp.Symbol(f"d_{c}_{f}", real=True)
 
         self.lagrangian_density = self._parse_expression(lagrangian_density)
+
+        higher_order = []
+        for derivative in self.lagrangian_density.atoms(sp.Derivative):
+            if any(derivative.expr == self.field_funcs[f] for f in self.field_names):
+                if sum(derivative.derivative_count for _ in [0]) > 1:
+                    higher_order.append(derivative)
+        if higher_order:
+            raise ValueError(
+                "UNSUPPORTED: higher-order field derivatives are not implemented; "
+                "the scalar-field variational foundation supports first derivatives only."
+            )
 
     def _parse_expression(self, expr_in: Union[str, sp.Expr]) -> sp.Expr:
         if isinstance(expr_in, sp.Expr):
@@ -175,6 +197,19 @@ class FieldTheoryAction:
         """
         computed_eoms, steps = self.euler_lagrange_field_equations()
 
+        if "vanishing_boundary_variations" not in self.assumptions:
+            return (
+                False,
+                {
+                    "computed_field_eoms": {f: str(e) for f, e in computed_eoms.items()},
+                    "assumptions_declared": sorted(self.assumptions),
+                    "required_assumptions": ["vanishing_boundary_variations"],
+                },
+                steps,
+                "UNVERIFIED: functional Euler-Lagrange verification requires explicit "
+                "assumption 'vanishing_boundary_variations'.",
+            )
+
         candidate_eoms: Dict[str, sp.Expr] = {}
         if isinstance(candidate_eq_str, dict):
             for f, c_str in candidate_eq_str.items():
@@ -185,6 +220,16 @@ class FieldTheoryAction:
                 candidate_eoms[f0] = self._parse_equation_lhs(candidate_eq_str)
             else:
                 return False, {}, steps, "Multiple fields present; provide candidate equations as dictionary."
+
+        unknown_fields = set(candidate_eoms) - set(computed_eoms)
+        if unknown_fields:
+            return (
+                False,
+                {},
+                steps,
+                "INVALID: candidate field equation supplied for undeclared field(s): "
+                + ", ".join(sorted(unknown_fields)),
+            )
 
         all_passed = True
         diffs = {}
@@ -215,8 +260,12 @@ class FieldTheoryAction:
         return all_passed, details, steps, err
 
     def _parse_equation_lhs(self, eq_str: str) -> sp.Expr:
+        if not isinstance(eq_str, str) or not eq_str.strip():
+            raise ValueError("INVALID: candidate field equation must be a non-empty string.")
         if "=" in eq_str:
             parts = eq_str.split("=")
+            if len(parts) != 2:
+                raise ValueError("INVALID: candidate field equation must contain exactly one equality sign.")
             lhs = self._parse_expression(parts[0].strip())
             rhs = self._parse_expression(parts[1].strip())
             return sp.simplify(lhs - rhs)
