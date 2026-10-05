@@ -86,9 +86,12 @@ def test_matching_output_is_different_engine_evidence(monkeypatch):
     )
 
     assert report["execution_status"] == "COMPLETED"
-    assert report["independence_class"] == "DIFFERENT_ENGINE"
+    assert report["independence_class"] == "UNVERIFIED"
+    assert report["comparison_target_source"] == "caller_supplied"
+    assert report["comparison_target_fingerprint_sha256"]
     assert report["checks_performed"] == 1
     assert report["claim_fingerprint_sha256"] is None
+    assert "not independent evidence" in report["notes"][0]
 
 
 def test_mismatching_output_is_discrepancy_not_proof_of_falsity(monkeypatch):
@@ -137,7 +140,8 @@ def test_claim_fingerprint_survives_completed_comparison(monkeypatch):
     monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
     fingerprint = "a" * 64
     report = adapter.run_cadabra_script("ex := A;", expected_output="same", claim_fingerprint_sha256=fingerprint)
-    assert report["independence_class"] == "DIFFERENT_ENGINE"
+    assert report["independence_class"] == "UNVERIFIED"
+    assert report["comparison_target_source"] == "caller_supplied"
     assert report["claim_fingerprint_sha256"] == fingerprint
 
 
@@ -240,8 +244,11 @@ def test_cadabra_provenance_binds_resolved_executable(monkeypatch, tmp_path):
     assert report["runtime_identity"] == "resolved-executable-sha256"
     assert report["executable_path"] == str(executable.resolve())
     assert len(report["executable_fingerprint_sha256"]) == 64
-    assert report["adapter_version"] == "v1"
+    assert report["adapter_version"] == "v2"
+    assert report["provenance_schema_version"] == "v2"
     assert len(report["runtime_environment_fingerprint_sha256"]) == 64
+    assert report["runtime_dependency_versions"]
+    assert len(report["provenance_fingerprint_sha256"]) == 64
 
 
 @pytest.mark.adversarial
@@ -317,3 +324,61 @@ def test_cadabra_process_failure_preserves_runtime_provenance(monkeypatch):
     assert report["executable_path"] == "/usr/bin/cadabra2"
     assert report["runtime_environment_fingerprint_sha256"]
     assert report["error"] == "process exited 7"
+
+
+@pytest.mark.adversarial
+@pytest.mark.trust_boundary
+def test_caller_supplied_target_cannot_be_classified_as_independent(monkeypatch):
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: "/usr/bin/cadabra2")
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FakeSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            return {
+                "execution_status": "COMPLETED",
+                "stdout": "trusted-looking answer",
+                "stderr": "",
+                "output_fingerprint_sha256": "1" * 64,
+            }
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
+    report = adapter.run_cadabra_script(
+        "ex := A;",
+        expected_output="trusted-looking answer",
+    )
+
+    assert report["execution_status"] == "COMPLETED"
+    assert report["independence_class"] == "UNVERIFIED"
+    assert report["comparison_target_source"] == "caller_supplied"
+    assert report["comparison_target_fingerprint_sha256"]
+
+
+@pytest.mark.trust_boundary
+def test_provenance_fingerprint_changes_with_executable(monkeypatch, tmp_path):
+    executable = tmp_path / "cadabra2"
+    executable.write_bytes(b"runtime-one")
+    monkeypatch.setattr(adapter, "find_cadabra_executable", lambda: str(executable))
+    monkeypatch.setattr(adapter, "get_cadabra_version", lambda: "2.test")
+
+    class FakeSandbox:
+        def __init__(self, limits):
+            self.limits = limits
+
+        def run(self, target, payload):
+            return {
+                "execution_status": "COMPLETED",
+                "stdout": "same",
+                "stderr": "",
+                "output_fingerprint_sha256": "2" * 64,
+            }
+
+    monkeypatch.setattr(adapter, "VerifiedExecutionSandbox", FakeSandbox)
+    first = adapter.run_cadabra_script("ex := A;")
+    executable.write_bytes(b"runtime-two")
+    second = adapter.run_cadabra_script("ex := A;")
+
+    assert first["provenance_fingerprint_sha256"] != second["provenance_fingerprint_sha256"]
+    assert first["executable_fingerprint_sha256"] != second["executable_fingerprint_sha256"]
