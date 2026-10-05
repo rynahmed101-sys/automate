@@ -170,7 +170,7 @@ def test_symbolic_parameter_and_assumption():
 
 def test_unresolved_symbolic_comparison_fails_closed():
     graph, edge = _graph_edge(
-        "limit", "x**2", "a**2",
+        "limit", "sqrt(x)", "sqrt(a)",
         parameters={"variable": "x", "point": "a", "direction": "two_sided"},
     )
     report = SymPyChecker().verify_edge(edge, graph)
