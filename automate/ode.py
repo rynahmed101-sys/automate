@@ -11,10 +11,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+import re
 
 import sympy as sp
 
 from automate.ir.safe_parser import SafeParser, SafeParseError
+from sympy.core.function import AppliedUndef
 
 
 @dataclass
@@ -44,6 +46,19 @@ class ODEEngine:
             if name and name not in loc:
                 loc[name] = sp.Function(name)
         return loc
+
+    def _normalize_shorthand_equation(self, text: str) -> str:
+        """Lift legacy y_dot/y_ddot-style notation into function notation."""
+        raw = str(text).strip()
+        fn_call = f"{self.function_name}({self.variable_name})"
+        if fn_call in raw or "diff(" in raw or "Derivative(" in raw:
+            return raw
+        escaped = re.escape(self.function_name)
+        normalized = raw
+        normalized = re.sub(rf"\b{escaped}_ddot\b", f"diff({self.function_name}({self.variable_name}), {self.variable_name}, 2)", normalized)
+        normalized = re.sub(rf"\b{escaped}_dot\b", f"diff({self.function_name}({self.variable_name}), {self.variable_name})", normalized)
+        normalized = re.sub(rf"\b{escaped}\b", f"{self.function_name}({self.variable_name})", normalized)
+        return normalized
 
     def parse_expression(self, text: str, function_names: Sequence[str] = ()) -> sp.Expr:
         parser = SafeParser()
@@ -115,6 +130,11 @@ class ODEEngine:
         # xreplace may miss nested/non-identical function applications. A
         # second substitution pass is safe because all replacements are exact.
         residual = sp.simplify(residual.subs(substitutions))
+        try:
+            residual = sp.trigsimp(residual)
+            residual = sp.simplify(residual)
+        except Exception:
+            pass
         return residual, order, self._zero_state(residual)
 
     def verify_solution(
@@ -122,7 +142,8 @@ class ODEEngine:
     ) -> ODEResult:
         params = params or {}
         try:
-            eq = self.parse_equation(equation_text)
+            normalized_equation = self._normalize_shorthand_equation(equation_text)
+            eq = self.parse_equation(normalized_equation)
             candidate = self.parse_candidate(candidate_text)
             residual, order, zero = self._candidate_residual(eq, candidate)
         except SafeParseError as exc:
@@ -148,6 +169,7 @@ class ODEEngine:
         ]
         details = {
             "equation": equation_text,
+            "normalized_equation": self._normalize_shorthand_equation(equation_text),
             "candidate_solution": candidate_text,
             "parsed_candidate": str(candidate),
             "order": order,
@@ -459,13 +481,18 @@ class ODEEngine:
             if imag == 0:
                 for k in range(int(multiplicity)):
                     basis.append(self.variable**k * sp.exp(real * self.variable))
-            elif imag is not None:
+            elif imag.is_positive is True:
                 for k in range(int(multiplicity)):
                     factor = self.variable**k * sp.exp(real * self.variable)
                     basis.extend([
                         factor * sp.cos(imag * self.variable),
                         factor * sp.sin(imag * self.variable),
                     ])
+            elif imag.is_negative is True:
+                # The conjugate root is represented by the same real basis.
+                continue
+            else:
+                return None
         if len(basis) != order:
             return None
         return basis
@@ -484,7 +511,6 @@ class ODEEngine:
                     "Only homogeneous linear constant-coefficient ODEs are supported by this rule.",
                     unresolved=self._zero_state(forcing) is None,
                 )
-            poly = sp.Poly.from_list(coeffs, gens=sp.Symbol("lambda"))
             lam = sp.Symbol("lambda")
             polynomial = sum(coeffs[i] * lam ** (order-i) for i in range(order + 1))
             candidate = self.parse_candidate(candidate_text)
@@ -534,7 +560,7 @@ class ODEEngine:
         loc = self._locals()
         cond = parser.parse_equation(condition_text, extra_locals=loc)
         replacements: Dict[sp.Expr, sp.Expr] = {}
-        for atom in cond.atoms(sp.AppliedUndef):
+        for atom in cond.atoms(AppliedUndef)
             if atom.func == fn:
                 arg = atom.args[0]
                 replacements[atom] = candidate.subs(self.variable, arg)
