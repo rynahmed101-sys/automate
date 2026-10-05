@@ -298,6 +298,11 @@
       "orthogonality claims with explicit indicator semantics",
       "orthogonal projection onto a non-zero vector",
       "Gram-Schmidt orthogonalization and optional orthonormalization"
+    ],
+    "physics": [
+      "Coulomb force for point charges",
+      "point-charge electric field",
+      "point-charge electric potential"
     ]
   },
   "rules": [
@@ -714,6 +719,33 @@
       "implementation_backend": "vector_calculus",
       "allowed_checkers": [
         "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "coulomb_force",
+      "category": "electromagnetism",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "point_charge_field",
+      "category": "electromagnetism",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "point_charge_potential",
+      "category": "electromagnetism",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
       ]
     },
     {
