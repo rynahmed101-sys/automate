@@ -23,7 +23,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 **Latest authoritative verification:** Exact-head CI + Security Audit passed on merged main SHA `ff7d7821b45685a96c18b6e7f422cdda35c2c788`.
 
-**Next capability:** Cartesian line, surface, and volume integral capabilities; integral theorems remain a separate later batch.
+**Next capability:** Green's theorem, divergence theorem, and Stokes' theorem, implemented as separate theorem rules with explicit domain, boundary, orientation, and regularity contracts.
 
 ---
 
@@ -79,7 +79,8 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [x] Divergence
 - [x] Curl
 - [x] Laplacian
-- [!] Line / surface / volume integrals
+- [x] Line / surface / volume integrals
+- [!] Green's theorem / divergence theorem / Stokes' theorem
 - [x] Conservative fields and potentials
 - [ ] Flux
 - [ ] Green's theorem
@@ -113,7 +114,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Poynting vector
 - [ ] Electromagnetic wave equation
 
-**Phase 2 status:** [!] Differential operators are verified; the Cartesian integration batch is now verification pending.
+**Phase 2 status:** [!] Differential operators and Cartesian integrals are verified; integral-theorem batch is now verification pending.
 
 ---
 
