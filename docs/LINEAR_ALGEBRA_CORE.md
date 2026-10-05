@@ -24,3 +24,8 @@ A finite-dimensional linear transformation is represented by a matrix A and appl
 The matrix representation rule reconstructs a unique map from an explicit invertible domain basis B and the corresponding image columns C by verifying M B = C, equivalently M = C B^-1. Singular bases are rejected, while symbolic parameterized bases whose invertibility cannot be established are returned as UNVERIFIED rather than assumed valid.
 
 These rules establish reusable transformation semantics without depending on the pending change-of-basis capability.
+
+
+## Symmetric and Hermitian matrices
+
+Automate verifies square matrices for the symmetric condition A = A^T and the Hermitian condition A = A†. Numeric inputs receive independent NumPy checks. Symbolic Hermitian claims that depend on unresolved conjugation assumptions fail closed as UNVERIFIED rather than treating an unconstrained symbol as real.
