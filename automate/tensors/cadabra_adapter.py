@@ -331,7 +331,7 @@ def run_cadabra_script(
     stdout = result.get("stdout", "")
     if expected_output is None:
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, adapter_version="v1", execution_status="COMPLETED",
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, adapter_version="v2", execution_status="COMPLETED",
             independence_class="UNVERIFIED",
             input_fingerprint_sha256=input_fingerprint,
             claim_fingerprint_sha256=claim_fingerprint_sha256,
@@ -343,7 +343,7 @@ def run_cadabra_script(
 
     if stdout.strip() != expected_output.strip():
         return ExternalEngineEvidence(
-            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, adapter_version="v1",
+            engine="Cadabra2", version=version, runtime_identity=runtime_identity, executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint, adapter_version="v2",
             execution_status="MATHEMATICAL_DISCREPANCY",
             independence_class="CROSS_CHECK_FAILED",
             input_fingerprint_sha256=input_fingerprint,
@@ -361,7 +361,7 @@ def run_cadabra_script(
         engine="Cadabra2", version=version, runtime_identity=runtime_identity,
         executable_path=executable_path, executable_fingerprint_sha256=executable_fingerprint,
         runtime_environment_fingerprint_sha256=runtime_environment_fingerprint,
-        adapter_version="v1", execution_status="COMPLETED",
+        adapter_version="v2", execution_status="COMPLETED",
         independence_class=(
             "DIFFERENT_ENGINE"
             if comparison_target_source == "independent_renderer"
