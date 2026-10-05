@@ -34,7 +34,7 @@ class LinearAlgebraChecker(BaseChecker):
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
         "vector_span_membership", "vector_linear_independence", "vector_basis_of_span",
         "linear_transformation_apply", "matrix_representation",
-        "matrix_symmetric", "matrix_hermitian",
+        "matrix_symmetric", "matrix_hermitian", "quadratic_form_evaluate",
     }
 
     @property
@@ -250,6 +250,29 @@ class LinearAlgebraChecker(BaseChecker):
                 "engine": "numpy.vdot",
                 "version": np.__version__,
                 "operation": operation,
+                "passed": passed,
+                "max_abs_error": max_abs_error,
+                "rtol": 1e-9,
+                "atol": 1e-10,
+            }
+
+        if operation == "quadratic_form_evaluate":
+            expected_value = expected["value"]
+            try:
+                actual_scalar = complex(np.asarray(actual_np).reshape(()))
+                expected_scalar = complex(expected_value)
+                passed = bool(np.isclose(actual_scalar, expected_scalar, rtol=1e-9, atol=1e-10, equal_nan=False))
+                max_abs_error = float(abs(actual_scalar - expected_scalar))
+            except (TypeError, ValueError):
+                passed = False
+                max_abs_error = None
+            return {
+                "available": True,
+                "independence_class": "DIFFERENT_ENGINE",
+                "engine": expected.get("operation", "numpy.quadratic_form"),
+                "version": np.__version__,
+                "operation": operation,
+                "domain": expected.get("domain"),
                 "passed": passed,
                 "max_abs_error": max_abs_error,
                 "rtol": 1e-9,

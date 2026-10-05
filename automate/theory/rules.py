@@ -426,6 +426,13 @@ class RuleRegistry:
                 description="Verifies that the columns of a candidate matrix form a basis for the same span as the columns of a generator matrix.",
                 domain="mathematics", inputs=["Generator Matrix", "Basis Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
                 allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="quadratic_form_evaluate", name="Quadratic Form Evaluation", category="linear_algebra",
+                description=("Evaluates and verifies q(x) = x^T A x on an explicitly real domain or q(x) = x^H A x on an explicitly complex domain. "
+                             "Matrix/vector dimensions are checked; an optional Hermitian requirement is established rather than inferred."),
+                domain="mathematics", inputs=["Square Matrix", "Vector"], outputs=["Scalar"],
+                required_assumptions=["explicit_domain_real_or_complex"], implementation_backend="linear_algebra",
+                symbolic_checker_available=True, formal_proof_available=False,
+                allowed_checkers=["linear_algebra"], citation="Quadratic Form / Hermitian Form"),
             RuleDefinition(rule_id="matrix_symmetric", name="Symmetric Matrix", category="linear_algebra",
                 description="Verifies whether a square matrix equals its transpose.",
                 domain="mathematics", inputs=["Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
