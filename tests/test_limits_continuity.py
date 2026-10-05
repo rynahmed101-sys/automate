@@ -251,3 +251,12 @@ def test_continuity_requires_two_sided_finite_point():
     report = SymPyChecker().verify_edge(edge, graph)
     assert report.status == VerificationStatus.FAILED
     assert not report.passed
+
+def test_continuity_unresolved_real_domain_fails_closed_when_value_is_undefined():
+    graph, edge = _graph_edge(
+        "continuity", "sqrt(a*x)", "0",
+        parameters={"variable": "x", "point": "0", "direction": "two_sided"},
+    )
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert report.status == VerificationStatus.UNVERIFIED
+
