@@ -122,13 +122,13 @@ This stage contains the mathematical basics that later physics must be able to r
 - [x] Diagonalization
 - [x] Null space, row space, column space
 - [x] Basis, span, linear independence
-- [~] Change of basis and coordinate representations
+- [!] Change of basis and coordinate representations
 - [x] Linear transformations and matrix representations
 - [x] Symmetric / Hermitian matrices
 - [x] Norms, inner products, orthogonality
 - [x] Projections and Gram-Schmidt
 - [x] Positive-definite matrices
-- [~] Quadratic forms
+- [!] Quadratic forms
 - [!] Singular-value decomposition
 - [~] Moore-Penrose pseudoinverse and least-squares solutions
 - [~] Complex scalar/vector/matrix semantics needed by later quantum and spectral reasoning
