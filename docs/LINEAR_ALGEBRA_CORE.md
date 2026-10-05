@@ -15,3 +15,8 @@ Gaussian-elimination evidence records pivots and reduced row-echelon form. All s
 AI agents should discover these capabilities with automate capabilities --json, retrieve context with automate context, and submit automate.proposal.v1 using target_checker linear_algebra. AI output remains untrusted until the checker returns SYMBOLIC_CHECKED.
 
 Named acceptance campaign: tests/test_linear_algebra_acceptance.py.
+
+
+## Change of basis
+
+Automate verifies vector coordinate changes between two explicit ordered bases by reconstructing the represented vector in the source basis and solving for its coordinates in the target basis. Both bases must be square and explicitly invertible; symbolic non-zeroness that cannot be established is reported as UNVERIFIED rather than assumed.
