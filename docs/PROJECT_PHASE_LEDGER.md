@@ -4,6 +4,8 @@ This is the human-readable project scoreboard for the Maths & Physics capability
 
 The ledger is maintained by the project lead/engineering agent. It records project state in plain English.
 
+The recorded capability baseline identifies the last substantive main milestone; ledger-only bookkeeping commits do not need to replace that baseline.
+
 ## Status key
 
 - [ ] Not started
@@ -15,11 +17,11 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 ## Current position
 
-**Current main:** `bb5fe79ce5be6db978c39a810fdf2803273f7e1e`
+**Last recorded capability baseline main:** `848b837ffa1f965421da235ef65113cf5fc01132`
 
-**Current work:** The development-vs-exact-head CI policy is now merged. Linear Algebra Phase 1A eigenproblem extension remains the active mathematical milestone.
+**Current work:** The development-vs-exact-head CI policy is merged and corrected. Linear Algebra Phase 1A eigenproblem extension remains the active mathematical milestone.
 
-**Current verification gate:** Exact-head CI + Security Audit are queued for `bb5fe79ce5be6db978c39a810fdf2803273f7e1e`. The eigenproblem batch remains **[!] Verification pending**, not complete.
+**Current verification gate:** The latest `main` commit must pass Exact-head CI + Security Audit before the eigenproblem batch can become **[x] Completed and verified**. The batch remains **[!] Verification pending**.
 
 **Next capability after this gate:** Linear Algebra inner-product / orthogonality extension, then Vector Calculus.
 
