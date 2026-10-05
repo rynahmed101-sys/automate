@@ -96,7 +96,7 @@ def test_uniform_finite_x_line_charge_potential():
 def test_uniform_finite_y_line_charge_potential():
     result = _line_check("2", "Vector([1,0,0])", "4*k*asinh(1)",
         {"axis": "y", "source_bounds": ["-1", "1"], "coordinates": ["x", "y", "z"]})
-    assert result.passed, result
+    assert result.passed, result.details
 
 
 def test_uniform_line_charge_wrong_claim_rejected():
