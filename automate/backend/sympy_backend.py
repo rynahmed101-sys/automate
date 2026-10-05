@@ -12,6 +12,7 @@ import time
 import re
 from typing import Dict, Any, List, Optional, Union
 import sympy as sp
+import numpy as np
 
 from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
@@ -118,6 +119,14 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_simplify(
                         in_nodes[0], out_nodes[0]
                     )
+                elif rule == "limit":
+                    passed, details, certificates, error_msg = self._verify_limit(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "continuity":
+                    passed, details, certificates, error_msg = self._verify_continuity(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
 
                 else:
                     # NO FALLBACK — unknown rules must not be silently checked
@@ -140,7 +149,10 @@ class SymPyChecker(BaseChecker):
                 passed = False
                 error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}"
 
-            status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
+            if details.get("_status_override"):
+                status = VerificationStatus(details.pop("_status_override"))
+            else:
+                status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
 
         elapsed = (time.perf_counter() - start_time) * 1000
         return self._build_report(status, passed, details, certificates, error_msg,
@@ -705,6 +717,257 @@ class SymPyChecker(BaseChecker):
         err = None if passed else f"simplify: expressions are not equivalent: {diff}"
         return passed, details, steps, err
 
+
+    # ------------------------------------------------------------------
+    # Rules: limit / continuity
+    # Limits are deliberately evaluated with explicit direction semantics.
+    # A two-sided finite-point limit is established only when the left and
+    # right limits both exist and agree. Direct substitution is never used
+    # as a substitute for the limiting operation.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _limit_assumption_symbols(raw: Any) -> Dict[str, sp.Symbol]:
+        assumptions = raw or {}
+        if not isinstance(assumptions, dict):
+            raise ValueError("parameters['assumptions'] must be an object mapping symbol names to assumption names.")
+        allowed = {"real", "positive", "negative", "nonzero", "integer"}
+        symbols: Dict[str, sp.Symbol] = {}
+        for name, assumption in assumptions.items():
+            if not isinstance(name, str) or not name.isidentifier():
+                raise ValueError("Assumption symbol names must be valid identifiers.")
+            items = assumption if isinstance(assumption, list) else [assumption]
+            props = {}
+            for item in items:
+                if item not in allowed:
+                    raise ValueError(f"Unsupported symbolic assumption '{item}'.")
+                props[item] = True
+            symbols[name] = sp.Symbol(name, **props)
+        return symbols
+
+    @classmethod
+    def _parse_limit_inputs(cls, in_node: Any, params: Dict[str, Any]) -> tuple[sp.Expr, sp.Symbol, sp.Expr, str]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip() or not variable_name.strip().isidentifier():
+            raise ValueError("parameters['variable'] must be a valid identifier.")
+        assumptions = cls._limit_assumption_symbols(params.get("assumptions"))
+        variable = assumptions.get(variable_name, sp.Symbol(variable_name, real=True))
+        parser = SafeParser(extra_symbols=assumptions | {variable_name: variable})
+        try:
+            expr = parser.parse(in_node.expression.raw_str)
+        except SafeParseError as exc:
+            raise ValueError(f"SafeParser rejected limit expression: {exc}") from exc
+        point_raw = params.get("point")
+        if point_raw is None:
+            raise ValueError("parameters['point'] is required.")
+        try:
+            point = parser.parse(str(point_raw))
+        except SafeParseError as exc:
+            raise ValueError(f"SafeParser rejected limit point: {exc}") from exc
+        direction = params.get("direction", "two_sided")
+        if direction in {"-", "left"}:
+            direction = "left"
+        elif direction in {"+", "right"}:
+            direction = "right"
+        elif direction in {"two-sided", "both", "+-"}:
+            direction = "two_sided"
+        elif direction in {"infinity", "+infinity", "plus_infinity"}:
+            direction = "+infinity"
+        elif direction in {"-infinity", "minus_infinity"}:
+            direction = "-infinity"
+        elif direction not in {"two_sided", "left", "right"}:
+            raise ValueError("Unsupported limit direction. Use two_sided, left, right, +infinity, or -infinity.")
+        if direction in {"two_sided", "left", "right"} and point in {sp.oo, -sp.oo}:
+            raise ValueError("Finite-point limit directions require a finite target point.")
+        if direction == "+infinity":
+            point = sp.oo
+        elif direction == "-infinity":
+            point = -sp.oo
+        return expr, variable, point, direction
+
+    @staticmethod
+    def _limit_known(value: sp.Expr) -> bool:
+        if isinstance(value, sp.Limit) or value is None:
+            return False
+        if value in {sp.nan, sp.zoo}:
+            return False
+        return not bool(value.has(sp.Limit))
+
+    @classmethod
+    def _limit_numeric_evidence(cls, expr: sp.Expr, variable: sp.Symbol, point: sp.Expr,
+                                direction: str, expected: Any) -> Dict[str, Any]:
+        """Independent NumPy sampling; evidence only, never the proof."""
+        if expr.free_symbols - {variable}:
+            return {"available": False, "independence_class": "NOT_AVAILABLE",
+                    "reason": "Numeric limit evidence requires no unresolved symbols besides the limit variable."}
+        if point not in {sp.oo, -sp.oo} and point.free_symbols:
+            return {"available": False, "independence_class": "NOT_AVAILABLE",
+                    "reason": "Numeric limit evidence requires a numeric target point."}
+        try:
+            fn = sp.lambdify(variable, expr, "numpy")
+            if point in {sp.oo, -sp.oo}:
+                samples = np.asarray([10.0, 30.0, 100.0, 300.0, 1000.0])
+                if point == -sp.oo:
+                    samples = -samples
+            else:
+                p = float(sp.N(point))
+                deltas = np.asarray([1e-2, 3e-3, 1e-3, 3e-4, 1e-4])
+                if direction == "left":
+                    samples = p - deltas
+                elif direction == "right":
+                    samples = p + deltas
+                else:
+                    samples = np.concatenate([p - deltas, p + deltas])
+            values = np.asarray(fn(samples), dtype=np.complex128).reshape(-1)
+            finite_mask = np.isfinite(values.real) & np.isfinite(values.imag)
+            samples = samples[finite_mask]
+            values = values[finite_mask]
+            if values.size == 0:
+                return {"available": False, "independence_class": "NOT_AVAILABLE",
+                        "reason": "Numeric sampling produced no finite sample values."}
+            expected_value = None
+            if expected != "DNE":
+                try:
+                    expected_value = complex(sp.N(expected))
+                except Exception:
+                    expected_value = None
+            if expected_value is not None and np.isfinite(expected_value.real) and np.isfinite(expected_value.imag):
+                scale = max(1.0, abs(expected_value))
+                error = float(np.max(np.abs(values - expected_value)))
+                passed = error <= 2e-3 + 2e-3 * scale
+            elif expected == sp.oo:
+                passed, error = bool(abs(values[-1]) > max(10.0, abs(values[0]) * 1.5)), None
+            elif expected == -sp.oo:
+                passed, error = bool(values[-1].real < min(-10.0, values[0].real * 1.5)), None
+            else:
+                passed, error = None, None
+            return {
+                "available": True, "independence_class": "DIFFERENT_ENGINE",
+                "engine": "numpy.lambdify_sampling", "version": np.__version__,
+                "operation": "limit", "direction": direction,
+                "sample_count": int(values.size), "sample_points": samples.tolist(),
+                "sample_values": [str(complex(v)) for v in values],
+                "passed": passed, "max_abs_error": error, "evidence_only": True,
+            }
+        except (TypeError, ValueError, OverflowError, ZeroDivisionError, FloatingPointError):
+            return {"available": False, "independence_class": "NOT_AVAILABLE",
+                    "reason": "Independent numerical limit sampling failed."}
+
+    @classmethod
+    def _verify_limit(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        expr, variable, point, direction = cls._parse_limit_inputs(in_node, params)
+        expected_raw = out_node.expression.raw_str.strip()
+        if not expected_raw:
+            return False, {"rule": "limit"}, [], "Malformed limit result."
+        if expected_raw.upper() in {"DNE", "DOES_NOT_EXIST", "NONEXISTENT"}:
+            expected_marker, expected = "DNE", "DNE"
+        else:
+            parser = SafeParser(extra_symbols={str(variable): variable})
+            try:
+                expected = parser.parse(expected_raw)
+            except SafeParseError as exc:
+                return False, {"rule": "limit"}, [], f"SafeParser rejected claimed limit: {exc}"
+            expected_marker = None
+        try:
+            if direction == "two_sided":
+                left = sp.limit(expr, variable, point, dir="-")
+                right = sp.limit(expr, variable, point, dir="+")
+                if not cls._limit_known(left) or not cls._limit_known(right):
+                    return False, {"rule": "limit", "direction": direction, "variable": str(variable),
+                                   "point": str(point), "left_limit": str(left), "right_limit": str(right),
+                                   "_status_override": VerificationStatus.UNVERIFIED.value}, \
+                           "Two-sided limit could not be established from both one-sided limits."
+                if left == right:
+                    actual, existence = left, "finite_or_infinite"
+                else:
+                    actual, existence = "DNE", "nonexistent"
+            else:
+                sympy_dir = "-" if direction == "left" else "+" if direction == "right" else "+"
+                actual = sp.limit(expr, variable, point, dir=sympy_dir)
+                if not cls._limit_known(actual):
+                    return False, {"rule": "limit", "direction": direction, "variable": str(variable),
+                                   "point": str(point), "computed_limit": str(actual),
+                                   "_status_override": VerificationStatus.UNVERIFIED.value}, \
+                           "Limit computation remained unresolved."
+                existence = "finite" if actual.is_finite is True else "infinite" if actual in {sp.oo, -sp.oo} else "undetermined"
+            if expected_marker == "DNE":
+                passed = actual == "DNE"
+                error_msg = None if passed else f"Limit exists as {actual}; claimed DNE."
+            else:
+                comparison = sp.simplify(actual - expected) if actual != "DNE" else sp.Integer(1)
+                if comparison == 0:
+                    passed, error_msg = True, None
+                elif getattr(comparison, "is_zero", None) is False or comparison.is_number:
+                    passed, error_msg = False, f"Limit mismatch: expected {expected}, computed {actual}."
+                else:
+                    return False, {"rule": "limit", "direction": direction, "variable": str(variable),
+                                   "point": str(point), "computed_limit": str(actual), "claimed_limit": str(expected),
+                                   "_status_override": VerificationStatus.UNVERIFIED.value}, \
+                           "Limit comparison depends on unresolved symbolic assumptions."
+            numeric = cls._limit_numeric_evidence(expr, variable, point, direction, actual)
+            details = {"rule": "limit", "direction": direction, "variable": str(variable), "point": str(point),
+                       "computed_limit": str(actual), "claimed_limit": expected_raw,
+                       "existence_class": existence, "numeric_evidence": numeric}
+            steps = [{"step": 1, "operation": "compute explicit directional limit", "direction": direction},
+                     {"step": 2, "operation": "compare computed limit with claimed result",
+                      "computed": str(actual), "claimed": expected_raw}]
+            return passed, details, steps, error_msg
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return False, {"rule": "limit", "direction": direction,
+                           "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                   f"UNVERIFIED: limit computation unavailable: {type(exc).__name__}: {exc}"
+
+    @classmethod
+    def _verify_continuity(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        expr, variable, point, direction = cls._parse_limit_inputs(in_node, params)
+        if direction != "two_sided" or point in {sp.oo, -sp.oo}:
+            return False, {"rule": "continuity"}, [], \
+                "UNSUPPORTED: continuity is pointwise at a finite ordinary point; use limit for one-sided or infinite targets."
+        value = expr.subs(variable, point)
+        value_defined = value not in {sp.nan, sp.zoo, sp.oo, -sp.oo} and not value.has(sp.zoo, sp.nan)
+        left = right = None
+        if value_defined:
+            left = sp.limit(expr, variable, point, dir="-")
+            right = sp.limit(expr, variable, point, dir="+")
+            if not cls._limit_known(left) or not cls._limit_known(right):
+                return False, {"rule": "continuity", "function_value": str(value),
+                               "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                       "Continuity could not be established because the two-sided limit is unresolved."
+            if left != right:
+                actual_indicator = 0
+            else:
+                difference = sp.simplify(left - value)
+                if difference == 0:
+                    actual_indicator = 1
+                elif difference.is_zero is False or difference.is_number:
+                    actual_indicator = 0
+                else:
+                    return False, {"rule": "continuity", "function_value": str(value), "two_sided_limit": str(left),
+                                   "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                           "Continuity comparison depends on unresolved symbolic assumptions."
+        else:
+            actual_indicator = 0
+        expected_raw = out_node.expression.raw_str.strip()
+        if expected_raw not in {"0", "1"}:
+            return False, {"rule": "continuity", "function_value": str(value)}, [], \
+                   "Continuity output must be the explicit indicator 1 (continuous) or 0 (not continuous)."
+        passed = int(expected_raw) == actual_indicator
+        details = {"rule": "continuity", "variable": str(variable), "point": str(point),
+                   "function_value": str(value), "function_value_defined": value_defined,
+                   "two_sided_limit": str(left) if value_defined else "not evaluated because f(a) is undefined",
+                   "continuous_indicator": actual_indicator,
+                   "interpretation": "1 means lim(x->a) f(x) = f(a); 0 means continuity is not established."}
+        details["numeric_evidence"] = cls._limit_numeric_evidence(
+            expr, variable, point, "two_sided", left if value_defined else "DNE"
+        ) if value_defined else {"available": False, "independence_class": "NOT_AVAILABLE",
+                                  "reason": "Function value is undefined at the continuity point."}
+        steps = [{"step": 1, "operation": "evaluate function value at the point", "value": str(value)},
+                 {"step": 2, "operation": "compute left and right limits", "left": str(left) if value_defined else None,
+                  "right": str(right) if value_defined else None},
+                 {"step": 3, "operation": "verify lim(x->a) f(x) = f(a)"}]
+        return passed, details, steps, None if passed else \
+               f"Continuity mismatch: expected indicator {expected_raw}, computed {actual_indicator}"
 
     # ------------------------------------------------------------------
     # Rule: algebraic_identity
