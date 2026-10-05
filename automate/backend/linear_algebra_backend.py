@@ -212,7 +212,13 @@ class LinearAlgebraChecker(BaseChecker):
             return {
                 "available": True,
                 "independence_class": "DIFFERENT_ENGINE",
-                "engine": "numpy.vdot" if operation == "vector_inner_product" and expected.get("hermitian", True) else "numpy.dot",
+                "engine": (
+                    "numpy.vdot"
+                    if operation == "vector_inner_product" and expected.get("hermitian", True)
+                    else "numpy.dot"
+                    if operation == "vector_inner_product"
+                    else "numpy.linalg.norm"
+                ),
                 "version": np.__version__,
                 "operation": operation,
                 "passed": passed,
