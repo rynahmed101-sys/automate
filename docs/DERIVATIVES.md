@@ -39,3 +39,25 @@ Malformed variables, invalid orders, unsupported assumptions, unsafe expressions
 SymPy's differentiation machinery is used only as the symbolic backend; Automate retains its own rule, input contract, evidence, and failure semantics. No external source code is copied.
 
 Roadmap status is intentionally unchanged; implementation and CI are not certification.
+
+
+## Explicit composite differentiation
+
+The Stage 1B calculus layer also exposes dedicated verification rules for:
+- `chain_rule`: verifies an explicit composition using (f'(g(x))g'(x));
+- `product_rule`: verifies the product rule for two or more factors;
+- `quotient_rule`: verifies the quotient rule for a numerator and denominator.
+
+These rules construct the mathematical derivative from the named components and compare the proposed result. They are deliberately separate from generic `differentiate`, so an agent can state the intended calculus transformation rather than hiding it inside a final derivative.
+
+## Implicit differentiation
+
+`implicit_differentiate` verifies a proposed (dy/dx) from an explicit relation (F(x,y)=0) using
+
+[
+\frac{dy}{dx}=-\frac{F_x}{F_y}.
+]
+
+The verifier rejects an identically zero (F_y) denominator and otherwise records the local nonzero-partial condition as an explicit verification detail. It does not claim a global implicit-function theorem result, pointwise (F_y\ne0) proof, or branch/domain theorem unless those semantics are separately represented.
+
+Malformed inputs, invalid variables, zero denominators, incorrect derivatives, and unresolved symbolic comparisons fail closed rather than being guessed.
