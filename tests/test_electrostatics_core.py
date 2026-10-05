@@ -31,7 +31,7 @@ def test_coulomb_force():
     report = _check(
         "coulomb_force",
         ["2", "3", "Vector([0, 0])", "Vector([2, 0])"],
-        "Vector([27/4, 0])",
+        "Vector([3*k/2, 0])",
     )
     assert report.passed
 
