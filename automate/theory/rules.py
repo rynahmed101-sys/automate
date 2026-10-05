@@ -182,6 +182,207 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="differentiate",
+            name="Differentiate Expression",
+            category="calculus",
+            description="Verifies scalar one-variable derivatives of arbitrary positive integer order with an explicit differentiation variable and optional symbolic assumptions.",
+            domain="mathematics",
+            inputs=["Scalar Expression"],
+            outputs=["Scalar Derivative"],
+            required_assumptions=["explicit_differentiation_variable"],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Definition of the derivative / SymPy diff"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="chain_rule",
+            name="Chain Rule",
+            category="calculus",
+            description="Verifies explicit composition differentiation f(g(x)) using f'(g(x))g'(x).",
+            domain="mathematics",
+            inputs=["Outer Expression", "Inner Expression"],
+            outputs=["Scalar Derivative"],
+            required_assumptions=["explicit_differentiation_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Chain Rule"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="product_rule",
+            name="Product Rule",
+            category="calculus",
+            description="Verifies differentiation of a product of two or more differentiable factors.",
+            domain="mathematics",
+            inputs=["Scalar Factors"],
+            outputs=["Scalar Derivative"],
+            required_assumptions=["explicit_differentiation_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Product Rule"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="quotient_rule",
+            name="Quotient Rule",
+            category="calculus",
+            description="Verifies differentiation of a quotient with a denominator that is not identically zero.",
+            domain="mathematics",
+            inputs=["Numerator", "Denominator"],
+            outputs=["Scalar Derivative"],
+            required_assumptions=["explicit_differentiation_variable", "denominator_nonzero_on_domain"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Quotient Rule"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="implicit_differentiate",
+            name="Implicit Differentiation",
+            category="calculus",
+            description="Verifies dy/dx from F(x,y)=0 as -F_x/F_y under the local condition F_y != 0.",
+            domain="mathematics",
+            inputs=["Implicit Relation"],
+            outputs=["Dependent Derivative"],
+            required_assumptions=["explicit_independent_and_dependent_variables", "local_Fy_nonzero"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Implicit Function Theorem / implicit differentiation"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="integrate",
+            name="Definite and Indefinite Integration",
+            category="calculus",
+            description="Verifies symbolic definite or indefinite integration; indefinite results are checked by differentiation and may differ by integration constants or lower-order integration polynomials.",
+            domain="mathematics",
+            inputs=["Scalar Integrand"],
+            outputs=["Scalar Integral"],
+            required_assumptions=["explicit_integration_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Fundamental definition of antiderivative and definite integral / SymPy integrate"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="nested_integrate",
+            name="Repeated and Nested Integration",
+            category="calculus",
+            description="Verifies an explicit sequence of indefinite integrations, including repeated or mixed variables, without an artificial depth ceiling.",
+            domain="mathematics",
+            inputs=["Scalar Integrand", "Ordered Integration Variables"],
+            outputs=["Scalar Nested Integral"],
+            required_assumptions=["explicit_integration_variable_sequence"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Repeated antiderivative construction"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="integration_by_substitution",
+            name="Integration by Substitution",
+            category="calculus",
+            description="Verifies an explicit u=g(x) substitution, including the du/dx factor, transformed integrand identity, and proposed antiderivative.",
+            domain="mathematics",
+            inputs=["Scalar Integrand", "Substitution", "Transformed Integrand"],
+            outputs=["Scalar Antiderivative"],
+            required_assumptions=["explicit_integration_variable", "explicit_substitution"],
+            side_conditions=["represented_du_dx"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Change of variables / u-substitution",
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="integration_by_parts",
+            name="Integration by Parts",
+            category="calculus",
+            description="Verifies an explicit u, dv, v representation using integral(u dv) = u*v - integral(v du), then verifies the proposed antiderivative.",
+            domain="mathematics",
+            inputs=["Scalar Integrand", "u", "dv", "v"],
+            outputs=["Scalar Antiderivative"],
+            required_assumptions=["explicit_integration_variable", "explicit_parts_components"],
+            side_conditions=["differentiate_v_equals_dv"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Integration by Parts",
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="partial_fractions_integrate",
+            name="Partial Fractions Integration",
+            category="calculus",
+            description="Verifies a rational integrand's explicit partial-fraction decomposition, preserves denominator restrictions, and verifies the proposed antiderivative.",
+            domain="mathematics",
+            inputs=["Rational Integrand", "Partial-Fraction Decomposition"],
+            outputs=["Scalar Antiderivative"],
+            required_assumptions=["explicit_integration_variable", "nonzero_denominator_on_domain"],
+            side_conditions=["rational_function_in_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Partial Fractions",
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="trigonometric_integrate",
+            name="Trigonometric Integration",
+            category="calculus",
+            description="Verifies tractable trigonometric or hyperbolic integration using a symbolic backend primitive and differentiation of both backend and candidate results.",
+            domain="mathematics",
+            inputs=["Trigonometric Scalar Integrand"],
+            outputs=["Scalar Antiderivative"],
+            required_assumptions=["explicit_integration_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Trigonometric Integration",
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="limit",
+            name="Scalar Limit",
+            category="calculus",
+            description="Verifies scalar one-variable limits with explicit two-sided, one-sided, +infinity, or -infinity direction semantics; continuity is not inferred from direct substitution.",
+            domain="mathematics",
+            inputs=["Scalar Expression"],
+            outputs=["Scalar Limit Value or DNE"],
+            required_assumptions=["explicit_limit_variable_and_target"],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Calculus Limits / SymPy limit"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="continuity",
+            name="Pointwise Continuity",
+            category="calculus",
+            description="Verifies pointwise continuity from the explicit function value and the two-sided limit at a finite point.",
+            domain="mathematics",
+            inputs=["Scalar Expression"],
+            outputs=["Continuity Indicator"],
+            required_assumptions=["explicit_limit_variable_and_target"],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Continuity Definition / Limit Equality"
+        ))
+
+        self.register(RuleDefinition(
             rule_id="substitute",
             name="Substitute Expression",
             category="algebra",
@@ -426,13 +627,6 @@ class RuleRegistry:
                 description="Verifies that the columns of a candidate matrix form a basis for the same span as the columns of a generator matrix.",
                 domain="mathematics", inputs=["Generator Matrix", "Basis Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
                 allowed_checkers=["linear_algebra"]),
-            RuleDefinition(rule_id="quadratic_form_evaluate", name="Quadratic Form Evaluation", category="linear_algebra",
-                description=("Evaluates and verifies q(x) = x^T A x on an explicitly real domain or q(x) = x^H A x on an explicitly complex domain. "
-                             "Matrix/vector dimensions are checked; an optional Hermitian requirement is established rather than inferred."),
-                domain="mathematics", inputs=["Square Matrix", "Vector"], outputs=["Scalar"],
-                required_assumptions=["explicit_domain_real_or_complex"], implementation_backend="linear_algebra",
-                symbolic_checker_available=True, formal_proof_available=False,
-                allowed_checkers=["linear_algebra"], citation="Quadratic Form / Hermitian Form"),
             RuleDefinition(rule_id="matrix_symmetric", name="Symmetric Matrix", category="linear_algebra",
                 description="Verifies whether a square matrix equals its transpose.",
                 domain="mathematics", inputs=["Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
@@ -440,11 +634,6 @@ class RuleRegistry:
             RuleDefinition(rule_id="matrix_hermitian", name="Hermitian Matrix", category="linear_algebra",
                 description="Verifies whether a square matrix equals its conjugate transpose, with unresolved symbolic conjugation failing closed.",
                 domain="mathematics", inputs=["Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
-                allowed_checkers=["linear_algebra"]),
-            RuleDefinition(rule_id="matrix_positive_definite", name="Positive-Definite Matrix", category="linear_algebra",
-                description="Verifies positive definiteness through the symmetric/Hermitian condition and Sylvester's criterion, with numeric eigenvalue cross-checking.",
-                domain="mathematics", inputs=["Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
-                required_assumptions=["symmetric_or_hermitian_matrix"],
                 allowed_checkers=["linear_algebra"]),
             RuleDefinition(rule_id="linear_transformation_apply", name="Linear Transformation Application", category="linear_algebra",
                 description="Verifies the action y = A*x of a finite-dimensional linear transformation represented by matrix A, including rectangular maps.",
@@ -455,10 +644,6 @@ class RuleRegistry:
                 domain="mathematics", inputs=["Domain Basis Matrix", "Image Matrix"], outputs=["Representation Matrix"], implementation_backend="linear_algebra",
                 required_assumptions=["explicit_invertible_domain_basis"],
                 allowed_checkers=["linear_algebra"]),
-            RuleDefinition(rule_id="vector_change_of_basis", name="Vector Change of Basis", category="linear_algebra",
-                description="Converts coordinates of a vector from one explicit ordered basis to another by preserving the represented vector.",
-                domain="mathematics", inputs=["Source Basis", "Target Basis", "Source Coordinates"], outputs=["Target Coordinates"],
-                implementation_backend="linear_algebra", allowed_checkers=["linear_algebra"]),
             RuleDefinition(rule_id="matrix_characteristic_polynomial", name="Characteristic Polynomial", category="linear_algebra",
                 description="Computes det(lam*I - A) for a square matrix using an explicit polynomial generator.", domain="mathematics",
                 inputs=["Matrix"], outputs=["Scalar Polynomial"], implementation_backend="linear_algebra",
@@ -643,6 +828,23 @@ class RuleRegistry:
                 required_assumptions=["electrostatic_capacitor"],
                 side_conditions=["explicit_capacitance_and_voltage"],
                 implementation_backend="electrostatics", allowed_checkers=["electrostatics"]),
+            RuleDefinition(rule_id="quadratic_form_evaluate", name="Quadratic Form Evaluation", category="linear_algebra",
+                description=("Evaluates and verifies q(x) = x^T A x on an explicitly real domain or q(x) = x^H A x on an explicitly complex domain. "
+                             "Matrix/vector dimensions are checked; an optional Hermitian requirement is established rather than inferred."),
+                domain="mathematics", inputs=["Square Matrix", "Vector"], outputs=["Scalar"],
+                required_assumptions=["explicit_domain_real_or_complex"], implementation_backend="linear_algebra",
+                symbolic_checker_available=True, formal_proof_available=False,
+                allowed_checkers=["linear_algebra"], citation="Quadratic Form / Hermitian Form"),,
+            RuleDefinition(rule_id="matrix_positive_definite", name="Positive-Definite Matrix", category="linear_algebra",
+                description="Verifies positive definiteness through the symmetric/Hermitian condition and Sylvester's criterion, with numeric eigenvalue cross-checking.",
+                domain="mathematics", inputs=["Matrix"], outputs=["Scalar Indicator"], implementation_backend="linear_algebra",
+                required_assumptions=["symmetric_or_hermitian_matrix"],
+                allowed_checkers=["linear_algebra"]),,
+            RuleDefinition(rule_id="vector_change_of_basis", name="Vector Change of Basis", category="linear_algebra",
+                description="Converts coordinates of a vector from one explicit ordered basis to another by preserving the represented vector.",
+                domain="mathematics", inputs=["Source Basis", "Target Basis", "Source Coordinates"], outputs=["Target Coordinates"],
+                implementation_backend="linear_algebra", allowed_checkers=["linear_algebra"]),
+
         ]:
             self.register(vector_rule)
 
