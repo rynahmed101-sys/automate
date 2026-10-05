@@ -421,6 +421,43 @@ class RuleRegistry:
         ]:
             self.register(linear_rule)
 
+        # 4C. Phase 2A Vector Calculus
+        for vector_rule in [
+            RuleDefinition(rule_id="scalar_field", name="Scalar Field", category="vector_calculus",
+                description="Declares an explicit scalar expression as a scalar field in Cartesian coordinates.",
+                domain="mathematics", inputs=["Scalar Field"], outputs=["Scalar Field"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="vector_field", name="Vector Field", category="vector_calculus",
+                description="Declares an explicit vector expression as a vector field in Cartesian coordinates.",
+                domain="mathematics", inputs=["Vector Field"], outputs=["Vector Field"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="gradient", name="Gradient", category="vector_calculus",
+                description="Computes the Cartesian gradient of a scalar field.",
+                domain="mathematics", inputs=["Scalar Field"], outputs=["Vector Field"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="directional_derivative", name="Directional Derivative", category="vector_calculus",
+                description="Computes the directional derivative of a scalar field along a non-zero direction, normalized to a unit direction.",
+                domain="mathematics", inputs=["Scalar Field", "Direction Vector"], outputs=["Scalar"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="divergence", name="Divergence", category="vector_calculus",
+                description="Computes the Cartesian divergence of a vector field.",
+                domain="mathematics", inputs=["Vector Field"], outputs=["Scalar"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="curl", name="Curl", category="vector_calculus",
+                description="Computes the three-dimensional Cartesian curl of a vector field.",
+                domain="mathematics", inputs=["Vector Field"], outputs=["Vector Field"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="laplacian", name="Laplacian", category="vector_calculus",
+                description="Computes the scalar Cartesian Laplacian as the sum of second partial derivatives.",
+                domain="mathematics", inputs=["Scalar Field"], outputs=["Scalar"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+            RuleDefinition(rule_id="conservative_field", name="Conservative Field / Potential", category="vector_calculus",
+                description="Checks whether a vector field equals the gradient of a supplied scalar potential; output 1 means yes and 0 means no.",
+                domain="mathematics", inputs=["Vector Field", "Potential"], outputs=["Scalar Indicator"],
+                implementation_backend="vector_calculus", allowed_checkers=["vector_calculus"]),
+        ]:
+            self.register(vector_rule)
+
         # 5. Differential Equations & Solutions
         self.register(RuleDefinition(
             rule_id="solve_harmonic_oscillator",

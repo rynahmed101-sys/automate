@@ -19,11 +19,11 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 **Last recorded capability baseline main:** `848b837ffa1f965421da235ef65113cf5fc01132`
 
-**Current work:** Phase 1 Linear Algebra inner-product / orthogonality capability family is completed and verified. The next capability is Phase 2A Vector Calculus.
+**Current work:** Phase 2A Vector Calculus differential-operator capability family is being implemented and verified.
 
 **Latest authoritative verification:** Exact-head CI + Security Audit passed on merged main SHA `ff7d7821b45685a96c18b6e7f422cdda35c2c788`.
 
-**Next capability:** Phase 2A Vector Calculus.
+**Next capability:** Complete the Phase 2A verification gate, then add line/surface/volume integrals and vector-calculus integral theorems as a separate bounded batch.
 
 ---
 
@@ -66,21 +66,21 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Initial-value and boundary-value problems
 - [ ] Phase-space representations
 
-**Phase 1 status:** [~] Foundations are being expanded capability-first; Linear Algebra inner-product and orthogonality coverage is now verified.
+**Phase 1 status:** [x] Core Phase 1 Linear Algebra milestones through inner products, projections, and Gram-Schmidt are verified; null spaces/bases and matrix-structure expansions remain.
 
 ---
 
 # Phase 2 — Vector Calculus & Electromagnetism
 
 ## Vector Calculus
-- [ ] Scalar and vector fields
-- [ ] Gradient
-- [ ] Directional derivative
-- [ ] Divergence
-- [ ] Curl
-- [ ] Laplacian
+- [x] Scalar and vector fields
+- [x] Gradient
+- [x] Directional derivative
+- [x] Divergence
+- [x] Curl
+- [x] Laplacian
 - [ ] Line / surface / volume integrals
-- [ ] Conservative fields and potentials
+- [x] Conservative fields and potentials
 - [ ] Flux
 - [ ] Green's theorem
 - [ ] Divergence theorem
@@ -113,7 +113,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Poynting vector
 - [ ] Electromagnetic wave equation
 
-**Phase 2 status:** [ ] Not started.
+**Phase 2 status:** [!] Vector Calculus differential-operator batch is verification pending.
 
 ---
 

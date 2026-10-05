@@ -1,0 +1,39 @@
+theory: vector_calculus_phase2a
+name: Vector Calculus Phase 2A
+description: Cartesian scalar/vector fields and differential operators.
+nodes:
+  phi:
+    expression: "x**2 + y**2 + z**2"
+  grad_phi:
+    expression: "Vector([2*x, 2*y, 2*z])"
+  field:
+    expression: "Vector([x**2, y**2, z**2])"
+  div_field:
+    expression: "2*x + 2*y + 2*z"
+  lap_phi:
+    expression: "6"
+derivations:
+  gradient:
+    input_nodes: [phi]
+    output_nodes: [grad_phi]
+    transformation_rule: gradient
+    justification: Cartesian gradient of phi.
+    checker: vector_calculus
+    parameters:
+      coordinates: [x, y, z]
+  divergence:
+    input_nodes: [field]
+    output_nodes: [div_field]
+    transformation_rule: divergence
+    justification: Cartesian divergence of the supplied vector field.
+    checker: vector_calculus
+    parameters:
+      coordinates: [x, y, z]
+  laplacian:
+    input_nodes: [phi]
+    output_nodes: [lap_phi]
+    transformation_rule: laplacian
+    justification: Scalar Cartesian Laplacian.
+    checker: vector_calculus
+    parameters:
+      coordinates: [x, y, z]
