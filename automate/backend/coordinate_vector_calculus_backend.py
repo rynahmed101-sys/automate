@@ -130,6 +130,8 @@ class CoordinateVectorCalculusChecker(BaseChecker):
                         "coordinate_divergence":cs.divergence(sp.Matrix(inputs[0].value)),
                         "coordinate_curl":cs.curl_physical(sp.Matrix(inputs[0].value)),
                         "coordinate_laplacian":cs.laplacian(inputs[0].value)}[rule]
+            output_symbols = {str(s): s for s in outputs[0].value.free_symbols}
+            expected = expected.xreplace({s: output_symbols[str(s)] for s in expected.free_symbols if str(s) in output_symbols})
             expected_p=ParsedLinearAlgebra("vector" if isinstance(expected,sp.MatrixBase) else "scalar", expected)
             if not self._equal(outputs[0],expected_p):
                 return self._report(edge,graph,VerificationStatus.FAILED,False,{**details,"expected":str(expected),"actual":str(outputs[0].value)},"Coordinate-aware result is incorrect.")
