@@ -957,8 +957,10 @@ class SymPyChecker(BaseChecker):
                 residual = sp.simplify(actual_check - integrand)
             equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
         except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
-            return False, {"rule": "integrate", "order": order}, [],
+            return (
+                False, {"rule": "integrate", "order": order}, [],
                 f"UNVERIFIED: integration/comparison could not be established: {type(exc).__name__}: {exc}"
+            )
         if residual == 0 or equivalence is True:
             passed, override, error = True, None, None
         elif equivalence is False:
