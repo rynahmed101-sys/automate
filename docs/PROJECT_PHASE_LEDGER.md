@@ -200,18 +200,66 @@ Stage 1 is complete only when its mathematical machinery is sufficiently general
 
 ## 2B. PDEs and transforms
 
-- [ ] Heat equation
-- [ ] Wave equation
-- [ ] Laplace / Poisson equations
+### PDE representation and verification foundation
+- [ ] Explicit PDE independent-variable representation
+- [ ] Explicit PDE parameter representation
+- [ ] Candidate-solution substitution and symbolic residual construction
+- [ ] Generic PDE residual verification
+- [ ] Fail-closed handling of malformed, unsupported, or unresolved PDE claims
+- [ ] PDE domain / singularity / assumption handling
+- [ ] Heat equation verification
+- [ ] Wave equation verification
+- [ ] Laplace / Poisson equation verification
+
+### PDE solution methods
+- [ ] Initial conditions
+- [ ] Boundary conditions
+- [ ] Initial-boundary-condition validation and compatibility
 - [ ] Separation of variables
-- [ ] Initial and boundary conditions
-- [ ] Fourier series
+- [ ] Separated-mode construction and verification
+- [ ] PDE solution reconstruction from separated modes
+- [ ] Green-function methods where tractable
+- [ ] Green-function representation and residual verification
+- [ ] PDE method/domain failure intelligence
+
+### Fourier-series machinery
+- [ ] Fourier-series canonical representation
+- [ ] Period and interval conventions
+- [ ] Fourier-series coefficient computation
+- [ ] Fourier-series reconstruction
+- [ ] Fourier-series coefficient/reconstruction verification
+- [ ] Convergence / validity conditions for Fourier series
+- [ ] Fourier-series boundary/initial-data use in PDE solutions
+
+### Fourier-transform machinery
+- [ ] Explicit Fourier transform convention representation
 - [ ] Fourier transforms
-- [ ] Inverse transforms
-- [ ] Convolution
+- [ ] Inverse Fourier transforms
+- [ ] Fourier transform-pair verification
+- [ ] Transform-domain assumptions and convergence handling
+- [ ] Fail-closed unresolved transform evaluation
+
+### Convolution machinery
+- [ ] Continuous convolution representation
+- [ ] Convolution evaluation
+- [ ] Convolution verification
+- [ ] Convolution theorem
+- [ ] Convolution-theorem verification
+- [ ] Convolution-domain / convergence assumptions
+
+### Laplace-transform machinery
+- [ ] Explicit Laplace transform convention representation
 - [ ] Laplace transforms
 - [ ] Inverse Laplace transforms
-- [ ] Green-function methods where tractable
+- [ ] Laplace transform-pair verification
+- [ ] Transform-domain assumptions and convergence handling
+- [ ] Fail-closed unresolved inverse-transform evaluation
+
+### Cross-cutting transform/PDE integration
+- [ ] Composition of transforms with PDE representations
+- [ ] Independent cross-checks for transform and PDE results
+- [ ] Machine-agent exposure of transform/PDE capabilities
+- [ ] Named acceptance campaigns covering positive, negative, boundary, degenerate, and adversarial cases
 
 ## 2C. Classical mechanics
 
