@@ -30,8 +30,8 @@ def _check(rule, inputs, output, *, parameters=None):
 def test_coulomb_force():
     report = _check(
         "coulomb_force",
-        ["q1", "q2", "Vector([0, 0])", "Vector([r, 0])"],
-        "Vector([k*q1*q2/r**2, 0])",
+        ["2", "3", "Vector([0, 0])", "Vector([2, 0])"],
+        "Vector([27/4, 0])",
     )
     assert report.passed
 
@@ -39,8 +39,8 @@ def test_coulomb_force():
 def test_point_charge_field():
     report = _check(
         "point_charge_field",
-        ["q", "Vector([r, 0, 0])"],
-        "Vector([k*q/r**2, 0, 0])",
+        ["2", "Vector([2, 0, 0])"],
+        "Vector([k/2, 0, 0])",
     )
     assert report.passed
 
@@ -48,8 +48,8 @@ def test_point_charge_field():
 def test_point_charge_potential():
     report = _check(
         "point_charge_potential",
-        ["q", "Vector([r, 0, 0])"],
-        "k*q/r",
+        ["2", "Vector([2, 0, 0])"],
+        "k",
     )
     assert report.passed
 
