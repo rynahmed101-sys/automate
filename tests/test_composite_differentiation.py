@@ -91,10 +91,13 @@ def test_implicit_malformed_variables_fail_closed():
     assert report.status == VerificationStatus.FAILED
     assert not report.passed
 
-def test_unresolved_composite_comparison_is_unverified():
+def test_composite_domain_dependent_wrong_result_is_failed():
+    # Abs(x)/x is not equal to the chain-rule derivative 1/x without an
+    # explicit domain assumption. This is a demonstrably false claim, not
+    # an unresolved symbolic comparison, so the checker should reject it.
     graph, edge = _edge("chain_rule", "Abs(x)/x", {
         "variable":"x","outer":"log(u)","inner":"x","inner_variable":"u","_input":"unused"
     })
     report = SymPyChecker().verify_edge(edge, graph)
-    assert report.status == VerificationStatus.UNVERIFIED
+    assert report.status == VerificationStatus.FAILED
     assert not report.passed
