@@ -10,6 +10,7 @@ return NOT_APPLICABLE rather than silently passing.
 
 import time
 import re
+import traceback
 from typing import Dict, Any, List, Optional, Union
 import sympy as sp
 import numpy as np
@@ -147,7 +148,7 @@ class SymPyChecker(BaseChecker):
                     )
             except Exception as e:
                 passed = False
-                error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}"
+                error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}\n{traceback.format_exc(limit=6)}"
 
             if details.get("_status_override"):
                 status = VerificationStatus(details.pop("_status_override"))
