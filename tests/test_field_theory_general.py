@@ -15,7 +15,8 @@ def test_klein_gordon_1d_spacetime():
         lagrangian_density="1/2 * d_t_phi**2 - 1/2 * d_x_phi**2 - 1/2 * m**2 * phi**2",
         fields=["phi"],
         coordinates=["t", "x"],
-        parameters={"m": "positive"}
+        parameters={"m": "positive"},
+        assumptions=["vanishing_boundary_variations"]
     )
     eoms, steps = action.euler_lagrange_field_equations()
     assert "phi" in eoms
@@ -43,7 +44,8 @@ def test_phi4_nonlinear_scalar_field():
         lagrangian_density="1/2 * d_t_phi**2 - 1/2 * d_x_phi**2 - 1/2 * m**2 * phi**2 - 1/4 * lam * phi**4",
         fields=["phi"],
         coordinates=["t", "x"],
-        parameters={"m": "positive", "lam": "positive"}
+        parameters={"m": "positive", "lam": "positive"},
+        assumptions=["vanishing_boundary_variations"]
     )
     passed, details, _, _ = action.verify_field_equation(
         "diff(phi, t, 2) - diff(phi, x, 2) + m**2 * phi + lam * phi**3 = 0"
@@ -61,7 +63,8 @@ def test_coupled_scalar_fields():
         ),
         fields=["phi1", "phi2"],
         coordinates=["t", "x"],
-        parameters={"m1": "positive", "m2": "positive", "g": "real"}
+        parameters={"m1": "positive", "m2": "positive", "g": "real"},
+        assumptions=["vanishing_boundary_variations"]
     )
     passed, details, _, _ = action.verify_field_equation({
         "phi1": "diff(phi1, t, 2) - diff(phi1, x, 2) + m1**2 * phi1 + g * phi2 = 0",
@@ -76,7 +79,8 @@ def test_adversarial_wrong_field_equation():
         lagrangian_density="1/2 * d_t_phi**2 - 1/2 * d_x_phi**2 - 1/2 * m**2 * phi**2",
         fields=["phi"],
         coordinates=["t", "x"],
-        parameters={"m": "positive"}
+        parameters={"m": "positive"},
+        assumptions=["vanishing_boundary_variations"]
     )
     # Wrong equation: minus mass term instead of plus
     passed, _, _, err = action.verify_field_equation(
@@ -84,3 +88,41 @@ def test_adversarial_wrong_field_equation():
     )
     assert passed is False
     assert "residual non-zero" in err
+
+
+def test_variational_verification_requires_boundary_assumption():
+    action = FieldTheoryAction(
+        lagrangian_density="1/2 * d_t_phi**2 - 1/2 * d_x_phi**2",
+        fields=["phi"],
+        coordinates=["t", "x"],
+    )
+    passed, _, _, err = action.verify_field_equation(
+        "diff(phi, t, 2) - diff(phi, x, 2) = 0"
+    )
+    assert passed is False
+    assert err.startswith("UNVERIFIED:")
+
+
+def test_variational_verification_rejects_unknown_candidate_field():
+    action = FieldTheoryAction(
+        lagrangian_density="1/2 * d_t_phi**2",
+        fields=["phi"],
+        coordinates=["t"],
+        assumptions=["vanishing_boundary_variations"],
+    )
+    passed, _, _, err = action.verify_field_equation({
+        "phi": "diff(phi, t, 2) = 0",
+        "psi": "0 = 0",
+    })
+    assert passed is False
+    assert err.startswith("INVALID:")
+
+
+def test_higher_order_field_derivative_fails_closed():
+    with pytest.raises(ValueError, match="higher-order field derivatives"):
+        FieldTheoryAction(
+            lagrangian_density="d_t2_phi**2",
+            fields=["phi"],
+            coordinates=["t"],
+            assumptions=["vanishing_boundary_variations"],
+        )
