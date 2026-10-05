@@ -661,9 +661,10 @@ class SymPyChecker(BaseChecker):
                 "expected_derivative": str(expected), "actual_derivative": str(out_expr),
                 "_status_override": VerificationStatus.UNVERIFIED.value,
             }, [], f"UNVERIFIED: derivative comparison remained unresolved: {type(exc).__name__}: {exc}"
-        if residual == 0:
+        equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        if residual == 0 or equivalence is True:
             passed, status_override, error = True, None, None
-        elif residual.is_zero is False:
+        elif equivalence is False:
             passed, status_override = False, None
             error = f"Derivative mismatch: expected {expected}, got {out_expr}."
         else:
