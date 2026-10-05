@@ -19,11 +19,11 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 **Last recorded capability baseline main:** `848b837ffa1f965421da235ef65113cf5fc01132`
 
-**Current work:** Phase 2A Vector Calculus differential-operator capability family is being implemented and verified.
+**Current work:** Phase 2A Vector Calculus differential-operator capability family is completed and verified. The next bounded batch is Cartesian line, surface, and volume integration.
 
 **Latest authoritative verification:** Exact-head CI + Security Audit passed on merged main SHA `ff7d7821b45685a96c18b6e7f422cdda35c2c788`.
 
-**Next capability:** Complete the Phase 2A verification gate, then add line/surface/volume integrals and vector-calculus integral theorems as a separate bounded batch.
+**Next capability:** Cartesian line, surface, and volume integral capabilities; integral theorems remain a separate later batch.
 
 ---
 
@@ -79,7 +79,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [x] Divergence
 - [x] Curl
 - [x] Laplacian
-- [ ] Line / surface / volume integrals
+- [!] Line / surface / volume integrals
 - [x] Conservative fields and potentials
 - [ ] Flux
 - [ ] Green's theorem
@@ -113,7 +113,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Poynting vector
 - [ ] Electromagnetic wave equation
 
-**Phase 2 status:** [!] Vector Calculus differential-operator batch is verification pending.
+**Phase 2 status:** [!] Differential operators are verified; the Cartesian integration batch is now verification pending.
 
 ---
 
