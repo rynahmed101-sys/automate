@@ -17,7 +17,7 @@ from automate.ir.linear_algebra import ParsedLinearAlgebra, parse_linear_algebra
 class ElectrostaticsChecker(BaseChecker):
     """Verify exact point-charge electrostatics claims in Cartesian coordinates."""
 
-    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential"}
+    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential", "continuous_charge_field", "continuous_charge_potential"}
 
     @property
     def name(self) -> str:
@@ -56,7 +56,29 @@ class ElectrostaticsChecker(BaseChecker):
             inputs = [self._parse(graph.nodes[nid].expression.raw_str) for nid in edge.input_nodes]
             outputs = [self._parse(graph.nodes[nid].expression.raw_str) for nid in edge.output_nodes]
             k = sp.sympify(edge.parameters.get("k", "k"))
-            if rule == "coulomb_force":
+            if rule in {"continuous_charge_field", "continuous_charge_potential"}:
+                if len(inputs) != 2 or len(outputs) != 1:
+                    raise ValueError(f"{rule} requires charge density and displacement sample.")
+                rho, displacement = inputs
+                if rho.kind != "scalar" or displacement.kind != "vector":
+                    raise ValueError(f"{rule} requires scalar density and vector displacement.")
+                d = sp.Matrix(displacement.value)
+                r2_norm = sp.simplify(d.dot(d))
+                if r2_norm == 0:
+                    raise ValueError("Continuous charge kernel is undefined at zero separation.")
+                density_measure = sp.sympify(edge.parameters.get("density_measure", "1"))
+                if density_measure == 0:
+                    raise ValueError("density_measure must be non-zero.")
+                kernel = density_measure * rho.value
+                if rule == "continuous_charge_field":
+                    if outputs[0].kind != "vector":
+                        raise ValueError("continuous_charge_field requires vector output.")
+                    expected_parsed = ParsedLinearAlgebra("vector", k*kernel*d/(r2_norm**sp.Rational(3,2)))
+                else:
+                    if outputs[0].kind != "scalar":
+                        raise ValueError("continuous_charge_potential requires scalar output.")
+                    expected_parsed = ParsedLinearAlgebra("scalar", k*kernel/sp.sqrt(r2_norm))
+            elif rule == "coulomb_force":
                 if len(inputs) != 4 or len(outputs) != 1:
                     raise ValueError("coulomb_force requires q1, q2, r1, r2 and one vector output.")
                 q1,q2,r1,r2 = inputs
