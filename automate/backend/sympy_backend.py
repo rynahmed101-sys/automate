@@ -274,7 +274,6 @@ class SymPyChecker(BaseChecker):
                 lagrangian=lagrangian_str,
                 coordinates=coords,
                 parameters=sym_params,
-                assumptions=params.get("assumptions"),
             )
             # candidate may be dict or single string
             if isinstance(candidate_eom_raw, dict):
@@ -537,6 +536,7 @@ class SymPyChecker(BaseChecker):
                 fields=fields,
                 coordinates=coords,
                 parameters=sym_params,
+                assumptions=params.get("assumptions"),
             )
             passed, details, steps, err = action.verify_field_equation(candidate_feq_str)
         except Exception as e:
