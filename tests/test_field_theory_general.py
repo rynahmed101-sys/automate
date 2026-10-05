@@ -121,7 +121,7 @@ def test_variational_verification_rejects_unknown_candidate_field():
 def test_higher_order_field_derivative_fails_closed():
     with pytest.raises(ValueError, match="higher-order field derivatives"):
         FieldTheoryAction(
-            lagrangian_density="d_t2_phi**2",
+            lagrangian_density="diff(phi, t, 2)**2",
             fields=["phi"],
             coordinates=["t"],
             assumptions=["vanishing_boundary_variations"],
