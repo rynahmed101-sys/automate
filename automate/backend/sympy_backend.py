@@ -123,6 +123,10 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_implicit_differentiate(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                elif rule == "integrate":
+                    passed, details, certificates, error_msg = self._verify_integrate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule == "substitute":
                     passed, details, certificates, error_msg = self._verify_substitute(
                         in_nodes[0], out_nodes[0], edge.parameters
@@ -890,6 +894,94 @@ class SymPyChecker(BaseChecker):
         ]
         err = None if passed else f"differentiate_both_sides mismatch: expected {expected}, got {out_expr}"
         return passed, details, steps, err
+
+    # ------------------------------------------------------------------
+    # Rule: integrate
+    # Verifies definite and indefinite symbolic integration. For indefinite
+    # integration, the candidate is checked by differentiating it the
+    # requested number of times, so arbitrary integration order does not
+    # require a hard-coded antiderivative constant convention.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_integrate(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip() or not variable_name.strip().isidentifier():
+            return False, {"rule": "integrate"}, [], "Malformed integration variable: parameters['variable'] must be a valid identifier."
+        order = params.get("order", 1)
+        if isinstance(order, bool) or not isinstance(order, int) or order < 1:
+            return False, {"rule": "integrate", "order": order}, [], "Malformed integration order: parameters['order'] must be a positive integer."
+        parser = SafeParser()
+        try:
+            variable = parser.make_symbol(variable_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "integrate", "order": order}, [], f"SafeParser rejected integration expression: {exc}"
+
+        lower_raw = params.get("lower")
+        upper_raw = params.get("upper")
+        if (lower_raw is None) != (upper_raw is None):
+            return False, {"rule": "integrate"}, [], "Malformed definite integration bounds: both 'lower' and 'upper' are required together."
+        definite = lower_raw is not None
+        try:
+            if definite:
+                lower = parser.parse(str(lower_raw))
+                upper = parser.parse(str(upper_raw))
+                if order != 1:
+                    return False, {"rule": "integrate", "order": order}, [], "Unsupported: repeated definite integration is not yet represented; use order=1."
+                expected = sp.integrate(integrand, (variable, lower, upper))
+                if isinstance(expected, sp.Integral) or expected.has(sp.Integral):
+                    return False, {
+                        "rule": "integrate", "mode": "definite", "order": order,
+                        "integrand": str(integrand), "lower": str(lower), "upper": str(upper),
+                        "_status_override": VerificationStatus.UNVERIFIED.value,
+                    }, [], "UNVERIFIED: definite integral remained unevaluated."
+                residual = sp.simplify(actual - expected)
+            else:
+                lower = upper = None
+                expected = sp.integrate(integrand, variable)
+                if isinstance(expected, sp.Integral) or expected.has(sp.Integral):
+                    return False, {
+                        "rule": "integrate", "mode": "indefinite", "order": order,
+                        "integrand": str(integrand),
+                        "_status_override": VerificationStatus.UNVERIFIED.value,
+                    }, [], "UNVERIFIED: indefinite integral remained unevaluated."
+                # Verify the candidate directly rather than requiring the
+                # backend's particular choice of integration constant/polynomial.
+                actual_check = actual
+                for _ in range(order):
+                    actual_check = sp.diff(actual_check, variable)
+                residual = sp.simplify(actual_check - integrand)
+            equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return False, {"rule": "integrate", "order": order}, [],
+                f"UNVERIFIED: integration/comparison could not be established: {type(exc).__name__}: {exc}"
+        if residual == 0 or equivalence is True:
+            passed, override, error = True, None, None
+        elif equivalence is False:
+            passed, override = False, None
+            error = f"Integral mismatch: expected {expected}, got {actual}."
+        else:
+            passed, override = False, VerificationStatus.UNVERIFIED.value
+            error = "UNVERIFIED: symbolic integral comparison could not establish equality."
+        details = {
+            "rule": "integrate", "mode": "definite" if definite else "indefinite",
+            "variable": str(variable), "order": order, "integrand": str(integrand),
+            "expected_result": str(expected), "actual_result": str(actual),
+            "residual": str(residual),
+        }
+        if definite:
+            details.update({"lower": str(lower), "upper": str(upper)})
+        if override:
+            details["_status_override"] = override
+        steps = [
+            {"step": 1, "operation": "integrate" if definite else f"integrate_order_{order}", "result": str(expected)},
+            {"step": 2, "operation": "differentiate_candidate" if not definite else "simplify(actual - expected)", "residual": str(residual)},
+        ]
+        return passed, details, steps, error
 
     # ------------------------------------------------------------------
     # Rule: substitute
