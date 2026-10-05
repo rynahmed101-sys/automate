@@ -17,13 +17,13 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 ## Current position
 
-**Last recorded capability baseline main:** `0f6591300f06b9ab3c444327e5db2fa6dc8ed96b`
+**Last recorded capability baseline main:** `082d83b0d2b17e0dc9c97a10fea118ae4c65d7cf`
 
-**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics, bounded continuous-charge kernels, finite uniform line-charge potential, bounded Cartesian Gauss-law verification, and conductor/capacitor verification are certified on main. Bounded point-dipole potential and electric-field verification is implemented on a feature branch and awaits merged-head certification. Electrostatic dipole energy and general boundary conditions remain unfinished.
+**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics, bounded continuous-charge kernels, finite uniform line-charge potential, bounded Cartesian Gauss-law verification, and conductor/capacitor verification are certified on main. Bounded point-dipole potential and electric-field verification is merged on main and is [!] awaiting authoritative Exact-head verification. Electrostatic dipole energy and general boundary conditions remain unfinished.
 
 **Latest authoritative verification:** Exact-head Python 3.10/3.11/3.12/3.13, full tests, adversarial tests, the exact 50-problem acceptance campaign, Phase 1A Linear Algebra Core/Eigenproblem campaigns, Lean 4, CodeQL, and pip-audit passed on merged main SHA `0f6591300f06b9ab3c444327e5db2fa6dc8ed96b` (Exact-head run `37295223953`; Security Audit run `37295224004`).
 
-**Next capability:** Certify bounded dipole potential/field, then add dipole electrostatic energy and bounded electrostatic boundary-condition verification. Magnetostatics remains a later Phase 2 batch.
+**Next capability:** Complete authoritative verification of the merged dipole potential/field milestone, then add dipole electrostatic energy and bounded electrostatic boundary-condition verification. Magnetostatics remains a later Phase 2 batch.
 
 ---
 
