@@ -1,10 +1,12 @@
-"""Reusable classical-mechanics representations and Lagrangian machinery."""
+"""Reusable classical-mechanics representations and verification machinery."""
 from automate.mechanics.lagrangian import LagrangianSystem
 from automate.mechanics.representation import (
     GeneralizedCoordinate, KinematicQuantity, GeneralizedForce,
     MechanicalConstraint, MechanicalSystemRepresentation,
 )
+from automate.mechanics.advanced import ConstraintMechanicsVerifier, HamiltonEquationVerifier
 __all__ = [
     "LagrangianSystem", "GeneralizedCoordinate", "KinematicQuantity",
     "GeneralizedForce", "MechanicalConstraint", "MechanicalSystemRepresentation",
+    "ConstraintMechanicsVerifier", "HamiltonEquationVerifier",
 ]
