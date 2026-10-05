@@ -282,3 +282,22 @@ def test_backend_routes_ivp_rule():
     report = SymPyChecker().verify_edge(edge, graph)
     assert report.passed is True
     assert report.status == VerificationStatus.SYMBOLIC_CHECKED
+def test_first_order_symbolic_derivative_coefficient_fails_closed_when_nonzero_is_unproven():
+    engine = ODEEngine("t", "y")
+    result = engine.verify_linear_first_order(
+        "a*diff(y(t),t) + y(t) = 0",
+        "exp(-t/a)",
+        {"P": "1/a", "Q": "0"},
+    )
+    assert result.passed is False
+    assert result.status == "UNVERIFIED"
+
+def test_first_order_zero_derivative_coefficient_is_not_normalized_away():
+    engine = ODEEngine("t", "y")
+    result = engine.verify_linear_first_order(
+        "y(t) = 0",
+        "0",
+        {"P": "1", "Q": "0"},
+    )
+    assert result.passed is False
+    assert result.status == "FAILED"
