@@ -245,6 +245,7 @@ def test_campaign_field_equations(lagrangian, fields, coordinates, parameters, c
             "fields": fields,
             "coordinates": coordinates,
             "parameters": parameters,
+            "assumptions": ["vanishing_boundary_variations"],
         },
     )
     report = SymPyChecker().verify_edge(edge, graph)
@@ -415,7 +416,13 @@ def test_campaign_statistical_fit():
             "t_data": t.tolist(),
             "x_obs": x.tolist(),
             "noise_std": 0.03,
-            "data_source": "observed",
+"statistical_assumptions": [
+                    "independent_errors",
+                    "normal_errors",
+                    "finite_variance",
+                    "known_error_scale",
+                ],
+                            "data_source": "observed",
             "data_id": "campaign-sho-omega-20261005",
         },
     )
@@ -464,13 +471,13 @@ def test_campaign_machine_contract_and_capabilities():
     assert capabilities.exit_code == 0, capabilities.output
     caps = json.loads(capabilities.output)
     assert caps["agent_contract"]["schema_version"] == "automate.agent.v1"
-    assert caps["rule_registry"]["count"] == 101
+    assert caps["rule_registry"]["count"] == 100
 
     contract_result = runner.invoke(main, ["schema", "--name", "agent"])
     assert contract_result.exit_code == 0, contract_result.output
     contract = json.loads(contract_result.output)
     assert contract["schema_version"] == "automate.agent.v1"
-    assert len(contract["rules"]) == 101
+    assert len(contract["rules"]) == 100
     assert set([
         "discover","parse","context","validate","propose_dry_run","propose_apply",
         "research","check","prove","simulate","stats","query_assumptions",
