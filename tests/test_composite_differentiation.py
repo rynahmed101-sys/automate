@@ -93,7 +93,7 @@ def test_implicit_malformed_variables_fail_closed():
 
 def test_unresolved_composite_comparison_is_unverified():
     graph, edge = _edge("chain_rule", "Abs(x)/x", {
-        "variable":"x","outer":"log(u)","inner":"x**2","inner_variable":"u","_input":"unused"
+        "variable":"x","outer":"log(u)","inner":"x","inner_variable":"u","_input":"unused"
     })
     report = SymPyChecker().verify_edge(edge, graph)
     assert report.status == VerificationStatus.UNVERIFIED
