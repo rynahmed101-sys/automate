@@ -121,9 +121,12 @@ class SymPyChecker(BaseChecker):
                         in_nodes[0], out_nodes[0]
                     )
                 elif rule == "limit":
-                    passed, details, certificates, error_msg = self._verify_limit(
+                    limit_result = self._verify_limit(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                    if len(limit_result) != 4:
+                        raise ValueError(f"limit verifier returned {len(limit_result)} values: {limit_result!r}")
+                    passed, details, certificates, error_msg = limit_result
                 elif rule == "continuity":
                     passed, details, certificates, error_msg = self._verify_continuity(
                         in_nodes[0], out_nodes[0], edge.parameters
