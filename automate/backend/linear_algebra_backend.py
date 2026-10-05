@@ -1389,97 +1389,6 @@ class LinearAlgebraChecker(BaseChecker):
                 ]
 
             elif rule == "matrix_svd":
-                numeric_input = self._numeric_array(parsed_inputs[0])
-                numeric_outputs = [self._numeric_array(value) for value in parsed_outputs]
-                if numeric_input is not None and all(value is not None for value in numeric_outputs):
-                    try:
-                        _, s_np, _ = np.linalg.svd(numeric_input, full_matrices=False)
-                        Uc, Sc, Vhc = [np.asarray(value) for value in numeric_outputs]
-                        singular_error = float(np.max(np.abs(np.diag(Sc) - s_np)))
-                        reconstruction_error = float(np.max(np.abs(numeric_input - Uc @ Sc @ Vhc)))
-                        u_error = float(np.max(np.abs(Uc.conj().T @ Uc - np.eye(Uc.shape[1]))))
-                        vh_error = float(np.max(np.abs(Vhc @ Vhc.conj().T - np.eye(Vhc.shape[0]))))
-                        scale = max(1.0, float(np.max(np.abs(numeric_input))))
-                        tolerance = 1e-9 + 1e-8 * scale
-                        passed = singular_error <= tolerance and reconstruction_error <= tolerance and u_error <= tolerance and vh_error <= tolerance and np.all(np.diff(s_np) <= 1e-12)
-                        cross = {"available": True, "independence_class": "DIFFERENT_ENGINE", "engine": "numpy.linalg.svd", "version": np.__version__, "operation": rule, "passed": bool(passed), "singular_value_max_abs_error": singular_error, "reconstruction_max_abs_error": reconstruction_error, "U_H_U_max_abs_error": u_error, "Vh_Vh_H_max_abs_error": vh_error, "tolerance": tolerance}
-                    except (TypeError, ValueError, np.linalg.LinAlgError):
-                        cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "NumPy SVD cross-check failed to execute."}
-                else:
-                    cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "SVD cross-check requires numeric input and all three numeric outputs."}
-            elif rule == "matrix_diagonalize":
-                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix":
-                    raise LinearAlgebraParseError("matrix_diagonalize requires one square matrix input.")
-                if len(parsed_outputs) != 2 or any(x.kind != "matrix" for x in parsed_outputs):
-                    raise LinearAlgebraParseError("matrix_diagonalize requires matrix outputs P and D.")
-                matrix = sp.Matrix(parsed_inputs[0].value)
-                P, D = sp.Matrix(parsed_outputs[0].value), sp.Matrix(parsed_outputs[1].value)
-                if matrix.rows != matrix.cols or P.shape != matrix.shape or D.shape != matrix.shape:
-                    raise ValueError(f"Diagonalization requires A, P, and D to have the same square shape; received A={matrix.shape}, P={P.shape}, D={D.shape}.")
-                if any(sp.simplify(D[i, j]) != 0 for i in range(D.rows) for j in range(D.cols) if i != j):
-                    raise ValueError("Diagonalization candidate D is not diagonal.")
-                determinant = sp.simplify(P.det())
-                if determinant == 0:
-                    raise ValueError("Diagonalization matrix P is singular.")
-                if determinant.free_symbols:
-                    return self._unverified(edge, graph, start, details,
-                                            "Diagonalization requires an explicitly nonzero determinant for symbolic P; the current batch does not assume parameter domains.")
-                reconstructed = P * D * P.inv()
-                symbolic_passed = all(
-                    self._equal_scalar(reconstructed[i, j], matrix[i, j])
-                    for i in range(matrix.rows) for j in range(matrix.cols)
-                )
-                details["P"] = self._display(parsed_outputs[0])
-                details["D"] = self._display(parsed_outputs[1])
-                details["reconstruction"] = self._display(ParsedLinearAlgebra("matrix", reconstructed))
-                details["determinant_P"] = str(determinant)
-                details["diagonal_entries"] = [str(D[i, i]) for i in range(D.rows)]
-                if self._numeric_array(parsed_inputs[0]) is not None:
-                    numpy_expected = {"matrix": parsed_inputs[0], "P": parsed_outputs[0], "D": parsed_outputs[1]}
-                steps = [
-                    {"step": 1, "operation": "verify_diagonal_D"},
-                    {"step": 2, "operation": "verify_P_invertible", "determinant": str(determinant)},
-                    {"step": 3, "operation": "verify_reconstruction_A_equals_PDP_inv"},
-                ]
-
-            elif rule == "vector_change_of_basis":
-                if len(parsed_inputs) != 3 or any(x.kind != "matrix" for x in parsed_inputs[:2]) or parsed_inputs[2].kind != "vector" or output.kind != "vector":
-                    raise LinearAlgebraParseError("vector_change_of_basis requires source basis, target basis, source coordinates, and target coordinates.")
-                source_basis = sp.Matrix(parsed_inputs[0].value)
-                target_basis = sp.Matrix(parsed_inputs[1].value)
-                source_coords = sp.Matrix(parsed_inputs[2].value)
-                candidate = sp.Matrix(output.value)
-                if source_basis.rows != source_basis.cols or target_basis.rows != target_basis.cols:
-                    raise ValueError("Change of basis requires square basis matrices.")
-                if source_basis.shape != target_basis.shape:
-                    raise ValueError("Source and target bases must have the same dimension.")
-                if source_coords.rows != source_basis.cols:
-                    raise ValueError(f"Source coordinate vector has length {source_coords.rows}; expected {source_basis.cols}.")
-                if candidate.rows != target_basis.cols:
-                    raise ValueError(f"Target coordinate vector has length {candidate.rows}; expected {target_basis.cols}.")
-                source_det = sp.simplify(source_basis.det())
-                target_det = sp.simplify(target_basis.det())
-                if source_det == 0 or target_det == 0:
-                    raise ValueError("Both basis matrices must be invertible.")
-                if source_det.free_symbols or target_det.free_symbols:
-                    return self._unverified(edge, graph, start, details, "Change-of-basis verification requires explicitly nonzero basis determinants; parameter domains are not inferred.")
-                physical_vector = source_basis * source_coords
-                expected_coords = sp.simplify(target_basis.inv() * physical_vector)
-                expected = ParsedLinearAlgebra("vector", expected_coords)
-                numeric_source = self._numeric_array(parsed_inputs[0])
-                numeric_target = self._numeric_array(parsed_inputs[1])
-                numeric_coords = self._numeric_array(parsed_inputs[2])
-                if numeric_source is not None and numeric_target is not None and numeric_coords is not None:
-                    try:
-                        numpy_expected = np.linalg.solve(numeric_target, numeric_source @ numeric_coords.reshape(-1))
-                    except np.linalg.LinAlgError as exc:
-                        return self._failure(edge, graph, start, details, f"Independent change-of-basis cross-check failed: {exc}")
-                steps = [
-                    {"step": 1, "operation": "reconstruct_physical_vector", "source_basis_determinant": str(source_det)},
-                    {"step": 2, "operation": "solve_target_basis_coordinates", "target_basis_determinant": str(target_det)},
-                ]
-
-            elif rule == "matrix_svd":
                 if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or len(parsed_outputs) != 3:
                     raise LinearAlgebraParseError("matrix_svd requires one input matrix and three outputs: U, Sigma, Vh.")
                 A = sp.Matrix(parsed_inputs[0].value)
@@ -1632,6 +1541,97 @@ class LinearAlgebraChecker(BaseChecker):
                     cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "Basis cross-check requires numeric inputs."}
             elif rule == "vector_change_of_basis":
                 cross = self._numpy_subspace_compare(rule, parsed_inputs, parsed_outputs)
+            elif rule == "matrix_svd":
+                numeric_input = self._numeric_array(parsed_inputs[0])
+                numeric_outputs = [self._numeric_array(value) for value in parsed_outputs]
+                if numeric_input is not None and all(value is not None for value in numeric_outputs):
+                    try:
+                        _, s_np, _ = np.linalg.svd(numeric_input, full_matrices=False)
+                        Uc, Sc, Vhc = [np.asarray(value) for value in numeric_outputs]
+                        singular_error = float(np.max(np.abs(np.diag(Sc) - s_np)))
+                        reconstruction_error = float(np.max(np.abs(numeric_input - Uc @ Sc @ Vhc)))
+                        u_error = float(np.max(np.abs(Uc.conj().T @ Uc - np.eye(Uc.shape[1]))))
+                        vh_error = float(np.max(np.abs(Vhc @ Vhc.conj().T - np.eye(Vhc.shape[0]))))
+                        scale = max(1.0, float(np.max(np.abs(numeric_input))))
+                        tolerance = 1e-9 + 1e-8 * scale
+                        passed = singular_error <= tolerance and reconstruction_error <= tolerance and u_error <= tolerance and vh_error <= tolerance and np.all(np.diff(s_np) <= 1e-12)
+                        cross = {"available": True, "independence_class": "DIFFERENT_ENGINE", "engine": "numpy.linalg.svd", "version": np.__version__, "operation": rule, "passed": bool(passed), "singular_value_max_abs_error": singular_error, "reconstruction_max_abs_error": reconstruction_error, "U_H_U_max_abs_error": u_error, "Vh_Vh_H_max_abs_error": vh_error, "tolerance": tolerance}
+                    except (TypeError, ValueError, np.linalg.LinAlgError):
+                        cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "NumPy SVD cross-check failed to execute."}
+                else:
+                    cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "SVD cross-check requires numeric input and all three numeric outputs."}
+            elif rule == "matrix_diagonalize":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix":
+                    raise LinearAlgebraParseError("matrix_diagonalize requires one square matrix input.")
+                if len(parsed_outputs) != 2 or any(x.kind != "matrix" for x in parsed_outputs):
+                    raise LinearAlgebraParseError("matrix_diagonalize requires matrix outputs P and D.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                P, D = sp.Matrix(parsed_outputs[0].value), sp.Matrix(parsed_outputs[1].value)
+                if matrix.rows != matrix.cols or P.shape != matrix.shape or D.shape != matrix.shape:
+                    raise ValueError(f"Diagonalization requires A, P, and D to have the same square shape; received A={matrix.shape}, P={P.shape}, D={D.shape}.")
+                if any(sp.simplify(D[i, j]) != 0 for i in range(D.rows) for j in range(D.cols) if i != j):
+                    raise ValueError("Diagonalization candidate D is not diagonal.")
+                determinant = sp.simplify(P.det())
+                if determinant == 0:
+                    raise ValueError("Diagonalization matrix P is singular.")
+                if determinant.free_symbols:
+                    return self._unverified(edge, graph, start, details,
+                                            "Diagonalization requires an explicitly nonzero determinant for symbolic P; the current batch does not assume parameter domains.")
+                reconstructed = P * D * P.inv()
+                symbolic_passed = all(
+                    self._equal_scalar(reconstructed[i, j], matrix[i, j])
+                    for i in range(matrix.rows) for j in range(matrix.cols)
+                )
+                details["P"] = self._display(parsed_outputs[0])
+                details["D"] = self._display(parsed_outputs[1])
+                details["reconstruction"] = self._display(ParsedLinearAlgebra("matrix", reconstructed))
+                details["determinant_P"] = str(determinant)
+                details["diagonal_entries"] = [str(D[i, i]) for i in range(D.rows)]
+                if self._numeric_array(parsed_inputs[0]) is not None:
+                    numpy_expected = {"matrix": parsed_inputs[0], "P": parsed_outputs[0], "D": parsed_outputs[1]}
+                steps = [
+                    {"step": 1, "operation": "verify_diagonal_D"},
+                    {"step": 2, "operation": "verify_P_invertible", "determinant": str(determinant)},
+                    {"step": 3, "operation": "verify_reconstruction_A_equals_PDP_inv"},
+                ]
+
+            elif rule == "vector_change_of_basis":
+                if len(parsed_inputs) != 3 or any(x.kind != "matrix" for x in parsed_inputs[:2]) or parsed_inputs[2].kind != "vector" or output.kind != "vector":
+                    raise LinearAlgebraParseError("vector_change_of_basis requires source basis, target basis, source coordinates, and target coordinates.")
+                source_basis = sp.Matrix(parsed_inputs[0].value)
+                target_basis = sp.Matrix(parsed_inputs[1].value)
+                source_coords = sp.Matrix(parsed_inputs[2].value)
+                candidate = sp.Matrix(output.value)
+                if source_basis.rows != source_basis.cols or target_basis.rows != target_basis.cols:
+                    raise ValueError("Change of basis requires square basis matrices.")
+                if source_basis.shape != target_basis.shape:
+                    raise ValueError("Source and target bases must have the same dimension.")
+                if source_coords.rows != source_basis.cols:
+                    raise ValueError(f"Source coordinate vector has length {source_coords.rows}; expected {source_basis.cols}.")
+                if candidate.rows != target_basis.cols:
+                    raise ValueError(f"Target coordinate vector has length {candidate.rows}; expected {target_basis.cols}.")
+                source_det = sp.simplify(source_basis.det())
+                target_det = sp.simplify(target_basis.det())
+                if source_det == 0 or target_det == 0:
+                    raise ValueError("Both basis matrices must be invertible.")
+                if source_det.free_symbols or target_det.free_symbols:
+                    return self._unverified(edge, graph, start, details, "Change-of-basis verification requires explicitly nonzero basis determinants; parameter domains are not inferred.")
+                physical_vector = source_basis * source_coords
+                expected_coords = sp.simplify(target_basis.inv() * physical_vector)
+                expected = ParsedLinearAlgebra("vector", expected_coords)
+                numeric_source = self._numeric_array(parsed_inputs[0])
+                numeric_target = self._numeric_array(parsed_inputs[1])
+                numeric_coords = self._numeric_array(parsed_inputs[2])
+                if numeric_source is not None and numeric_target is not None and numeric_coords is not None:
+                    try:
+                        numpy_expected = np.linalg.solve(numeric_target, numeric_source @ numeric_coords.reshape(-1))
+                    except np.linalg.LinAlgError as exc:
+                        return self._failure(edge, graph, start, details, f"Independent change-of-basis cross-check failed: {exc}")
+                steps = [
+                    {"step": 1, "operation": "reconstruct_physical_vector", "source_basis_determinant": str(source_det)},
+                    {"step": 2, "operation": "solve_target_basis_coordinates", "target_basis_determinant": str(target_det)},
+                ]
+
             elif rule == "matrix_diagonalize":
                 cross = self._numpy_diagonalization_compare(parsed_inputs[0], parsed_outputs[0], parsed_outputs[1])
             elif rule == "vector_gram_schmidt":
