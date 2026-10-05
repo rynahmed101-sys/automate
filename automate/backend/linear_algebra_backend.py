@@ -490,6 +490,28 @@ class LinearAlgebraChecker(BaseChecker):
                 rank_g = np.linalg.matrix_rank(generators)
                 passed = rank_g == generators.shape[1]
                 metric = {"rank": int(rank_g), "column_count": int(generators.shape[1])}
+            elif rule == "vector_change_of_basis":
+                source_basis, target_basis, source_coords = inputs
+                candidate = outputs[0]
+                if source_basis.ndim != 2 or target_basis.ndim != 2 or source_basis.shape != target_basis.shape:
+                    passed = False
+                    metric = {"shape_match": False}
+                elif source_basis.shape[0] != source_basis.shape[1] or source_coords.reshape(-1).shape[0] != source_basis.shape[1]:
+                    passed = False
+                    metric = {"basis_and_coordinate_shapes_valid": False}
+                else:
+                    try:
+                        physical = source_basis @ source_coords.reshape(-1)
+                        expected_coords = np.linalg.solve(target_basis, physical)
+                        candidate = np.asarray(candidate).reshape(-1)
+                        scale = max(1.0, float(np.max(np.abs(expected_coords))) if expected_coords.size else 1.0)
+                        residual = float(np.max(np.abs(candidate - expected_coords))) if candidate.shape == expected_coords.shape else float("inf")
+                        tolerance = 1e-9 + 1e-8 * scale
+                        passed = residual <= tolerance
+                        metric = {"residual_max_abs": residual, "tolerance": tolerance, "source_dimension": int(source_basis.shape[0])}
+                    except np.linalg.LinAlgError:
+                        passed = False
+                        metric = {"target_basis_invertible": False}
             else:
                 generators, basis = inputs
                 rank_g = np.linalg.matrix_rank(generators)
