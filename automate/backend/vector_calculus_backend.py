@@ -600,7 +600,7 @@ class VectorCalculusChecker(BaseChecker):
                     potential = sp.simplify(potential)
                     expected_gradient = sp.Matrix([sp.diff(potential, c) for c in coords])
                     if not self._equal(ParsedLinearAlgebra("vector", expected_gradient), ParsedLinearAlgebra("vector", field)):
-                        return self._report(edge, graph, start, VerificationStatus.UNKNOWN, False, {
+                        return self._report(edge, graph, start, VerificationStatus.UNVERIFIED, False, {
                             **details, "reconstructed_potential": str(potential),
                             "verification": "gradient reconstruction did not establish equality",
                         }, "Potential reconstruction could not be verified; result is UNKNOWN.")
