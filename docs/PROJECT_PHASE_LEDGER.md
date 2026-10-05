@@ -19,11 +19,11 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 **Last recorded capability baseline main:** `848b837ffa1f965421da235ef65113cf5fc01132`
 
-**Current work:** The development-vs-exact-head CI policy is merged and corrected. Linear Algebra Phase 1A eigenproblem extension remains the active mathematical milestone.
+**Current work:** Linear Algebra inner-product / orthogonality capability family is being implemented and verified.
 
-**Current verification gate:** The latest `main` commit must pass Exact-head CI + Security Audit before the eigenproblem batch can become **[x] Completed and verified**. The batch remains **[!] Verification pending**.
+**Latest authoritative verification:** Exact-head CI + Security Audit passed on merged main SHA `e098fbe803c7b664a9809af8c724a826f4e1ba3e`. The eigenproblem batch is now **[x] Completed and verified**.
 
-**Next capability after this gate:** Linear Algebra inner-product / orthogonality extension, then Vector Calculus.
+**Next capability after this batch:** Phase 2A Vector Calculus.
 
 ---
 
@@ -34,16 +34,16 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [x] Matrices, shapes, multiplication, transpose
 - [x] Determinant, trace, inverse, rank
 - [x] Gaussian elimination, RREF, unique Ax=b solving
-- [!] Characteristic polynomial
-- [!] Eigenvalues with multiplicity
-- [!] Eigenvector verification
-- [!] Diagonalization
+- [x] Characteristic polynomial
+- [x] Eigenvalues with multiplicity
+- [x] Eigenvector verification
+- [x] Diagonalization
 - [ ] Null space, row space, column space
 - [ ] Basis, span, linear independence
 - [ ] Change of basis
 - [ ] Symmetric / Hermitian matrices
-- [ ] Norms, inner products, orthogonality
-- [ ] Projections and Gram-Schmidt
+- [!] Norms, inner products, orthogonality
+- [!] Projections and Gram-Schmidt
 - [ ] Positive-definite matrices
 - [ ] Quadratic forms
 
@@ -66,7 +66,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Initial-value and boundary-value problems
 - [ ] Phase-space representations
 
-**Phase 1 status:** [~] Foundations are being expanded capability-first.
+**Phase 1 status:** [~] Foundations are being expanded capability-first; the inner-product extension is the active verification gate.
 
 ---
 

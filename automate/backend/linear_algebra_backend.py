@@ -29,6 +29,8 @@ class LinearAlgebraChecker(BaseChecker):
         "matrix_inverse", "matrix_rank", "matrix_rref", "linear_system_solve",
         "matrix_characteristic_polynomial", "matrix_eigenvalues",
         "matrix_eigenvector", "matrix_diagonalize",
+        "vector_inner_product", "vector_norm", "vector_orthogonal",
+        "vector_projection", "vector_gram_schmidt",
     }
 
     @property
@@ -195,6 +197,61 @@ class LinearAlgebraChecker(BaseChecker):
             return {"available": False, "independence_class": "NOT_AVAILABLE",
                     "reason": "Candidate contains symbolic or non-numeric entries."}
 
+        if operation in {"vector_inner_product", "vector_norm", "vector_orthogonal"}:
+            expected_value = expected["value"]
+            try:
+                passed = bool(np.allclose(
+                    np.asarray(actual_np),
+                    np.asarray(expected_value),
+                    rtol=1e-9,
+                    atol=1e-10,
+                    equal_nan=False,
+                ))
+            except (TypeError, ValueError):
+                passed = False
+            return {
+                "available": True,
+                "independence_class": "DIFFERENT_ENGINE",
+                "engine": (
+                    "numpy.vdot"
+                    if operation == "vector_inner_product" and expected.get("hermitian", True)
+                    else "numpy.dot"
+                    if operation == "vector_inner_product"
+                    else "numpy.linalg.norm"
+                ),
+                "version": np.__version__,
+                "operation": operation,
+                "passed": passed,
+                "rtol": 1e-9,
+                "atol": 1e-10,
+            }
+
+        if operation == "vector_projection":
+            expected_np = np.asarray(expected["value"])
+            try:
+                passed = bool(np.allclose(
+                    actual_np.reshape(-1),
+                    expected_np.reshape(-1),
+                    rtol=1e-9,
+                    atol=1e-10,
+                    equal_nan=False,
+                ))
+                max_abs_error = float(np.max(np.abs(actual_np.reshape(-1) - expected_np.reshape(-1))))
+            except (TypeError, ValueError):
+                passed = False
+                max_abs_error = None
+            return {
+                "available": True,
+                "independence_class": "DIFFERENT_ENGINE",
+                "engine": "numpy.vdot",
+                "version": np.__version__,
+                "operation": operation,
+                "passed": passed,
+                "max_abs_error": max_abs_error,
+                "rtol": 1e-9,
+                "atol": 1e-10,
+            }
+
         if operation == "matrix_eigenvalues":
             expected_np = np.asarray(expected).reshape(-1)
             passed = cls._numeric_multiset_match(actual_np, expected_np)
@@ -327,6 +384,36 @@ class LinearAlgebraChecker(BaseChecker):
             status=VerificationStatus.FAILED, backend=self.name, backend_version=self.version,
             execution_time_ms=elapsed, passed=False, details=details,
             error_message=message, evidence=evidence
+        )
+
+    def _unverified(self, edge, graph, start, details, message):
+        elapsed = (time.perf_counter() - start) * 1000
+        evidence = VerificationEvidence(
+            backend=self.name,
+            backend_version=self.version,
+            graph_id=graph.id,
+            edge_id=edge.id,
+            input_node_ids=edge.input_nodes,
+            output_node_ids=edge.output_nodes,
+            assumptions_used=list(graph.compute_inherited_assumptions(edge.input_nodes[0])) if edge.input_nodes else [],
+            side_conditions_checked=edge.side_conditions,
+            generated_obligations=edge.verification_obligations,
+            command_invocation=f"LinearAlgebraChecker.verify_edge('{edge.id}')",
+            passed=False,
+            status=VerificationStatus.UNVERIFIED,
+            execution_time_ms=elapsed,
+            reproducibility={"sympy": sp.__version__, "numpy": np.__version__},
+            metrics={"operation": details.get("operation")},
+        )
+        return VerificationReport(
+            status=VerificationStatus.UNVERIFIED,
+            backend=self.name,
+            backend_version=self.version,
+            execution_time_ms=elapsed,
+            passed=False,
+            details=details,
+            error_message=message,
+            evidence=evidence,
         )
 
     def _success(self, edge, graph, start, details, steps):
@@ -472,6 +559,209 @@ class LinearAlgebraChecker(BaseChecker):
                 if not steps:
                     steps.append({"step": 1, "operation": rule, "shape": list(matrix.shape)})
 
+            elif rule == "vector_inner_product":
+                if len(parsed_inputs) != 2 or any(x.kind != "vector" for x in parsed_inputs) or output.kind != "scalar":
+                    raise LinearAlgebraParseError(
+                        "vector_inner_product requires two equal-length vectors and one scalar output."
+                    )
+                a = sp.Matrix(parsed_inputs[0].value)
+                b = sp.Matrix(parsed_inputs[1].value)
+                if a.rows != b.rows:
+                    raise ValueError(f"Inner-product shape mismatch: vectors have lengths {a.rows} and {b.rows}.")
+                hermitian = edge.parameters.get("hermitian", True)
+                if not isinstance(hermitian, bool):
+                    raise LinearAlgebraParseError("parameters['hermitian'] must be boolean when provided.")
+                expected_value = sp.conjugate(a).dot(b) if hermitian else a.dot(b)
+                expected = ParsedLinearAlgebra("scalar", sp.simplify(expected_value))
+                numeric_a = self._numeric_array(parsed_inputs[0])
+                numeric_b = self._numeric_array(parsed_inputs[1])
+                if numeric_a is not None and numeric_b is not None:
+                    numpy_value = np.vdot(numeric_a.reshape(-1), numeric_b.reshape(-1)) if hermitian else np.dot(
+                        numeric_a.reshape(-1), numeric_b.reshape(-1)
+                    )
+                    numpy_expected = {"value": numpy_value, "hermitian": hermitian}
+                steps.append({
+                    "step": 1,
+                    "operation": "inner_product",
+                    "hermitian": hermitian,
+                    "conjugates_first_vector": hermitian,
+                })
+
+            elif rule == "vector_norm":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "vector" or output.kind != "scalar":
+                    raise LinearAlgebraParseError("vector_norm requires one vector input and one scalar output.")
+                vector = sp.Matrix(parsed_inputs[0].value)
+                norm_squared = sp.simplify(sp.conjugate(vector).dot(vector))
+                expected = ParsedLinearAlgebra("scalar", sp.sqrt(norm_squared))
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    numpy_expected = {"value": np.linalg.norm(numeric.reshape(-1))}
+                steps.append({"step": 1, "operation": "euclidean_norm", "norm_squared": str(norm_squared)})
+
+            elif rule == "vector_orthogonal":
+                if len(parsed_inputs) != 2 or any(x.kind != "vector" for x in parsed_inputs) or output.kind != "scalar":
+                    raise LinearAlgebraParseError(
+                        "vector_orthogonal requires two equal-length vectors and a scalar indicator output."
+                    )
+                a = sp.Matrix(parsed_inputs[0].value)
+                b = sp.Matrix(parsed_inputs[1].value)
+                if a.rows != b.rows:
+                    raise ValueError(f"Orthogonality shape mismatch: vectors have lengths {a.rows} and {b.rows}.")
+                inner = sp.simplify(sp.conjugate(a).dot(b))
+                if inner == 0:
+                    expected_value = sp.Integer(1)
+                elif inner.is_zero is False:
+                    expected_value = sp.Integer(0)
+                else:
+                    return self._unverified(
+                        edge,
+                        graph,
+                        start,
+                        details,
+                        "Orthogonality cannot be decided for the supplied symbolic vectors without additional assumptions.",
+                    )
+                expected = ParsedLinearAlgebra("scalar", expected_value)
+                numeric_a = self._numeric_array(parsed_inputs[0])
+                numeric_b = self._numeric_array(parsed_inputs[1])
+                if numeric_a is not None and numeric_b is not None:
+                    inner_numeric = np.vdot(numeric_a.reshape(-1), numeric_b.reshape(-1))
+                    numpy_expected = {
+                        "value": np.asarray(
+                            1 if np.isclose(inner_numeric, 0, rtol=1e-9, atol=1e-10) else 0
+                        )
+                    }
+                steps.append({
+                    "step": 1,
+                    "operation": "orthogonality",
+                    "inner_product": str(inner),
+                    "indicator_convention": "1=orthogonal, 0=not orthogonal",
+                })
+
+            elif rule == "vector_projection":
+                if len(parsed_inputs) != 2 or any(x.kind != "vector" for x in parsed_inputs) or output.kind != "vector":
+                    raise LinearAlgebraParseError(
+                        "vector_projection requires a vector and a non-zero target vector, with one vector output."
+                    )
+                vector = sp.Matrix(parsed_inputs[0].value)
+                target = sp.Matrix(parsed_inputs[1].value)
+                if vector.rows != target.rows:
+                    raise ValueError(f"Projection shape mismatch: vectors have lengths {vector.rows} and {target.rows}.")
+                denominator = sp.simplify(sp.conjugate(target).dot(target))
+                if denominator == 0:
+                    raise ValueError("Cannot project onto the zero vector.")
+                if denominator.is_zero is not False:
+                    return self._unverified(
+                        edge,
+                        graph,
+                        start,
+                        details,
+                        "Projection target non-zeroness cannot be established under the current symbolic assumptions.",
+                    )
+                coefficient = sp.simplify(sp.conjugate(target).dot(vector) / denominator)
+                projected = sp.simplify(coefficient * target)
+                expected = ParsedLinearAlgebra("vector", projected)
+                numeric_vector = self._numeric_array(parsed_inputs[0])
+                numeric_target = self._numeric_array(parsed_inputs[1])
+                if numeric_vector is not None and numeric_target is not None:
+                    denominator_np = np.vdot(numeric_target.reshape(-1), numeric_target.reshape(-1))
+                    numpy_expected = {
+                        "value": (
+                            np.vdot(numeric_target.reshape(-1), numeric_vector.reshape(-1))
+                            / denominator_np
+                            * numeric_target.reshape(-1)
+                        )
+                    }
+                steps.append({
+                    "step": 1,
+                    "operation": "vector_projection",
+                    "target_norm_squared": str(denominator),
+                    "coefficient": str(coefficient),
+                })
+
+            elif rule == "vector_gram_schmidt":
+                if len(parsed_inputs) < 1 or any(x.kind != "vector" for x in parsed_inputs):
+                    raise LinearAlgebraParseError("vector_gram_schmidt requires one or more vector inputs.")
+                if len(parsed_outputs) != len(parsed_inputs) or any(x.kind != "vector" for x in parsed_outputs):
+                    raise LinearAlgebraParseError(
+                        "vector_gram_schmidt requires one output vector for each input vector."
+                    )
+                vectors = [sp.Matrix(x.value) for x in parsed_inputs]
+                dimension = vectors[0].rows
+                if any(v.rows != dimension for v in vectors):
+                    raise ValueError("Gram-Schmidt requires all vectors to have the same dimension.")
+                orthonormal = edge.parameters.get("orthonormal", False)
+                if not isinstance(orthonormal, bool):
+                    raise LinearAlgebraParseError("parameters['orthonormal'] must be boolean when provided.")
+                generated = []
+                for index, vector in enumerate(vectors):
+                    q = vector.copy()
+                    for prior in generated:
+                        denominator = sp.simplify(sp.conjugate(prior).dot(prior))
+                        if denominator == 0:
+                            raise ValueError("Gram-Schmidt encountered a zero basis vector.")
+                        if denominator.is_zero is not False:
+                            return self._unverified(
+                                edge,
+                                graph,
+                                start,
+                                details,
+                                "Gram-Schmidt encountered a symbolic norm that cannot be proven non-zero.",
+                            )
+                        coefficient = sp.simplify(sp.conjugate(prior).dot(vector) / denominator)
+                        q = sp.simplify(q - coefficient * prior)
+                    residual_norm_squared = sp.simplify(sp.conjugate(q).dot(q))
+                    if residual_norm_squared == 0:
+                        raise ValueError(
+                            f"Gram-Schmidt input vector {index} is linearly dependent on the preceding vectors."
+                        )
+                    if residual_norm_squared.is_zero is not False:
+                        return self._unverified(
+                            edge,
+                            graph,
+                            start,
+                            details,
+                            "Gram-Schmidt cannot establish independence for the supplied symbolic vectors.",
+                        )
+                    if orthonormal:
+                        q = sp.simplify(q / sp.sqrt(residual_norm_squared))
+                    generated.append(q)
+                expected_values = sp.Matrix.hstack(*generated)
+                candidate_values = [sp.Matrix(x.value) for x in parsed_outputs]
+                symbolic_passed = all(
+                    self._equal(
+                        ParsedLinearAlgebra("vector", candidate_values[index]),
+                        ParsedLinearAlgebra("vector", generated[index]),
+                    )
+                    for index in range(len(generated))
+                )
+                numpy_inputs = [self._numeric_array(x) for x in parsed_inputs]
+                if all(x is not None for x in numpy_inputs):
+                    q_values = []
+                    for vector in numpy_inputs:
+                        q = np.asarray(vector, dtype=complex).reshape(-1).copy()
+                        for prior in q_values:
+                            coefficient = np.vdot(prior, q) / np.vdot(prior, prior)
+                            q = q - coefficient * prior
+                        if orthonormal:
+                            q = q / np.linalg.norm(q)
+                        q_values.append(q)
+                    numpy_expected = {
+                        "candidate": [self._numeric_array(x) for x in parsed_outputs],
+                        "reference": q_values,
+                    }
+                else:
+                    numpy_expected = None
+                expected = ParsedLinearAlgebra("matrix", expected_values)
+                steps = [
+                    {
+                        "step": index + 1,
+                        "operation": "gram_schmidt",
+                        "orthonormal": orthonormal,
+                        "output_vector": index,
+                    }
+                    for index in range(len(generated))
+                ]
+
             elif rule == "matrix_characteristic_polynomial":
                 if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
                     raise LinearAlgebraParseError("matrix_characteristic_polynomial requires one square matrix input and one scalar output.")
@@ -613,7 +903,7 @@ class LinearAlgebraChecker(BaseChecker):
                 raise AssertionError(f"Unhandled linear algebra rule {rule}")
 
             details["input_shapes"] = [list(x.shape) for x in parsed_inputs]
-            if rule == "matrix_diagonalize":
+            if rule in {"matrix_diagonalize", "vector_gram_schmidt"}:
                 details["output_shapes"] = [list(x.shape) for x in parsed_outputs]
                 details["symbolic_equivalence"] = symbolic_passed
             else:
@@ -626,9 +916,59 @@ class LinearAlgebraChecker(BaseChecker):
 
             if rule == "matrix_diagonalize":
                 cross = self._numpy_diagonalization_compare(parsed_inputs[0], parsed_outputs[0], parsed_outputs[1])
+            elif rule == "vector_gram_schmidt":
+                numeric_inputs = [self._numeric_array(x) for x in parsed_inputs]
+                if all(x is not None for x in numeric_inputs):
+                    reference = []
+                    orthonormal = edge.parameters.get("orthonormal", False)
+                    for vector in numeric_inputs:
+                        q = np.asarray(vector, dtype=complex).reshape(-1).copy()
+                        for prior in reference:
+                            q = q - (np.vdot(prior, q) / np.vdot(prior, prior)) * prior
+                        if orthonormal:
+                            q = q / np.linalg.norm(q)
+                        reference.append(q)
+                    candidate = [self._numeric_array(x).reshape(-1) for x in parsed_outputs]
+                    passed = (
+                        len(candidate) == len(reference)
+                        and all(
+                            np.allclose(
+                                actual_vector,
+                                reference_vector,
+                                rtol=1e-8,
+                                atol=1e-10,
+                                equal_nan=False,
+                            )
+                            for actual_vector, reference_vector in zip(candidate, reference)
+                        )
+                    )
+                    max_abs_error = max(
+                        (
+                            float(np.max(np.abs(actual_vector - reference_vector)))
+                            for actual_vector, reference_vector in zip(candidate, reference)
+                        ),
+                        default=0.0,
+                    )
+                    cross = {
+                        "available": True,
+                        "independence_class": "DIFFERENT_ENGINE",
+                        "engine": "numpy.modified_gram_schmidt",
+                        "version": np.__version__,
+                        "operation": rule,
+                        "passed": bool(passed),
+                        "max_abs_error": max_abs_error,
+                        "rtol": 1e-8,
+                        "atol": 1e-10,
+                    }
+                else:
+                    cross = {
+                        "available": False,
+                        "independence_class": "NOT_AVAILABLE",
+                        "reason": "Gram-Schmidt cross-check requires numeric input vectors.",
+                    }
             else:
                 cross = {"available": False, "independence_class": "NOT_AVAILABLE",
-                         "reason": "Inputs are symbolic or no independent numeric algorithm is configured."}
+                         "reason": "Inputs are symbolic or no independent numerical algorithm is configured."}
                 if numpy_expected is not None:
                     cross = self._numpy_compare(output, numpy_expected, rule)
             if cross.get("available") and not cross.get("passed"):
