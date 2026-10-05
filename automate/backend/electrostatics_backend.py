@@ -67,6 +67,8 @@ class ElectrostaticsChecker(BaseChecker):
                 if r2_norm == 0:
                     raise ValueError("Continuous charge kernel is undefined at zero separation.")
                 density_measure = sp.sympify(edge.parameters.get("density_measure", "1"))
+                if not density_measure.is_commutative:
+                    raise ValueError("density_measure must be a scalar commutative factor.")
                 if density_measure == 0:
                     raise ValueError("density_measure must be non-zero.")
                 kernel = density_measure * rho.value
