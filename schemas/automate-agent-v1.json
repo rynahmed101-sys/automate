@@ -302,7 +302,13 @@
       "exact Euclidean vector norms",
       "orthogonality claims with explicit indicator semantics",
       "orthogonal projection onto a non-zero vector",
-      "Gram-Schmidt orthogonalization and optional orthonormalization"
+      "Gram-Schmidt orthogonalization and optional orthonormalization",
+      "null-space basis verification with exact residual and nullity checks",
+      "row-space basis verification using column-oriented basis vectors",
+      "column-space basis verification",
+      "vector span-membership verification",
+      "linear-independence verification by exact rank",
+      "basis-of-span verification"
     ],
     "physics": [
       "Coulomb force for point charges",
