@@ -79,9 +79,10 @@ class VectorCalculusChecker(BaseChecker):
         coords: list[sp.Symbol],
     ) -> dict[str, Any]:
         """Independent finite-difference evidence at deterministic sample points."""
-        if not all(cls._numeric_exprs(v) for v in inputs + [actual]):
+        coordinate_set = set(coords)
+        if any(not cls._numeric_exprs(v, coordinate_set) for v in inputs + [actual]):
             return {"available": False, "independence_class": "NOT_AVAILABLE",
-                    "reason": "Finite-difference evidence requires numeric coefficients."}
+                    "reason": "Finite-difference evidence requires expressions whose free symbols are the declared coordinates."}
         point = np.asarray([0.37 + 0.41 * i for i in range(len(coords))], dtype=float)
         h = 1e-5
 
@@ -164,10 +165,11 @@ class VectorCalculusChecker(BaseChecker):
                     "reason": "Finite-difference evaluation failed for supplied expressions."}
 
     @staticmethod
-    def _numeric_exprs(value: ParsedLinearAlgebra) -> bool:
+    def _numeric_exprs(value: ParsedLinearAlgebra, coordinates: set[sp.Symbol] | None = None) -> bool:
+        coordinates = coordinates or set()
         if value.kind == "scalar":
-            return bool(value.value.free_symbols == set())
-        return all(expr.free_symbols == set() for expr in sp.Matrix(value.value))
+            return value.value.free_symbols.issubset(coordinates)
+        return all(expr.free_symbols.issubset(coordinates) for expr in sp.Matrix(value.value))
 
     def _report(self, edge, graph, start, status, passed, details, message=None):
         elapsed = (time.perf_counter() - start) * 1000
@@ -210,6 +212,7 @@ class VectorCalculusChecker(BaseChecker):
                     return self._report(edge, graph, start, VerificationStatus.FAILED, False, details,
                                         "Scalar field declaration changes the scalar expression.")
                 details["symbolic_equivalence"] = True
+                return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
             elif rule == "vector_field":
                 if len(inputs) != 1 or len(outputs) != 1 or inputs[0].kind != "vector" or outputs[0].kind != "vector":
                     raise ValueError("vector_field requires one vector input and one vector output.")
@@ -217,6 +220,7 @@ class VectorCalculusChecker(BaseChecker):
                     return self._report(edge, graph, start, VerificationStatus.FAILED, False, details,
                                         "Vector field declaration changes the vector expression.")
                 details["symbolic_equivalence"] = True
+                return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
             else:
                 if len(outputs) != 1:
                     raise ValueError(f"{rule} requires exactly one output.")
@@ -275,7 +279,7 @@ class VectorCalculusChecker(BaseChecker):
                 details["symbolic_equivalence"] = True
                 if rule not in {"scalar_field", "vector_field", "conservative_field"}:
                     details["finite_difference_cross_check"] = self._finite_difference_check(rule, inputs, actual, coords)
-                elif rule == "conservative_field" and all(self._numeric_exprs(v) for v in inputs + [actual]):
+                elif rule == "conservative_field" and all(self._numeric_exprs(v, set(coords)) for v in inputs + [actual]):
                     details["finite_difference_cross_check"] = {"available": True, "independence_class": "DIFFERENT_ENGINE", "engine": "numpy.gradient_check", "passed": True}
                 return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
         except (KeyError, TypeError, ValueError, sp.SympifyError) as exc:
