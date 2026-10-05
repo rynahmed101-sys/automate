@@ -792,6 +792,24 @@
       ]
     },
     {
+      "rule_id": "dipole_potential",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "dipole_field",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
       "rule_id": "conductor_boundary_field",
       "category": "electrostatics",
       "domain": "electromagnetism",

@@ -19,11 +19,11 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 **Last recorded capability baseline main:** `0f6591300f06b9ab3c444327e5db2fa6dc8ed96b`
 
-**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics, bounded continuous-charge kernels, finite uniform line-charge potential, bounded Cartesian Gauss-law verification, and conductor/capacitor verification are now certified on main. The next bounded electrostatics batch is dipoles and electrostatic boundary conditions.
+**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics, bounded continuous-charge kernels, finite uniform line-charge potential, bounded Cartesian Gauss-law verification, and conductor/capacitor verification are certified on main. Bounded point-dipole potential and electric-field verification is implemented on a feature branch and awaits merged-head certification. Electrostatic dipole energy and general boundary conditions remain unfinished.
 
 **Latest authoritative verification:** Exact-head Python 3.10/3.11/3.12/3.13, full tests, adversarial tests, the exact 50-problem acceptance campaign, Phase 1A Linear Algebra Core/Eigenproblem campaigns, Lean 4, CodeQL, and pip-audit passed on merged main SHA `0f6591300f06b9ab3c444327e5db2fa6dc8ed96b` (Exact-head run `37295223953`; Security Audit run `37295224004`).
 
-**Next capability:** Bounded dipole and electrostatic boundary-condition verification. Magnetostatics remains a later Phase 2 batch.
+**Next capability:** Certify bounded dipole potential/field, then add dipole electrostatic energy and bounded electrostatic boundary-condition verification. Magnetostatics remains a later Phase 2 batch.
 
 ---
 
@@ -96,7 +96,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [x] Finite uniform line-charge potential
 - [x] Gauss law
 - [x] Conductors and capacitors
-- [ ] Dipoles and electrostatic energy
+- [~] Dipole potential and electric-field verification implemented; electrostatic energy remains
 - [ ] Boundary conditions
 
 ## Magnetostatics
@@ -117,7 +117,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Poynting vector
 - [ ] Electromagnetic wave equation
 
-**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge, bounded continuous-charge, finite line-charge potential, bounded Cartesian Gauss-law, and conductor/capacitor verification are certified. Dipoles and bounded electrostatic boundary conditions are next.
+**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge, bounded continuous-charge, finite line-charge potential, bounded Cartesian Gauss-law, and conductor/capacitor verification are certified. Dipole potential/field verification is in progress; dipole energy and bounded electrostatic boundary conditions remain.
 
 ---
 
