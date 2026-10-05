@@ -10,7 +10,7 @@ def test_representation_composes_into_lagrangian_system():
         coordinates=[GeneralizedCoordinate(name="x", dimension="L")],
         kinetic_energy="m*x_dot**2/2", potential_energy="k*x**2/2",
         parameters={"m": "positive", "k": "positive"})
-    assert sp.simplify(model.lagrangian() - (sp.Symbol("m", positive=True)*sp.diff(sp.Function("x")(sp.Symbol("t", real=True)), sp.Symbol("t"))**2/2 - sp.Symbol("k", positive=True)*sp.Function("x")(sp.Symbol("t"))**2/2)) == 0
+    assert sp.simplify(model.lagrangian() - model.parse("m*x_dot**2/2 - k*x**2/2")) == 0
     system = model.as_lagrangian_system()
     passed, _, _, err = system.verify_euler_lagrange("m*x_ddot + k*x")
     assert passed, err
