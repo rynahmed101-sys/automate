@@ -1,40 +1,104 @@
 {
   "schema_version": "automate.agent.v1",
+  "contract_type": "machine_agent_capability_manifest",
   "project": "automate-physics",
-  "integration": {
-    "primary_interface": "cli",
-    "machine_output": "json",
+  "purpose": "Stable machine-readable interface for AI agents using Automate as a local mathematical and physics verification working environment.",
+  "compatibility": {
+    "minimum_cli_version": "0.2.0",
+    "transport": "process_stdio",
+    "preferred_output": "json",
     "offline_core": true,
-    "cloud_provider_required": false
+    "cloud_provider_required": false,
+    "principle": "Agents provide structured untrusted mathematical claims; Automate performs representation, rule validation, backend verification, provenance binding, and certificate generation."
+  },
+  "discovery": {
+    "command": "automate capabilities --json",
+    "contract_command": "automate schema --name agent",
+    "contract_file": "schemas/automate-agent-v1.json",
+    "runtime_state": "capabilities --json reports optional backend/provider availability; this contract describes the interface and supported feature families."
   },
   "contracts": {
     "context": "automate.context.v1",
     "proposal": "automate.proposal.v1",
     "ir": "automate.ir.v0.2",
-    "certificates": "automate.cert.v0.2",
-    "tensor": "automate-tensor-v1"
+    "tensor": "automate-tensor-v1",
+    "certificate": "automate.cert.v0.2",
+    "agent": "automate.agent.v1"
+  },
+  "command_protocol": {
+    "input_convention": "CLI arguments plus UTF-8 JSON files where a command accepts structured artifacts.",
+    "output_convention": "Use --json for machine-readable output. Human-oriented commands without --json are not part of the stable machine protocol.",
+    "failure_convention": "Verification failures are returned as structured status/evidence where supported; unsupported semantics must not be upgraded to verified.",
+    "side_effect_rule": "Commands marked read_only do not modify the supplied derivation graph. Commands marked write_output create or update explicitly requested output artifacts."
   },
   "commands": {
-    "discover": "automate capabilities --json",
-    "context": "automate context <theory> --json",
-    "validate": "automate validate <proposal> --theory <theory> --json",
-    "dry_run": "automate propose <theory> --proposal <proposal> --dry-run --json",
-    "apply": "automate propose <theory> --proposal <proposal> --json",
-    "research": "automate research <theory> --provider <provider> --max-steps <n> --json",
-    "check": "automate check <graph> --json",
-    "parse": "automate parse <theory> --json",
-    "schema": "automate schema --name <ir|tensor|proposal|context>"
+    "discover": {"command":"automate capabilities --json","mode":"read_only","purpose":"Discover active backends, AI providers, rule IDs, and this contract.","returns":["schema_version","providers","rule_registry","agent_contract"]},
+    "parse": {"command":"automate parse <theory> --json","mode":"write_output","purpose":"Parse declarative YAML/JSON theory into canonical derivation-graph IR.","returns":["status","file","output","nodes","edges","assumptions"]},
+    "context": {"command":"automate context <theory> --json","mode":"read_only","purpose":"Expose sanitized mathematical state, assumptions, obligations, and available rules to an agent.","returns_contract":"automate.context.v1"},
+    "validate": {"command":"automate validate <proposal> --theory <theory> --json","mode":"read_only","purpose":"Validate an untrusted proposal against schema, security rules, graph dependencies, and approved transformation rules.","returns":["is_valid","errors","proposal"]},
+    "propose_dry_run": {"command":"automate propose <theory> --proposal <proposal> --dry-run --json","mode":"read_only","purpose":"Inject an AI proposal into a cloned graph, synthesize obligations, and run applicable verification without changing the canonical graph.","returns":["success","status","edge_id","report","graph_updated"]},
+    "propose_apply": {"command":"automate propose <theory> --proposal <proposal> --output <graph> --json","mode":"write_output","purpose":"Apply and verify a validated proposal, attach evidence/certificate state, and persist the updated graph to the requested output path.","returns":["success","status","edge_id","report"]},
+    "research": {"command":"automate research <theory> --provider <mock|openai|local> --max-steps <n> --output-dir <dir> --json","mode":"write_output","purpose":"Run a bounded proposal/validation/verification research loop.","returns":["total_steps","trace","graph_file"],"bounds":["max_steps"]},
+    "check": {"command":"automate check <graph> --json","mode":"read_only","purpose":"Run symbolic and dimensional checks applicable to graph edges.","returns":"per-edge verification summary"},
+    "prove": {"command":"automate prove <graph> --json","mode":"read_only","purpose":"Run Lean 4 formal proof checks on edges configured for the Lean backend.","availability":"optional runtime dependency","returns":"per-edge formal verification summary"},
+    "simulate": {"command":"automate simulate <graph> --json","mode":"read_only","purpose":"Run bounded SciPy RK45 ODE integration and numerical evidence checks.","returns":"per-edge numerical verification summary"},
+    "stats": {"command":"automate stats <graph> --json","mode":"read_only","purpose":"Run empirical parameter estimation, uncertainty diagnostics, and chi-square goodness-of-fit checks where configured.","returns":"per-edge statistical verification summary"},
+    "query_assumptions": {"command":"automate query-assumptions <graph> [--drop <assumption_id>] --json","mode":"read_only","purpose":"Inspect assumption dependencies or simulate removal of a specific assumption.","returns":"assumption dependency or invalidation impact report"},
+    "expand": {"command":"automate expand <graph> --edge <edge_id>","mode":"read_only","purpose":"Losslessly expand a composite derivation edge into certificate micro-steps."},
+    "visualize": {"command":"automate visualize <graph> --output <html>","mode":"write_output","purpose":"Generate a standalone interactive HTML derivation graph visualization."},
+    "report": {"command":"automate report <graph> --json","mode":"read_only","purpose":"Return the canonical graph and verification state matrix as JSON."},
+    "export_certificate": {"command":"automate export-certificate <graph> --output-dir <dir> --json","mode":"write_output","purpose":"Export the machine-auditable certificate package and cryptographic manifest.","returns":"artifact file map"},
+    "schema": {"command":"automate schema --name <ir|tensor|proposal|context|agent>","mode":"read_only","purpose":"Retrieve authoritative interchange schemas and this machine-agent capability contract."},
+    "demo": {"command":"automate demo --output-dir <dir>","mode":"write_output","purpose":"Run the canonical end-to-end harmonic oscillator demonstration.","machine_protocol":false}
   },
-  "providers": [
-    "mock",
-    "local",
-    "openai"
+  "capability_catalog": {
+    "mathematics": ["safe symbolic expression parsing","algebraic identity checking","algebraic simplification/equivalence checking","division with explicit nonzero proof requirements","substitution","differentiation of both sides","ordinary differential equation solution verification by residual substitution"],
+    "classical_mechanics": ["Lagrangian representation","Euler-Lagrange equations for one or multiple generalized coordinates","canonical momenta","Hamiltonian/Jacobi energy construction","Noether energy-conservation checking","harmonic oscillator verification","multi-coordinate mechanical systems"],
+    "field_theory": ["functional variation of an action","Euler-Lagrange field-equation verification for configured scalar fields"],
+    "differential_geometry_and_general_relativity": ["explicit tensor indices with variance, dimension, index space, dummy/free classification","Einstein summation/index-structure validation","tensor products and structured tensor expressions","Christoffel symbols","Riemann curvature tensor","Ricci curvature tensor","Ricci scalar","Einstein tensor","geodesic equations","contracted Bianchi identity checks","EinsteinPy cross-engine geometry checking where the dependency is available","Cadabra translation/verification boundaries where configured"],
+    "physical_units": ["SI base-dimensional representation","dimensional homogeneity of supported derivation rules","coordinate-dimension-aware Euler-Lagrange checks"],
+    "numerical": ["bounded IVP integration with SciPy RK45","trajectory evidence and fingerprints","energy-drift checks","convergence probes and numerical provenance"],
+    "statistics": ["nonlinear/parametric model fitting","parameter estimates and covariance-related evidence","chi-square residual diagnostics","R-squared/goodness-of-fit diagnostics","graph-bound model/claim validation","dataset/result fingerprints and provenance"],
+    "formal_verification": ["graph-to-Lean translation for the supported integer-polynomial claim subset","Lean 4 kernel-backed verification when the toolchain is installed","claim/dependency binding for formal evidence"],
+    "derivation_graph": ["DAG validation and topological ordering","assumption dependency closure and impact queries","node/edge claim identity fingerprints","certificate staleness detection","verification evidence recording","certificate subgraph expansion","interactive HTML graph visualization"],
+    "ai_integration": ["sanitized context generation","versioned AI proposal schema","zero-trust proposal validation","mock/offline AI provider","local HTTP AI provider adapter","OpenAI-compatible HTTP provider adapter","bounded multi-step research loop","machine-readable JSON CLI surface"],
+    "provenance_and_certificates": ["runtime dependency provenance for external verification","claim and comparison-target fingerprints","independence classification for cross-engine evidence","lossless certificate package export","SHA-256 integrity manifest"],
+    "security": ["SafeParser restrictions for untrusted mathematical strings","proposal injection/security validation","bounded execution sandbox for external computations","fail-closed unsupported semantics","credential exclusion from mathematical artifacts"]
+  },
+  "rules": [
+    {"rule_id":"euler_lagrange","category":"variational","domain":"classical_mechanics","implementation_backend":"sympy","allowed_checkers":["sympy","numerical","lean4"]},
+    {"rule_id":"vary_action","category":"variational","domain":"field_theory","implementation_backend":"sympy","allowed_checkers":["sympy"]},
+    {"rule_id":"conserve_energy","category":"conservation","domain":"classical_mechanics","implementation_backend":"lean4","allowed_checkers":["sympy","numerical","lean4"]},
+    {"rule_id":"divide_both_sides","category":"algebra","domain":"mathematics","implementation_backend":"sympy","allowed_checkers":["sympy"]},
+    {"rule_id":"differentiate_both_sides","category":"calculus","domain":"mathematics","implementation_backend":"sympy","allowed_checkers":["sympy"]},
+    {"rule_id":"substitute","category":"algebra","domain":"mathematics","implementation_backend":"sympy","allowed_checkers":["sympy"]},
+    {"rule_id":"simplify","category":"algebra","domain":"mathematics","implementation_backend":"sympy","allowed_checkers":["sympy"]},
+    {"rule_id":"christoffel_symbols","category":"tensors","domain":"differential_geometry","implementation_backend":"tensor","allowed_checkers":["tensor"]},
+    {"rule_id":"riemann_curvature","category":"tensors","domain":"differential_geometry","implementation_backend":"tensor","allowed_checkers":["tensor"]},
+    {"rule_id":"ricci_curvature","category":"tensors","domain":"differential_geometry","implementation_backend":"tensor","allowed_checkers":["tensor"]},
+    {"rule_id":"ricci_scalar","category":"tensors","domain":"differential_geometry","implementation_backend":"tensor","allowed_checkers":["tensor"]},
+    {"rule_id":"einstein_tensor","category":"tensors","domain":"general_relativity","implementation_backend":"tensor","allowed_checkers":["tensor"]},
+    {"rule_id":"geodesic_equations","category":"tensors","domain":"general_relativity","implementation_backend":"tensor","allowed_checkers":["tensor"]},
+    {"rule_id":"index_contract","category":"tensors","domain":"differential_geometry","implementation_backend":"tensor","allowed_checkers":[]},
+    {"rule_id":"raise_index","category":"tensors","domain":"differential_geometry","implementation_backend":"tensor","allowed_checkers":[]},
+    {"rule_id":"lower_index","category":"tensors","domain":"differential_geometry","implementation_backend":"tensor","allowed_checkers":[]},
+    {"rule_id":"solve_harmonic_oscillator","category":"differential_equations","domain":"classical_mechanics","implementation_backend":"sympy","allowed_checkers":["sympy","numerical"]},
+    {"rule_id":"verify_ode_solution","category":"differential_equations","domain":"mathematics","implementation_backend":"sympy","allowed_checkers":["sympy","numerical"]},
+    {"rule_id":"algebraic_identity","category":"algebra","domain":"mathematics","implementation_backend":"sympy","allowed_checkers":["sympy","lean4"]},
+    {"rule_id":"numerical_simulation","category":"numerics","domain":"computational_physics","implementation_backend":"numerical","allowed_checkers":["numerical"]},
+    {"rule_id":"empirical_inference","category":"statistics","domain":"experimental_physics","implementation_backend":"statistical","allowed_checkers":["statistical"]}
   ],
-  "trust_rules": [
-    "AI output is untrusted input",
-    "verification status is evidence-derived",
-    "unsupported semantics fail closed",
-    "credentials never enter mathematical artifacts",
-    "caller-supplied expected output is not independent evidence"
-  ]
+  "ai_workflow": {
+    "sequence":["discover capabilities","retrieve controlled context","construct automate.proposal.v1","validate untrusted proposal","dry-run proposal","apply only when appropriate","inspect evidence and status","export certificate when a durable audit artifact is needed"],
+    "result_fields_recommended_to_agents":["status","operation","result","verification_method","independence","provenance","certificate"],
+    "important_semantics":{"verified":"Evidence-derived status from an applicable backend.","unverified":"Insufficient evidence; not equivalent to false.","unsupported":"The current rule/backend does not represent enough semantics to perform the requested check.","failed":"A check ran and the claim did not pass or an execution error prevented verification.","caller_output":"A caller-supplied expected result is not independent evidence."}
+  },
+  "providers": {
+    "mock":{"availability":"intended for deterministic offline tests"},
+    "local":{"availability":"runtime-configured local HTTP endpoint","security_boundary":"external model output is still untrusted"},
+    "openai":{"availability":"runtime-configured credentials/endpoint","security_boundary":"external model output is still untrusted"}
+  },
+  "artifacts":{"certificate_package_files":["certificate.json","assumptions.json","obligations.json","evidence.json","subgraph_expansion.json","provenance.json","manifest.json"],"integrity":"manifest.json records SHA-256 digests for the package artifacts."},
+  "verification_statuses":["PARSED","STRUCTURALLY_VALID","DIMENSIONALLY_CHECKED","UNVERIFIED","SYMBOLIC_CHECKED","NUMERICALLY_CHECKED","STATISTICALLY_CHECKED","FORMALLY_PROVED","CONDITIONAL","FAILED","DISPROVED","TIMEOUT","NOT_APPLICABLE","AI_PROPOSED"],
+  "trust_rules":["AI output is untrusted input.","Verification status is evidence-derived.","Unsupported semantics fail closed.","Credentials never enter mathematical artifacts.","Caller-supplied expected output is not independent evidence.","Cross-engine claims must bind evidence to the same mathematical claim and record independence/provenance.","Empirical or numerical evidence is not silently upgraded to a formal proof."]
 }
