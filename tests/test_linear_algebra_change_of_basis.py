@@ -57,10 +57,10 @@ def test_change_of_basis_preserves_represented_vector_in_three_dimensions():
     report = _check(
         [
             "Matrix([[1, 1, 0], [0, 1, 1], [0, 0, 1]])",
-            "Matrix([[1, 0, 1], [0, 1, 0], [1, 0, 1]])",
+            "Matrix([[1, 0, 1], [0, 1, 0], [1, 0, 2]])",
             "Vector([2, 3, 4])",
         ],
-        "Vector([-1, 3, 6])",
+        "Vector([6, 7, -1])",
     )
     assert report.passed
 
