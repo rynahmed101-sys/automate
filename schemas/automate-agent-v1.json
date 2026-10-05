@@ -792,6 +792,42 @@
       ]
     },
     {
+      "rule_id": "conductor_boundary_field",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "parallel_plate_field",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "parallel_plate_capacitance",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "capacitor_energy",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
       "rule_id": "curl_gradient_identity",
       "category": "vector_calculus",
       "domain": "mathematics",
