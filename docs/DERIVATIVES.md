@@ -61,3 +61,12 @@ These rules construct the mathematical derivative from the named components and 
 The verifier rejects an identically zero (F_y) denominator and otherwise records the local nonzero-partial condition as an explicit verification detail. It does not claim a global implicit-function theorem result, pointwise (F_y\ne0) proof, or branch/domain theorem unless those semantics are separately represented.
 
 Malformed inputs, invalid variables, zero denominators, incorrect derivatives, and unresolved symbolic comparisons fail closed rather than being guessed.
+
+
+## Integration
+
+The `integrate` rule verifies both indefinite and definite scalar symbolic integration. For indefinite integration, the candidate is differentiated back to the integrand, allowing arbitrary integration constants (and for repeated integration, the corresponding lower-order integration polynomial) rather than comparing against one backend-specific primitive.
+
+For definite integration, explicit lower and upper bounds are required and the symbolic result is compared directly. An unevaluated `Integral` is classified as UNVERIFIED rather than treated as failure or success.
+
+The current integration primitive supports an explicit positive integer `order` for repeated **indefinite** integration. Repeated definite/multiple nested integration is deliberately left for the subsequent repeated/nested-integration capability so that its representation can be made explicit rather than inferred.
