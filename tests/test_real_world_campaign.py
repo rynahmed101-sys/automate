@@ -427,6 +427,35 @@ def test_campaign_statistical_fit():
     assert abs(report.details["parameter_estimates"]["omega"]["estimate"] - 2.0) < 0.1
 
 
+def test_campaign_derivative_general_orders():
+    cases = [
+        ("x**4 + 2*x**2", "4*x**3 + 4*x", 1),
+        ("exp(x)*sin(x)", "2*exp(x)*cos(x)", 2),
+        ("x**6", "720", 6),
+    ]
+    for expression, expected, order in cases:
+        graph, edge = _graph_edge(
+            "differentiate",
+            [expression],
+            expected,
+            parameters={"variable": "x", "order": order},
+        )
+        report = SymPyChecker().verify_edge(edge, graph)
+        assert report.passed, report.error_message
+        assert report.status == VerificationStatus.SYMBOLIC_CHECKED
+        assert report.details["order"] == order
+
+    graph, edge = _graph_edge(
+        "differentiate",
+        ["x**3"],
+        "4*x**2",
+        parameters={"variable": "x", "order": 1},
+    )
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert report.status == VerificationStatus.FAILED
+    assert not report.passed
+
+
 def test_campaign_machine_contract_and_capabilities():
     from pathlib import Path
 
@@ -435,13 +464,13 @@ def test_campaign_machine_contract_and_capabilities():
     assert capabilities.exit_code == 0, capabilities.output
     caps = json.loads(capabilities.output)
     assert caps["agent_contract"]["schema_version"] == "automate.agent.v1"
-    assert caps["rule_registry"]["count"] == 87
+    assert caps["rule_registry"]["count"] == 100
 
     contract_result = runner.invoke(main, ["schema", "--name", "agent"])
     assert contract_result.exit_code == 0, contract_result.output
     contract = json.loads(contract_result.output)
     assert contract["schema_version"] == "automate.agent.v1"
-    assert len(contract["rules"]) == 87
+    assert len(contract["rules"]) == 100
     assert set([
         "discover","parse","context","validate","propose_dry_run","propose_apply",
         "research","check","prove","simulate","stats","query_assumptions",
