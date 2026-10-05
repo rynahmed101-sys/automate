@@ -77,6 +77,16 @@ class LinearAlgebraChecker(BaseChecker):
         if value.kind == "scalar":
             scalar = cls._numeric_scalar(value.value)
             return None if scalar is None else np.asarray(scalar)
+        if value.kind == "vector":
+            matrix = sp.Matrix(value.value)
+            data = []
+            for i in range(matrix.rows):
+                scalar = cls._numeric_scalar(matrix[i, 0])
+                if scalar is None:
+                    return None
+                data.append(scalar)
+            return np.asarray(data)
+
         matrix = sp.Matrix(value.value)
         data: list[list[complex | float]] = []
         for i in range(matrix.rows):
