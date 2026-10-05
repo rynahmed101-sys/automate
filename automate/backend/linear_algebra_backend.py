@@ -1201,6 +1201,45 @@ class LinearAlgebraChecker(BaseChecker):
                     {"step": 3, "operation": "verify_reconstruction_A_equals_PDP_inv"},
                 ]
 
+            elif rule == "matrix_pseudoinverse":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "matrix":
+                    raise LinearAlgebraParseError("matrix_pseudoinverse requires one matrix input and one matrix output.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                if matrix.rows == 0 or matrix.cols == 0:
+                    raise ValueError("Moore-Penrose pseudoinverse requires a non-empty matrix.")
+                pinv = matrix.pinv()
+                expected = ParsedLinearAlgebra("matrix", pinv)
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    numpy_expected = np.linalg.pinv(numeric)
+                steps = [
+                    {"step": 1, "operation": "compute_moore_penrose_pseudoinverse", "input_shape": list(matrix.shape), "output_shape": list(pinv.shape)},
+                    {"step": 2, "operation": "verify_moore_penrose_conditions"},
+                ]
+
+            elif rule == "linear_least_squares":
+                if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "vector":
+                    raise LinearAlgebraParseError("linear_least_squares requires matrix A, vector b, and vector x.")
+                matrix, vector = sp.Matrix(parsed_inputs[0].value), sp.Matrix(parsed_inputs[1].value)
+                if matrix.rows == 0 or matrix.cols == 0:
+                    raise ValueError("Least-squares requires a non-empty matrix A.")
+                if vector.rows != matrix.rows:
+                    raise ValueError(f"Least-squares shape mismatch: A is {matrix.shape} but b has length {vector.rows}.")
+                pinv = matrix.pinv()
+                solution = sp.simplify(pinv * vector)
+                expected = ParsedLinearAlgebra("vector", solution)
+                na, nb = self._numeric_array(parsed_inputs[0]), self._numeric_array(parsed_inputs[1])
+                if na is not None and nb is not None:
+                    numpy_expected = np.linalg.pinv(na) @ nb.reshape(-1)
+                residual = sp.simplify(matrix * solution - vector)
+                normal_residual = sp.simplify(matrix.conjugate().T * (matrix * solution - vector))
+                steps = [
+                    {"step": 1, "operation": "compute_moore_penrose_pseudoinverse"},
+                    {"step": 2, "operation": "solve_least_squares_with_pseudoinverse", "solution": [str(v) for v in solution]},
+                    {"step": 3, "operation": "verify_normal_equations", "normal_residual": [str(v) for v in normal_residual]},
+                    {"step": 4, "operation": "report_residual", "residual": [str(v) for v in residual]},
+                ]
+
             elif rule == "linear_system_solve":
                 if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "vector":
                     raise LinearAlgebraParseError("linear_system_solve requires matrix A, vector b, and vector x.")
