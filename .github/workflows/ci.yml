@@ -59,6 +59,10 @@ jobs:
         run: |
           pytest tests/test_linear_algebra_acceptance.py -q -s --tb=short
 
+      - name: Run Phase 1A Linear Algebra Eigenproblem acceptance campaign
+        run: |
+          pytest tests/test_linear_algebra_eigen_acceptance.py -q -s --tb=short
+
   lean4:
     name: Lean 4 proof check
     runs-on: ubuntu-latest
