@@ -182,6 +182,38 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="limit",
+            name="Scalar Limit",
+            category="calculus",
+            description="Verifies scalar one-variable limits with explicit two-sided, one-sided, +infinity, or -infinity direction semantics; continuity is not inferred from direct substitution.",
+            domain="mathematics",
+            inputs=["Scalar Expression"],
+            outputs=["Scalar Limit Value or DNE"],
+            required_assumptions=["explicit_limit_variable_and_target"],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Calculus Limits / SymPy limit"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="continuity",
+            name="Pointwise Continuity",
+            category="calculus",
+            description="Verifies pointwise continuity from the explicit function value and the two-sided limit at a finite point.",
+            domain="mathematics",
+            inputs=["Scalar Expression"],
+            outputs=["Continuity Indicator"],
+            required_assumptions=["explicit_limit_variable_and_target"],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Continuity Definition / Limit Equality"
+        ))
+
+        self.register(RuleDefinition(
             rule_id="substitute",
             name="Substitute Expression",
             category="algebra",
