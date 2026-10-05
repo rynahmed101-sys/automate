@@ -17,7 +17,7 @@ from automate.ir.linear_algebra import ParsedLinearAlgebra, parse_linear_algebra
 class ElectrostaticsChecker(BaseChecker):
     """Verify exact point-charge electrostatics claims in Cartesian coordinates."""
 
-    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential"}
+    _RULES = {"coulomb_force", "point_charge_field", "point_charge_potential", "uniform_line_charge_potential"}
 
     @property
     def name(self) -> str:
@@ -81,6 +81,31 @@ class ElectrostaticsChecker(BaseChecker):
                 if r2_norm == 0:
                     raise ValueError("Point-charge field is undefined at the charge location.")
                 expected_parsed = ParsedLinearAlgebra("vector", k*q.value*d/(r2_norm**sp.Rational(3,2)))
+            elif rule == "uniform_line_charge_potential":
+                if len(inputs) != 2 or len(outputs) != 1:
+                    raise ValueError("uniform_line_charge_potential requires linear density, observation position, and one scalar output.")
+                lam, observation = inputs
+                if lam.kind != "scalar" or observation.kind != "vector" or outputs[0].kind != "scalar":
+                    raise ValueError("uniform_line_charge_potential requires scalar density, vector observation, and scalar output.")
+                axis = edge.parameters.get("axis")
+                bounds = edge.parameters.get("source_bounds")
+                coordinates = edge.parameters.get("coordinates")
+                if axis not in {"x", "y", "z"} or coordinates != ["x", "y", "z"]:
+                    raise ValueError("Line charge is bounded to a Cartesian x/y/z axis with coordinates [x,y,z].")
+                if not isinstance(bounds, list) or len(bounds) != 2:
+                    raise ValueError("source_bounds must contain [lower, upper].")
+                lo, hi = map(sp.sympify, bounds)
+                if sp.simplify(hi - lo) == 0:
+                    raise ValueError("Uniform line charge requires a non-zero source interval.")
+                obs = sp.Matrix(observation.value)
+                x,y,z = sp.symbols("x y z")
+                source = {"x": sp.Matrix([x,0,0]), "y": sp.Matrix([0,y,0]), "z": sp.Matrix([0,0,z])}[axis]
+                parameter = {"x": x, "y": y, "z": z}[axis]
+                distance_sq = sp.simplify((obs-source).dot(obs-source))
+                if sp.simplify(distance_sq.subs(parameter, lo)) == 0 or sp.simplify(distance_sq.subs(parameter, hi)) == 0:
+                    raise ValueError("Observation point cannot coincide with a line-charge endpoint.")
+                integrand = k * lam.value / sp.sqrt(distance_sq)
+                expected_parsed = ParsedLinearAlgebra("scalar", sp.integrate(integrand, (parameter, lo, hi)))
             else:
                 if len(inputs) != 2 or len(outputs) != 1:
                     raise ValueError("point_charge_potential requires charge and displacement.")
