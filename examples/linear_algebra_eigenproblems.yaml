@@ -1,0 +1,53 @@
+theory: linear_algebra_eigenproblems
+name: Linear Algebra Eigenproblem Example
+description: Characteristic polynomial, eigenvalues, eigenvector, and diagonalization.
+domain: mathematics
+
+nodes:
+  A:
+    expression: "Matrix([[2, 1], [1, 2]])"
+    node_kind: matrix
+  charpoly:
+    expression: "lam**2 - 4*lam + 3"
+  eigenvalues:
+    expression: "Vector([1, 3])"
+    node_kind: vector
+  eigenvector3:
+    expression: "Vector([1, 1])"
+    node_kind: vector
+  P:
+    expression: "Matrix([[1, 1], [1, -1]])"
+    node_kind: matrix
+  D:
+    expression: "Matrix([[3, 0], [0, 1]])"
+    node_kind: matrix
+
+derivations:
+  edge_charpoly:
+    input_nodes: [A]
+    output_nodes: [charpoly]
+    transformation_rule: matrix_characteristic_polynomial
+    justification: Compute det(lam*I - A).
+    checker: linear_algebra
+    parameters:
+      symbol: lam
+  edge_eigenvalues:
+    input_nodes: [A]
+    output_nodes: [eigenvalues]
+    transformation_rule: matrix_eigenvalues
+    justification: Compute the complete eigenvalue multiset.
+    checker: linear_algebra
+  edge_eigenvector:
+    input_nodes: [A]
+    output_nodes: [eigenvector3]
+    transformation_rule: matrix_eigenvector
+    justification: Verify a non-zero eigenvector for lambda = 3.
+    checker: linear_algebra
+    parameters:
+      eigenvalue: "3"
+  edge_diagonalize:
+    input_nodes: [A]
+    output_nodes: [P, D]
+    transformation_rule: matrix_diagonalize
+    justification: Verify A = P*D*P^-1 with diagonal D.
+    checker: linear_algebra

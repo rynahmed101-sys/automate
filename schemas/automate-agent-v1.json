@@ -275,7 +275,11 @@
       "inverse and exact rank",
       "Gaussian elimination and reduced row-echelon form",
       "unique square-system solving Ax=b",
-      "numeric cross-checks using NumPy where inputs are numeric"
+      "numeric cross-checks using NumPy where inputs are numeric",
+      "characteristic polynomials for square matrices with an explicit generator",
+      "complete eigenvalue multisets with algebraic multiplicity",
+      "claimed eigenvector residual verification for explicit eigenvalues",
+      "diagonalization certificates verifying A = P*D*P^-1"
     ]
   },
   "rules": [
@@ -570,6 +574,42 @@
     },
     {
       "rule_id": "linear_system_solve",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_characteristic_polynomial",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_eigenvalues",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_eigenvector",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_diagonalize",
       "category": "linear_algebra",
       "domain": "mathematics",
       "implementation_backend": "linear_algebra",

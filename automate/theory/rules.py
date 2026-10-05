@@ -382,6 +382,22 @@ class RuleRegistry:
                 description="Solves unique square systems Ax=b and records elimination evidence.", domain="mathematics",
                 inputs=["Matrix", "Vector"], outputs=["Vector"], implementation_backend="linear_algebra",
                 allowed_checkers=["linear_algebra"]),
+            RuleDefinition(rule_id="matrix_characteristic_polynomial", name="Characteristic Polynomial", category="linear_algebra",
+                description="Computes det(lam*I - A) for a square matrix using an explicit polynomial generator.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Scalar Polynomial"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"], citation="SymPy MatrixBase.charpoly"),
+            RuleDefinition(rule_id="matrix_eigenvalues", name="Matrix Eigenvalues", category="linear_algebra",
+                description="Computes the complete eigenvalue multiset of a square matrix, preserving algebraic multiplicity.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Vector"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"], citation="SymPy MatrixBase.eigenvals"),
+            RuleDefinition(rule_id="matrix_eigenvector", name="Matrix Eigenvector", category="linear_algebra",
+                description="Verifies a non-zero vector v satisfies A*v = lambda*v for an explicit eigenvalue lambda.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Vector"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"], citation="SymPy Matrix eigenvector semantics"),
+            RuleDefinition(rule_id="matrix_diagonalize", name="Matrix Diagonalization", category="linear_algebra",
+                description="Verifies A = P*D*P^-1 with square invertible P and diagonal D.", domain="mathematics",
+                inputs=["Matrix"], outputs=["Matrix P", "Diagonal Matrix D"], implementation_backend="linear_algebra",
+                allowed_checkers=["linear_algebra"], citation="SymPy MatrixBase.diagonalize"),
         ]:
             self.register(linear_rule)
 
