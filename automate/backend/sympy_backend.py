@@ -49,6 +49,7 @@ class SymPyChecker(BaseChecker):
         error_msg = None
         details: Dict[str, Any] = {"rule": rule}
         certificates: List[Dict[str, Any]] = []
+        status_override = None
 
         # Check side conditions against active assumptions
         active_asms = {aid for aid, a in graph.assumptions.items() if a.active}
@@ -157,7 +158,8 @@ class SymPyChecker(BaseChecker):
                 passed = False
                 error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}"
 
-            status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
+            if status_override is None:
+                status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
 
         elapsed = (time.perf_counter() - start_time) * 1000
         return self._build_report(status, passed, details, certificates, error_msg,
