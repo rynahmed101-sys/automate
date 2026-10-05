@@ -632,7 +632,12 @@ class LinearAlgebraChecker(BaseChecker):
                 numeric_a = self._numeric_array(parsed_inputs[0])
                 numeric_b = self._numeric_array(parsed_inputs[1])
                 if numeric_a is not None and numeric_b is not None:
-                    numpy_expected = {"value": np.asarray(1 if np.vdot(numeric_a.reshape(-1), numeric_b.reshape(-1)) == 0 else 0)}
+                    inner_numeric = np.vdot(numeric_a.reshape(-1), numeric_b.reshape(-1))
+                    numpy_expected = {
+                        "value": np.asarray(
+                            1 if np.isclose(inner_numeric, 0, rtol=1e-9, atol=1e-10) else 0
+                        )
+                    }
                 steps.append({
                     "step": 1,
                     "operation": "orthogonality",
@@ -906,7 +911,7 @@ class LinearAlgebraChecker(BaseChecker):
                 raise AssertionError(f"Unhandled linear algebra rule {rule}")
 
             details["input_shapes"] = [list(x.shape) for x in parsed_inputs]
-            if rule == "matrix_diagonalize":
+            if rule in {"matrix_diagonalize", "vector_gram_schmidt"}:
                 details["output_shapes"] = [list(x.shape) for x in parsed_outputs]
                 details["symbolic_equivalence"] = symbolic_passed
             else:
