@@ -190,7 +190,10 @@
       "vector line-work integrals",
       "parameterized scalar surface integrals",
       "oriented surface flux integrals",
-      "Cartesian volume integrals"
+      "Cartesian volume integrals",
+      "Green's theorem on Cartesian rectangles",
+      "divergence theorem on Cartesian boxes",
+      "Stokes' theorem on planar Cartesian rectangles"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -706,6 +709,33 @@
     },
     {
       "rule_id": "conservative_field",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "green_theorem",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "divergence_theorem",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "stokes_theorem",
       "category": "vector_calculus",
       "domain": "mathematics",
       "implementation_backend": "vector_calculus",

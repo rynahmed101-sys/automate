@@ -24,6 +24,7 @@ class VectorCalculusChecker(BaseChecker):
         "divergence", "curl", "laplacian", "conservative_field",
         "line_integral_scalar", "line_integral_vector",
         "surface_integral_scalar", "surface_flux", "volume_integral",
+        "green_theorem", "divergence_theorem", "stokes_theorem",
     }
 
     @property
@@ -375,6 +376,95 @@ class VectorCalculusChecker(BaseChecker):
                 details["independent_numerical_check"] = self._independent_integral_check(
                     rule, integrand, outputs[0], variables, bounds
                 )
+                return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
+            elif rule in {"green_theorem", "divergence_theorem", "stokes_theorem"}:
+                if len(outputs) != 1 or outputs[0].kind != "scalar":
+                    raise ValueError(f"{rule} requires exactly one scalar output.")
+                coords = edge.parameters.get("coordinates")
+                bounds = edge.parameters.get("bounds")
+                orientation = edge.parameters.get("orientation")
+                if not isinstance(orientation, str):
+                    raise ValueError("Theorem verification requires an explicit orientation contract.")
+                if rule == "green_theorem":
+                    if len(inputs) != 1 or inputs[0].kind != "vector":
+                        raise ValueError("green_theorem requires one 2D vector field.")
+                    if coords != ["x", "y"] or len(inputs[0].value) != 2:
+                        raise ValueError("green_theorem is bounded to Cartesian x,y fields.")
+                    if orientation != "ccw":
+                        raise ValueError("green_theorem requires counterclockwise boundary orientation.")
+                    if not isinstance(bounds, list) or len(bounds) != 2:
+                        raise ValueError("green_theorem requires rectangular [x,y] bounds.")
+                    (x0,x1),(y0,y1) = [(sp.sympify(a),sp.sympify(b)) for a,b in bounds]
+                    x,y = sp.Symbol("x"),sp.Symbol("y")
+                    P,Q = sp.Matrix(inputs[0].value)
+                    circulation = (
+                        sp.integrate(P.subs(y,y0),(x,x0,x1)) +
+                        sp.integrate(Q.subs(x,x1),(y,y0,y1)) -
+                        sp.integrate(P.subs(y,y1),(x,x0,x1)) -
+                        sp.integrate(Q.subs(x,x0),(y,y0,y1))
+                    )
+                    area_curl = sp.integrate(sp.integrate(sp.diff(Q,x)-sp.diff(P,y),(y,y0,y1)),(x,x0,x1))
+                    expected = sp.simplify(circulation - area_curl)
+                elif rule == "divergence_theorem":
+                    if len(inputs) != 1 or inputs[0].kind != "vector":
+                        raise ValueError("divergence_theorem requires one 3D vector field.")
+                    if coords != ["x", "y", "z"] or len(inputs[0].value) != 3:
+                        raise ValueError("divergence_theorem is bounded to Cartesian x,y,z fields.")
+                    if orientation != "outward":
+                        raise ValueError("divergence_theorem requires outward surface orientation.")
+                    if not isinstance(bounds, list) or len(bounds) != 3:
+                        raise ValueError("divergence_theorem requires rectangular [x,y,z] bounds.")
+                    (x0,x1),(y0,y1),(z0,z1) = [(sp.sympify(a),sp.sympify(b)) for a,b in bounds]
+                    x,y,z = sp.Symbol("x"),sp.Symbol("y"),sp.Symbol("z")
+                    F = sp.Matrix(inputs[0].value)
+                    flux = (
+                        sp.integrate(sp.integrate(-F[0].subs(x,x0),(z,z0,z1)),(y,y0,y1)) +
+                        sp.integrate(sp.integrate(F[0].subs(x,x1),(z,z0,z1)),(y,y0,y1)) +
+                        sp.integrate(sp.integrate(-F[1].subs(y,y0),(z,z0,z1)),(x,x0,x1)) +
+                        sp.integrate(sp.integrate(F[1].subs(y,y1),(z,z0,z1)),(x,x0,x1)) +
+                        sp.integrate(sp.integrate(-F[2].subs(z,z0),(y,y0,y1)),(x,x0,x1)) +
+                        sp.integrate(sp.integrate(F[2].subs(z,z1),(y,y0,y1)),(x,x0,x1))
+                    )
+                    volume_div = sp.integrate(sp.integrate(sp.integrate(sp.diff(F[0],x)+sp.diff(F[1],y)+sp.diff(F[2],z),(z,z0,z1)),(y,y0,y1)),(x,x0,x1))
+                    expected = sp.simplify(flux - volume_div)
+                else:
+                    if len(inputs) != 1 or inputs[0].kind != "vector":
+                        raise ValueError("stokes_theorem requires one 3D vector field.")
+                    if coords != ["x", "y", "z"] or len(inputs[0].value) != 3:
+                        raise ValueError("stokes_theorem is bounded to Cartesian x,y,z fields.")
+                    if orientation != "ccw_viewed_from_positive_normal":
+                        raise ValueError("stokes_theorem requires counterclockwise boundary orientation viewed from +z.")
+                    if not isinstance(bounds, list) or len(bounds) != 2:
+                        raise ValueError("stokes_theorem requires rectangular x,y surface bounds.")
+                    (x0,x1),(y0,y1) = [(sp.sympify(a),sp.sympify(b)) for a,b in bounds]
+                    x,y,z = sp.Symbol("x"),sp.Symbol("y"),sp.Symbol("z")
+                    z0 = sp.sympify(edge.parameters.get("z", 0))
+                    F = sp.Matrix(inputs[0].value)
+                    circulation = (
+                        sp.integrate(F[0].subs({y:y0,z:z0}),(x,x0,x1)) +
+                        sp.integrate(F[1].subs({x:x1,z:z0}),(y,y0,y1)) -
+                        sp.integrate(F[0].subs({y:y1,z:z0}),(x,x0,x1)) -
+                        sp.integrate(F[1].subs({x:x0,z:z0}),(y,y0,y1))
+                    )
+                    surface_curl = sp.integrate(sp.integrate(
+                        sp.diff(F[1],x)-sp.diff(F[0],y), (y,y0,y1)),(x,x0,x1)).subs(z,z0)
+                    expected = sp.simplify(circulation - surface_curl)
+                expected_parsed = ParsedLinearAlgebra("scalar", sp.sympify(expected))
+                if not self._equal(outputs[0], expected_parsed):
+                    return self._report(edge, graph, start, VerificationStatus.FAILED, False,
+                                        {**details, "expected": self._display(expected_parsed), "actual": self._display(outputs[0])},
+                                        f"{rule} theorem equality is mathematically incorrect.")
+                details["symbolic_equivalence"] = True
+                details["theorem_contract"] = {
+                    "orientation": orientation,
+                    "domain": "explicit Cartesian rectangle/box",
+                    "regularity": "symbolic differentiability required by SymPy differentiation",
+                }
+                details["independent_evidence"] = {
+                    "available": True,
+                    "independence_class": "TWO_SIDES_SYMBOLIC",
+                    "claim": "boundary integral and derivative-side integral were constructed independently and their difference simplifies to zero.",
+                }
                 return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
             else:
                 if len(outputs) != 1:
