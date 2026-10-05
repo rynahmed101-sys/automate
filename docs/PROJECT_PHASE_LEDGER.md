@@ -19,11 +19,11 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 **Last recorded capability baseline main:** `848b837ffa1f965421da235ef65113cf5fc01132`
 
-**Current work:** Linear Algebra inner-product / orthogonality capability family is being implemented and verified.
+**Current work:** Phase 1 Linear Algebra inner-product / orthogonality capability family is completed and verified. The next capability is Phase 2A Vector Calculus.
 
-**Latest authoritative verification:** Exact-head CI + Security Audit passed on merged main SHA `e098fbe803c7b664a9809af8c724a826f4e1ba3e`. The eigenproblem batch is now **[x] Completed and verified**.
+**Latest authoritative verification:** Exact-head CI + Security Audit passed on merged main SHA `ff7d7821b45685a96c18b6e7f422cdda35c2c788`.
 
-**Next capability after this batch:** Phase 2A Vector Calculus.
+**Next capability:** Phase 2A Vector Calculus.
 
 ---
 
@@ -42,8 +42,8 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Basis, span, linear independence
 - [ ] Change of basis
 - [ ] Symmetric / Hermitian matrices
-- [!] Norms, inner products, orthogonality
-- [!] Projections and Gram-Schmidt
+- [x] Norms, inner products, orthogonality
+- [x] Projections and Gram-Schmidt
 - [ ] Positive-definite matrices
 - [ ] Quadratic forms
 
@@ -66,7 +66,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Initial-value and boundary-value problems
 - [ ] Phase-space representations
 
-**Phase 1 status:** [~] Foundations are being expanded capability-first; the inner-product extension is the active verification gate.
+**Phase 1 status:** [~] Foundations are being expanded capability-first; Linear Algebra inner-product and orthogonality coverage is now verified.
 
 ---
 
