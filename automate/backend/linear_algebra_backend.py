@@ -32,7 +32,7 @@ class LinearAlgebraChecker(BaseChecker):
         "vector_inner_product", "vector_norm", "vector_orthogonal",
         "vector_projection", "vector_gram_schmidt",
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
-        "vector_span_membership", "vector_linear_independence", "vector_basis_of_span",
+        "vector_span_membership", "vector_linear_independence", "vector_basis_of_span", "vector_change_of_basis",
         "linear_transformation_apply", "matrix_representation",
         "matrix_positive_definite",
         "matrix_symmetric", "matrix_hermitian",
@@ -428,6 +428,53 @@ class LinearAlgebraChecker(BaseChecker):
                     combined_rank = np.linalg.matrix_rank(combined)
                     passed = rank_c == rank_a == combined_rank
                     metric = {"rank_input": int(rank_a), "rank_candidate": int(rank_c), "rank_combined": int(combined_rank)}
+            elif rule == "vector_change_of_basis":
+                if len(parsed_inputs) != 3 or any(x.kind != "matrix" for x in parsed_inputs[:2]) or parsed_inputs[2].kind != "vector" or output.kind != "vector":
+                    raise LinearAlgebraParseError(
+                        "vector_change_of_basis requires source basis, target basis, source coordinates, and target coordinates."
+                    )
+                source_basis = sp.Matrix(parsed_inputs[0].value)
+                target_basis = sp.Matrix(parsed_inputs[1].value)
+                source_coords = sp.Matrix(parsed_inputs[2].value)
+                if source_basis.rows != source_basis.cols or target_basis.rows != target_basis.cols:
+                    raise ValueError("Change of basis requires square basis matrices.")
+                if source_basis.shape != target_basis.shape:
+                    raise ValueError("Source and target bases must have the same dimension.")
+                if source_coords.rows != source_basis.cols:
+                    raise ValueError(
+                        f"Source coordinate vector has length {source_coords.rows}; expected {source_basis.cols}."
+                    )
+                source_det = sp.simplify(source_basis.det())
+                target_det = sp.simplify(target_basis.det())
+                if source_det == 0 or target_det == 0:
+                    raise ValueError("Both basis matrices must be invertible.")
+                if source_det.free_symbols or target_det.free_symbols:
+                    return self._unverified(
+                        edge, graph, start, details,
+                        "Change-of-basis verification requires explicitly nonzero basis determinants; parameter domains are not inferred."
+                    )
+                physical_vector = source_basis * source_coords
+                expected_coords = sp.simplify(target_basis.inv() * physical_vector)
+                expected = ParsedLinearAlgebra("vector", expected_coords)
+                numeric_source = self._numeric_array(parsed_inputs[0])
+                numeric_target = self._numeric_array(parsed_inputs[1])
+                numeric_coords = self._numeric_array(parsed_inputs[2])
+                if numeric_source is not None and numeric_target is not None and numeric_coords is not None:
+                    try:
+                        numpy_expected = np.linalg.solve(
+                            numeric_target,
+                            numeric_source @ numeric_coords.reshape(-1),
+                        )
+                    except np.linalg.LinAlgError as exc:
+                        return self._failure(
+                            edge, graph, start, details,
+                            f"Independent change-of-basis cross-check failed: {exc}",
+                        )
+                steps = [
+                    {"step": 1, "operation": "reconstruct_physical_vector", "source_basis_determinant": str(source_det)},
+                    {"step": 2, "operation": "solve_target_basis_coordinates", "target_basis_determinant": str(target_det)},
+                ]
+
             elif rule == "vector_span_membership":
                 generators, vector = inputs
                 if generators.shape[0] != vector.reshape(-1).shape[0]:
