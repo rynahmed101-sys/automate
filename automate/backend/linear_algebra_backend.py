@@ -1081,13 +1081,19 @@ class LinearAlgebraChecker(BaseChecker):
                 numeric = self._numeric_array(parsed_inputs[0])
                 if numeric is not None:
                     matrix_np = np.asarray(numeric)
-                    try:
-                        eigenvalues = np.linalg.eigvalsh(matrix_np)
-                        scale = max(1.0, float(np.linalg.norm(matrix_np, ord=2)))
-                        tolerance = 1e-10 * scale
-                        numpy_expected = int(bool(np.min(eigenvalues) > tolerance))
-                    except np.linalg.LinAlgError:
-                        numpy_expected = None
+                    if not hermitian_verified:
+                        # eigvalsh is only valid for Hermitian/symmetric inputs. For a
+                        # non-Hermitian matrix, positive definiteness is rejected by
+                        # definition rather than feeding invalid input to that routine.
+                        numpy_expected = 0
+                    else:
+                        try:
+                            eigenvalues = np.linalg.eigvalsh(matrix_np)
+                            scale = max(1.0, float(np.linalg.norm(matrix_np, ord=2)))
+                            tolerance = 1e-10 * scale
+                            numpy_expected = int(bool(np.min(eigenvalues) > tolerance))
+                        except np.linalg.LinAlgError:
+                            numpy_expected = None
                 steps = [{"step": 1, "operation": "verify_hermitian_or_symmetric",
                           "verified": hermitian_verified if "hermitian_verified" in locals() else False}]
                 if expected_value == 1:
