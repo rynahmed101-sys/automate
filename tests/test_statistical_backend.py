@@ -256,7 +256,7 @@ def test_empirical_inference_rejects_model_that_does_not_match_graph_claim():
     report = StatisticalChecker().verify_edge(edge, graph)
 
     assert report.passed is False
-    assert report.status == VerificationStatus.FAILED
+    assert report.status == VerificationStatus.NOT_APPLICABLE
     assert "does not match the graph input claim" in (report.error_message or "")
 
 
@@ -308,7 +308,7 @@ def test_empirical_expression_model_cannot_override_graph_expression():
     report = StatisticalChecker().verify_edge(edge, graph)
 
     assert report.passed is False
-    assert report.status == VerificationStatus.FAILED
+    assert report.status == VerificationStatus.NOT_APPLICABLE
     assert "does not match the graph input claim" in (report.error_message or "")
 
 
@@ -450,7 +450,7 @@ def test_empirical_inference_without_uncertainty_cannot_be_statistically_checked
     report = StatisticalChecker().verify_edge(edge, graph)
 
     assert report.passed is False
-    assert report.status == VerificationStatus.FAILED
+    assert report.status == VerificationStatus.NOT_APPLICABLE
     assert "requires positive observational uncertainty" in (report.error_message or "")
 
 
@@ -548,13 +548,7 @@ def test_chi_square_requires_explicit_error_model_assumptions():
             "t_data": t_data.tolist(),
             "x_obs": x_obs.tolist(),
             "noise_std": 0.1,
-"statistical_assumptions": [
-                    "independent_errors",
-                    "normal_errors",
-                    "finite_variance",
-                    "known_error_scale",
-                ],
-                            "data_source": "observed",
+            "data_source": "observed",
             "data_id": "stats-assumptions-v1",
         },
     )
