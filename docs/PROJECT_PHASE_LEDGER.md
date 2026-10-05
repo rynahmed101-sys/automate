@@ -17,11 +17,11 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 ## Current position
 
-**Last recorded capability baseline main:** `bb43131730ecc56797870ca369695275e32f0427`
+**Last recorded capability baseline main:** `446182f8342955f9589ee2cbe3d7ec7d3664cc4b`
 
-**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics, bounded continuous-charge kernels, and finite uniform line-charge potential are now certified on main. The next bounded electrostatics batch is Gauss-law verification.
+**Current work:** Phase 2A Vector Calculus through integral identities is completed and exactly verified. Phase 2B point-charge electrostatics, bounded continuous-charge kernels, finite uniform line-charge potential, and bounded Cartesian Gauss-law verification are now certified on main. The next bounded electrostatics batch is conductors/capacitors.
 
-**Latest authoritative verification:** Exact-head Python 3.10/3.11/3.12/3.13, full tests, adversarial tests, the exact 50-problem acceptance campaign, Phase 1A Linear Algebra Core/Eigenproblem campaigns, Lean 4, CodeQL, and pip-audit passed on merged main SHA `bb43131730ecc56797870ca369695275e32f0427`.
+**Latest authoritative verification:** Exact-head Python 3.10/3.11/3.12/3.13, full tests, adversarial tests, the exact 50-problem acceptance campaign, Phase 1A Linear Algebra Core/Eigenproblem campaigns, Lean 4, CodeQL, and pip-audit passed on merged main SHA `446182f8342955f9589ee2cbe3d7ec7d3664cc4b`.
 
 **Next capability:** Gauss-law verification for explicit bounded Cartesian charge/surface configurations. Conductors, capacitors, dipoles, and general boundary conditions remain later bounded batches.
 
@@ -94,7 +94,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [x] Charge distributions
 - [x] Bounded continuous-charge field/potential kernels
 - [x] Finite uniform line-charge potential
-- [ ] Gauss law
+- [x] Gauss law
 - [ ] Conductors and capacitors
 - [ ] Dipoles and electrostatic energy
 - [ ] Boundary conditions
@@ -117,7 +117,7 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 - [ ] Poynting vector
 - [ ] Electromagnetic wave equation
 
-**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge, bounded continuous-charge, and finite line-charge potential batches are verified. Gauss-law verification is the next bounded electrostatics capability.
+**Phase 2 status:** [~] Vector Calculus through integral identities and Phase 2B point-charge, bounded continuous-charge, finite line-charge potential, and bounded Cartesian Gauss-law verification are verified. Conductors/capacitors are the next bounded electrostatics capability.
 
 ---
 
@@ -366,8 +366,8 @@ A merged feature is **not** marked [x] until its acceptance evidence and exact-h
 
 ## Next move
 
-**1. Implement bounded Gauss-law verification for explicit Cartesian charge/surface configurations.**
+**1. Implement bounded conductor/capacitor verification for explicit Cartesian configurations.**
 
-**2. Verify enclosed-charge/flux equivalence with positive, negative, geometry-edge, and adversarial cases.**
+**2. Verify equipotential/conductor-field constraints and capacitance relations with positive, negative, geometry-edge, and adversarial cases.**
 
-**3. Preserve the explicit geometry and fail-closed semantics before advancing to conductors/capacitors or broader electrostatics.**
+**3. Preserve explicit geometry, units/measure semantics, and fail-closed behavior before advancing to dipoles and boundary conditions.**
