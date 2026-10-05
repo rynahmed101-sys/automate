@@ -175,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Current main is ab563a7709fbbb21a901603c22082750f98c9d84; Exact-head run #15, Automate CI run #983, and Security Audit run #539 all pass on that exact HEAD. Linear transformations, symmetric/Hermitian matrices, and positive-definite matrices are authoritatively verified on the current merged main. Change-of-basis remains in-progress on an unmerged branch. SVD, quadratic forms, pseudoinverse/least-squares, and complex semantics remain implementation/review work on open PRs. Stage 1B and 1C remain unfinished.
+**Current status:** [~] Active. Current main is 818c9dd155e50960a83a9048e0b84d2e1606e792. The ledger scope was expanded on this HEAD, so the authoritative Exact-head verification and Security Audit must be rerun for this exact SHA before any affected capability can be certified. Linear transformations, symmetric/Hermitian matrices, and positive-definite matrices are authoritatively verified on the current merged main. Change-of-basis remains in-progress on an unmerged branch. SVD, quadratic forms, pseudoinverse/least-squares, and complex semantics remain implementation/review work on open PRs. Stage 1B and 1C remain unfinished.
 
 ---
 
@@ -615,7 +615,7 @@ When entering a new chat:
 
 **Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
 
-**Current authoritative baseline:** main is ab563a7709fbbb21a901603c22082750f98c9d84. Exact-head #15 and Security Audit #539 both pass on this exact merged HEAD. The Security Audit concurrency defect was corrected before this certification boundary. The ledger must not claim certification for capabilities that are only present on unmerged branches.
+**Current authoritative baseline:** main is 818c9dd155e50960a83a9048e0b84d2e1606e792. This HEAD contains the expanded Stage 2B ledger scope and therefore requires fresh authoritative Exact-head verification and Security Audit evidence. The ledger must not claim certification for capabilities that are only present on unmerged branches.
 
 ---
 
