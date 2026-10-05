@@ -31,6 +31,8 @@ class LinearAlgebraChecker(BaseChecker):
         "matrix_eigenvector", "matrix_diagonalize",
         "vector_inner_product", "vector_norm", "vector_orthogonal",
         "vector_projection", "vector_gram_schmidt",
+        "matrix_null_space", "matrix_row_space", "matrix_column_space",
+        "vector_span_membership", "vector_linear_independence", "vector_basis_of_span",
     }
 
     @property
@@ -366,6 +368,102 @@ class LinearAlgebraChecker(BaseChecker):
             "diagonal_max_abs_error": diagonal_error,
             "eigenvalue_match": eigenvalue_match,
         }
+
+    @staticmethod
+    def _has_free_symbols(value: ParsedLinearAlgebra) -> bool:
+        if value.kind == "scalar":
+            return bool(value.value.free_symbols)
+        return any(entry.free_symbols for entry in sp.Matrix(value.value))
+
+    @classmethod
+    def _numpy_subspace_compare(
+        cls, rule: str, parsed_inputs: list[ParsedLinearAlgebra], parsed_outputs: list[ParsedLinearAlgebra]
+    ) -> dict[str, Any]:
+        """Independently verify subspace dimensions/residuals with NumPy."""
+        arrays = [cls._numeric_array(value) for value in [*parsed_inputs, *parsed_outputs]]
+        if any(value is None for value in arrays):
+            return {
+                "available": False,
+                "independence_class": "NOT_AVAILABLE",
+                "reason": "Subspace cross-check requires numeric inputs and outputs.",
+            }
+        inputs = arrays[:len(parsed_inputs)]
+        outputs = arrays[len(parsed_inputs):]
+        candidate = outputs[0]
+        try:
+            if rule == "matrix_null_space":
+                matrix = inputs[0]
+                expected_dim = matrix.shape[1] - np.linalg.matrix_rank(matrix)
+                residual = matrix @ candidate
+                scale = max(1.0, float(np.linalg.norm(matrix, ord=np.inf)) * float(np.linalg.norm(candidate, ord=np.inf)) if candidate.size else 1.0)
+                tolerance = 1e-9 + 1e-8 * scale
+                candidate_rank = np.linalg.matrix_rank(candidate)
+                passed = residual.size == 0 or (float(np.max(np.abs(residual))) <= tolerance and candidate_rank == expected_dim)
+                metric = {"residual_max_abs": float(np.max(np.abs(residual))) if residual.size else 0.0}
+            elif rule == "matrix_row_space":
+                matrix = inputs[0]
+                if candidate.shape[1] != matrix.shape[1]:
+                    passed = False
+                    metric = {"shape_match": False}
+                else:
+                    rank_a = np.linalg.matrix_rank(matrix)
+                    rank_c = np.linalg.matrix_rank(candidate)
+                    combined = np.vstack([matrix, candidate])
+                    combined_rank = np.linalg.matrix_rank(combined)
+                    passed = rank_c == rank_a == combined_rank
+                    metric = {"rank_input": int(rank_a), "rank_candidate": int(rank_c), "rank_combined": int(combined_rank)}
+            elif rule == "matrix_column_space":
+                matrix = inputs[0]
+                if candidate.shape[0] != matrix.shape[0]:
+                    passed = False
+                    metric = {"shape_match": False}
+                else:
+                    rank_a = np.linalg.matrix_rank(matrix)
+                    rank_c = np.linalg.matrix_rank(candidate)
+                    combined = np.hstack([matrix, candidate])
+                    combined_rank = np.linalg.matrix_rank(combined)
+                    passed = rank_c == rank_a == combined_rank
+                    metric = {"rank_input": int(rank_a), "rank_candidate": int(rank_c), "rank_combined": int(combined_rank)}
+            elif rule == "vector_span_membership":
+                generators, vector = inputs
+                if generators.shape[0] != vector.reshape(-1).shape[0]:
+                    passed = False
+                    metric = {"shape_match": False}
+                else:
+                    rank_g = np.linalg.matrix_rank(generators)
+                    rank_aug = np.linalg.matrix_rank(np.column_stack([generators, vector.reshape(-1)]))
+                    passed = rank_g == rank_aug
+                    metric = {"rank_generators": int(rank_g), "rank_augmented": int(rank_aug)}
+            elif rule == "vector_linear_independence":
+                generators = inputs[0]
+                rank_g = np.linalg.matrix_rank(generators)
+                passed = rank_g == generators.shape[1]
+                metric = {"rank": int(rank_g), "column_count": int(generators.shape[1])}
+            else:
+                generators, basis = inputs
+                rank_g = np.linalg.matrix_rank(generators)
+                rank_b = np.linalg.matrix_rank(basis)
+                combined = np.column_stack([generators, basis])
+                combined_rank = np.linalg.matrix_rank(combined)
+                passed = rank_b == rank_g == combined_rank
+                metric = {"rank_generators": int(rank_g), "rank_basis": int(rank_b), "rank_combined": int(combined_rank)}
+            return {
+                "available": True,
+                "independence_class": "DIFFERENT_ENGINE",
+                "engine": "numpy.linalg.matrix_rank",
+                "version": np.__version__,
+                "operation": rule,
+                "passed": bool(passed),
+                "rtol": 1e-8,
+                "atol": 1e-10,
+                **metric,
+            }
+        except (TypeError, ValueError, np.linalg.LinAlgError) as exc:
+            return {
+                "available": False,
+                "independence_class": "NOT_AVAILABLE",
+                "reason": f"NumPy subspace cross-check unavailable: {type(exc).__name__}: {exc}",
+            }
 
     def _failure(self, edge, graph, start, details, message):
         elapsed = (time.perf_counter() - start) * 1000
@@ -762,6 +860,114 @@ class LinearAlgebraChecker(BaseChecker):
                     for index in range(len(generated))
                 ]
 
+            elif rule in {"matrix_null_space", "matrix_row_space", "matrix_column_space"}:
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "matrix":
+                    raise LinearAlgebraParseError(f"{rule} requires one matrix input and one matrix output.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                candidate = sp.Matrix(output.value)
+                if self._has_free_symbols(parsed_inputs[0]) or self._has_free_symbols(output):
+                    return self._unverified(
+                        edge, graph, start, details,
+                        "Subspace basis verification is restricted to explicit scalar entries; symbolic parameter domains are not inferred."
+                    )
+                if rule == "matrix_null_space":
+                    if candidate.rows != matrix.cols:
+                        raise ValueError(f"Null-space basis must have {matrix.cols} rows; received {candidate.shape}.")
+                    residual = matrix * candidate
+                    target_rank = matrix.cols - matrix.rank()
+                    candidate_rank = candidate.rank()
+                    symbolic_passed = (
+                        all(sp.simplify(value) == 0 for value in residual)
+                        and candidate_rank == target_rank
+                    )
+                    steps = [
+                        {"step": 1, "operation": "verify_null_space_residual", "residual": self._display(ParsedLinearAlgebra("matrix", residual))},
+                        {"step": 2, "operation": "verify_nullity_basis_dimension", "expected_dimension": int(target_rank), "candidate_rank": int(candidate_rank)},
+                    ]
+                elif rule == "matrix_row_space":
+                    if candidate.cols != matrix.cols:
+                        raise ValueError(f"Row-space basis must have {matrix.cols} columns; received {candidate.shape}.")
+                    rank_a = matrix.rank()
+                    rank_c = candidate.rank()
+                    combined_rank = matrix.col_join(candidate).rank()
+                    symbolic_passed = rank_c == rank_a == combined_rank
+                    steps = [
+                        {"step": 1, "operation": "verify_row_space_basis_rank", "input_rank": int(rank_a), "candidate_rank": int(rank_c), "combined_rank": int(combined_rank)},
+                    ]
+                else:
+                    if candidate.rows != matrix.rows:
+                        raise ValueError(f"Column-space basis must have {matrix.rows} rows; received {candidate.shape}.")
+                    rank_a = matrix.rank()
+                    rank_c = candidate.rank()
+                    combined_rank = matrix.row_join(candidate).rank()
+                    symbolic_passed = rank_c == rank_a == combined_rank
+                    steps = [
+                        {"step": 1, "operation": "verify_column_space_basis_rank", "input_rank": int(rank_a), "candidate_rank": int(rank_c), "combined_rank": int(combined_rank)},
+                    ]
+                expected = output
+                numpy_expected = None
+
+            elif rule == "vector_span_membership":
+                if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "scalar":
+                    raise LinearAlgebraParseError("vector_span_membership requires a generator matrix, candidate vector, and scalar indicator.")
+                generators = sp.Matrix(parsed_inputs[0].value)
+                vector = sp.Matrix(parsed_inputs[1].value)
+                if self._has_free_symbols(parsed_inputs[0]) or self._has_free_symbols(parsed_inputs[1]):
+                    return self._unverified(
+                        edge, graph, start, details,
+                        "Span membership is restricted to explicit scalar entries; symbolic parameter domains are not inferred."
+                    )
+                if generators.rows != vector.rows:
+                    raise ValueError(f"Span membership shape mismatch: generator matrix has {generators.rows} rows but candidate has length {vector.rows}.")
+                rank_generators = generators.rank()
+                rank_augmented = generators.row_join(vector).rank()
+                expected_value = sp.Integer(1 if rank_generators == rank_augmented else 0)
+                expected = ParsedLinearAlgebra("scalar", expected_value)
+                steps = [{"step": 1, "operation": "span_membership_rank_test", "generator_rank": int(rank_generators), "augmented_rank": int(rank_augmented)}]
+                numeric_g = self._numeric_array(parsed_inputs[0])
+                numeric_v = self._numeric_array(parsed_inputs[1])
+                if numeric_g is not None and numeric_v is not None:
+                    numpy_expected = {"generators": numeric_g, "vector": numeric_v}
+                    # Candidate indicator is checked by the dedicated subspace cross-check below.
+
+            elif rule == "vector_linear_independence":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
+                    raise LinearAlgebraParseError("vector_linear_independence requires a generator matrix whose columns are vectors and a scalar indicator.")
+                generators = sp.Matrix(parsed_inputs[0].value)
+                if self._has_free_symbols(parsed_inputs[0]):
+                    return self._unverified(
+                        edge, graph, start, details,
+                        "Linear-independence verification is restricted to explicit scalar entries; symbolic parameter domains are not inferred."
+                    )
+                rank_generators = generators.rank()
+                expected = ParsedLinearAlgebra("scalar", sp.Integer(1 if rank_generators == generators.cols else 0))
+                steps = [{"step": 1, "operation": "linear_independence_rank_test", "rank": int(rank_generators), "vector_count": int(generators.cols)}]
+                numeric_g = self._numeric_array(parsed_inputs[0])
+                if numeric_g is not None:
+                    numpy_expected = {"generators": numeric_g}
+
+            elif rule == "vector_basis_of_span":
+                if len(parsed_inputs) != 2 or any(x.kind != "matrix" for x in parsed_inputs) or output.kind != "scalar":
+                    raise LinearAlgebraParseError("vector_basis_of_span requires a generator matrix, candidate basis matrix, and scalar indicator.")
+                generators = sp.Matrix(parsed_inputs[0].value)
+                basis = sp.Matrix(parsed_inputs[1].value)
+                if generators.rows != basis.rows:
+                    raise ValueError(f"Basis shape mismatch: generator matrix has {generators.rows} rows but candidate basis has {basis.rows}.")
+                if self._has_free_symbols(parsed_inputs[0]) or self._has_free_symbols(parsed_inputs[1]):
+                    return self._unverified(
+                        edge, graph, start, details,
+                        "Basis verification is restricted to explicit scalar entries; symbolic parameter domains are not inferred."
+                    )
+                rank_generators = generators.rank()
+                rank_basis = basis.rank()
+                combined_rank = generators.row_join(basis).rank()
+                expected = ParsedLinearAlgebra("scalar", sp.Integer(1 if rank_basis == rank_generators == combined_rank else 0))
+                steps = [{"step": 1, "operation": "basis_span_rank_test", "generator_rank": int(rank_generators), "basis_rank": int(rank_basis), "combined_rank": int(combined_rank)}]
+                numeric_g = self._numeric_array(parsed_inputs[0])
+                numeric_b = self._numeric_array(parsed_inputs[1])
+                if numeric_g is not None and numeric_b is not None:
+                    numpy_expected = {"generators": numeric_g, "basis": numeric_b}
+
             elif rule == "matrix_characteristic_polynomial":
                 if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
                     raise LinearAlgebraParseError("matrix_characteristic_polynomial requires one square matrix input and one scalar output.")
@@ -914,7 +1120,68 @@ class LinearAlgebraChecker(BaseChecker):
                     symbolic_passed = self._equal(output, expected)
                 details["symbolic_equivalence"] = symbolic_passed
 
-            if rule == "matrix_diagonalize":
+            if rule in {"matrix_null_space", "matrix_row_space", "matrix_column_space"}:
+                cross = self._numpy_subspace_compare(rule, parsed_inputs, parsed_outputs)
+            elif rule == "vector_span_membership":
+                numeric_g = self._numeric_array(parsed_inputs[0])
+                numeric_v = self._numeric_array(parsed_inputs[1])
+                if numeric_g is not None and numeric_v is not None:
+                    rank_g = np.linalg.matrix_rank(numeric_g)
+                    rank_aug = np.linalg.matrix_rank(np.column_stack([numeric_g, numeric_v.reshape(-1)]))
+                    expected_indicator = 1 if rank_g == rank_aug else 0
+                    actual_indicator = self._numeric_scalar(output.value)
+                    cross = {
+                        "available": True,
+                        "independence_class": "DIFFERENT_ENGINE",
+                        "engine": "numpy.linalg.matrix_rank",
+                        "version": np.__version__,
+                        "operation": rule,
+                        "passed": actual_indicator is not None and bool(np.isclose(actual_indicator, expected_indicator, atol=1e-10, rtol=0)),
+                        "expected_indicator": expected_indicator,
+                        "actual_indicator": actual_indicator,
+                    }
+                else:
+                    cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "Span cross-check requires numeric inputs."}
+            elif rule == "vector_linear_independence":
+                numeric_g = self._numeric_array(parsed_inputs[0])
+                if numeric_g is not None:
+                    rank_g = np.linalg.matrix_rank(numeric_g)
+                    expected_indicator = 1 if rank_g == numeric_g.shape[1] else 0
+                    actual_indicator = self._numeric_scalar(output.value)
+                    cross = {
+                        "available": True,
+                        "independence_class": "DIFFERENT_ENGINE",
+                        "engine": "numpy.linalg.matrix_rank",
+                        "version": np.__version__,
+                        "operation": rule,
+                        "passed": actual_indicator is not None and bool(np.isclose(actual_indicator, expected_indicator, atol=1e-10, rtol=0)),
+                        "expected_indicator": expected_indicator,
+                        "actual_indicator": actual_indicator,
+                    }
+                else:
+                    cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "Independence cross-check requires numeric input."}
+            elif rule == "vector_basis_of_span":
+                numeric_g = self._numeric_array(parsed_inputs[0])
+                numeric_b = self._numeric_array(parsed_inputs[1])
+                if numeric_g is not None and numeric_b is not None:
+                    rank_g = np.linalg.matrix_rank(numeric_g)
+                    rank_b = np.linalg.matrix_rank(numeric_b)
+                    rank_combined = np.linalg.matrix_rank(np.column_stack([numeric_g, numeric_b]))
+                    expected_indicator = 1 if rank_b == rank_g == rank_combined else 0
+                    actual_indicator = self._numeric_scalar(output.value)
+                    cross = {
+                        "available": True,
+                        "independence_class": "DIFFERENT_ENGINE",
+                        "engine": "numpy.linalg.matrix_rank",
+                        "version": np.__version__,
+                        "operation": rule,
+                        "passed": actual_indicator is not None and bool(np.isclose(actual_indicator, expected_indicator, atol=1e-10, rtol=0)),
+                        "expected_indicator": expected_indicator,
+                        "actual_indicator": actual_indicator,
+                    }
+                else:
+                    cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "Basis cross-check requires numeric inputs."}
+            elif rule == "matrix_diagonalize":
                 cross = self._numpy_diagonalization_compare(parsed_inputs[0], parsed_outputs[0], parsed_outputs[1])
             elif rule == "vector_gram_schmidt":
                 numeric_inputs = [self._numeric_array(x) for x in parsed_inputs]
