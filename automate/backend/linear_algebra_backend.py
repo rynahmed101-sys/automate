@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 from typing import Any
 
@@ -25,7 +26,10 @@ class LinearAlgebraChecker(BaseChecker):
     _RULES = {
         "vector_add", "vector_subtract", "vector_scalar_multiply", "vector_dot",
         "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_trace",
-        "matrix_inverse", "matrix_rank", "matrix_rref", "linear_system_solve",
+        "matrix_inverse", "matrix_rank", "matrix_rref",
+        "matrix_eigenvalues", "matrix_eigenvector",
+        "matrix_characteristic_polynomial", "matrix_diagonalize",
+        "linear_system_solve",
     }
 
     @property
@@ -53,6 +57,16 @@ class LinearAlgebraChecker(BaseChecker):
             return False
 
     @classmethod
+    def _equal(cls, actual: ParsedLinearAlgebra, expected: ParsedLinearAlgebra) -> bool:
+        if actual.kind != expected.kind or actual.shape != expected.shape:
+            return False
+        if actual.kind == "scalar":
+            return cls._equal_scalar(actual.value, expected.value)
+        a, b = sp.Matrix(actual.value), sp.Matrix(expected.value)
+        return all(cls._equal_scalar(a[i, j], b[i, j])
+                   for i in range(a.rows) for j in range(a.cols))
+
+    @classmethod
     def _eigenvalues_equal(cls, actual: ParsedLinearAlgebra, expected: ParsedLinearAlgebra) -> bool:
         if actual.kind != "vector" or expected.kind != "vector" or actual.shape != expected.shape:
             return False
@@ -67,16 +81,6 @@ class LinearAlgebraChecker(BaseChecker):
             else:
                 return False
         return not unmatched
-
-    @classmethod
-    def _equal(cls, actual: ParsedLinearAlgebra, expected: ParsedLinearAlgebra) -> bool:
-        if actual.kind != expected.kind or actual.shape != expected.shape:
-            return False
-        if actual.kind == "scalar":
-            return cls._equal_scalar(actual.value, expected.value)
-        a, b = sp.Matrix(actual.value), sp.Matrix(expected.value)
-        return all(cls._equal_scalar(a[i, j], b[i, j])
-                   for i in range(a.rows) for j in range(a.cols))
 
     @staticmethod
     def _numeric_scalar(value: sp.Expr) -> complex | float | None:
@@ -203,8 +207,13 @@ class LinearAlgebraChecker(BaseChecker):
             return self._failure(edge, graph, start, details, "Referenced linear-algebra nodes are missing.")
 
         try:
-            parsed_inputs = [parse_linear_algebra_expression(n.expression.raw_str) for n in inputs]
-            output = parse_linear_algebra_expression(outputs[0].expression.raw_str)
+            parsed_inputs = [
+                parse_linear_algebra_expression(n.expression.raw_str) for n in inputs
+            ]
+            parsed_outputs = [
+                parse_linear_algebra_expression(n.expression.raw_str) for n in outputs
+            ]
+            output = parsed_outputs[0]
         except LinearAlgebraParseError as exc:
             details["parse_error"] = str(exc)
             return self._failure(edge, graph, start, details, f"Malformed linear-algebra expression: {exc}")
@@ -306,6 +315,163 @@ class LinearAlgebraChecker(BaseChecker):
                 if not steps:
                     steps.append({"step": 1, "operation": rule, "shape": list(matrix.shape)})
 
+
+            elif rule == "matrix_eigenvalues":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "vector":
+                    raise LinearAlgebraParseError(
+                        "matrix_eigenvalues requires one matrix input and one vector output."
+                    )
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(
+                        f"matrix_eigenvalues requires a square matrix; received {matrix.shape}."
+                    )
+                eigen_map = matrix.eigenvals()
+                eigenvalues = []
+                for eigenvalue, multiplicity in sorted(
+                    eigen_map.items(), key=lambda item: sp.default_sort_key(item[0])
+                ):
+                    eigenvalues.extend([eigenvalue] * int(multiplicity))
+                expected = ParsedLinearAlgebra("vector", sp.Matrix(eigenvalues))
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    numpy_expected = np.linalg.eigvals(numeric)
+                steps.append({
+                    "step": 1,
+                    "operation": "eigenvalue_spectrum",
+                    "algebraic_multiplicities": {
+                        str(key): int(value) for key, value in eigen_map.items()
+                    },
+                })
+
+            elif rule == "matrix_eigenvector":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "vector":
+                    raise LinearAlgebraParseError(
+                        "matrix_eigenvector requires one matrix input and one vector output."
+                    )
+                eigenvalue_text = edge.parameters.get("eigenvalue")
+                if not isinstance(eigenvalue_text, str) or not eigenvalue_text.strip():
+                    raise LinearAlgebraParseError("parameters['eigenvalue'] is required.")
+                eigenvalue = parse_linear_algebra_expression(eigenvalue_text)
+                if eigenvalue.kind != "scalar":
+                    raise LinearAlgebraParseError("parameters['eigenvalue'] must be scalar.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(
+                        f"matrix_eigenvector requires a square matrix; received {matrix.shape}."
+                    )
+                vector = sp.Matrix(output.value)
+                if vector.rows != matrix.rows:
+                    raise ValueError(
+                        f"Eigenvector shape mismatch: A is {matrix.shape} but v has length {vector.rows}."
+                    )
+                if all(sp.simplify(entry) == 0 for entry in vector):
+                    raise ValueError("An eigenvector must be non-zero.")
+                residual = matrix * vector - eigenvalue.value * vector
+                if any(not self._equal_scalar(entry, sp.Integer(0)) for entry in residual):
+                    raise ValueError("Candidate vector does not satisfy A*v = eigenvalue*v.")
+                expected = ParsedLinearAlgebra("vector", vector)
+                numeric_matrix = self._numeric_array(parsed_inputs[0])
+                numeric_vector = self._numeric_array(output)
+                numeric_eigenvalue = self._numeric_scalar(eigenvalue.value)
+                if numeric_matrix is not None and numeric_vector is not None and numeric_eigenvalue is not None:
+                    numpy_expected = {
+                        "candidate_residual": numeric_matrix @ numeric_vector - numeric_eigenvalue * numeric_vector,
+                        "eigenvalue": numeric_eigenvalue,
+                        "numeric_spectrum": np.linalg.eigvals(numeric_matrix),
+                    }
+                steps.append({
+                    "step": 1,
+                    "operation": "eigenvector_residual",
+                    "eigenvalue": str(eigenvalue.value),
+                    "residual": [str(entry) for entry in residual],
+                })
+
+            elif rule == "matrix_characteristic_polynomial":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
+                    raise LinearAlgebraParseError(
+                        "matrix_characteristic_polynomial requires one matrix input and one scalar output."
+                    )
+                variable = edge.parameters.get("variable", "lam")
+                if not isinstance(variable, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", variable):
+                    raise LinearAlgebraParseError(
+                        "parameters['variable'] must be a simple symbolic identifier."
+                    )
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(
+                        f"matrix_characteristic_polynomial requires a square matrix; received {matrix.shape}."
+                    )
+                generator = sp.Symbol(variable)
+                expected = ParsedLinearAlgebra("scalar", matrix.charpoly(generator).as_expr())
+                steps.append({
+                    "step": 1,
+                    "operation": "characteristic_polynomial",
+                    "variable": variable,
+                    "definition": "det(variable*I - A)",
+                })
+
+            elif rule == "matrix_diagonalize":
+                if (
+                    len(parsed_inputs) != 1
+                    or parsed_inputs[0].kind != "matrix"
+                    or len(parsed_outputs) != 2
+                    or any(value.kind != "matrix" for value in parsed_outputs)
+                ):
+                    raise LinearAlgebraParseError(
+                        "matrix_diagonalize requires one input matrix and two output matrices: P and D."
+                    )
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                P = sp.Matrix(parsed_outputs[0].value)
+                D = sp.Matrix(parsed_outputs[1].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(
+                        f"matrix_diagonalize requires a square matrix; received {matrix.shape}."
+                    )
+                if P.shape != matrix.shape or D.shape != matrix.shape:
+                    raise ValueError(
+                        f"Diagonalization shape mismatch: A={matrix.shape}, P={P.shape}, D={D.shape}."
+                    )
+                if P.det() == 0:
+                    raise ValueError("Diagonalization matrix P must be invertible.")
+                if not D.is_diagonal():
+                    raise ValueError("Diagonalization matrix D must be diagonal.")
+                recomposed = P * D * P.inv()
+                if not self._equal(
+                    ParsedLinearAlgebra("matrix", recomposed),
+                    ParsedLinearAlgebra("matrix", matrix),
+                ):
+                    raise ValueError("Candidate P and D do not satisfy A = P*D*P^-1.")
+                for column in range(P.cols):
+                    eigenvalue = D[column, column]
+                    residual = matrix * P[:, column] - eigenvalue * P[:, column]
+                    if any(not self._equal_scalar(entry, sp.Integer(0)) for entry in residual):
+                        raise ValueError(
+                            f"Column {column} of P is not an eigenvector for diagonal entry {eigenvalue}."
+                        )
+                expected = ParsedLinearAlgebra("matrix", P)
+                numeric_matrix = self._numeric_array(parsed_inputs[0])
+                numeric_P = self._numeric_array(parsed_outputs[0])
+                numeric_D = self._numeric_array(parsed_outputs[1])
+                if numeric_matrix is not None and numeric_P is not None and numeric_D is not None:
+                    try:
+                        numpy_expected = numeric_P @ numeric_D @ np.linalg.inv(numeric_P)
+                    except np.linalg.LinAlgError:
+                        raise ValueError("NumPy could not invert the supplied diagonalization matrix P.")
+                steps = [
+                    {
+                        "step": 1,
+                        "operation": "diagonalization",
+                        "P": self._display(parsed_outputs[0]),
+                        "D": self._display(parsed_outputs[1]),
+                    },
+                    {
+                        "step": 2,
+                        "operation": "recompose",
+                        "identity": "P*D*P^-1 == A",
+                    },
+                ]
+
             elif rule == "linear_system_solve":
                 if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "vector":
                     raise LinearAlgebraParseError("linear_system_solve requires matrix A, vector b, and vector x.")
@@ -334,6 +500,7 @@ class LinearAlgebraChecker(BaseChecker):
                 raise AssertionError(f"Unhandled linear algebra rule {rule}")
 
             details["input_shapes"] = [list(x.shape) for x in parsed_inputs]
+            details["output_shapes"] = [list(x.shape) for x in parsed_outputs]
             details["output_shape"] = list(output.shape)
             details["expected"] = self._display(expected)
             details["actual"] = self._display(output)
@@ -345,9 +512,52 @@ class LinearAlgebraChecker(BaseChecker):
             details["symbolic_equivalence"] = symbolic_passed
             cross = {"available": False, "independence_class": "NOT_AVAILABLE",
                      "reason": "Inputs are symbolic or no independent numeric algorithm is configured."}
-            if numpy_expected is not None:
+
+            if rule == "matrix_eigenvalues" and numpy_expected is not None:
+                actual_numeric = self._numeric_array(output)
+                actual_sorted = np.sort_complex(np.asarray(actual_numeric, dtype=complex).reshape(-1)) if actual_numeric is not None else None
+                expected_sorted = np.sort_complex(np.asarray(numpy_expected, dtype=complex).reshape(-1))
+                passed = bool(
+                    actual_sorted is not None
+                    and actual_sorted.shape == expected_sorted.shape
+                    and np.allclose(actual_sorted, expected_sorted, rtol=1e-8, atol=1e-9)
+                )
+                cross = {
+                    "available": actual_sorted is not None,
+                    "independence_class": "DIFFERENT_ENGINE",
+                    "engine": "numpy.linalg",
+                    "version": np.__version__,
+                    "operation": rule,
+                    "passed": passed,
+                    "rtol": 1e-8,
+                    "atol": 1e-9,
+                }
+
+            elif rule == "matrix_eigenvector" and numpy_expected is not None:
+                residual = np.asarray(numpy_expected["candidate_residual"])
+                spectrum = np.asarray(numpy_expected["numeric_spectrum"])
+                eigenvalue = numpy_expected["eigenvalue"]
+                spectral_match = bool(
+                    np.any(np.isclose(spectrum, eigenvalue, rtol=1e-8, atol=1e-9))
+                )
+                residual_pass = bool(np.allclose(residual, 0, rtol=1e-8, atol=1e-9))
+                cross = {
+                    "available": True,
+                    "independence_class": "DIFFERENT_ENGINE",
+                    "engine": "numpy.linalg",
+                    "version": np.__version__,
+                    "operation": rule,
+                    "passed": bool(spectral_match and residual_pass),
+                    "eigenvalue_in_spectrum": spectral_match,
+                    "candidate_residual_max_abs": float(np.max(np.abs(residual))),
+                    "rtol": 1e-8,
+                    "atol": 1e-9,
+                }
+
+            elif numpy_expected is not None:
                 cross = self._numpy_compare(output, numpy_expected, rule)
-                if not cross["passed"]:
+
+            if cross.get("available") and not cross.get("passed"):
                     return self._failure(edge, graph, start, {**details, "numpy_cross_check": cross},
                                          "Independent NumPy cross-check disagreed with the candidate result.")
             details["numpy_cross_check"] = cross
