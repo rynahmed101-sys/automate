@@ -934,6 +934,38 @@ class RuleRegistry:
             allowed_checkers=["numerical"],
         ))
 
+        # 8. Reusable numerical mathematics primitives
+        for _rule in [
+            RuleDefinition(rule_id="numerical_root", name="Bracketed Numerical Root", category="numerics",
+                description="Find a scalar root only from an explicit finite bracket with endpoint sign evidence and residual reporting.",
+                domain="numerics", inputs=["Scalar function", "Bracket"], outputs=["Root"], implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_derivative", name="Numerical Derivative", category="numerics",
+                description="Central finite-difference derivative with step-refinement evidence.",
+                domain="numerics", inputs=["Scalar function", "Point"], outputs=["Derivative estimate"], implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_quadrature", name="Numerical Quadrature", category="numerics",
+                description="Adaptive finite-interval quadrature with reported numerical error estimate.",
+                domain="numerics", inputs=["Scalar function", "Finite interval"], outputs=["Integral estimate"], implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_interpolation", name="Numerical Interpolation", category="numerics",
+                description="Piecewise-linear interpolation on finite strictly increasing data without silent extrapolation.",
+                domain="numerics", inputs=["Ordered data"], outputs=["Interpolated value"], implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_optimization", name="Bounded Numerical Optimization", category="numerics",
+                description="Bounded scalar minimization with solver-success and finite-objective evidence.",
+                domain="numerics", inputs=["Scalar objective", "Bounds"], outputs=["Minimum estimate"], implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_eigenproblem", name="Numerical Eigenproblem", category="numerics",
+                description="Numerical eigenpairs with independent matrix-eigenvector residual evidence.",
+                domain="numerics", inputs=["Square matrix"], outputs=["Eigenpairs"], implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="fft", name="Fast Fourier Transform", category="numerics",
+                description="FFT with inverse round-trip residual evidence; this is numerical evidence, not a symbolic transform proof.",
+                domain="numerics", inputs=["Finite sequence"], outputs=["Discrete spectrum"], implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="monte_carlo_mean", name="Monte Carlo Mean", category="numerics",
+                description="Sample mean with standard-error evidence from explicit samples; no convergence or distributional assumption is inferred.",
+                domain="numerics", inputs=["Samples"], outputs=["Estimate"], implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="parameter_sweep", name="Numerical Parameter Sweep", category="numerics",
+                description="Evaluate an explicit parameter sequence while preserving parameter/result provenance and finite-result checks.",
+                domain="numerics", inputs=["Parameters", "Evaluator"], outputs=["Sweep"], implementation_backend="numerical", allowed_checkers=["numerical"]),
+        ]:
+            self.register(_rule)
+
         self.register(RuleDefinition(
             rule_id="empirical_inference",
             name="Empirical Parameter Estimation",
