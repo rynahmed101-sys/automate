@@ -2,8 +2,6 @@ name: Automate CI
 
 on:
   push:
-    branches-ignore:
-      - main
   pull_request:
     branches:
       - main
