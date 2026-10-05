@@ -193,7 +193,10 @@
       "Cartesian volume integrals",
       "Green's theorem on Cartesian rectangles",
       "divergence theorem on Cartesian boxes",
-      "Stokes' theorem on planar Cartesian rectangles"
+      "Stokes' theorem on planar Cartesian rectangles",
+      "curl-gradient identity",
+      "divergence-curl identity",
+      "equivalent Cartesian Laplacian identity"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -746,6 +749,33 @@
       "implementation_backend": "electrostatics",
       "allowed_checkers": [
         "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "curl_gradient_identity",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "divergence_curl_identity",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "laplacian_identity",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
       ]
     },
     {
