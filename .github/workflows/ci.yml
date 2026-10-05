@@ -5,6 +5,11 @@ on:
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
 
 # Automate uses two CI speeds on purpose:
 # - Development/PR CI is fast feedback. It runs the full Python test suite on one
@@ -53,7 +58,7 @@ jobs:
           pytest -q --tb=short --strict-markers
 
   exact-head:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
     name: Exact-head / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -66,7 +71,7 @@ jobs:
       - name: Checkout exact merged main commit
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
@@ -107,7 +112,7 @@ jobs:
           pytest tests/test_linear_algebra_eigen_acceptance.py -q -s --tb=short
 
   lean4:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
     name: Exact-head / Lean 4 proof check
     runs-on: ubuntu-latest
     steps:
