@@ -16,6 +16,10 @@ on:
   schedule:
     - cron: "23 3 * * 1"
 
+concurrency:
+  group: security-audit-main
+  cancel-in-progress: true
+
 permissions:
   contents: read
   actions: read
