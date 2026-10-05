@@ -26,3 +26,5 @@ __all__ = [
 from automate.backend.linear_algebra_backend import LinearAlgebraChecker
 
 from automate.backend.vector_calculus_backend import VectorCalculusChecker
+
+from automate.backend.transform_backend import TransformChecker
