@@ -125,3 +125,63 @@ def test_uniform_line_charge_rejects_nonpositive_interval():
 def test_uniform_line_charge_registry_exposes_rule():
     from automate.theory.rules import RuleRegistry
     assert "uniform_line_charge_potential" in RuleRegistry().list_rule_ids()
+
+def _gauss_check(field, rho, flux, parameters):
+    graph = DerivationGraph(id="gauss_law")
+    for nid, raw in [("field", field), ("rho", rho), ("flux", flux)]:
+        graph.add_node(DerivationNode(id=nid, expression=MathematicalExpression(raw_str=raw)))
+    edge = DerivationEdge(
+        id="e", input_nodes=["field", "rho"], output_nodes=["flux"],
+        transformation_rule="gauss_law_box",
+        justification="Phase 2B bounded Gauss-law verification",
+        checker="electrostatics", parameters=parameters,
+    )
+    return ElectrostaticsChecker().verify_edge(edge, graph)
+
+
+def test_gauss_law_uniform_field_zero_charge_box():
+    r = _gauss_check("Vector([1,0,0])", "0", "0",
+        {"coordinates":["x","y","z"],"bounds":[["0","1"],["0","2"],["0","3"]],
+         "epsilon0":"epsilon0","orientation":"outward"})
+    assert r.passed
+
+
+def test_gauss_law_radial_field_uniform_density_box():
+    r = _gauss_check("Vector([rho*x/(3*epsilon0),rho*y/(3*epsilon0),rho*z/(3*epsilon0)])",
+        "rho", "6*rho/epsilon0",
+        {"coordinates":["x","y","z"],"bounds":[["-1","1"],["-1","1"],["-1","1"]],
+         "epsilon0":"epsilon0","orientation":"outward"})
+    assert r.passed
+
+
+def test_gauss_law_rejects_wrong_flux():
+    assert not _gauss_check("Vector([rho*x/(3*epsilon0),rho*y/(3*epsilon0),rho*z/(3*epsilon0)])",
+        "rho", "0",
+        {"coordinates":["x","y","z"],"bounds":[["-1","1"],["-1","1"],["-1","1"]],
+         "epsilon0":"epsilon0","orientation":"outward"}).passed
+
+
+def test_gauss_law_requires_outward_orientation():
+    assert not _gauss_check("Vector([rho*x/(3*epsilon0),rho*y/(3*epsilon0),rho*z/(3*epsilon0)])",
+        "rho", "6*rho/epsilon0",
+        {"coordinates":["x","y","z"],"bounds":[["-1","1"],["-1","1"],["-1","1"]],
+         "epsilon0":"epsilon0","orientation":"inward"}).passed
+
+
+def test_gauss_law_rejects_invalid_box():
+    assert not _gauss_check("Vector([rho*x/(3*epsilon0),rho*y/(3*epsilon0),rho*z/(3*epsilon0)])",
+        "rho", "6*rho/epsilon0",
+        {"coordinates":["x","y","z"],"bounds":[["1","0"],["-1","1"],["-1","1"]],
+         "epsilon0":"epsilon0","orientation":"outward"}).passed
+
+
+def test_gauss_law_rejects_unsafe_bound_expression():
+    assert not _gauss_check("Vector([rho*x/(3*epsilon0),rho*y/(3*epsilon0),rho*z/(3*epsilon0)])",
+        "rho", "6*rho/epsilon0",
+        {"coordinates":["x","y","z"],"bounds":[["0","__import__('os').system('id')"],["-1","1"],["-1","1"]],
+         "epsilon0":"epsilon0","orientation":"outward"}).passed
+
+
+def test_gauss_law_registry_exposes_rule():
+    from automate.theory.rules import RuleRegistry
+    assert "gauss_law_box" in RuleRegistry().list_rule_ids()
