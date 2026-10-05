@@ -124,7 +124,7 @@ This stage contains the mathematical basics that later physics must be able to r
 - [x] Basis, span, linear independence
 - [ ] Change of basis and coordinate representations
 - [ ] Linear transformations and matrix representations
-- [ ] Symmetric / Hermitian matrices
+- [~] Symmetric / Hermitian matrices
 - [x] Norms, inner products, orthogonality
 - [x] Projections and Gram-Schmidt
 - [ ] Positive-definite matrices
