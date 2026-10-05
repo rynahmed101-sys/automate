@@ -308,7 +308,8 @@
       "column-space basis verification",
       "vector span-membership verification",
       "linear-independence verification by exact rank",
-      "basis-of-span verification"
+      "basis-of-span verification",
+      "vector coordinate change-of-basis verification"
     ],
     "physics": [
       "Coulomb force for point charges",
@@ -780,7 +781,8 @@
       "allowed_checkers": [
         "electrostatics"
       ]
-    },    {
+    },
+    {
       "rule_id": "uniform_line_charge_potential",
       "category": "electromagnetism",
       "domain": "electromagnetism",
@@ -788,7 +790,8 @@
       "allowed_checkers": [
         "electrostatics"
       ]
-    },    {
+    },
+    {
       "rule_id": "gauss_law_box",
       "category": "electrostatics",
       "domain": "electromagnetism",
@@ -997,6 +1000,15 @@
     },
     {
       "rule_id": "vector_basis_of_span",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_change_of_basis",
       "category": "linear_algebra",
       "domain": "mathematics",
       "implementation_backend": "linear_algebra",
