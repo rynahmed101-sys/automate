@@ -14,6 +14,7 @@ from automate.ai.schemas import DerivationProposal
 from automate.core.graph import DerivationGraph
 from automate.theory.rules import RuleRegistry
 from automate.ir.safe_parser import SafeParser, SafeParseError
+from automate.ir.linear_algebra import LinearAlgebraParseError, parse_linear_algebra_expression
 
 # Patterns indicative of malicious code or injection attempts
 DANGEROUS_PATTERNS = [
@@ -165,6 +166,8 @@ def validate_ai_proposal(
                 "vector_add", "vector_subtract", "vector_scalar_multiply", "vector_dot",
                 "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_trace",
                 "matrix_inverse", "matrix_rank", "matrix_rref", "linear_system_solve",
+                "matrix_characteristic_polynomial", "matrix_eigenvalues",
+                "matrix_eigenvector", "matrix_diagonalize",
             }:
                 from automate.ir.linear_algebra import parse_linear_algebra_expression
                 parse_linear_algebra_expression(out_node.expression)
@@ -178,7 +181,7 @@ def validate_ai_proposal(
                     out_node.expression,
                     timeout=MAX_EXPRESSION_PARSE_SECONDS,
                 )
-        except SafeParseError as exc:
+        except (SafeParseError, LinearAlgebraParseError) as exc:
             errors.append(
                 f"Unsafe mathematical expression in proposed output node "
                 f"'{out_node.id}': {exc}"
