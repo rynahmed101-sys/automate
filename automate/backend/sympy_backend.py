@@ -127,6 +127,10 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_integrate(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                elif rule == "nested_integrate":
+                    passed, details, certificates, error_msg = self._verify_nested_integrate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule == "substitute":
                     passed, details, certificates, error_msg = self._verify_substitute(
                         in_nodes[0], out_nodes[0], edge.parameters
@@ -983,6 +987,94 @@ class SymPyChecker(BaseChecker):
             {"step": 1, "operation": "integrate" if definite else f"integrate_order_{order}", "result": str(expected)},
             {"step": 2, "operation": "differentiate_candidate" if not definite else "simplify(actual - expected)", "residual": str(residual)},
         ]
+        return passed, details, steps, error
+
+    # ------------------------------------------------------------------
+    # Rule: nested_integrate
+    # Verifies a represented sequence of indefinite integrations. The
+    # sequence is explicit: variables are applied from left to right to
+    # the integrand, and the proposed final expression is differentiated
+    # back in reverse order. This supports mixed/repeated variables
+    # without an arbitrary depth ceiling.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_nested_integrate(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variables = params.get("variables")
+        if not isinstance(variables, list) or not variables:
+            return False, {"rule": "nested_integrate"}, [], "Malformed nested integration: parameters['variables'] must be a non-empty list."
+        if any(not isinstance(v, str) or not v.strip() or not v.strip().isidentifier() for v in variables):
+            return False, {"rule": "nested_integrate", "variables": variables}, [], "Malformed nested integration variable list."
+        parser = SafeParser()
+        try:
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+            symbols = [parser.make_symbol(v.strip()) for v in variables]
+        except SafeParseError as exc:
+            return False, {"rule": "nested_integrate", "variables": variables}, [], f"SafeParser rejected nested integration expression: {exc}"
+
+        try:
+            expected = integrand
+            forward_steps = []
+            for symbol in symbols:
+                expected = sp.integrate(expected, symbol)
+                forward_steps.append(str(expected))
+                if isinstance(expected, sp.Integral) or expected.has(sp.Integral):
+                    return (
+                        False,
+                        {"rule": "nested_integrate", "variables": [str(v) for v in symbols], "_status_override": VerificationStatus.UNVERIFIED.value},
+                        forward_steps,
+                        f"UNVERIFIED: integration with respect to {symbol} remained unevaluated."
+                    )
+
+            recovered = actual
+            reverse_steps = []
+            for symbol in reversed(symbols):
+                recovered = sp.diff(recovered, symbol)
+                reverse_steps.append(str(recovered))
+            residual = sp.simplify(recovered - integrand)
+            equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        except Exception as exc:
+            return (
+                False,
+                {"rule": "nested_integrate", "variables": [str(v) for v in symbols]},
+                [],
+                f"UNVERIFIED: nested integration could not be established: {type(exc).__name__}: {exc}"
+            )
+
+        if residual == 0 or equivalence is True:
+            passed, override, error = True, None, None
+        elif equivalence is False:
+            passed, override = False, None
+            error = f"Nested integral mismatch: expected a valid antiderivative chain, got {actual}."
+        else:
+            passed, override = False, VerificationStatus.UNVERIFIED.value
+            error = "UNVERIFIED: nested integration comparison could not establish equality."
+
+        details = {
+            "rule": "nested_integrate",
+            "variables": [str(v) for v in symbols],
+            "integrand": str(integrand),
+            "expected_result": str(expected),
+            "actual_result": str(actual),
+            "recovered_integrand": str(recovered),
+            "residual": str(residual),
+            "integration_depth": len(symbols),
+            "forward_steps": forward_steps,
+            "reverse_steps": reverse_steps,
+        }
+        if override:
+            details["_status_override"] = override
+        steps = [
+            {"step": i + 1, "operation": f"integrate_d{symbol}", "result": result}
+            for i, (symbol, result) in enumerate(zip(symbols, forward_steps))
+        ]
+        steps.extend(
+            {"step": len(steps) + i + 1, "operation": f"differentiate_d{symbol}", "result": result}
+            for i, (symbol, result) in enumerate(zip(reversed(symbols), reverse_steps))
+        )
         return passed, details, steps, error
 
     # ------------------------------------------------------------------
