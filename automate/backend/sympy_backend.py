@@ -115,6 +115,14 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_differentiate(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                elif rule in ("chain_rule", "product_rule", "quotient_rule"):
+                    passed, details, certificates, error_msg = self._verify_composite_derivative_rule(
+                        rule, out_nodes[0], edge.parameters
+                    )
+                elif rule == "implicit_differentiate":
+                    passed, details, certificates, error_msg = self._verify_implicit_differentiate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule == "substitute":
                     passed, details, certificates, error_msg = self._verify_substitute(
                         in_nodes[0], out_nodes[0], edge.parameters
@@ -691,6 +699,147 @@ class SymPyChecker(BaseChecker):
             {"step": 1, "operation": "differentiate", "variable": str(variable), "order": order,
              "input": str(in_expr), "result": str(expected)},
             {"step": 2, "operation": "simplify(actual - expected)", "residual": str(residual)},
+        ]
+        return passed, details, steps, error
+
+    # ------------------------------------------------------------------
+    # Rules: explicit composite differentiation
+    # These rules verify the named chain/product/quotient construction itself,
+    # rather than merely accepting an equivalent final derivative.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _parse_composite(cls, params: Dict[str, Any]):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        parser = SafeParser()
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip() or not variable_name.strip().isidentifier():
+            raise ValueError("parameters['variable'] must be a valid identifier.")
+        variable = parser.make_symbol(variable_name.strip())
+        kind = params.get("_rule_kind")
+        if kind == "chain_rule":
+            outer = parser.parse(str(params["outer"]))
+            inner = parser.parse(str(params["inner"]))
+            expression = outer.subs(parser.make_symbol(str(params.get("inner_variable", "u"))), inner)
+            expected = sp.diff(outer, parser.make_symbol(str(params.get("inner_variable", "u")))) * sp.diff(inner, variable)
+            return variable, expression, expected, {"outer": outer, "inner": inner}
+        if kind == "product_rule":
+            factors = params.get("factors")
+            if not isinstance(factors, list) or len(factors) < 2:
+                raise ValueError("parameters['factors'] must contain at least two expressions.")
+            factor_exprs = [parser.parse(str(v)) for v in factors]
+            expression = sp.prod(factor_exprs)
+            expected = sum(
+                sp.diff(factor_exprs[i], variable) * sp.prod(
+                    factor_exprs[j] for j in range(len(factor_exprs)) if j != i
+                ) for i in range(len(factor_exprs))
+            )
+            return variable, expression, expected, {"factors": factor_exprs}
+        if kind == "quotient_rule":
+            numerator = parser.parse(str(params["numerator"]))
+            denominator = parser.parse(str(params["denominator"]))
+            if denominator == 0:
+                raise ValueError("parameters['denominator'] must not be identically zero.")
+            expression = numerator / denominator
+            expected = (sp.diff(numerator, variable) * denominator -
+                        numerator * sp.diff(denominator, variable)) / denominator**2
+            return variable, expression, expected, {"numerator": numerator, "denominator": denominator}
+        raise ValueError("Unsupported composite derivative rule.")
+
+    @classmethod
+    def _verify_composite_derivative_rule(
+        cls, rule: str, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        params = dict(params or {})
+        params["_rule_kind"] = rule
+        try:
+            variable, expression, expected, components = cls._parse_composite(params)
+            actual = SafeParser().parse(out_node.expression.raw_str)
+        except (SafeParseError, KeyError, TypeError, ValueError) as exc:
+            return False, {"rule": rule}, [], f"Malformed {rule} parameters/expression: {exc}"
+        try:
+            residual = sp.simplify(actual - expected)
+        except Exception as exc:
+            return False, {"rule": rule, "expected_derivative": str(expected)}, [],
+                f"UNVERIFIED: {rule} comparison remained unresolved: {type(exc).__name__}: {exc}"
+        equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        if residual == 0 or equivalence is True:
+            passed, override, error = True, None, None
+        elif equivalence is False:
+            passed, override, error = False, None, f"{rule} mismatch: expected {expected}, got {actual}."
+        else:
+            passed, override, error = False, VerificationStatus.UNVERIFIED.value, f"UNVERIFIED: {rule} comparison could not establish equality."
+        details = {
+            "rule": rule, "variable": str(variable), "expression": str(expression),
+            "expected_derivative": str(expected), "actual_derivative": str(actual),
+            "residual": str(residual),
+            "components": {k: [str(x) for x in v] if isinstance(v, list) else str(v) for k, v in components.items()},
+        }
+        if override:
+            details["_status_override"] = override
+        steps = [
+            {"step": 1, "operation": rule, "expression": str(expression), "result": str(expected)},
+            {"step": 2, "operation": "simplify(actual - expected)", "residual": str(residual)},
+        ]
+        return passed, details, steps, error
+
+    # ------------------------------------------------------------------
+    # Rule: implicit_differentiate
+    # Verifies dy/dx from an explicit implicit relation F(x,y)=0.
+    # The denominator F_y must be structurally nonzero; if it cannot be
+    # established, verification fails closed as UNVERIFIED.
+    # ------------------------------------------------------------------
+    @classmethod
+    def _verify_implicit_differentiate(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        x_name = params.get("independent_variable", params.get("variable", ""))
+        y_name = params.get("dependent_variable", "")
+        if (not isinstance(x_name, str) or not x_name.strip().isidentifier() or
+                not isinstance(y_name, str) or not y_name.strip().isidentifier() or
+                x_name.strip() == y_name.strip()):
+            return False, {"rule": "implicit_differentiate"}, [], "Malformed implicit differentiation variables."
+        parser = SafeParser()
+        try:
+            x = parser.make_symbol(x_name.strip())
+            y = parser.make_symbol(y_name.strip())
+            relation = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "implicit_differentiate"}, [], f"SafeParser rejected implicit differentiation input: {exc}"
+        try:
+            fy = sp.diff(relation, y)
+            fx = sp.diff(relation, x)
+            expected = -fx / fy
+            if fy == 0:
+                return False, {"rule": "implicit_differentiate", "F_x": str(fx), "F_y": str(fy)}, [],
+                    "UNVERIFIED: implicit derivative denominator F_y is identically zero."
+            residual = sp.simplify(actual - expected)
+        except Exception as exc:
+            return False, {"rule": "implicit_differentiate"}, [],
+                f"UNVERIFIED: implicit differentiation could not be established: {type(exc).__name__}: {exc}"
+        equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
+        if residual == 0 or equivalence is True:
+            passed, override, error = True, None, None
+        elif equivalence is False:
+            passed, override, error = False, None, f"Implicit derivative mismatch: expected {expected}, got {actual}."
+        else:
+            passed, override, error = False, VerificationStatus.UNVERIFIED.value, "UNVERIFIED: implicit derivative comparison could not establish equality."
+        details = {
+            "rule": "implicit_differentiate", "independent_variable": str(x),
+            "dependent_variable": str(y), "relation": str(relation),
+            "F_x": str(fx), "F_y": str(fy), "expected_derivative": str(expected),
+            "actual_derivative": str(actual), "residual": str(residual),
+            "local_condition": f"{y_name}'s partial derivative F_y != 0",
+        }
+        if override:
+            details["_status_override"] = override
+        steps = [
+            {"step": 1, "operation": "compute_partial_F_x", "result": str(fx)},
+            {"step": 2, "operation": "compute_partial_F_y", "result": str(fy)},
+            {"step": 3, "operation": "-F_x/F_y", "result": str(expected)},
+            {"step": 4, "operation": "simplify(actual - expected)", "residual": str(residual)},
         ]
         return passed, details, steps, error
 
