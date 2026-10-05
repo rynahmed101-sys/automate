@@ -554,6 +554,36 @@ class LinearAlgebraChecker(BaseChecker):
                     "atol": 1e-9,
                 }
 
+            elif rule == "matrix_diagonalize" and numpy_expected is not None:
+                actual_matrix = self._numeric_array(parsed_inputs[0])
+                recomposed = np.asarray(numpy_expected)
+                passed = bool(
+                    actual_matrix is not None
+                    and actual_matrix.shape == recomposed.shape
+                    and np.allclose(
+                        recomposed,
+                        actual_matrix,
+                        rtol=1e-9,
+                        atol=1e-10,
+                        equal_nan=False,
+                    )
+                )
+                cross = {
+                    "available": actual_matrix is not None,
+                    "independence_class": "DIFFERENT_ENGINE",
+                    "engine": "numpy.linalg",
+                    "version": np.__version__,
+                    "operation": rule,
+                    "passed": passed,
+                    "recomposition_max_abs_error": (
+                        float(np.max(np.abs(recomposed - actual_matrix)))
+                        if actual_matrix is not None
+                        else None
+                    ),
+                    "rtol": 1e-9,
+                    "atol": 1e-10,
+                }
+
             elif numpy_expected is not None:
                 cross = self._numpy_compare(output, numpy_expected, rule)
 
