@@ -34,6 +34,7 @@ class LinearAlgebraChecker(BaseChecker):
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
         "vector_span_membership", "vector_linear_independence", "vector_basis_of_span",
         "linear_transformation_apply", "matrix_representation",
+        "matrix_symmetric", "matrix_hermitian",
     }
 
     @property
@@ -1044,6 +1045,47 @@ class LinearAlgebraChecker(BaseChecker):
                     {"step": 1, "operation": "verify_basis_invertibility", "determinant": str(determinant)},
                     {"step": 2, "operation": "reconstruct_matrix_from_basis_images", "relation": "M * B = C"},
                 ]
+
+            elif rule in {"matrix_symmetric", "matrix_hermitian"}:
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
+                    raise LinearAlgebraParseError(
+                        f"{rule} requires one square matrix input and one scalar indicator output."
+                    )
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(f"{rule} requires a square matrix; received {matrix.shape}.")
+                if rule == "matrix_symmetric":
+                    residual = matrix - matrix.T
+                    property_name = "symmetric"
+                else:
+                    residual = matrix - matrix.conjugate().T
+                    property_name = "Hermitian"
+                simplified = [sp.simplify(value) for value in residual]
+                if all(value == 0 for value in simplified):
+                    expected_value = sp.Integer(1)
+                elif any(value.is_zero is False for value in simplified):
+                    expected_value = sp.Integer(0)
+                else:
+                    return self._unverified(
+                        edge, graph, start, details,
+                        f"{property_name} status cannot be decided for the supplied symbolic matrix without additional assumptions."
+                    )
+                expected = ParsedLinearAlgebra("scalar", expected_value)
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    matrix_np = np.asarray(numeric)
+                    numpy_expected = int(np.allclose(
+                        matrix_np,
+                        matrix_np.T if rule == "matrix_symmetric" else matrix_np.conjugate().T,
+                        rtol=1e-9,
+                        atol=1e-10,
+                        equal_nan=False,
+                    ))
+                steps = [{
+                    "step": 1,
+                    "operation": property_name.lower() + "_matrix_test",
+                    "indicator_convention": "1=property holds, 0=property does not hold",
+                }]
 
             elif rule == "matrix_characteristic_polynomial":
                 if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
