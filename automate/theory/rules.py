@@ -258,6 +258,21 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="integrate",
+            name="Definite and Indefinite Integration",
+            category="calculus",
+            description="Verifies symbolic definite or indefinite integration; indefinite results are checked by differentiation and may differ by integration constants or lower-order integration polynomials.",
+            domain="mathematics",
+            inputs=["Scalar Integrand"],
+            outputs=["Scalar Integral"],
+            required_assumptions=["explicit_integration_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Fundamental definition of antiderivative and definite integral / SymPy integrate"
+        ))
+
+        self.register(RuleDefinition(
             rule_id="limit",
             name="Scalar Limit",
             category="calculus",
