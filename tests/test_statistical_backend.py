@@ -539,6 +539,7 @@ def test_chi_square_requires_explicit_error_model_assumptions():
         input_nodes=["sol"],
         output_nodes=["fit"],
         transformation_rule="empirical_inference",
+        justification="Explicit assumption boundary test",
         checker="statistical",
         parameters={
             "model": "linear",
