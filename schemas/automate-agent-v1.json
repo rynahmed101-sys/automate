@@ -308,7 +308,8 @@
       "column-space basis verification",
       "vector span-membership verification",
       "linear-independence verification by exact rank",
-      "basis-of-span verification"
+      "basis-of-span verification",
+      "vector coordinate change-of-basis verification"
     ],
     "physics": [
       "Coulomb force for point charges",
@@ -1004,7 +1005,16 @@
         "linear_algebra"
       ]
     },
+
     {
+      "rule_id": "vector_change_of_basis",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },    {
       "rule_id": "matrix_characteristic_polynomial",
       "category": "linear_algebra",
       "domain": "mathematics",
