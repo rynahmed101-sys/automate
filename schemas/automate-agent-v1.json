@@ -310,7 +310,8 @@
       "point-charge electric potential",
       "continuous charge electric-field kernels",
       "continuous charge potential kernels",
-      "uniform finite line-charge potential"
+      "uniform finite line-charge potential",
+      "bounded Cartesian Gauss-law verification"
     ]
   },
   "rules": [
@@ -776,6 +777,14 @@
     },    {
       "rule_id": "uniform_line_charge_potential",
       "category": "electromagnetism",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },    {
+      "rule_id": "gauss_law_box",
+      "category": "electrostatics",
       "domain": "electromagnetism",
       "implementation_backend": "electrostatics",
       "allowed_checkers": [
