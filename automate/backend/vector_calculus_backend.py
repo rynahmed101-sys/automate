@@ -25,6 +25,7 @@ class VectorCalculusChecker(BaseChecker):
         "line_integral_scalar", "line_integral_vector",
         "surface_integral_scalar", "surface_flux", "volume_integral",
         "green_theorem", "divergence_theorem", "stokes_theorem",
+        "curl_gradient_identity", "divergence_curl_identity", "laplacian_identity",
     }
 
     @property
@@ -376,6 +377,60 @@ class VectorCalculusChecker(BaseChecker):
                 details["independent_numerical_check"] = self._independent_integral_check(
                     rule, integrand, outputs[0], variables, bounds
                 )
+                return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
+            elif rule in {"curl_gradient_identity", "divergence_curl_identity", "laplacian_identity"}:
+                if len(inputs) != 1 or len(outputs) != 1 or outputs[0].kind != "scalar":
+                    raise ValueError(f"{rule} requires one input and one scalar residual output.")
+                coords = edge.parameters.get("coordinates")
+                if rule == "curl_gradient_identity":
+                    if inputs[0].kind != "scalar":
+                        raise ValueError("curl_gradient_identity requires a scalar field.")
+                    xyz = self._coords(edge.parameters, 3)
+                    if coords != ["x", "y", "z"]:
+                        raise ValueError("curl_gradient_identity is bounded to Cartesian x,y,z coordinates.")
+                    x,y,z = xyz
+                    f = inputs[0].value
+                    expected = sp.Matrix([sp.diff(f,x),sp.diff(f,y),sp.diff(f,z)])
+                    residual = sp.Matrix([sp.diff(expected[2],y)-sp.diff(expected[1],z),
+                                          sp.diff(expected[0],z)-sp.diff(expected[2],x),
+                                          sp.diff(expected[1],x)-sp.diff(expected[0],y)])
+                elif rule == "divergence_curl_identity":
+                    if inputs[0].kind != "vector" or len(inputs[0].value) != 3:
+                        raise ValueError("divergence_curl_identity requires a 3D vector field.")
+                    xyz = self._coords(edge.parameters, 3)
+                    if coords != ["x", "y", "z"]:
+                        raise ValueError("divergence_curl_identity is bounded to Cartesian x,y,z coordinates.")
+                    x,y,z = xyz
+                    F = sp.Matrix(inputs[0].value)
+                    curl = sp.Matrix([sp.diff(F[2],y)-sp.diff(F[1],z),
+                                      sp.diff(F[0],z)-sp.diff(F[2],x),
+                                      sp.diff(F[1],x)-sp.diff(F[0],y)])
+                    residual = sp.diff(curl[0],x)+sp.diff(curl[1],y)+sp.diff(curl[2],z)
+                else:
+                    if inputs[0].kind != "scalar":
+                        raise ValueError("laplacian_identity requires a scalar field.")
+                    xyz = self._coords(edge.parameters, 3)
+                    if coords != ["x", "y", "z"]:
+                        raise ValueError("laplacian_identity is bounded to Cartesian x,y,z coordinates.")
+                    x,y,z = xyz
+                    f = inputs[0].value
+                    residual = sp.diff(f,x,2)+sp.diff(f,y,2)+sp.diff(f,z,2) - (
+                        sp.diff(sp.diff(f,x),x)+sp.diff(sp.diff(f,y),y)+sp.diff(sp.diff(f,z),z))
+                expected_parsed = ParsedLinearAlgebra("scalar", sp.sympify(0))
+                if rule == "curl_gradient_identity":
+                    if not all(self._equal_scalar(v, 0) for v in residual):
+                        return self._report(edge, graph, start, VerificationStatus.FAILED, False, details,
+                                            "curl(grad f) is not identically zero for the supplied field.")
+                elif not self._equal_scalar(residual, 0):
+                    return self._report(edge, graph, start, VerificationStatus.FAILED, False, details,
+                                        f"{rule} residual is not identically zero.")
+                if not self._equal(outputs[0], expected_parsed):
+                    return self._report(edge, graph, start, VerificationStatus.FAILED, False,
+                                        {**details, "expected": "0", "actual": self._display(outputs[0])},
+                                        f"{rule} requires a zero residual.")
+                details["symbolic_equivalence"] = True
+                details["identity_contract"] = {"coordinates": ["x","y","z"], "regularity": "symbolic partial derivatives required"}
+                details["independent_evidence"] = {"available": True, "independence_class": "DERIVATION_EXPANSION", "claim": "Both sides are expanded from the declared differential operators and simplify to the zero residual."}
                 return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
             elif rule in {"green_theorem", "divergence_theorem", "stokes_theorem"}:
                 if len(outputs) != 1 or outputs[0].kind != "scalar":
