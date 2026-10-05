@@ -3,10 +3,6 @@ name: Exact-head
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-    types: [closed]
-
 concurrency:
   group: exact-head-main
   cancel-in-progress: true
