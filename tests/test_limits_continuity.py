@@ -42,7 +42,7 @@ def _graph_edge(rule, input_expr, output_expr, *, parameters=None):
 )
 def test_finite_two_sided_limits(expr, target, expected):
     graph, edge = _graph_edge("limit", expr, expected,
-                              parameters={"variable": "x", "point": target, "direction": "two_sided"})
+                              parameters={"variable": "x", "point": target, "direction": "two_sided", "assumptions": {"a": "real"}})
     report = SymPyChecker().verify_edge(edge, graph)
     assert report.passed, report.error_message
     assert report.status == VerificationStatus.SYMBOLIC_CHECKED
