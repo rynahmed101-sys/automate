@@ -58,7 +58,7 @@ jobs:
           pytest -q --tb=short --strict-markers
 
   exact-head:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.ref == 'refs/heads/main' && github.event.pull_request.merged == true)
     name: Exact-head / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -71,7 +71,7 @@ jobs:
       - name: Checkout exact merged main commit
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
