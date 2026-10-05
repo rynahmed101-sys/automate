@@ -55,7 +55,10 @@ class ElectrostaticsChecker(BaseChecker):
                 raise ValueError(f"Unsupported electrostatics rule: {rule}")
             inputs = [self._parse(graph.nodes[nid].expression.raw_str) for nid in edge.input_nodes]
             outputs = [self._parse(graph.nodes[nid].expression.raw_str) for nid in edge.output_nodes]
-            k = sp.sympify(edge.parameters.get("k", "k"))
+            k_parsed = self._parse(str(edge.parameters.get("k", "k")))
+            if k_parsed.kind != "scalar":
+                raise ValueError("k must be a scalar commutative factor.")
+            k = k_parsed.value
             if rule in {"continuous_charge_field", "continuous_charge_potential"}:
                 if len(inputs) != 2 or len(outputs) != 1:
                     raise ValueError(f"{rule} requires charge density and displacement sample.")
@@ -66,11 +69,14 @@ class ElectrostaticsChecker(BaseChecker):
                 r2_norm = sp.simplify(d.dot(d))
                 if r2_norm == 0:
                     raise ValueError("Continuous charge kernel is undefined at zero separation.")
-                density_measure = sp.sympify(edge.parameters.get("density_measure", "1"))
+                if "density_measure" not in edge.parameters:
+                    raise ValueError("density_measure is required explicitly.")
+                density_measure_parsed = self._parse(str(edge.parameters["density_measure"]))
+                if density_measure_parsed.kind != "scalar":
+                    raise ValueError("density_measure must be a scalar commutative factor.")
+                density_measure = density_measure_parsed.value
                 if not density_measure.is_commutative:
                     raise ValueError("density_measure must be a scalar commutative factor.")
-                if density_measure == 0:
-                    raise ValueError("density_measure must be non-zero.")
                 kernel = density_measure * rho.value
                 if rule == "continuous_charge_field":
                     if outputs[0].kind != "vector":
