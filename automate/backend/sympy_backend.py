@@ -760,8 +760,10 @@ class SymPyChecker(BaseChecker):
         try:
             residual = sp.simplify(actual - expected)
         except Exception as exc:
-            return False, {"rule": rule, "expected_derivative": str(expected)}, [],
+            return (
+                False, {"rule": rule, "expected_derivative": str(expected)}, [],
                 f"UNVERIFIED: {rule} comparison remained unresolved: {type(exc).__name__}: {exc}"
+            )
         equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
         if residual == 0 or equivalence is True:
             passed, override, error = True, None, None
@@ -813,12 +815,16 @@ class SymPyChecker(BaseChecker):
             fx = sp.diff(relation, x)
             expected = -fx / fy
             if fy == 0:
-                return False, {"rule": "implicit_differentiate", "F_x": str(fx), "F_y": str(fy)}, [],
+                return (
+                    False, {"rule": "implicit_differentiate", "F_x": str(fx), "F_y": str(fy)}, [],
                     "UNVERIFIED: implicit derivative denominator F_y is identically zero."
+                )
             residual = sp.simplify(actual - expected)
         except Exception as exc:
-            return False, {"rule": "implicit_differentiate"}, [],
+            return (
+                False, {"rule": "implicit_differentiate"}, [],
                 f"UNVERIFIED: implicit differentiation could not be established: {type(exc).__name__}: {exc}"
+            )
         equivalence = residual.equals(0) if hasattr(residual, "equals") else (residual == 0)
         if residual == 0 or equivalence is True:
             passed, override, error = True, None, None
