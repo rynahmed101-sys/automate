@@ -958,17 +958,36 @@ class SymPyChecker(BaseChecker):
         if direction != "two_sided" or point in {sp.oo, -sp.oo}:
             return False, {"rule": "continuity"}, [], \
                 "UNSUPPORTED: continuity is pointwise at a finite ordinary point; use limit for one-sided or infinite targets."
+
+        domain_ok, domain_detail = cls._limit_domain_supported(expr, variable, point, "two_sided")
         value = expr.subs(variable, point)
         value_defined = value not in {sp.nan, sp.zoo, sp.oo, -sp.oo} and not value.has(sp.zoo, sp.nan)
-        left = right = None
-        if value_defined:
+
+        # Continuity is defined through the two-sided limit, so compute the
+        # same left/right obligations used by the limit rule even when f(a)
+        # itself is undefined (the removable-discontinuity case).
+        if not domain_ok:
+            if value_defined:
+                return False, {"rule": "continuity", "function_value": str(value),
+                               "domain_analysis": domain_detail,
+                               "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                       "Continuity could not be established because the real approach domain is unresolved."
+            actual_indicator = 0
+            left = right = None
+        else:
             left = sp.limit(expr, variable, point, dir="-")
             right = sp.limit(expr, variable, point, dir="+")
             if not cls._limit_known(left) or not cls._limit_known(right):
                 return False, {"rule": "continuity", "function_value": str(value),
+                               "function_value_defined": value_defined,
+                               "left_limit": str(left), "right_limit": str(right),
                                "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
                        "Continuity could not be established because the two-sided limit is unresolved."
-            if left != right:
+            if not value_defined:
+                actual_indicator = 0
+            elif isinstance(left, sp.AccumBounds) or isinstance(right, sp.AccumBounds):
+                actual_indicator = 0
+            elif left != right:
                 actual_indicator = 0
             else:
                 difference = sp.simplify(left - value)
@@ -977,31 +996,48 @@ class SymPyChecker(BaseChecker):
                 elif difference.is_zero is False or difference.is_number:
                     actual_indicator = 0
                 else:
-                    return False, {"rule": "continuity", "function_value": str(value), "two_sided_limit": str(left),
+                    return False, {"rule": "continuity", "function_value": str(value),
+                                   "two_sided_limit": str(left),
+                                   "domain_analysis": domain_detail,
                                    "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
                            "Continuity comparison depends on unresolved symbolic assumptions."
-        else:
-            actual_indicator = 0
+
         expected_raw = out_node.expression.raw_str.strip()
         if expected_raw not in {"0", "1"}:
             return False, {"rule": "continuity", "function_value": str(value)}, [], \
                    "Continuity output must be the explicit indicator 1 (continuous) or 0 (not continuous)."
         passed = int(expected_raw) == actual_indicator
-        details = {"rule": "continuity", "variable": str(variable), "point": str(point),
-                   "function_value": str(value), "function_value_defined": value_defined,
-                   "two_sided_limit": str(left) if value_defined else "not evaluated because f(a) is undefined",
-                   "continuous_indicator": actual_indicator,
-                   "interpretation": "1 means lim(x->a) f(x) = f(a); 0 means continuity is not established."}
-        details["numeric_evidence"] = cls._limit_numeric_evidence(
-            expr, variable, point, "two_sided", left if value_defined else "DNE"
-        ) if value_defined else {"available": False, "independence_class": "NOT_AVAILABLE",
-                                  "reason": "Function value is undefined at the continuity point."}
-        steps = [{"step": 1, "operation": "evaluate function value at the point", "value": str(value)},
-                 {"step": 2, "operation": "compute left and right limits", "left": str(left) if value_defined else None,
-                  "right": str(right) if value_defined else None},
-                 {"step": 3, "operation": "verify lim(x->a) f(x) = f(a)"}]
+        details = {
+            "rule": "continuity",
+            "variable": str(variable),
+            "point": str(point),
+            "function_value": str(value),
+            "function_value_defined": value_defined,
+            "left_limit": str(left) if left is not None else None,
+            "right_limit": str(right) if right is not None else None,
+            "two_sided_limit": str(left) if left is not None and left == right else "DNE",
+            "continuous_indicator": actual_indicator,
+            "domain_analysis": domain_detail,
+            "interpretation": "1 means lim(x->a) f(x) = f(a); 0 means continuity is not established.",
+        }
+        if value_defined and left is not None and left == right:
+            details["numeric_evidence"] = cls._limit_numeric_evidence(expr, variable, point, "two_sided", left)
+        else:
+            details["numeric_evidence"] = {
+                "available": False, "independence_class": "NOT_AVAILABLE",
+                "reason": "Independent numeric evidence is not decisive for an undefined value or nonexistent two-sided limit.",
+                "evidence_only": True,
+            }
+        steps = [
+            {"step": 1, "operation": "evaluate function value at the point", "value": str(value)},
+            {"step": 2, "operation": "compute left and right limits",
+             "left": str(left) if left is not None else None,
+             "right": str(right) if right is not None else None},
+            {"step": 3, "operation": "verify lim(x->a) f(x) = f(a)"},
+        ]
         return passed, details, steps, None if passed else \
                f"Continuity mismatch: expected indicator {expected_raw}, computed {actual_indicator}"
+
 
     # ------------------------------------------------------------------
     # Rule: algebraic_identity
