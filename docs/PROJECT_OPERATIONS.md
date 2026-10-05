@@ -29,6 +29,32 @@ Automate is a single-developer engineering workspace. The preferred delivery uni
 
 Before reimplementing substantial mathematics, inspect established open-source implementations and libraries, check licensing, and prefer safe composition or bounded backend use where appropriate. External implementations remain references/backends, not authorities.
 
+## 🚦 CI speed and exact-head policy
+
+Automate deliberately has two verification speeds.
+
+### Development / PR feedback
+Feature branches and pull requests use the fast development CI. It runs the full Python test suite on one representative supported interpreter so that ordinary regressions are caught quickly.
+
+This is the normal development loop. Do not add the heavyweight exact-head matrix, repeated acceptance campaigns, or Lean proof gate to every feature push merely because those checks also exist in the authoritative workflow.
+
+### Exact-head verification
+The heavyweight **Exact-head** CI runs only when a commit lands on **main**. It checks the exact merged main SHA with the complete Python matrix, explicit adversarial checks, acceptance campaigns, and Lean proof verification.
+
+The Security Audit may also run on development events, but the authoritative milestone decision is made from the checks attached to the exact merged main SHA.
+
+A capability is not marked **[x] Completed and verified** in the phase ledger until its merged main commit has passed the authoritative exact-head verification required for that capability. Development CI passing means **tested**, not **exact-head verified**.
+
+### AI handoff rule
+Every new AI working on Automate must read this operations document and the phase ledger before changing code.
+
+The first question is always: **what mathematical or physical capability are we advancing?**
+
+Infrastructure, workflow, CI, provenance, schemas, tooling, and cleanup are supporting work. They are justified when they protect or expose a capability, unblock a verification boundary, or keep the project usable by external AI agents. They are not allowed to silently replace the next mathematical/physics milestone.
+
+The normal implementation shape remains:
+
+**observe → choose one bounded capability → implement → adversarially test → document/contract → reviewable PR → squash merge → exact-head verification → update ledger → next capability**
 ## ✅ Capability batch definition of done
 
 A capability batch should include a canonical representation, named rule/checker, positive/negative/edge cases, assumption handling, independent cross-check where practical, agent-contract exposure, documented semantic boundaries, a named acceptance campaign, and exact-head CI verification after merge.
