@@ -20,6 +20,7 @@ from automate.backend.linear_algebra_backend import LinearAlgebraChecker
 from automate.backend.vector_calculus_backend import VectorCalculusChecker
 from automate.backend.coordinate_vector_calculus_backend import CoordinateVectorCalculusChecker
 from automate.backend.electrostatics_backend import ElectrostaticsChecker
+from automate.backend.pde_backend import PDEChecker
 from automate.visualization.html_graph import generate_interactive_html
 from automate.visualization.terminal import print_graph_summary, print_assumption_report, console
 from automate.demo import run_harmonic_oscillator_demo
@@ -282,6 +283,7 @@ def check(graph_file: str, as_json: bool):
     linear_algebra_checker = LinearAlgebraChecker()
     vector_calculus_checker = VectorCalculusChecker()
     coordinate_vector_calculus_checker = CoordinateVectorCalculusChecker()
+    pde_checker = PDEChecker()
     electrostatics_checker = ElectrostaticsChecker()
     results = {}
 
@@ -311,7 +313,13 @@ def check(graph_file: str, as_json: bool):
                 console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")
         elif edge.checker == "vector_calculus":
             report = vector_calculus_checker.verify_edge(edge, graph)
-        elif edge.checker == "coordinate_vector_calculus":\n            report = coordinate_vector_calculus_checker.verify_edge(edge, graph)\n            results[eid] = {"status": report.status.value, "passed": report.passed, "dim": dim_report.passed}\n            if not as_json:\n                status_color = "green" if report.passed else "red"\n                console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")\n        elif edge.checker == "electrostatics":
+        elif edge.checker == "coordinate_vector_calculus":\n            report = coordinate_vector_calculus_checker.verify_edge(edge, graph)\n            results[eid] = {"status": report.status.value, "passed": report.passed, "dim": dim_report.passed}\n            if not as_json:\n                status_color = "green" if report.passed else "red"\n                console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")\n        elif edge.checker == "pde":
+            report = pde_checker.verify_edge(edge, graph)
+            results[eid] = {"status": report.status.value, "passed": report.passed, "dim": dim_report.passed}
+            if not as_json:
+                status_color = "green" if report.passed else "red"
+                console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}] ({dim_str})")
+        elif edge.checker == "electrostatics":
             report = electrostatics_checker.verify_edge(edge, graph)
             results[eid] = {
                 "status": report.status.value,
