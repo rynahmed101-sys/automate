@@ -21,7 +21,7 @@ class VectorCalculusChecker(BaseChecker):
 
     _RULES = {
         "scalar_field", "vector_field", "gradient", "directional_derivative",
-        "divergence", "curl", "laplacian", "conservative_field",
+        "divergence", "curl", "laplacian", "conservative_field", "reconstruct_potential",
         "line_integral_scalar", "line_integral_vector",
         "surface_integral_scalar", "surface_flux", "volume_integral",
         "green_theorem", "divergence_theorem", "stokes_theorem",
@@ -568,6 +568,43 @@ class VectorCalculusChecker(BaseChecker):
                         raise ValueError("Vector field dimension must match coordinates.")
                     expected_gradient = sp.Matrix([sp.diff(inputs[1].value, c) for c in coords])
                     expected = sp.Integer(1) if self._equal(ParsedLinearAlgebra("vector", field), ParsedLinearAlgebra("vector", expected_gradient)) else sp.Integer(0)
+                elif rule == "reconstruct_potential":
+                    if len(inputs) != 1 or len(outputs) != 1 or inputs[0].kind != "vector" or outputs[0].kind != "scalar":
+                        raise ValueError("reconstruct_potential requires one vector field and one scalar potential.")
+                    field = sp.Matrix(inputs[0].value)
+                    if len(field) != len(coords):
+                        raise ValueError("Vector field dimension must match coordinates.")
+                    base = edge.parameters.get("base_point")
+                    if base is None:
+                        base = [0] * len(coords)
+                    if not isinstance(base, list) or len(base) != len(coords):
+                        raise ValueError("base_point must match coordinate dimension.")
+                    base_expr = []
+                    for value in base:
+                        parsed = self._parse(str(value))
+                        if parsed.kind != "scalar":
+                            raise ValueError("base_point entries must be scalar expressions.")
+                        base_expr.append(parsed.value)
+                    current = list(base_expr)
+                    potential = sp.Integer(0)
+                    for i, coord in enumerate(coords):
+                        s = sp.Symbol(f"_s_{i}")
+                        subs = {coords[j]: current[j] for j in range(i)}
+                        subs[coord] = s
+                        integrand = sp.simplify(field[i].subs(subs))
+                        contribution = sp.integrate(integrand, (s, base_expr[i], coord))
+                        if contribution.has(sp.Integral):
+                            raise ValueError("Potential reconstruction is unresolved for the supplied field.")
+                        potential += contribution
+                        current[i] = coord
+                    potential = sp.simplify(potential)
+                    expected_gradient = sp.Matrix([sp.diff(potential, c) for c in coords])
+                    if not self._equal(ParsedLinearAlgebra("vector", expected_gradient), ParsedLinearAlgebra("vector", field)):
+                        return self._report(edge, graph, start, VerificationStatus.UNKNOWN, False, {
+                            **details, "reconstructed_potential": str(potential),
+                            "verification": "gradient reconstruction did not establish equality",
+                        }, "Potential reconstruction could not be verified; result is UNKNOWN.")
+                    expected = potential
                 else:
                     raise ValueError(f"Unsupported rule: {rule}")
                 actual = outputs[0]
