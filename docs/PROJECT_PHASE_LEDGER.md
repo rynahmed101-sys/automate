@@ -127,7 +127,7 @@ This stage contains the mathematical basics that later physics must be able to r
 - [~] Symmetric / Hermitian matrices
 - [x] Norms, inner products, orthogonality
 - [x] Projections and Gram-Schmidt
-- [ ] Positive-definite matrices
+- [~] Positive-definite matrices
 - [ ] Quadratic forms
 - [ ] Singular-value decomposition
 - [ ] Moore-Penrose pseudoinverse and least-squares solutions
