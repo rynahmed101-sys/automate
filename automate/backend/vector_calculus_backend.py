@@ -306,7 +306,7 @@ class VectorCalculusChecker(BaseChecker):
                     substitution = {sp.Symbol(str(name)): curve[i] for i, name in enumerate(coords)}
                     composed = inputs[0].value.subs(substitution)
                     integrand = sp.simplify(composed * sp.sqrt(tangent.dot(tangent)))
-                    expected = sp.integrate(integrand, bounds[0])
+                    expected = sp.integrate(integrand, (t, bounds[0][0], bounds[0][1]))
                 else:
                     if inputs[0].kind != "vector" or len(inputs[0].value) != len(curve):
                         raise ValueError("line_integral_vector requires a vector field matching the curve dimension.")
@@ -348,7 +348,7 @@ class VectorCalculusChecker(BaseChecker):
                     if inputs[0].kind != "vector" or len(inputs[0].value) != len(surface):
                         raise ValueError("surface_flux requires a vector field matching the surface dimension.")
                     integrand = sp.Matrix(inputs[0].value).subs(substitution).dot(normal)
-                expected = sp.integrate(integrand, bounds[0], bounds[1])
+                expected = sp.integrate(integrand, (u, bounds[0][0], bounds[0][1]), (v, bounds[1][0], bounds[1][1]))
                 expected_parsed = ParsedLinearAlgebra("scalar", sp.sympify(expected))
                 if not self._equal(outputs[0], expected_parsed):
                     return self._report(edge, graph, start, VerificationStatus.FAILED, False,
@@ -373,7 +373,7 @@ class VectorCalculusChecker(BaseChecker):
                                         "volume_integral result is mathematically incorrect.")
                 details["symbolic_equivalence"] = True
                 details["independent_numerical_check"] = self._independent_integral_check(
-                    rule, inputs, outputs[0], variables, bounds, expected_parsed.value
+                    rule, integrand, outputs[0], variables, bounds
                 )
                 return self._report(edge, graph, start, VerificationStatus.SYMBOLIC_CHECKED, True, details)
             else:
