@@ -180,6 +180,9 @@
       "division with explicit nonzero proof requirements",
       "substitution",
       "differentiation of both sides",
+      "scalar limits with explicit two-sided and one-sided direction semantics",
+      "limits toward positive and negative infinity",
+      "pointwise continuity derived from explicit limit equality with the function value",
       "ordinary differential equation solution verification by residual substitution",
       "scalar and vector field representation in Cartesian coordinates",
       "gradient and directional derivative",
@@ -363,6 +366,24 @@
     },
     {
       "rule_id": "differentiate_both_sides",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "limit",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "continuity",
       "category": "calculus",
       "domain": "mathematics",
       "implementation_backend": "sympy",
