@@ -182,6 +182,22 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="differentiate",
+            name="Differentiate Expression",
+            category="calculus",
+            description="Verifies scalar one-variable derivatives of arbitrary positive integer order with an explicit differentiation variable and optional symbolic assumptions.",
+            domain="mathematics",
+            inputs=["Scalar Expression"],
+            outputs=["Scalar Derivative"],
+            required_assumptions=["explicit_differentiation_variable"],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Definition of the derivative / SymPy diff"
+        ))
+
+        self.register(RuleDefinition(
             rule_id="limit",
             name="Scalar Limit",
             category="calculus",
