@@ -206,7 +206,8 @@
       "explicit chain-rule differentiation",
       "explicit product-rule differentiation",
       "explicit quotient-rule differentiation",
-      "implicit differentiation under a local nonzero-partial condition"
+      "implicit differentiation under a local nonzero-partial condition",
+      "definite and indefinite symbolic integration"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -1142,6 +1143,15 @@
     },
     {
       "rule_id": "implicit_differentiate",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "integrate",
       "category": "calculus",
       "domain": "mathematics",
       "implementation_backend": "sympy",
