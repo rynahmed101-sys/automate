@@ -195,6 +195,18 @@ def run_autonomous_cycle(
         research_dispatch["execution"] = {**execution, "polled": completed}
 
     if not isinstance(research_result, dict):
+        record_learning(
+            outcome="failure",
+            task_kind="capability_implementation",
+            task_target=capability_item["id"],
+            strategy_id=selected_strategy["strategy_id"],
+            observation="Mirror research execution returned no persisted result",
+            failure_class="integration_defect",
+            evidence_refs=[{"id": str(job_id or "research-result"), "kind": "research_result"}],
+            correlation_id=packet["packet"]["request_id"],
+        )
+        if learning_store is not None:
+            learning_store.close()
         raise AutonomousCycleError("Mirror research execution returned no persisted result")
 
     # Do not truncate or reinterpret the research result. Pass only a durable
@@ -216,6 +228,17 @@ def run_autonomous_cycle(
             execute=True,
         )
     except WorkerTransportError as exc:
+        record_learning(
+            outcome="failure",
+            task_kind="capability_implementation",
+            task_target=capability_item["id"],
+            strategy_id=selected_strategy["strategy_id"],
+            observation="worker dispatch failed: " + str(exc),
+            failure_class="integration_defect",
+            correlation_id=packet["packet"]["request_id"],
+        )
+        if learning_store is not None:
+            learning_store.close()
         raise AutonomousCycleError(str(exc)) from exc
 
     output: dict[str, Any] = {
