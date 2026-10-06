@@ -50,7 +50,10 @@ def _gh_json(repository: str, *args: str) -> Any:
     env = os.environ.copy()
     if not env.get("GH_TOKEN") and not env.get("GITHUB_TOKEN"):
         raise RuntimeError("GH_TOKEN or GITHUB_TOKEN is required for automatic readiness inspection")
-    command = ["gh", "api", f"repos/{repository}", *args]
+    endpoint = "repos/" + repository
+    if args:
+        endpoint += "/" + "/".join(arg.strip("/") for arg in args)
+    command = ["gh", "api", endpoint]
     result = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "GitHub query failed")
