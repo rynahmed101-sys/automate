@@ -20,9 +20,9 @@ def test_worker_packet_for_current_frontier_is_bounded():
     assert "docs/PROJECT_PHASE_LEDGER.md" in body["constraints"]["forbidden_paths"]
     assert body["verification"]["test_targets"] == ["tests/test_improper_integrals.py"]
     assert body["constraints"]["allowed_path_prefixes"] == [
-        "automate/backend/improper_integrals_backend.py",
+        "automate/backend/sympy_backend.py",
+        "automate/theory/rules.py",
         "tests/test_improper_integrals.py",
-        "docs/capabilities/improper_integrals.md",
     ]
 
 
