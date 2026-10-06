@@ -507,54 +507,6 @@ class LinearAlgebraChecker(BaseChecker):
                 rank_g = np.linalg.matrix_rank(generators)
                 passed = rank_g == generators.shape[1]
                 metric = {"rank": int(rank_g), "column_count": int(generators.shape[1])}
-            elif rule == "matrix_conjugate_transpose":
-                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "matrix":
-                    raise LinearAlgebraParseError("matrix_conjugate_transpose requires one matrix input and one matrix output.")
-                matrix = sp.Matrix(parsed_inputs[0].value)
-                expected = ParsedLinearAlgebra("matrix", matrix.conjugate().T)
-                numeric = self._numeric_array(parsed_inputs[0])
-                if numeric is not None:
-                    numpy_expected = np.conjugate(numeric).T
-                steps = [{
-                    "step": 1,
-                    "operation": "conjugate_transpose",
-                    "input_shape": list(matrix.shape),
-                    "result_shape": list(matrix.conjugate().T.shape),
-                }]
-
-            elif rule == "matrix_unitary":
-                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
-                    raise LinearAlgebraParseError("matrix_unitary requires one square matrix input and one scalar indicator output.")
-                matrix = sp.Matrix(parsed_inputs[0].value)
-                if matrix.rows != matrix.cols:
-                    raise ValueError(f"Unitary verification requires a square matrix; received shape {matrix.shape}.")
-                identity = sp.eye(matrix.rows)
-                residual = sp.simplify(matrix.conjugate().T * matrix - identity)
-                states = [sp.simplify(residual[i, j]) for i in range(matrix.rows) for j in range(matrix.cols)]
-                if all(v == 0 for v in states):
-                    expected_value = sp.Integer(1)
-                elif any(v.is_zero is False for v in states):
-                    expected_value = sp.Integer(0)
-                else:
-                    return self._unverified(
-                        edge, graph, start, details,
-                        "Unitarity cannot be decided for the supplied symbolic matrix without additional assumptions.",
-                    )
-                expected = ParsedLinearAlgebra("scalar", expected_value)
-                numeric = self._numeric_array(parsed_inputs[0])
-                if numeric is not None:
-                    gram = numeric.conj().T @ numeric
-                    error = float(np.max(np.abs(gram - np.eye(matrix.rows))))
-                    scale = max(1.0, float(np.max(np.abs(numeric))))
-                    tolerance = 1e-9 + 1e-8 * scale
-                    numpy_expected = {"value": np.asarray(1 if error <= tolerance else 0)}
-                steps = [{
-                    "step": 1,
-                    "operation": "unitarity",
-                    "condition": "A^H A = I",
-                    "residual": [[str(residual[i, j]) for j in range(matrix.cols)] for i in range(matrix.rows)],
-                }]
-
             elif rule == "vector_change_of_basis":
                 source_basis, target_basis, source_coords = inputs
                 candidate = outputs[0]
@@ -1438,6 +1390,54 @@ class LinearAlgebraChecker(BaseChecker):
                     {"step": 2, "operation": "verify_P_invertible", "determinant": str(determinant)},
                     {"step": 3, "operation": "verify_reconstruction_A_equals_PDP_inv"},
                 ]
+
+            elif rule == "matrix_conjugate_transpose":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "matrix":
+                    raise LinearAlgebraParseError("matrix_conjugate_transpose requires one matrix input and one matrix output.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                expected = ParsedLinearAlgebra("matrix", matrix.conjugate().T)
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    numpy_expected = np.conjugate(numeric).T
+                steps = [{
+                    "step": 1,
+                    "operation": "conjugate_transpose",
+                    "input_shape": list(matrix.shape),
+                    "result_shape": list(matrix.conjugate().T.shape),
+                }]
+
+            elif rule == "matrix_unitary":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
+                    raise LinearAlgebraParseError("matrix_unitary requires one square matrix input and one scalar indicator output.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(f"Unitary verification requires a square matrix; received shape {matrix.shape}.")
+                identity = sp.eye(matrix.rows)
+                residual = sp.simplify(matrix.conjugate().T * matrix - identity)
+                states = [sp.simplify(residual[i, j]) for i in range(matrix.rows) for j in range(matrix.cols)]
+                if all(v == 0 for v in states):
+                    expected_value = sp.Integer(1)
+                elif any(v.is_zero is False for v in states):
+                    expected_value = sp.Integer(0)
+                else:
+                    return self._unverified(
+                        edge, graph, start, details,
+                        "Unitarity cannot be decided for the supplied symbolic matrix without additional assumptions.",
+                    )
+                expected = ParsedLinearAlgebra("scalar", expected_value)
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    gram = numeric.conj().T @ numeric
+                    error = float(np.max(np.abs(gram - np.eye(matrix.rows))))
+                    scale = max(1.0, float(np.max(np.abs(numeric))))
+                    tolerance = 1e-9 + 1e-8 * scale
+                    numpy_expected = {"value": np.asarray(1 if error <= tolerance else 0)}
+                steps = [{
+                    "step": 1,
+                    "operation": "unitarity",
+                    "condition": "A^H A = I",
+                    "residual": [[str(residual[i, j]) for j in range(matrix.cols)] for i in range(matrix.rows)],
+                }]
 
             elif rule == "vector_change_of_basis":
                 if len(parsed_inputs) != 3 or any(x.kind != "matrix" for x in parsed_inputs[:2]) or parsed_inputs[2].kind != "vector" or output.kind != "vector":
