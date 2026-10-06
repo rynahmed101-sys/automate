@@ -11,6 +11,7 @@ from automate.dev.inventory import (
     load_inventory,
     next_action,
     next_unclaimed,
+    packet as capability_packet,
     validate_inventory,
 )
 
@@ -94,3 +95,32 @@ def validate(as_json: bool) -> None:
     click.echo(json.dumps(payload, indent=2) if as_json else ("VALID" if not errors else "\n".join(errors)))
     if errors:
         raise click.exceptions.Exit(1)
+
+
+@capability.command("packet")
+@click.argument("capability_id")
+@click.option("--json", "as_json", is_flag=True)
+def packet_command(capability_id: str, as_json: bool) -> None:
+    """Print the machine-readable implementation contract for one capability."""
+    try:
+        payload = capability_packet(capability_id)
+    except InventoryError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2) if as_json else json.dumps(payload, indent=2))
+
+
+@capability.command("guard")
+@click.option("--branch", required=True, help="Development branch being checked.")
+@click.option("--base", default=None, help="Base ref/commit used for changed-file discovery.")
+@click.option("--head", default="HEAD", help="Head ref/commit.")
+@click.option("--changed-file", multiple=True, help="Explicit changed-file path; repeatable.")
+def guard_command(branch: str, base: str | None, head: str, changed_file: tuple[str, ...]) -> None:
+    """Fail closed when a capability branch crosses shared integration boundaries."""
+    from automate.dev.guard import changed_files, validate_branch_scope
+    files = list(changed_file) if changed_file else changed_files(base, head)
+    errors = validate_branch_scope(branch, files)
+    if errors:
+        for error in errors:
+            click.echo(f"ERROR: {error}", err=True)
+        raise click.exceptions.Exit(1)
+    click.echo(f"BRANCH_SCOPE_OK: {branch} ({len(files)} changed files)")
