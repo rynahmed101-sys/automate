@@ -605,3 +605,21 @@ It is:
 Once that cycle is mechanically proven, activation becomes a gate decision rather than a leap of faith.
 
 ---
+
+
+## Cross-repository scientific division
+
+The ecosystem is deliberately divided so capability development does not overload one repository:
+
+- **Automate** is the scientific authority and reasoning/control plane. It owns canonical mathematics/physics capability definitions, verification, evidence interpretation, promotion, certification, and protected system records.
+- **Chanfana** is the bounded execution substrate. It owns durable job delivery, leases, deadlines, heartbeats, retries/recovery, and execution envelopes. It does not interpret scientific meaning.
+- **THE MIRROR** is the scientific frontier laboratory and external research instrument. It may investigate unusual mathematics/physics and acquire public external research evidence without requiring agreement with established theory. It owns observations, experiments, perturbations, anomaly classification, reproducibility, and research provenance. It does not certify scientific truth.
+- **External research/data providers** are replaceable evidence sources. Provider output is never authority. Provider identity, request identity, retrieval time, revision/fingerprint where available, and limitations must travel with the evidence.
+
+The intended flow is:
+
+Automate request -> Chanfana bounded execution -> Mirror experiment/research -> raw observation/evidence -> Automate evaluation -> proposal -> verification -> promotion.
+
+The three repositories may progress independently when dependencies permit. A blocked or queued subsystem must not stall unrelated capability work.
+
+External research is deliberately broader than the implementation-worker role. Mirror may inspect public scholarly metadata, repositories, datasets/models, and other explicitly supported providers; this is a research capability, not a bypass around Automate's verification boundary.
