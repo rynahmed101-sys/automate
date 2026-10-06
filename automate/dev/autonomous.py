@@ -8,12 +8,12 @@ import json
 import os
 import uuid
 
-from automate.dev.inventory import InventoryError
+from automate.dev.inventory import InventoryError\nfrom automate.dev.verification_engine import deterministic_id
 from automate.dev.publisher import build_worker_commit
 from automate.dev.research import build_mirror_research_job
 from automate.dev.supervisor import supervisor_snapshot
 from automate.dev.worker import validate_worker_result
-from automate.dev.worker_client import WorkerTransportError, dispatch_worker
+from automate.dev.worker_client import WorkerTransportError, dispatch_worker, wait_worker_job
 
 
 class AutonomousCycleError(RuntimeError):
@@ -49,7 +49,7 @@ def run_autonomous_cycle(
     research_job = build_mirror_research_job(
         capability=capability_item,
         mirror_endpoint=mirror_endpoint,
-        request_id="res_" + uuid.uuid4().hex,
+        request_id=deterministic_id("res", capability_item["id"], packet["packet"]["repository"].get("base_sha_claim"), "external_research"),
         correlation_id=packet["packet"]["request_id"],
     )
     try:
