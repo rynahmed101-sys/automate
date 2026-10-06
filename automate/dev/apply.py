@@ -11,7 +11,7 @@ from automate.dev.worker import validate_worker_result
 
 
 def _git_blob_sha(content: bytes) -> str:
-    header = f"blob {len(content)}\\0".encode("utf-8")
+    header = f"blob {len(content)}\0".encode("utf-8")
     return hashlib.sha1(header + content).hexdigest()
 
 
