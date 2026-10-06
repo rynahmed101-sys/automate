@@ -65,3 +65,14 @@ A real external capability worker remains OFF until every readiness gate has ind
 ## Continuous means non-idle
 
 Continuous does not mean uncontrolled. When one lane is blocked, another safe lane is selected automatically. Stop only when no safe action remains, an authority boundary requires human judgment, or a failure requires escalation.
+
+
+## Structured-data research boundary
+
+The autonomous research layer treats structured data as evidence, not model memory. A bounded data query uses a provider-neutral request contract and returns rows plus provenance, hashes, retrieval time, and bounded execution statistics. Providers may later include DuckDB/local CSV/Parquet, BigQuery-like SQL services, scientific databases, or domain repositories. No provider becomes an authority merely because it returned records.
+
+The control-plane boundary is:
+
+query request -> bounded provider execution -> provenance-preserving evidence packet -> worker reasoning -> independent verification.
+
+A provider adapter must fail closed when it cannot satisfy the requested row, byte, timeout, or provenance requirements.
