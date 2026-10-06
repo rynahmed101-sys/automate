@@ -42,7 +42,7 @@ def build_worker_packet(
     *,
     repository: str = "rynahmed101-sys/automate",
     base_sha_claim: str | None = None,
-    development_branch: str = "engine",
+    development_branch: str = "main",
     context_files: list[dict[str, str]] | None = None,
     context_notes: list[str] | None = None,
 ) -> dict[str, Any]:
