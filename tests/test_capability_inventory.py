@@ -37,15 +37,15 @@ def test_capability_status_exposes_real_frontier():
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["implementation_state"] == "preserved_out_of_order"
-    assert any(ref.get("number") == 92 for ref in payload["references"])
+    assert any(ref.get("number") == 105 for ref in payload["references"])
 
 
-def test_capability_next_advances_to_stage1b_after_stage1a_completion():
+def test_capability_next_prioritizes_active_stage1b_reconciliation():
     result = CliRunner().invoke(main, ["capability", "next", "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["next_action"]["action"] == "implement"
-    assert payload["next_action"]["capability_id"] == "stage1b.fundamental_theorem"
+    assert payload["next_action"]["action"] == "reconcile"
+    assert "stage1b.fundamental_theorem" in payload["next_action"]["capability_ids"]
 
 
 def test_capabilities_exposes_control_plane():

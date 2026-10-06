@@ -216,7 +216,8 @@
       "explicit quotient-rule differentiation",
       "implicit differentiation under a local nonzero-partial condition",
       "definite and indefinite symbolic integration",
-      "represented repeated and nested indefinite integration"
+      "represented repeated and nested indefinite integration",
+      "Fundamental Theorem of Calculus in explicit accumulation and evaluation forms"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -1307,6 +1308,15 @@
       "implementation_backend": "linear_algebra",
       "allowed_checkers": [
         "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "fundamental_theorem_calculus",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
       ]
     }
   ],

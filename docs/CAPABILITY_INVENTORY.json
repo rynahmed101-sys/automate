@@ -397,12 +397,21 @@
       "order": 140,
       "stage": "1B",
       "name": "Fundamental theorem of calculus",
-      "implementation_state": "planned",
+      "implementation_state": "awaiting_reconciliation",
       "authority": {
-        "kind": "roadmap",
-        "ref": "PROJECT_PHASE_LEDGER"
+        "kind": "branch",
+        "ref": "PR108"
       },
-      "references": [],
+      "references": [
+        {
+          "type": "pr",
+          "number": 108,
+          "branch": "integrate/stage1b-ftc",
+          "head_sha": "46489cf43ecdb57f7879c84fb9e7f77eb6d5d043",
+          "state": "open",
+          "role": "primary"
+        }
+      ],
       "depends_on": [
         "stage1b.calculus"
       ],
@@ -422,7 +431,7 @@
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "First new Stage 1B capability after the existing calculus packets are reconciled and certified."
+      "notes": "Current implementation packet for the next incomplete Stage 1B capability. Do not treat it as merged or certified until reconciled on main and exact-head/security verified."
     },
     {
       "id": "stage1c.ode",
