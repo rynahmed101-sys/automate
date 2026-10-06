@@ -8,6 +8,7 @@ import click
 
 from automate.dev.discovery import DiscoveryIntakeError, triage_candidate
 from automate.dev.evolution import build_evolution_plan
+from automate.dev.learning_loop import plan_next_learning_action
 from automate.dev.evolution_executor import EvolutionExecutionError, execute_evolution_plan
 from automate.dev.learning import (
     LearningError,
@@ -322,3 +323,23 @@ def triage_discovery(proposal_file: str) -> None:
         click.echo(json.dumps(triage_candidate(proposal), indent=2))
     except (DiscoveryIntakeError, json.JSONDecodeError) as exc:
         raise click.ClickException(str(exc)) from exc
+
+
+@learn.command("loop")
+@click.option("--task-kind", required=True)
+@click.option("--task-target", required=True)
+@click.option("--db", default="data/learning.db", show_default=True)
+def loop(task_kind: str, task_target: str, db: str) -> None:
+    """Plan the next evidence-driven learning action without executing it."""
+    store = _store(db)
+    try:
+        click.echo(json.dumps(
+            plan_next_learning_action(
+                store,
+                task_kind=task_kind,
+                task_target=task_target,
+            ),
+            indent=2,
+        ))
+    finally:
+        store.close()
