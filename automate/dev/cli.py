@@ -168,3 +168,23 @@ def audit_live_command(repository: str, as_json: bool) -> None:
     click.echo(json.dumps(payload, indent=2) if as_json else ("VALID" if payload["valid"] else "\n".join(payload["errors"])))
     if not payload["valid"]:
         raise click.exceptions.Exit(1)
+
+@capability.command("supervise")
+@click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--base-sha", default=None, help="Observed main SHA to bind into the worker packet.")
+@click.option("--skip-live", is_flag=True, help="Skip the live GitHub audit. This can never produce a dispatchable decision.")
+@click.option("--json", "as_json", is_flag=True)
+def supervise_command(repository: str, base_sha: str | None, skip_live: bool, as_json: bool) -> None:
+    """Make one deterministic worker-dispatch decision from inventory and live state."""
+    from automate.dev.supervisor import supervisor_snapshot
+    try:
+        payload = supervisor_snapshot(
+            repository,
+            live=not skip_live,
+            base_sha=base_sha,
+        )
+    except InventoryError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2) if as_json else json.dumps(payload, indent=2))
+    if payload["action"] == "stop":
+        raise click.exceptions.Exit(1)
