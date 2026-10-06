@@ -440,6 +440,52 @@ class LearningStore:
             key=lambda x: (-x.conservative_score, -x.attempts, x.strategy_id),
         )
 
+    def select_strategy(
+        self,
+        *,
+        task_kind: str,
+        task_target: str,
+        default_strategy_id: str = "frontier-default",
+        minimum_attempts: int = 3,
+        minimum_conservative_score: float = 0.50,
+    ) -> dict[str, Any]:
+        """Select a learned strategy only when history is strong enough to displace the default.
+
+        This is deliberately conservative. Sparse experience can inform telemetry but
+        cannot silently steer autonomous execution.
+        """
+        recommendations = self.strategy_recommendations(
+            task_kind=task_kind,
+            task_target=task_target,
+        )
+        if not recommendations:
+            return {
+                "strategy_id": default_strategy_id,
+                "source": "default",
+                "confidence": "none",
+                "reason": "no historical experience for this task",
+            }
+        best = recommendations[0]
+        if (
+            best.attempts >= minimum_attempts
+            and best.conservative_score >= minimum_conservative_score
+            and best.confidence in {"medium", "high"}
+        ):
+            return {
+                "strategy_id": best.strategy_id,
+                "source": "learned_experience",
+                "confidence": best.confidence,
+                "reason": "conservative historical evidence cleared the selection threshold",
+                "evidence": best.to_dict(),
+            }
+        return {
+            "strategy_id": default_strategy_id,
+            "source": "default",
+            "confidence": best.confidence,
+            "reason": "historical evidence is too sparse or weak to override the default",
+            "best_observed": best.to_dict(),
+        }
+
     def failure_lesson_candidates(self, *, min_repetitions: int = 2) -> list[dict[str, Any]]:
         """Generate deterministic candidate lessons from repeated failure classes.
 
@@ -495,6 +541,7 @@ class LearningStore:
             "lesson_counts": {status: count for status, count in lesson_rows},
             "evolution_proposal_counts": {status: count for status, count in evolution_rows},
             "adopted_strategy_lesson_count": len(self.list_adopted_lessons(lesson_type="strategy")),
+            "strategy_selection_is_conservative": True,
         }
 
 
