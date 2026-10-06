@@ -310,6 +310,32 @@ class LearningStore:
         self.db.commit()
         return eid
 
+    def recent_experiences(
+        self,
+        *,
+        task_kind: str | None = None,
+        task_target: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        if not 1 <= int(limit) <= 100:
+            raise LearningError("experience limit must be between 1 and 100")
+        rows = self.db.execute(
+            "SELECT payload_json FROM experiences ORDER BY created_at DESC, id DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+        experiences = [json.loads(row[0]) for row in rows]
+        if task_kind is not None:
+            experiences = [
+                x for x in experiences
+                if x["task"]["kind"] == task_kind
+            ]
+        if task_target is not None:
+            experiences = [
+                x for x in experiences
+                if x["task"]["target"] == task_target
+            ]
+        return experiences
+
     def get_experience(self, experience_id: str) -> dict[str, Any] | None:
         row = self.db.execute(
             "SELECT payload_json FROM experiences WHERE id=?", (experience_id,)
