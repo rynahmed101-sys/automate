@@ -298,3 +298,51 @@ def test_repeated_candidate_lessons_merge_supporting_evidence(tmp_path: Path):
         }
     finally:
         store.close()
+
+
+def test_adopted_failure_memory_blocks_unsafe_strategy(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        _experience(
+            store,
+            outcome="failure",
+            strategy_id="frontier-default",
+            target="blocked-task",
+        )
+        _experience(
+            store,
+            outcome="failure",
+            strategy_id="alternate-bad",
+            target="blocked-task",
+        )
+        candidate = store.failure_lesson_candidates(min_repetitions=2)[0]
+        store.add_lesson(candidate)
+        store.transition_lesson(
+            candidate["lesson_id"],
+            "REPRODUCED",
+            reason="failure pattern reproduced",
+            evidence=[{"id": "reproduction"}],
+        )
+        store.transition_lesson(
+            candidate["lesson_id"],
+            "VERIFIED",
+            reason="independent verification",
+            evidence=[{"id": "independent", "independence": "independent_route"}],
+        )
+        store.transition_lesson(
+            candidate["lesson_id"],
+            "ADOPTED",
+            reason="cross-engine confirmation",
+            evidence=[{"id": "cross-engine", "independence": "cross_engine"}],
+        )
+
+        selected = store.select_strategy(
+            task_kind="calculus",
+            task_target="blocked-task",
+            default_strategy_id="frontier-default",
+        )
+        assert selected["strategy_id"] is None
+        assert selected["source"] == "failure_memory"
+        assert "frontier-default" in selected["blocked_strategies"]
+    finally:
+        store.close()
