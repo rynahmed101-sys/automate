@@ -1157,20 +1157,24 @@ class SymPyChecker(BaseChecker):
                     right_piece = sp.integrate(integrand, (variable, 0, upper))
                     if left_piece.has(sp.Integral) or right_piece.has(sp.Integral):
                         return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: two-sided tail integral remained unevaluated."
-                    left_limit = sp.limit(sp.integrate(integrand, (variable, lower + eps, 0)), eps, 0, dir="+")
-                    right_limit = sp.limit(sp.integrate(integrand, (variable, 0, upper - eps)), eps, 0, dir="+")
+                    left_cut = -1 / eps if lower == -sp.oo else lower + eps
+                    right_cut = 1 / eps if upper == sp.oo else upper - eps
+                    left_limit = sp.limit(sp.integrate(integrand, (variable, left_cut, 0)), eps, 0, dir="+")
+                    right_limit = sp.limit(sp.integrate(integrand, (variable, 0, right_cut)), eps, 0, dir="+")
                     if left_limit in (sp.oo, -sp.oo, sp.zoo) or right_limit in (sp.oo, -sp.oo, sp.zoo):
                         return False, {"rule": "improper_integral", "converges": False, "left_limit": str(left_limit), "right_limit": str(right_limit)}, [{"step": 1, "operation": "two_sided_tail_limits", "left": str(left_limit), "right": str(right_limit)}], "Verified divergence: at least one infinite tail diverges."
                     if left_limit.has(sp.Limit) or right_limit.has(sp.Limit) or left_limit is sp.nan or right_limit is sp.nan:
                         return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: two-sided convergence could not be established."
                     limit_value = sp.simplify(left_limit + right_limit)
                 elif upper in (sp.oo, -sp.oo):
-                    truncated = sp.integrate(integrand, (variable, lower, upper - eps if upper == sp.oo else upper + eps))
+                    upper_cut = 1 / eps if upper == sp.oo else upper + eps
+                    truncated = sp.integrate(integrand, (variable, lower, upper_cut))
                     if truncated.has(sp.Integral):
                         return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated integral remained unevaluated."
                     limit_value = sp.limit(truncated, eps, 0, dir="+")
                 elif lower in (sp.oo, -sp.oo):
-                    truncated = sp.integrate(integrand, (variable, lower + eps if lower == sp.oo else lower - eps, upper))
+                    lower_cut = 1 / eps if lower == sp.oo else -1 / eps
+                    truncated = sp.integrate(integrand, (variable, lower_cut, upper))
                     if truncated.has(sp.Integral):
                         return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated integral remained unevaluated."
                     limit_value = sp.limit(truncated, eps, 0, dir="+")
