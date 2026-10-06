@@ -15,6 +15,7 @@ from automate.dev.inventory import (
     queue_snapshot,
     validate_inventory,
 )
+from automate.dev.worker import build_worker_packet, worker_packet_json
 
 
 @click.group(name="capability")
@@ -108,6 +109,25 @@ def packet_command(capability_id: str, as_json: bool) -> None:
     except InventoryError as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(json.dumps(payload, indent=2) if as_json else json.dumps(payload, indent=2))
+
+
+@capability.command("worker-packet")
+@click.argument("capability_id")
+@click.option("--repo", "repository", default="rynahmed101-sys/automate", show_default=True)
+@click.option("--base-sha", default=None, help="Live main SHA observed by the supervisor.")
+@click.option("--json", "as_json", is_flag=True)
+def worker_packet_command(capability_id: str, repository: str, base_sha: str | None, as_json: bool) -> None:
+    """Render a bounded autonomous implementation packet for a claimable capability."""
+    try:
+        payload = build_worker_packet(
+            capability_id,
+            repository=repository,
+            base_sha_claim=base_sha,
+        )
+    except InventoryError as exc:
+        raise click.ClickException(str(exc)) from exc
+    output = json.dumps(payload, indent=2, sort_keys=True)
+    click.echo(output)
 
 
 @capability.command("guard")
