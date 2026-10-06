@@ -201,6 +201,25 @@ def run_autonomous_cycle(
     if remote_learning_sync is not None:
         selected_strategy["learning_sync"] = remote_learning_sync
 
+    if selected_strategy.get("strategy_id") is None:
+        record_learning(
+            outcome="unknown",
+            task_kind="capability_implementation",
+            task_target=capability_item["id"],
+            strategy_id="blocked-by-learning",
+            observation=selected_strategy.get("reason", "no safe learned strategy is currently available"),
+            failure_class="unresolved_scientific_behavior",
+            correlation_id=packet["packet"]["request_id"],
+        )
+        if learning_store is not None:
+            learning_store.close()
+        return {
+            "status": "strategy_blocked_by_learning",
+            "decision": decision,
+            "learning_strategy": selected_strategy,
+            "next_step": "reproduce the failure pattern or investigate an alternative strategy before retrying",
+        }
+
     # External world research stays disabled by governance until the current
     # 1A-3A reconciliation/verification frontier is cleared.
     if os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "").strip().lower() not in {"1", "true", "yes"}:
