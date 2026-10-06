@@ -21,6 +21,7 @@ from typing import Any, Iterable, Mapping
 from jsonschema import Draft202012Validator
 
 from automate.backend.sympy_backend import SymPyChecker
+from automate.dev.identifiers import canonical_json, deterministic_id, sha256
 from automate.dev.learning import LearningStore
 from automate.dev.learning_events import record_ci_result, record_reconciliation_result, record_verification_result
 
@@ -67,16 +68,6 @@ FAILURE_CLASSES = (
     "security_failure", "integration_defect", "genuine_contradiction",
     "unresolved_scientific_behavior",
 )
-
-def canonical_json(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
-
-def sha256(value: Any) -> str:
-    data = value if isinstance(value, (bytes, bytearray)) else canonical_json(value).encode()
-    return hashlib.sha256(data).hexdigest()
-
-def deterministic_id(prefix: str, *parts: Any) -> str:
-    return f"{prefix}_{sha256(parts)[:32]}"
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
