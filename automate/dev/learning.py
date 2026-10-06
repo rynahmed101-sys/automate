@@ -55,6 +55,13 @@ LESSON_TRANSITIONS = {
 }
 EVOLUTION_KINDS = {"knowledge", "strategy", "verifier", "capability", "governance"}
 EVOLUTION_CLASS = {"MUTABLE", "CONSTITUTIONAL"}
+EVOLUTION_TRANSITIONS = {
+    "CANDIDATE": {"VERIFIED", "REJECTED", "SUPERSEDED"},
+    "VERIFIED": {"ADOPTED", "REJECTED", "SUPERSEDED"},
+    "ADOPTED": {"SUPERSEDED"},
+    "REJECTED": set(),
+    "SUPERSEDED": set(),
+}
 MAX_EXPERIENCE_BYTES = 500_000
 MAX_LESSON_BYTES = 200_000
 MAX_EVOLUTION_BYTES = 200_000
@@ -239,6 +246,8 @@ def build_evolution_proposal(
         "rollback": rollback,
         "status": status,
         "auto_promotable": classification == "MUTABLE",
+        "verification_evidence": [],
+        "regression_results": [],
         "provenance": {"created_at": utc_now()},
     }
     body["proposal_id"] = deterministic_id(
@@ -431,6 +440,89 @@ class LearningStore:
         )
         self.db.commit()
         return proposal_id
+
+    def transition_evolution_proposal(
+        self,
+        proposal_id: str,
+        to_status: str,
+        *,
+        reason: str,
+        evidence: Iterable[Mapping[str, Any]] = (),
+        regression_results: Iterable[Mapping[str, Any]] = (),
+    ) -> dict[str, Any]:
+        proposal = self.get_evolution_proposal(proposal_id)
+        if proposal is None:
+            raise LearningError(f"unknown evolution proposal: {proposal_id}")
+        current = proposal["status"]
+        if to_status not in EVOLUTION_TRANSITIONS.get(current, set()):
+            raise LearningError(f"invalid evolution transition: {current} -> {to_status}")
+
+        evidence_list = [dict(x) for x in evidence]
+        regressions = [dict(x) for x in regression_results]
+        if to_status in {"VERIFIED", "ADOPTED"} and not evidence_list:
+            raise LearningError(f"{to_status} requires explicit verification evidence")
+        if to_status == "ADOPTED":
+            independence_error = _validate_adoption_evidence(evidence_list)
+            if independence_error:
+                raise LearningError(independence_error)
+            if not regressions:
+                raise LearningError("ADOPTED evolution proposal requires regression results")
+            failed = [
+                x for x in regressions
+                if x.get("status") not in {"passed", "verified"}
+            ]
+            if failed:
+                raise LearningError("ADOPTED evolution proposal has failed regression results")
+
+        proposal["status"] = to_status
+        proposal["verification_evidence"] = [
+            *proposal.get("verification_evidence", []),
+            *evidence_list,
+        ]
+        proposal["regression_results"] = [
+            *proposal.get("regression_results", []),
+            *regressions,
+        ]
+        body = canonical_json(proposal)
+        self.db.execute(
+            "UPDATE evolution_proposals SET status=?, payload_json=?, payload_sha256=? WHERE id=?",
+            (to_status, body, hashlib.sha256(body.encode()).hexdigest(), proposal_id),
+        )
+        self.db.commit()
+        return proposal
+
+    def evolution_candidates_from_adopted_lessons(self) -> list[dict[str, Any]]:
+        candidates: list[dict[str, Any]] = []
+        for lesson in self.list_adopted_lessons(lesson_type="system_improvement"):
+            scope = lesson.get("scope", {})
+            kind = str(scope.get("evolution_kind", "verifier"))
+            if kind not in EVOLUTION_KINDS or kind == "governance":
+                continue
+            target = str(scope.get("target", lesson["lesson_id"]))
+            candidates.append(
+                build_evolution_proposal(
+                    kind=kind,
+                    subject=target,
+                    rationale=lesson["statement"],
+                    expected_benefit=str(
+                        lesson.get("expected_effect")
+                        or "Improve future system behavior using an independently adopted lesson."
+                    ),
+                    evidence_refs=[
+                        {"id": lesson["lesson_id"], "kind": "adopted_lesson"},
+                        *lesson.get("verification_evidence", []),
+                    ],
+                    regression_requirements=[
+                        *[
+                            str(item) for item in lesson.get("preconditions", [])
+                        ],
+                        "Replay the supporting experience corpus for this lesson.",
+                        "Run the generated regression obligations before adoption.",
+                    ],
+                    rollback="Revert the resulting isolated evolution PR if regressions or independent checks fail.",
+                )
+            )
+        return candidates
 
     def get_evolution_proposal(self, proposal_id: str) -> dict[str, Any] | None:
         row = self.db.execute(
