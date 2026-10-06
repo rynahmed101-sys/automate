@@ -15,6 +15,7 @@ REQUIRED_GATES = (
     "live_control_plane_clean",
     "exact_head_authority_current",
     "end_to_end_dry_run_passed",
+    "autonomous_foundation_merged_main",
 )
 
 
@@ -88,6 +89,13 @@ def _workflow_success(repository: str, workflow_file: str, commit_sha: str) -> b
     return any(run.get("conclusion") == "success" for run in runs if isinstance(run, dict))
 
 
+
+def _github_content_exists(repository: str, path: str, ref: str) -> bool:
+    try:
+        _gh_json(repository, f"/contents/{path}?ref={ref}")
+        return True
+    except Exception:
+        return False
 def collect_readiness_evidence(
     repository: str,
     *,
