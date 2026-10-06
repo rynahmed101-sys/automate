@@ -116,7 +116,7 @@ def active_references(data: dict[str, Any]) -> list[dict[str, Any]]:
         if item["implementation_state"] not in ACTIVE_STATES:
             continue
         for ref in item["references"]:
-            if ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open"):
+            if (ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open")) or (ref.get("type") == "branch" and ref.get("branch") == "engine" and ref.get("state") == "active_development"):
                 result.append({"capability_id": item["id"], **ref})
     return result
 
