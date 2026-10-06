@@ -70,10 +70,11 @@ def build_worker_packet(
         *data["branch_policy"]["shared_integration_files"],
     }
 
-    # Some planned capabilities have not yet declared concrete canonical files.
-    # Keep the worker bounded to known implementation/test/docs roots until a
-    # reconciliation pass records narrower canonical files.
-    allowed = list(item["canonical_files"]) or ["automate/backend", "tests", "docs"]
+    if not item["canonical_files"]:
+        raise InventoryError(
+            f"{capability_id}: canonical worker file boundary is not declared."
+        )
+    allowed = list(item["canonical_files"])
 
     context_paths: list[str] = []
     seen: set[str] = set()
