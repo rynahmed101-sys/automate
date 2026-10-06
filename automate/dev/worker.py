@@ -40,6 +40,7 @@ def build_worker_packet(
     *,
     repository: str = "rynahmed101-sys/automate",
     base_sha_claim: str | None = None,
+    development_branch: str = "engine",
     context_files: list[dict[str, str]] | None = None,
     context_notes: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -122,7 +123,7 @@ def build_worker_packet(
             "request_id": f"wrk_{uuid.uuid4().hex}",
             "repository": {
                 "full_name": repository,
-                "base_branch": data["branch_policy"]["feature_base"],
+                "base_branch": development_branch,
                 "base_sha_claim": base_sha_claim,
             },
             "capability": {
@@ -228,6 +229,7 @@ def worker_packet_json(
     *,
     repository: str,
     base_sha_claim: str | None = None,
+    development_branch: str = "engine",
     context_files: list[dict[str, str]] | None = None,
     context_notes: list[str] | None = None,
 ) -> str:
