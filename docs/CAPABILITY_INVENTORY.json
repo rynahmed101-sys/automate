@@ -472,7 +472,10 @@
       "depends_on": [
         "stage1b.calculus"
       ],
-      "canonical_files": [],
+      "canonical_files": [
+        "automate/backend/sympy_backend.py",
+        "tests/test_improper_integrals.py"
+      ],
       "shared_integration_points": [
         "automate/theory/rules.py",
         "schemas/automate-agent-v1.json"
@@ -488,7 +491,19 @@
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "First claimable Stage 1B capability. Tracking issue #115."
+      "notes": "First claimable Stage 1B capability. Tracking issue #115.",
+      "task": {
+        "source": "docs/PROJECT_PHASE_LEDGER.md",
+        "ref": "Stage 1B — Improper integrals and convergence-aware handling",
+        "summary": "Implement reusable improper-integral evaluation and convergence classification using explicit endpoint and infinite-limit semantics.",
+        "requirements": [
+          "Support finite-interval endpoint singularities and infinite limits without arbitrary special-case ceilings.",
+          "Represent convergent, divergent, and unresolved cases explicitly and fail closed when convergence cannot be established.",
+          "Reuse the existing calculus/integration machinery rather than introducing a one-off physics or formula path.",
+          "Add positive, negative, boundary, degenerate, and adversarial tests in the canonical focused test file.",
+          "Do not modify the phase ledger, capability inventory, shared rule registry, or shared integration files."
+        ]
+      }
     },
     {
       "id": "stage1b.series_expansions",
