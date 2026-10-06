@@ -480,36 +480,55 @@ class LearningStore:
         This is deliberately conservative. Sparse experience can inform telemetry but
         cannot silently steer autonomous execution.
         """
-        recommendations = self.strategy_recommendations(
-            task_kind=task_kind,
-            task_target=task_target,
-        )
-        if not recommendations:
+        recommendations = {
+            item.strategy_id: item
+            for item in self.strategy_recommendations(
+                task_kind=task_kind,
+                task_target=task_target,
+            )
+        }
+        adopted = [
+            lesson
+            for lesson in self.list_adopted_lessons(lesson_type="strategy")
+            if lesson.get("scope", {}).get("task_kind") == task_kind
+            and lesson.get("scope", {}).get("task_target") == task_target
+            and lesson.get("scope", {}).get("strategy_id") in recommendations
+        ]
+        if not adopted:
             return {
                 "strategy_id": default_strategy_id,
                 "source": "default",
                 "confidence": "none",
-                "reason": "no historical experience for this task",
+                "reason": "no adopted strategy lesson exists for this task",
             }
-        best = recommendations[0]
-        if (
-            best.attempts >= minimum_attempts
-            and best.conservative_score >= minimum_conservative_score
-            and best.confidence in {"medium", "high"}
-        ):
+
+        eligible = [
+            recommendations[lesson["scope"]["strategy_id"]]
+            for lesson in adopted
+            if lesson["scope"]["strategy_id"] in recommendations
+            and recommendations[lesson["scope"]["strategy_id"]].attempts >= minimum_attempts
+            and recommendations[lesson["scope"]["strategy_id"]].conservative_score >= minimum_conservative_score
+            and recommendations[lesson["scope"]["strategy_id"]].confidence in {"medium", "high"}
+        ]
+        if not eligible:
             return {
-                "strategy_id": best.strategy_id,
-                "source": "learned_experience",
-                "confidence": best.confidence,
-                "reason": "conservative historical evidence cleared the selection threshold",
-                "evidence": best.to_dict(),
+                "strategy_id": default_strategy_id,
+                "source": "default",
+                "confidence": "low",
+                "reason": "adopted strategy lessons exist, but current evidence has not cleared the selection threshold",
+                "adopted_lesson_count": len(adopted),
             }
+
+        best = sorted(
+            eligible,
+            key=lambda x: (-x.conservative_score, -x.attempts, x.strategy_id),
+        )[0]
         return {
-            "strategy_id": default_strategy_id,
-            "source": "default",
+            "strategy_id": best.strategy_id,
+            "source": "adopted_lesson",
             "confidence": best.confidence,
-            "reason": "historical evidence is too sparse or weak to override the default",
-            "best_observed": best.to_dict(),
+            "reason": "an adopted strategy lesson and conservative historical evidence cleared the selection threshold",
+            "evidence": best.to_dict(),
         }
 
     def success_lesson_candidates(self, *, min_repetitions: int = 3) -> list[dict[str, Any]]:
