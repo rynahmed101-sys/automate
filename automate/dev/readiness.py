@@ -120,6 +120,36 @@ def collect_readiness_evidence(
         and _workflow_success(repository, "ci.yml", main_sha)
         and _workflow_success(repository, "security.yml", main_sha)
     )
+    evidence["autonomous_foundation_merged_main"] = False
+    try:
+        inventory = _gh_json(repository, "/contents/docs/CAPABILITY_INVENTORY.json?ref=main")
+        import base64
+
+        encoded = inventory.get("content")
+        if isinstance(encoded, str):
+            decoded = base64.b64decode(encoded).decode("utf-8")
+            inv = json.loads(decoded)
+            refs = inv.get("integration_references", [])
+            merged_ref = any(
+                ref.get("number") == 120 and ref.get("state") == "merged"
+                for ref in refs
+                if isinstance(ref, dict)
+            )
+            required_files = (
+                "automate/dev/autonomous.py",
+                "automate/dev/readiness.py",
+                "automate/dev/worker_client.py",
+                "automate/dev/executor.py",
+                "automate/dev/publisher.py",
+            )
+            files_present = all(
+                _github_content_exists(repository, path, "main")
+                for path in required_files
+            )
+            evidence["autonomous_foundation_merged_main"] = merged_ref and files_present
+    except Exception as exc:
+        errors.append(f"autonomous foundation merge inspection failed: {exc}")
+
     evidence["live_control_plane_clean"] = False
     try:
         live = summarize_live(repository)
@@ -182,7 +212,16 @@ def collect_readiness_evidence(
             and _workflow_success(worker_repository, "worker-ci.yml", worker_sha)
         )
         evidence["worker_api_authenticated_bounded"] = present and worker_ci
-        evidence["github_lifecycle_exercised"] = present and worker_ci
+        merged_pr = False
+        try:
+            closed_prs = _gh_json(worker_repository, "/pulls?state=closed&base=main&per_page=50")
+            merged_pr = any(
+                isinstance(pr, dict) and pr.get("merged_at")
+                for pr in closed_prs
+            )
+        except Exception as exc:
+            errors.append(f"worker PR lifecycle inspection failed: {exc}")
+        evidence["github_lifecycle_exercised"] = present and worker_ci and merged_pr
     except Exception as exc:
         errors.append(f"worker substrate inspection failed: {exc}")
 
