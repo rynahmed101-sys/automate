@@ -13,6 +13,7 @@ from typing import Any
 
 from automate.dev.inventory import InventoryError
 from automate.dev.learning import LearningError, LearningStore, build_experience
+from automate.dev.learning_client import submit_learning_artifact, sync_learning_store
 from automate.dev.verification_engine import deterministic_id
 from automate.dev.publisher import build_worker_commit
 from automate.dev.research import build_mirror_research_job
@@ -45,6 +46,14 @@ def run_autonomous_cycle(
             learning_store = LearningStore(learning_db)
         except Exception as exc:
             raise AutonomousCycleError("learning store initialization failed: " + str(exc)) from exc
+
+    remote_learning_sync: dict[str, Any] | None = None
+    if learning_store is not None and os.getenv("AUTOMATE_LEARNING_ENDPOINT") and os.getenv("AUTOMATE_LEARNING_TOKEN"):
+        try:
+            remote_learning_sync = sync_learning_store(learning_store, limit=100)
+        except Exception as exc:
+            # Durable remote memory is an accelerator, not a single point of failure.
+            remote_learning_sync = {"status": "unavailable", "error": str(exc)}
 
     def record_learning(
         *,
@@ -85,6 +94,20 @@ def run_autonomous_cycle(
                 correlation_id=correlation_id or action_cycle_id,
             )
             experience_id = learning_store.add_experience(experience)
+            if os.getenv("AUTOMATE_LEARNING_ENDPOINT") and os.getenv("AUTOMATE_LEARNING_TOKEN"):
+                try:
+                    submit_learning_artifact(
+                        experience,
+                        artifact_type="learning_experience",
+                        request_id="learning_" + experience_id.removeprefix("exp_"),
+                        correlation_id=correlation_id or action_cycle_id,
+                        source_revision=experience["provenance"]["revision"],
+                        source_repo=repository,
+                        source_component="autonomous",
+                    )
+                except Exception:
+                    # Preserve local learning even if the remote transport is unavailable.
+                    pass
             # Repeated observations become candidate lessons automatically, but remain
             # unverified until an independent verification path explicitly promotes them.
             for lesson in (
@@ -107,7 +130,7 @@ def run_autonomous_cycle(
         )
         if learning_store is not None:
             learning_store.close()
-        return {"status": "stopped", "decision": decision}
+        return {"status": "stopped", "decision": decision, "learning_sync": remote_learning_sync}
 
     packet = decision["worker_packet"]
     capability = packet["packet"]["capability"]
@@ -130,6 +153,8 @@ def run_autonomous_cycle(
         }
     )
 
+    if remote_learning_sync is not None:
+        selected_strategy["learning_sync"] = remote_learning_sync
 
     # External world research stays disabled by governance until the current
     # 1A-3A reconciliation/verification frontier is cleared.
