@@ -15,7 +15,8 @@
     "command": "automate capabilities --json",
     "contract_command": "automate schema --name agent",
     "contract_file": "schemas/automate-agent-v1.json",
-    "runtime_state": "capabilities --json reports optional backend/provider availability; this contract describes the interface and supported feature families."
+    "runtime_state": "capabilities --json reports optional backend/provider availability; this contract describes the interface and supported feature families.",
+    "capability_inventory_file": "docs/CAPABILITY_INVENTORY.json"
   },
   "contracts": {
     "context": "automate.context.v1",
@@ -23,7 +24,8 @@
     "ir": "automate.ir.v0.2",
     "tensor": "automate-tensor-v1",
     "certificate": "automate.cert.v0.2",
-    "agent": "automate.agent.v1"
+    "agent": "automate.agent.v1",
+    "capability_inventory": "automate.capability_inventory.v1"
   },
   "command_protocol": {
     "input_convention": "CLI arguments plus UTF-8 JSON files where a command accepts structured artifacts.",
@@ -161,7 +163,7 @@
       "returns": "artifact file map"
     },
     "schema": {
-      "command": "automate schema --name <ir|tensor|proposal|context|agent>",
+      "command": "automate schema --name <ir|tensor|proposal|context|agent|capability>",
       "mode": "read_only",
       "purpose": "Retrieve authoritative interchange schemas and this machine-agent capability contract."
     },
@@ -170,6 +172,12 @@
       "mode": "write_output",
       "purpose": "Run the canonical end-to-end harmonic oscillator demonstration.",
       "machine_protocol": false
+    },
+    "capability_inventory": {
+      "command": "automate capability <list|status|refs|next|packet|guard|validate> [options] --json",
+      "mode": "read_only",
+      "purpose": "Inspect capability ownership, reconciliation, dependencies and verification state without conflating roadmap state with implementation state.",
+      "returns_contract": "automate.capability_inventory.v1"
     }
   },
   "capability_catalog": {
@@ -278,7 +286,8 @@
       "local HTTP AI provider adapter",
       "OpenAI-compatible HTTP provider adapter",
       "bounded multi-step research loop",
-      "machine-readable JSON CLI surface"
+      "machine-readable JSON CLI surface",
+      "development control-plane inventory discovery"
     ],
     "provenance_and_certificates": [
       "runtime dependency provenance for external verification",
@@ -318,7 +327,10 @@
       "column-space basis verification",
       "vector span-membership verification",
       "linear-independence verification by exact rank",
-      "basis-of-span verification"
+      "basis-of-span verification",
+      "Moore-Penrose pseudoinverse and least-squares workstream",
+      "complex scalar/vector/matrix semantics",
+      "change-of-basis semantics"
     ],
     "physics": [
       "Coulomb force for point charges",
@@ -328,6 +340,16 @@
       "continuous charge potential kernels",
       "uniform finite line-charge potential",
       "bounded Cartesian Gauss-law verification"
+    ],
+    "development_control_plane": [
+      "versioned capability ownership and implementation inventory",
+      "deterministic capability status and active-reference queries",
+      "earliest unresolved action selection",
+      "direct PR ownership collision detection",
+      "dependency and certification-state validation",
+      "safe-to-delete preservation assertions",
+      "capability implementation packet rendering",
+      "branch-scope guardrails for shared integration files"
     ]
   },
   "rules": [

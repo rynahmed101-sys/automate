@@ -33,6 +33,8 @@ from automate.ai import (
     DerivationProposal
 )
 from automate.theory.rules import RuleRegistry
+from automate.dev.inventory import summarize as capability_inventory_summary
+from automate.dev.cli import capability
 
 
 @click.group()
@@ -79,6 +81,7 @@ def capabilities(as_json: bool):
             "schema_version": "automate.agent.v1",
             "schema_command": "automate schema --name agent",
         },
+        "development_control_plane": capability_inventory_summary(),
     }
     if as_json:
         click.echo(json.dumps(caps, indent=2))
@@ -527,7 +530,7 @@ def export_certificate(graph_file: str, output_dir: str, as_json: bool):
 
 
 @main.command()
-@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor", "proposal", "context", "agent"]), help="Schema name")
+@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor", "proposal", "context", "agent", "capability"]), help="Schema name")
 def schema(name: str):
     """Print an authoritative machine-readable JSON schema for an interchange contract."""
     if name == "ir":
@@ -544,6 +547,13 @@ def schema(name: str):
         click.echo(schema_path.read_text(encoding="utf-8"))
         return
 
+    if name == "capability":
+        schema_path = Path(__file__).parent.parent / "schemas" / "automate-capability-inventory-v1.json"
+        if not schema_path.exists():
+            raise click.ClickException("Capability inventory schema file is unavailable.")
+        click.echo(schema_path.read_text(encoding="utf-8"))
+        return
+
     if name == "tensor":
         model = TensorEquation
     else:
@@ -553,6 +563,8 @@ def schema(name: str):
     document["title"] = f"Automate {name.capitalize()} Contract (v1)"
     click.echo(json.dumps(document, indent=2))
 
+
+main.add_command(capability)
 
 if __name__ == "__main__":
     main()

@@ -2,6 +2,8 @@ name: Automate CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -9,12 +11,10 @@ on:
       - opened
       - synchronize
       - reopened
-      - closed
-  pull_request_target:
-    branches:
-      - main
-    types:
-      - closed
+
+concurrency:
+  group: automate-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 # Automate uses two CI speeds on purpose:
 # - Development/PR CI is fast feedback. It runs the full Python test suite on one
@@ -30,7 +30,7 @@ on:
 
 jobs:
   development:
-    if: github.ref != 'refs/heads/main'
+    if: github.event_name == 'pull_request'
     name: Development / Python 3.12
     runs-on: ubuntu-latest
 
@@ -38,7 +38,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
@@ -58,12 +58,27 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Validate development control plane
+        run: |
+          automate capability validate --json
+
+      - name: Enforce capability branch scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -t changed_files < <(gh pr diff "${{ github.event.pull_request.number }}" --name-only)
+          args=(--branch "$GITHUB_HEAD_REF")
+          for changed in "${changed_files[@]}"; do
+            [[ -n "$changed" ]] && args+=(--changed-file "$changed")
+          done
+          automate capability guard "${args[@]}"
+
       - name: Run development test suite
         run: |
           pytest -q --tb=short --strict-markers
 
   exact-head:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || ((github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.merged == true && github.ref == 'refs/heads/main')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     name: Exact-head / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -96,6 +111,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Validate development control plane
+        run: |
+          automate capability validate --json
+
       - name: Run full test suite
         run: |
           pytest -q --tb=short --strict-markers
@@ -117,7 +136,7 @@ jobs:
           pytest tests/test_linear_algebra_eigen_acceptance.py -q -s --tb=short
 
   lean4:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.action == 'closed' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     name: Exact-head / Lean 4 proof check
     runs-on: ubuntu-latest
     steps:

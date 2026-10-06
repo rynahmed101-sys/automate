@@ -5,6 +5,7 @@ import json
 from click.testing import CliRunner
 
 from automate.cli import main
+from automate.theory.rules import RuleRegistry
 
 
 def test_schema_ir_returns_canonical_schema():
@@ -51,16 +52,24 @@ def test_schema_tensor_returns_canonical_tensor_contract():
     assert "TensorExpression" in payload.get("$defs", {})
 
 
+def test_schema_capability_inventory_returns_contract():
+    result = CliRunner().invoke(main, ["schema", "--name", "capability"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["properties"]["schema_version"]["const"] == "automate.capability_inventory.v1"
+
+
 def test_schema_agent_returns_machine_agent_contract():
     result = CliRunner().invoke(main, ["schema", "--name", "agent"])
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["schema_version"] == "automate.agent.v1"
-    assert len(payload["rules"]) == 100
+    assert set(rule["rule_id"] for rule in payload["rules"]) == set(RuleRegistry().list_rule_ids())
     assert {"differentiate", "chain_rule", "product_rule", "quotient_rule", "implicit_differentiate", "integrate", "nested_integrate", "vector_add", "vector_dot", "matrix_multiply", "matrix_inverse", "matrix_rref", "linear_system_solve", "matrix_characteristic_polynomial", "matrix_eigenvalues", "matrix_eigenvector", "matrix_diagonalize"}.issubset({rule["rule_id"] for rule in payload["rules"]})
     assert {"discover", "context", "validate", "propose_dry_run", "propose_apply",
             "research", "check", "prove", "simulate", "stats",
             "query_assumptions", "expand", "report", "export_certificate",
-            "schema"}.issubset(payload["commands"])
+            "schema", "capability_inventory"}.issubset(payload["commands"])
     assert "capability_catalog" in payload
+    assert "development_control_plane" in payload["capability_catalog"]

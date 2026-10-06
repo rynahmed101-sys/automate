@@ -195,3 +195,11 @@ The package produces 7 decoupled artifacts with a root `manifest.json` containin
 5. `subgraph_expansion.json`: Micro-step expansions of composite derivations.
 6. `provenance.json`: Origin metadata, timestamps, compiler versions, graph hashes.
 7. `manifest.json`: Cryptographic SHA-256 checksums of all package artifacts.
+
+## Development control plane
+
+Before accepting a capability task, query `automate capability list --json`, `automate capability refs --json`, and `automate capability next --json`. Then inspect the named owner branch/PR before writing any implementation.
+
+Implementation state lives in `docs/CAPABILITY_INVENTORY.json`, not in branch names or PR titles. The phase ledger remains roadmap authority. Main is authoritative code state, but missing files on main do not imply that the capability is unimplemented.
+
+Capability packets should isolate mathematical source, focused tests, and semantic docs. Shared registry/schema/dispatch changes are reconciled by the primary integrator. A multi-capability integration PR must be explicitly represented as an integration batch in the inventory.
