@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from automate.dev.live import summarize_live
+
 
 REQUIRED_GATES = (
     "worker_contract_tested",
