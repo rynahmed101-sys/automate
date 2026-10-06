@@ -1,6 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from automate.dev.learning import LearningStore
 from automate.dev.verification_engine import (
     EvidenceGraph, EvidenceState, build_request, build_verifiable_packet,
     diagnose_failure, mirror_verification_request, plan_bounded_repair,
@@ -202,3 +203,25 @@ def test_packet_consistency_rejects_fake_authority_and_packet_identity():
     errors = validate_packet_consistency(packet, request=request, repository_state={})
     assert any("authority" in e for e in errors)
     assert any("packet_id" in e for e in errors)
+
+
+def test_backlog_verification_can_emit_learning_experience(tmp_path: Path):
+    snapshot = {
+        "main_sha": "1b0bb0b6707d76ff403c46bb93e353a97d16e26",
+        "engine_sha": "ee7556b9ab5078c89052eecfb83490355dbeb497",
+        "workflow_runs_main": [],
+        "workflow_runs_engine": [],
+    }
+    result = run_backlog_item(
+        capability_id="stage1b.improper_integrals",
+        repository="rynahmed101-sys/automate",
+        revision=snapshot["engine_sha"],
+        branch="engine",
+        action_cycle_id="cycle_learning_12345678",
+        snapshot=snapshot,
+        evidence_db=tmp_path / "verification.db",
+        learning_db=tmp_path / "learning.db",
+    )
+    assert result["learning"] is not None
+    assert result["learning"]["verification_experience_id"].startswith("exp_")
+    assert LearningStore(tmp_path / "learning.db").snapshot()["experience_count"] >= 2
