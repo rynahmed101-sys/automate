@@ -31,8 +31,12 @@ concurrency:
 jobs:
   development:
     if: github.event_name == 'pull_request'
-    name: Development / Python 3.12
+    name: Development / Python 3.12 / shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
 
     steps:
       - name: Checkout repository
@@ -81,9 +85,18 @@ jobs:
           done
           automate capability guard "${args[@]}"
 
-      - name: Run development test suite
+      - name: Run development test shard
         run: |
-          pytest -q --tb=short --strict-markers
+          mapfile -t test_files < <(find tests -maxdepth 1 -type f -name 'test_*.py' | sort)
+          selected=()
+          for i in "${!test_files[@]}"; do
+            if (( i % 4 == ${{ matrix.shard }} )); then
+              selected+=("${test_files[$i]}")
+            fi
+          done
+          printf 'Running %s test files in shard ${{ matrix.shard }}\\n' "${#selected[@]}"
+          printf '%s\\n' "${selected[@]}"
+          pytest -q --tb=short --strict-markers "${selected[@]}"
 
   exact-head:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
