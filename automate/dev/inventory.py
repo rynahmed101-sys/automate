@@ -144,7 +144,10 @@ def next_action(data: dict[str, Any]) -> dict[str, Any]:
             "capability_ids": [x["id"] for x in active],
         }
 
-    planned = [x for x in same_band if x["implementation_state"] == "planned" and not x["references"]]
+    planned = [x for x in same_band if x["implementation_state"] == "planned" and not any(
+        ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open")
+        for ref in x["references"]
+    )]
     if planned:
         return {
             "action": "implement",
@@ -164,7 +167,10 @@ def next_unclaimed(data: dict[str, Any]) -> dict[str, Any] | None:
     for item in sorted(data["capabilities"], key=lambda x: x["order"]):
         if (
             item["implementation_state"] == "planned"
-            and not item["references"]
+            and not any(
+                ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open")
+                for ref in item["references"]
+            )
             and _dependencies_terminal(item, by_id)
         ):
             return item
