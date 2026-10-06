@@ -1056,13 +1056,11 @@ class SymPyChecker(BaseChecker):
                 limit_value = sp.limit(truncated, eps, 0, dir="+")
             elif singular_raw is not None:
                 singular = parser.parse(str(singular_raw))
-                left = sp.integrate(integrand, (variable, lower, singular - sp.symbols("epsilon", positive=True)))
-                right = sp.integrate(integrand, (variable, singular + sp.symbols("epsilon", positive=True), upper))
+                eps = sp.symbols("epsilon", positive=True)
+                left = sp.integrate(integrand, (variable, lower, singular - eps))
+                right = sp.integrate(integrand, (variable, singular + eps, upper))
                 if left.has(sp.Integral) or right.has(sp.Integral):
                     return False, {"rule": "improper_integral", "mode": "interior", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated interior integrals remained unevaluated."
-                eps = next(iter(left.free_symbols | right.free_symbols) - set(integrand.free_symbols - {variable}), None)
-                if eps is None:
-                    eps = sp.symbols("epsilon", positive=True)
                 left_limit, right_limit = sp.limit(left, eps, 0, dir="+"), sp.limit(right, eps, 0, dir="+")
                 if left_limit in (sp.oo, -sp.oo, sp.zoo) or right_limit in (sp.oo, -sp.oo, sp.zoo):
                     return False, {"rule": "improper_integral", "mode": "interior", "converges": False, "left_limit": str(left_limit), "right_limit": str(right_limit)}, [{"step": 1, "operation": "endpoint_limits", "left": str(left_limit), "right": str(right_limit)}], "Verified divergence: at least one one-sided integral diverges."
