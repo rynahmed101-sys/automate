@@ -177,7 +177,17 @@ def sync_learning_store(
     ingested = 0
     skipped = 0
     errors: list[str] = []
-    for item in artifacts:
+    # Dependencies flow from experiences -> lessons. Ingest the dependency-bearing
+    # layer first so a bounded page containing both can be reconciled deterministically.
+    ordered = sorted(
+        artifacts,
+        key=lambda item: (
+            0 if item.get("artifactType") == "learning_experience"
+            else 1 if item.get("artifactType") == "research_proposal"
+            else 2
+        ),
+    )
+    for item in ordered:
         try:
             _ingest_one(store, item)
             ingested += 1
