@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
+import sys
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from automate.dev.apply import apply_worker_result
@@ -22,10 +23,26 @@ def run_approved_tests(
     timeout: int = 600,
 ) -> dict[str, Any]:
     targets = packet.get("verification", {}).get("test_targets", [])
-    if not targets or not all(isinstance(target, str) and target.startswith("tests/") for target in targets):
+    if not targets:
         raise WorkerExecutionError("worker packet has no valid authoritative test targets")
 
-    command = ["python", "-m", "pytest", "-q", *targets]
+    safe_targets: list[str] = []
+    for target in targets:
+        if not isinstance(target, str) or not target.startswith("tests/"):
+            raise WorkerExecutionError("worker packet has no valid authoritative test targets")
+        path = PurePosixPath(target)
+        if path.is_absolute() or ".." in path.parts or ":" in target:
+            raise WorkerExecutionError(f"unsafe authoritative test target: {target}")
+        target_path = (root / Path(*path.parts)).resolve()
+        try:
+            target_path.relative_to(root.resolve())
+        except ValueError as exc:
+            raise WorkerExecutionError(f"authoritative test target escapes checkout: {target}") from exc
+        if not target_path.is_file():
+            raise WorkerExecutionError(f"authoritative test target does not exist: {target}")
+        safe_targets.append(str(path))
+
+    command = [sys.executable, "-m", "pytest", "-q", *safe_targets]
     try:
         completed = subprocess.run(
             command,
