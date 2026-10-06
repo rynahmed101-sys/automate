@@ -216,8 +216,10 @@
       "explicit quotient-rule differentiation",
       "implicit differentiation under a local nonzero-partial condition",
       "definite and indefinite symbolic integration",
+      "convergence-aware improper integrals with explicit infinite bounds and singularity semantics",
       "represented repeated and nested indefinite integration",
-      "Fundamental Theorem of Calculus in explicit accumulation and evaluation forms"
+      "Fundamental Theorem of Calculus in explicit accumulation and evaluation forms",
+      "improper-integral convergence and divergence verification"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
