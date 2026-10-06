@@ -139,6 +139,12 @@ def validate_worker_result(result: dict[str, Any], packet: dict[str, Any]) -> li
 
     for change in result.get("changes", []):
         path = str(change.get("path", ""))
+        operation = change.get("operation")
+        expected_sha = change.get("expected_sha")
+        if operation == "update" and (not isinstance(expected_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", expected_sha)):
+            errors.append(f"worker update requires a 40-character expected_sha: {path}")
+        if operation == "create" and expected_sha is not None:
+            errors.append(f"worker create must use null expected_sha: {path}")
         if not _under_prefix(path, allowed):
             errors.append(f"worker change outside allowed capability paths: {path}")
         if path in forbidden:
