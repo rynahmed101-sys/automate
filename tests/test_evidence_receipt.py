@@ -15,3 +15,23 @@ def test_evidence_receipt_rejects_invalid_sha_and_unknown_trust():
              "repository":{"full_name":"x/y","base_sha":"bad"},"observed_at":"2026-10-06T00:00:00+00:00",
              "trust_state":"NOT_REAL","evidence":{"items":[]},"unresolved":[]}
     assert validate_receipt(receipt)
+
+
+def test_receipt_can_bind_action_cycle_and_exact_head():
+    receipt = build_receipt(
+        action="worker-cycle",
+        repository="rynahmed101-sys/automate",
+        base_sha="0" * 40,
+        trust_state="EXACT_HEAD_VERIFIED",
+        evidence=[{"kind": "ci", "status": "passed", "reference": "run:123"}],
+        action_cycle_id="cycle_123",
+        target="stage1b.improper_integrals",
+        packet_id="pkt_123",
+        result_id="res_123",
+        file_hashes=[{"path": "automate/backend/example.py", "sha256": "a" * 64}],
+        verification={"ci_run_ids": [123], "security_run_ids": [124], "tests": ["pytest -q"]},
+        final_exact_head_sha="1" * 40,
+    )
+    assert receipt["action_cycle_id"] == "cycle_123"
+    assert receipt["file_hashes"][0]["sha256"] == "a" * 64
+    assert receipt["final_exact_head_sha"] == "1" * 40
