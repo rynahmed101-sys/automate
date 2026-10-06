@@ -155,3 +155,5 @@ Capability branches must target `main` and own the mathematical source, focused 
 The inventory is intentionally separate from the roadmap. It records planned/delegated/awaiting-reconciliation/reconciled/merged/superseded state, branch/PR evidence, dependencies, and verification axes. Missing code on main is therefore not evidence that a capability never existed.
 
 CI uses one fast PR path and one authoritative main path. Feature branch pushes do not run the development suite independently of PR updates. Exact-head runs only on main commits. Security audit is authoritative on main and on its scheduled cadence.
+
+The control-plane has two complementary checks: `capability queue` decides the deterministic roadmap action from versioned state, while `capability audit-live` compares active inventory PR references with live GitHub PRs. A stale inventory PR cannot silently hold the queue open.
