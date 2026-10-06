@@ -12,7 +12,8 @@
     "lifecycle_states",
     "verification_axes",
     "branch_policy",
-    "capabilities"
+    "capabilities",
+    "integration_references"
   ],
   "properties": {
     "$schema": {
@@ -243,6 +244,37 @@
         },
         "note": {
           "type": "string"
+        }
+      }
+    },
+    "integration_references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "number",
+          "branch",
+          "state",
+          "purpose"
+        ],
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "branch": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     }
