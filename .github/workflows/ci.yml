@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - engine
     types:
       - opened
       - synchronize
@@ -97,6 +98,46 @@ jobs:
           printf 'Running %s test files in shard ${{ matrix.shard }}\\n' "${#selected[@]}"
           printf '%s\\n' "${selected[@]}"
           pytest -q --tb=short --strict-markers "${selected[@]}"
+
+  engine-development:
+    if: github.event_name == 'pull_request' && github.base_ref == 'engine'
+    name: Engine development / Python 3.12
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout engine PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate development control plane
+        run: |
+          automate capability validate --json
+          automate capability queue --json
+
+      - name: Enforce maintenance/capability branch scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -t changed_files < <(gh pr diff "${{ github.event.pull_request.number }}" --name-only)
+          args=(--branch "$GITHUB_HEAD_REF")
+          for changed in "${changed_files[@]}"; do
+            [[ -n "$changed" ]] && args+=(--changed-file "$changed")
+          done
+          automate capability guard "${args[@]}"
+
+      - name: Run engine PR test suite
+        run: |
+          pytest -q --tb=short --strict-markers
 
   exact-head:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
