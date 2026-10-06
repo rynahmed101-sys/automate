@@ -14,6 +14,7 @@ from typing import Any
 from automate.dev.inventory import InventoryError
 from automate.dev.learning import LearningError, LearningStore, build_experience
 from automate.dev.learning_client import submit_learning_artifact, sync_learning_store
+from automate.dev.learning_model import LearningModelError, generate_candidate_lessons
 from automate.dev.verification_engine import deterministic_id
 from automate.dev.publisher import build_worker_commit
 from automate.dev.research import build_mirror_research_job
@@ -94,6 +95,37 @@ def run_autonomous_cycle(
                 correlation_id=correlation_id or action_cycle_id,
             )
             experience_id = learning_store.add_experience(experience)
+
+            if os.getenv("AUTOMATE_REASONING_ENDPOINT"):
+                try:
+                    history = learning_store.recent_experiences(
+                        task_kind=task_kind,
+                        task_target=task_target,
+                        limit=20,
+                    )
+                    model_lessons = generate_candidate_lessons(
+                        history,
+                        endpoint=os.getenv("AUTOMATE_REASONING_ENDPOINT"),
+                    )
+                    for lesson in model_lessons:
+                        learning_store.add_lesson(lesson)
+                        if os.getenv("AUTOMATE_LEARNING_ENDPOINT") and os.getenv("AUTOMATE_LEARNING_TOKEN"):
+                            try:
+                                submit_learning_artifact(
+                                    lesson,
+                                    artifact_type="learning_lesson",
+                                    request_id="lesson_" + str(lesson["lesson_id"]).removeprefix("les_"),
+                                    correlation_id=correlation_id or action_cycle_id,
+                                    source_revision=experience["provenance"]["revision"],
+                                    source_repo=repository,
+                                    source_component="reasoning_model",
+                                )
+                            except Exception:
+                                pass
+                except LearningModelError:
+                    # Model-assisted learning is optional. A reasoning-model outage
+                    # must never erase or weaken the deterministic local learning path.
+                    pass
             if os.getenv("AUTOMATE_LEARNING_ENDPOINT") and os.getenv("AUTOMATE_LEARNING_TOKEN"):
                 try:
                     submit_learning_artifact(
