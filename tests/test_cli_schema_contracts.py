@@ -67,6 +67,12 @@ def test_schema_agent_returns_machine_agent_contract():
     assert payload["schema_version"] == "automate.agent.v1"
     assert set(rule["rule_id"] for rule in payload["rules"]) == set(RuleRegistry().list_rule_ids())
     assert {"differentiate", "chain_rule", "product_rule", "quotient_rule", "implicit_differentiate", "integrate", "nested_integrate", "vector_add", "vector_dot", "matrix_multiply", "matrix_inverse", "matrix_rref", "linear_system_solve", "matrix_characteristic_polynomial", "matrix_eigenvalues", "matrix_eigenvector", "matrix_diagonalize"}.issubset({rule["rule_id"] for rule in payload["rules"]})
+    assert {"solve_separable_ode", "solve_linear_first_order_ode",
+            "solve_bernoulli_ode", "solve_exact_ode",
+            "solve_constant_coefficient_ode", "verify_ode_ivp",
+            "verify_ode_bvp", "verify_ode_system", "ode_phase_space"}.issubset(
+        {rule["rule_id"] for rule in payload["rules"]}
+    )
     assert "fundamental_theorem_calculus" in {rule["rule_id"] for rule in payload["rules"]}
     assert {"discover", "context", "validate", "propose_dry_run", "propose_apply",
             "research", "check", "prove", "simulate", "stats",
