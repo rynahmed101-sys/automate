@@ -21,6 +21,8 @@ from typing import Any, Iterable, Mapping
 from jsonschema import Draft202012Validator
 
 from automate.backend.sympy_backend import SymPyChecker
+from automate.dev.learning import LearningStore
+from automate.dev.learning_events import record_ci_result, record_reconciliation_result, record_verification_result
 
 ROOT = Path(__file__).resolve().parents[2]
 REQUEST_SCHEMA = ROOT / "schemas" / "automate-verification-request-v1.json"
@@ -372,7 +374,8 @@ def apply_bounded_repair(*, root: str | Path, plan: RepairPlan) -> list[dict[str
 
 def run_backlog_item(
     *, capability_id: str, repository: str, revision: str, branch: str,
-    action_cycle_id: str, snapshot: Mapping[str, Any], evidence_db: str | Path
+    action_cycle_id: str, snapshot: Mapping[str, Any], evidence_db: str | Path,
+    learning_db: str | Path | None = None
 ) -> dict[str, Any]:
     request = build_request(
         capability_id=capability_id,
@@ -470,6 +473,58 @@ def run_backlog_item(
         ),
     )
     graph.close()
+
+    learning = None
+    if learning_db is not None:
+        store = LearningStore(learning_db)
+        try:
+            reconciliation_learning_id = record_reconciliation_result(
+                store,
+                action_cycle_id=action_cycle_id,
+                task_target=capability_id,
+                strategy_id="verification-engine",
+                findings=reconciliation["findings"],
+                ready=bool(reconciliation["ready_for_authoritative_promotion"]),
+                revision=revision,
+                repository=repository,
+            )
+            verification_learning_id = record_verification_result(
+                store,
+                action_cycle_id=action_cycle_id,
+                task_target=capability_id,
+                strategy_id="verification-engine",
+                evidence_state=state.value,
+                revision=revision,
+                repository=repository,
+                evidence_refs=[
+                    {"id": reconciliation_id, "kind": "reconciliation"},
+                    {"id": math_id, "kind": "mathematical_check"},
+                    {"id": actions_id, "kind": "ci_security"},
+                ],
+                details="Backlog verification cycle produced a verifiable evidence packet.",
+            )
+            ci_learning_ids = []
+            for run_id in actions["ci_run_ids"]:
+                ci_learning_ids.append(
+                    record_ci_result(
+                        store,
+                        action_cycle_id=action_cycle_id,
+                        task_target=capability_id,
+                        strategy_id="verification-engine",
+                        conclusion="success",
+                        run_id=run_id,
+                        revision=revision,
+                        repository=repository,
+                    )
+                )
+            learning = {
+                "reconciliation_experience_id": reconciliation_learning_id,
+                "verification_experience_id": verification_learning_id,
+                "ci_experience_ids": ci_learning_ids,
+            }
+        finally:
+            store.close()
+
     return {
         "request": request.to_dict(),
         "reconciliation": reconciliation,
@@ -477,6 +532,7 @@ def run_backlog_item(
         "math": math_results,
         "packet": packet,
         "evidence_state": state.value,
+        "learning": learning,
     }
 
 
