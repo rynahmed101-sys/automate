@@ -1,0 +1,44 @@
+name: Scheduled Autonomous Control
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+concurrency:
+  group: automate-scheduled-autonomy
+  cancel-in-progress: true
+
+jobs:
+  autonomous:
+    if: github.event_name == 'workflow_dispatch' || vars.AUTOMATE_SCHEDULED_AUTONOMY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run bounded autonomous wake-up loop
+        env:
+          AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
+          AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
+          AUTOMATE_LEARNING_ENDPOINT: ${{ secrets.AUTOMATE_LEARNING_ENDPOINT }}
+          AUTOMATE_LEARNING_TOKEN: ${{ secrets.AUTOMATE_LEARNING_TOKEN }}
+          AUTOMATE_REASONING_ENDPOINT: ${{ secrets.AUTOMATE_REASONING_ENDPOINT }}
+          AUTOMATE_REASONING_TOKEN: ${{ secrets.AUTOMATE_REASONING_TOKEN }}
+          AUTOMATE_REASONING_MODEL: ${{ vars.AUTOMATE_REASONING_MODEL }}
+        run: |
+          automate autonomous-loop --repository "${{ github.repository }}" --max-cycles 1 --json
