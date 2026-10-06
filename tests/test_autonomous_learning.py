@@ -34,12 +34,13 @@ def test_autonomous_cycle_records_control_plane_outcome(monkeypatch, tmp_path: P
         store.close()
 
 
-def test_learned_strategy_can_override_default_only_after_threshold(tmp_path: Path):
+def test_learned_strategy_requires_adopted_lesson_before_override(tmp_path: Path):
     store = LearningStore(tmp_path / "learning.db")
     try:
-        for index in range(3):
-            from automate.dev.learning import build_experience
+        experience_ids = []
+        from automate.dev.learning import build_experience, build_lesson
 
+        for index in range(3):
             experience = build_experience(
                 action_cycle_id=f"cycle-{index}",
                 outcome="success",
@@ -54,7 +55,39 @@ def test_learned_strategy_can_override_default_only_after_threshold(tmp_path: Pa
                 correlation_id=f"cycle-{index}",
                 reproducible=True,
             )
-            store.add_experience(experience)
+            experience_ids.append(store.add_experience(experience))
+
+        before = store.select_strategy(
+            task_kind="capability_implementation",
+            task_target="stage1b.example",
+            minimum_attempts=3,
+            minimum_conservative_score=0.1,
+        )
+        assert before["strategy_id"] == "frontier-default"
+
+        lesson = build_lesson(
+            lesson_type="strategy",
+            statement="Strategy B generalized across reproduced examples.",
+            scope={
+                "task_kind": "capability_implementation",
+                "task_target": "stage1b.example",
+                "strategy_id": "strategy-b",
+            },
+            supporting_experience_ids=experience_ids,
+        )
+        store.add_lesson(lesson)
+        store.transition_lesson(
+            lesson["lesson_id"],
+            "VERIFIED",
+            reason="independent route reproduced the successful strategy",
+            evidence=[{"id": "independent-1", "independence": "independent_route"}],
+        )
+        store.transition_lesson(
+            lesson["lesson_id"],
+            "ADOPTED",
+            reason="cross-check passed",
+            evidence=[{"id": "cross-check-1", "independence": "cross_engine"}],
+        )
 
         selected = store.select_strategy(
             task_kind="capability_implementation",
@@ -63,7 +96,7 @@ def test_learned_strategy_can_override_default_only_after_threshold(tmp_path: Pa
             minimum_conservative_score=0.1,
         )
         assert selected["strategy_id"] == "strategy-b"
-        assert selected["source"] == "learned_experience"
+        assert selected["source"] == "adopted_lesson"
     finally:
         store.close()
 
@@ -84,5 +117,34 @@ def test_evolution_proposal_round_trips_through_learning_store(tmp_path: Path):
     try:
         assert store.add_evolution_proposal(proposal) == proposal["proposal_id"]
         assert store.get_evolution_proposal(proposal["proposal_id"]) == proposal
+    finally:
+        store.close()
+
+
+def test_candidate_lessons_include_regression_obligations(tmp_path: Path):
+    from automate.dev.learning import build_experience
+
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        experience = build_experience(
+            action_cycle_id="cycle-regression",
+            outcome="failure",
+            task_kind="calculus",
+            task_target="stage1b.example",
+            strategy_id="strategy-b",
+            strategy_name="Strategy B",
+            observation="reproduced boundary failure",
+            evidence_refs=[{"id": "failure-run"}],
+            failure_class="missing_assumption",
+            repository="test/repo",
+            revision="a" * 40,
+            correlation_id="cycle-regression",
+            reproducible=True,
+        )
+        store.add_experience(experience)
+        candidates = store.regression_candidates()
+        assert len(candidates) == 1
+        assert candidates[0]["experience_id"] == experience["experience_id"]
+        assert "regression_obligation" in candidates[0]
     finally:
         store.close()
