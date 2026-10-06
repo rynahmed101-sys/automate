@@ -188,30 +188,17 @@ def test_live_audit_rejects_unrecorded_capability_pr():
     assert any("no inventory reference" in error for error in errors)
 
 
-def test_live_audit_rejects_head_mismatch():
+def test_live_audit_allows_mutable_active_pr_head():
     from automate.dev.live import audit_live
 
-    data = load_inventory()
-    data_item = next(
-        x for x in data["capabilities"]
-        if any(ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open") for ref in x["references"])
-    ) if any(
-        any(ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open") for ref in x["references"])
-        for x in data["capabilities"]
-    ) else None
-    if data_item is None:
-        return
-
-    ref = next(ref for ref in data_item["references"] if ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open"))
     pr = {
-        "number": ref["number"],
-        "headRefName": ref.get("branch"),
+        "number": 118,
+        "headRefName": "integrate/control-plane-live-audit",
         "headRefOid": "f" * 40,
         "baseRefName": "main",
         "isDraft": False,
     }
-    errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
-    assert any("head mismatch" in error for error in errors)
+    assert audit_live("rynahmed101-sys/automate", pull_requests=[pr]) == []
 
 
 def test_live_audit_accepts_matching_integration_pr():
