@@ -231,3 +231,32 @@ def worker_run_command(
         "dispatch": result,
     }
     click.echo(json.dumps(payload, indent=2))
+
+@capability.command("autonomous-cycle")
+@click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--worker-url", default=None, help="Worker API base URL. Defaults to AUTOMATE_WORKER_URL.")
+@click.option("--worker-token", default=None, help="Worker API token. Defaults to AUTOMATE_WORKER_TOKEN.")
+@click.option("--execute-worker", is_flag=True, help="Ask the worker to execute the AI attempt after queueing.")
+@click.option("--local-root", type=click.Path(path_type=Path, exists=True, file_okay=False), default=None)
+@click.option("--json", "as_json", is_flag=True)
+def autonomous_cycle_command(
+    repository: str,
+    worker_url: str | None,
+    worker_token: str | None,
+    execute_worker: bool,
+    local_root: Path | None,
+    as_json: bool,
+) -> None:
+    """Run one bounded autonomous development cycle."""
+    from automate.dev.autonomous import AutonomousCycleError, run_autonomous_cycle
+    try:
+        payload = run_autonomous_cycle(
+            repository,
+            worker_url=worker_url,
+            worker_token=worker_token,
+            execute_worker=execute_worker,
+            local_root=local_root,
+        )
+    except AutonomousCycleError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2))
