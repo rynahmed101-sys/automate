@@ -150,3 +150,63 @@ def test_tracked_planned_capability_remains_claimable():
     candidate = next_unclaimed(data)
     assert candidate is not None
     assert candidate["id"] == "stage1b.improper_integrals"
+
+
+def test_queue_command_exposes_active_and_blocked_state():
+    result = CliRunner().invoke(main, ["capability", "queue", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["next_action"]["action"] == "implement"
+    assert payload["next_unclaimed"] == "stage1b.improper_integrals"
+    assert "stage1c.ode" in payload["preserved_out_of_order"]
+
+
+def test_live_audit_accepts_matching_pr_inventory():
+    from automate.dev.live import audit_live
+
+    data = load_inventory()
+    item = next(x for x in data["capabilities"] if x["implementation_state"] == "merged_main")
+    assert audit_live("rynahmed101-sys/automate", pull_requests=[]) == []
+
+
+def test_live_audit_rejects_unrecorded_capability_pr():
+    from automate.dev.live import audit_live
+
+    with_errors = [
+        {
+            "number": 999,
+            "headRefName": "feat/unrecorded-capability",
+            "headRefOid": "0" * 40,
+            "baseRefName": "main",
+            "isDraft": False,
+            "url": "https://github.com/rynahmed101-sys/automate/pull/999",
+        }
+    ]
+    errors = audit_live("rynahmed101-sys/automate", pull_requests=with_errors)
+    assert any("no inventory reference" in error for error in errors)
+
+
+def test_live_audit_rejects_head_mismatch():
+    from automate.dev.live import audit_live
+
+    data = load_inventory()
+    data_item = next(
+        x for x in data["capabilities"]
+        if any(ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open") for ref in x["references"])
+    ) if any(
+        any(ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open") for ref in x["references"])
+        for x in data["capabilities"]
+    ) else None
+    if data_item is None:
+        return
+
+    ref = next(ref for ref in data_item["references"] if ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open"))
+    pr = {
+        "number": ref["number"],
+        "headRefName": ref.get("branch"),
+        "headRefOid": "f" * 40,
+        "baseRefName": "main",
+        "isDraft": False,
+    }
+    errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
+    assert any("head mismatch" in error for error in errors)
