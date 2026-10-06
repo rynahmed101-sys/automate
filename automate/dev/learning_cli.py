@@ -6,6 +6,7 @@ from pathlib import Path
 
 import click
 
+from automate.dev.evolution_executor import EvolutionExecutionError, execute_evolution_plan
 from automate.dev.learning import (
     LearningError,
     LearningStore,
@@ -291,3 +292,21 @@ def discoveries(status: str, db: str) -> None:
         click.echo(json.dumps(store.list_discovery_candidates(status=status), indent=2))
     finally:
         store.close()
+
+
+@learn.command("evolution-execute")
+@click.argument("plan_file", type=click.Path(exists=True))
+@click.option("--repository", default="rynahmed101-sys/automate", show_default=True)
+@click.option("--base-branch", default="main", show_default=True)
+def evolution_execute(plan_file: str, repository: str, base_branch: str) -> None:
+    """Materialize an adopted evolution plan as a normal non-self-merging PR."""
+    try:
+        plan = json.loads(Path(plan_file).read_text(encoding="utf-8"))
+        result = execute_evolution_plan(
+            plan,
+            repository=repository,
+            base_branch=base_branch,
+        )
+        click.echo(json.dumps(result, indent=2))
+    except (EvolutionExecutionError, json.JSONDecodeError) as exc:
+        raise click.ClickException(str(exc)) from exc
