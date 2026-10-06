@@ -11,9 +11,9 @@ def test_worker_packet_for_current_frontier_is_bounded():
     packet = build_worker_packet("stage1b.improper_integrals")
     body = packet["packet"]
     assert packet["schema_version"] == "automate.worker.v1"
-    assert body["task"]["source"] == "github_issue"
-    assert body["task"]["ref"] == "115"
-    assert "Fail closed when symbolic convergence cannot be established." in body["task"]["requirements"]
+    assert body["task"]["source"] == "docs/PROJECT_PHASE_LEDGER.md"
+    assert body["task"]["ref"] == "stage1b.improper_integrals"
+    assert "Verify convergence before accepting a claimed value." in body["task"]["requirements"]
     assert body["capability"]["id"] == "stage1b.improper_integrals"
     assert body["repository"]["base_branch"] == "main"
     assert body["constraints"]["allow_delete"] is False
@@ -98,8 +98,6 @@ def test_worker_result_schema_file_exists():
 
 
 def test_worker_result_rejects_descendant_of_canonical_file():
-    from automate.dev.worker import validate_worker_result
-
     packet = {
         "request_id": "wrk_test_12345678",
         "constraints": {
@@ -128,8 +126,6 @@ def test_worker_result_rejects_descendant_of_canonical_file():
 
 
 def test_worker_packet_preserves_explicit_context():
-    from automate.dev.worker import build_worker_packet
-
     packet = build_worker_packet(
         "stage1b.improper_integrals",
         context_files=[{
