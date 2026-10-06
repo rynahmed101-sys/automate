@@ -122,14 +122,14 @@ This stage contains the mathematical basics that later physics must be able to r
 - [x] Diagonalization
 - [x] Null space, row space, column space
 - [x] Basis, span, linear independence
-- [!] Change of basis and coordinate representations
+- [x] Change of basis and coordinate representations
 - [x] Linear transformations and matrix representations
 - [x] Symmetric / Hermitian matrices
 - [x] Norms, inner products, orthogonality
 - [x] Projections and Gram-Schmidt
 - [x] Positive-definite matrices
-- [!] Quadratic forms
-- [!] Singular-value decomposition
+- [x] Quadratic forms
+- [x] Singular-value decomposition
 - [~] Moore-Penrose pseudoinverse and least-squares solutions
 - [~] Complex scalar/vector/matrix semantics needed by later quantum and spectral reasoning
 
@@ -175,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Current main has advanced beyond the prior ledger-expansion checkpoint. SVD is now implemented and merged on main but remains [!] until authoritative Exact-head verification and Security Audit evidence exist for the exact current main SHA. Change-of-basis, quadratic forms, pseudoinverse/least-squares, and complex semantics remain below certification; Stage 1B and 1C remain unfinished. Linear transformations, symmetric/Hermitian matrices, and positive-definite matrices are authoritatively verified on the current merged main. Change-of-basis remains in-progress on an unmerged branch. SVD, quadratic forms, pseudoinverse/least-squares, and complex semantics remain implementation/review work on open PRs. Stage 1B and 1C remain unfinished.
+**Current status:** [~] Active. Current main exact-head verification and Security Audit both pass for SHA `e52ed749d65e9e965684b8b99678006b9a920fe0`. The merged Stage 1A linear-algebra baseline, including change-of-basis, quadratic forms, and SVD, is therefore authoritatively verified. Moore-Penrose pseudoinverse/least-squares and complex semantics remain implementation/reconciliation work on open branches. Stage 1B calculus and Stage 1C ODE foundations remain unfinished.
 
 ---
 
