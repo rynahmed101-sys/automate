@@ -1182,6 +1182,16 @@ class SymPyChecker(BaseChecker):
                     if truncated.has(sp.Integral):
                         return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated integral remained unevaluated."
                     limit_value = sp.limit(truncated, eps, 0, dir="+")
+                    # A finite upper endpoint can itself make the one-sided
+                    # integral divergent. SymPy may leave that divergence as a
+                    # nested Limit; independently evaluate the full improper
+                    # one-sided integral before declaring the result unverified.
+                    if limit_value.has(sp.Limit):
+                        direct_value = sp.integrate(integrand, (variable, lower, upper))
+                        if direct_value in (sp.oo, -sp.oo, sp.zoo):
+                            return False, {"rule": "improper_integral", "converges": False, "limit": str(direct_value)}, [{"step": 1, "operation": "convergence_limit", "result": str(direct_value)}], "Verified divergence of improper integral."
+                        if not direct_value.has(sp.Integral):
+                            limit_value = direct_value
                 else:
                     return False, {"rule": "improper_integral"}, [], "Finite bounds require singular_point or endpoint specification."
             if limit_value in (sp.oo, -sp.oo, sp.zoo):
