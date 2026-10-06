@@ -1,3 +1,5 @@
+> **System-level authority:** `docs/AUTONOMOUS_SYSTEM_MASTER_PLAN.md` is the single authoritative map for the complete autonomous ecosystem, repository roles, infrastructure milestones, worker boundaries, branch model, readiness, and cross-repository architecture. This ledger remains authoritative only for the dependency-ordered mathematical/physics capability roadmap and capability status. If a system-level document conflicts with the master plan, the master plan wins.
+
 # Automate Development Stages & Capability Ledger
 
 This is the single authoritative roadmap for Automate's mathematical and physics development.
