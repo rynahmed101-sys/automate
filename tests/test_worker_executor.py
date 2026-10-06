@@ -8,6 +8,9 @@ from automate.dev.executor import run_approved_tests
 
 
 def test_executor_uses_packet_test_targets(tmp_path: Path):
+    target = tmp_path / "tests/test_example.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("def test_example():\n    assert True\n", encoding="utf-8")
     packet = {"verification": {"test_targets": ["tests/test_example.py"]}}
     with patch("automate.dev.executor.subprocess.run") as run:
         run.return_value.returncode = 0
