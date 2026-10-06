@@ -1161,8 +1161,7 @@
       "number": 118,
       "branch": "integrate/control-plane-live-audit",
       "state": "open",
-      "purpose": "live GitHub PR consistency and deterministic queue snapshot",
-      "head_sha": "0a0d80bf0d7c3a08c2a04a0db78cbb70b11a7f5f"
+      "purpose": "live GitHub PR consistency and deterministic queue snapshot"
     }
   ]
 }
