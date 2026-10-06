@@ -33,7 +33,7 @@ class LinearAlgebraChecker(BaseChecker):
         "vector_projection", "vector_gram_schmidt",
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
         "vector_span_membership", "vector_linear_independence", "vector_basis_of_span", "vector_change_of_basis",
-        "linear_transformation_apply", "matrix_representation", "matrix_svd",
+        "linear_transformation_apply", "matrix_representation", "matrix_svd", "matrix_pseudoinverse", "linear_least_squares",
         "matrix_positive_definite",
         "matrix_symmetric", "matrix_hermitian", "quadratic_form_evaluate",
     }
@@ -467,6 +467,7 @@ class LinearAlgebraChecker(BaseChecker):
                 rank_g = np.linalg.matrix_rank(generators)
                 passed = rank_g == generators.shape[1]
                 metric = {"rank": int(rank_g), "column_count": int(generators.shape[1])}
+            
             elif rule == "vector_change_of_basis":
                 source_basis, target_basis, source_coords = inputs
                 candidate = outputs[0]
@@ -1349,6 +1350,80 @@ class LinearAlgebraChecker(BaseChecker):
                     {"step": 1, "operation": "verify_diagonal_D"},
                     {"step": 2, "operation": "verify_P_invertible", "determinant": str(determinant)},
                     {"step": 3, "operation": "verify_reconstruction_A_equals_PDP_inv"},
+                ]
+
+            elif rule == "matrix_pseudoinverse":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "matrix":
+                    raise LinearAlgebraParseError("matrix_pseudoinverse requires one matrix input and one matrix output.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                candidate = sp.Matrix(output.value)
+                if matrix.rows == 0 or matrix.cols == 0:
+                    raise ValueError("Moore-Penrose pseudoinverse requires a non-empty matrix.")
+                expected_shape = (matrix.cols, matrix.rows)
+                if candidate.shape != expected_shape:
+                    raise ValueError(f"Moore-Penrose pseudoinverse shape mismatch: expected {expected_shape}, got {candidate.shape}.")
+                penrose_residuals = [
+                    matrix * candidate * matrix - matrix,
+                    candidate * matrix * candidate - candidate,
+                    (matrix * candidate).conjugate().T - matrix * candidate,
+                    (candidate * matrix).conjugate().T - candidate * matrix,
+                ]
+                labels = ["AA+ A = A", "A+ A A+ = A+", "(AA+)^H = AA+", "(A+A)^H = A+A"]
+                symbolic_passed = True
+                residual_details = {}
+                for label, residual in zip(labels, penrose_residuals):
+                    values = [sp.simplify(value) for value in residual]
+                    residual_details[label] = [[str(residual[i, j]) for j in range(residual.cols)] for i in range(residual.rows)]
+                    if any(value.is_zero is False for value in values):
+                        symbolic_passed = False
+                    elif any(value.is_zero is None for value in values):
+                        return self._unverified(edge, graph, start, details, f"Moore-Penrose condition '{label}' cannot be decided exactly from the supplied symbolic expressions.")
+                expected = None
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    numpy_expected = np.linalg.pinv(numeric)
+                details["penrose_residuals"] = residual_details
+                details["candidate_shape"] = list(candidate.shape)
+                steps = [{"step": i + 1, "operation": "verify_moore_penrose_condition", "condition": label} for i, label in enumerate(labels)]
+
+            elif rule == "linear_least_squares":
+                if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "vector":
+                    raise LinearAlgebraParseError("linear_least_squares requires matrix A, vector b, and vector x.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                vector = sp.Matrix(parsed_inputs[1].value)
+                candidate = sp.Matrix(output.value)
+                if matrix.rows == 0 or matrix.cols == 0:
+                    raise ValueError("Least-squares requires a non-empty matrix A.")
+                if vector.rows != matrix.rows:
+                    raise ValueError(f"Least-squares shape mismatch: A is {matrix.shape} but b has length {vector.rows}.")
+                if candidate.rows != matrix.cols:
+                    raise ValueError(f"Least-squares candidate must have length {matrix.cols}; got {candidate.rows}.")
+                residual = sp.simplify(matrix * candidate - vector)
+                normal_residual = sp.simplify(matrix.conjugate().T * residual)
+                normal_values = [sp.simplify(value) for value in normal_residual]
+                if any(value.is_zero is False for value in normal_values):
+                    symbolic_passed = False
+                elif any(value.is_zero is None for value in normal_values):
+                    return self._unverified(edge, graph, start, details, "Least-squares optimality cannot be decided exactly from the supplied symbolic normal-equation residual.")
+                else:
+                    symbolic_passed = True
+                nullspace = matrix.nullspace()
+                minimum_norm_residuals = [sp.simplify(sp.conjugate(null_vector).dot(candidate)) for null_vector in nullspace]
+                minimum_values = [sp.simplify(value) for value in minimum_norm_residuals]
+                if any(value.is_zero is False for value in minimum_values):
+                    symbolic_passed = False
+                elif any(value.is_zero is None for value in minimum_values):
+                    return self._unverified(edge, graph, start, details, "Minimum-norm least-squares membership in range(A^H) cannot be decided exactly from the supplied symbolic expressions.")
+                expected = None
+                na, nb = self._numeric_array(parsed_inputs[0]), self._numeric_array(parsed_inputs[1])
+                if na is not None and nb is not None:
+                    numpy_expected = np.linalg.pinv(na) @ nb.reshape(-1)
+                details["normal_residual"] = [str(v) for v in normal_residual]
+                details["minimum_norm_residual"] = [str(v) for v in minimum_norm_residuals]
+                steps = [
+                    {"step": 1, "operation": "verify_normal_equations", "normal_residual": [str(v) for v in normal_residual]},
+                    {"step": 2, "operation": "verify_minimum_norm_range_A_H", "nullspace_orthogonality": [str(v) for v in minimum_norm_residuals]},
+                    {"step": 3, "operation": "report_residual", "residual": [str(v) for v in residual]},
                 ]
 
             elif rule == "vector_change_of_basis":
