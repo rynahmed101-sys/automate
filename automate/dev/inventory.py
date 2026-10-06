@@ -105,32 +105,68 @@ def active_references(data: dict[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
+def _dependencies_terminal(item: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> bool:
+    return all(by_id[dep]["implementation_state"] in TERMINAL_STATES for dep in item["depends_on"])
+
+
 def next_action(data: dict[str, Any]) -> dict[str, Any]:
+    by_id = {x["id"]: x for x in data["capabilities"]}
     unresolved = [
         x for x in sorted(data["capabilities"], key=lambda x: x["order"])
         if x["implementation_state"] not in TERMINAL_STATES and x["stage"] != "7"
     ]
     if not unresolved:
         return {"action": "none", "reason": "No unresolved pre-Stage-7 work is recorded."}
-    earliest_band = unresolved[0]["order"] // 100
-    same_band = [x for x in unresolved if x["order"] // 100 == earliest_band]
+
+    earliest = unresolved[0]
+    blocked = [
+        dep for dep in earliest["depends_on"]
+        if by_id[dep]["implementation_state"] not in TERMINAL_STATES
+    ]
+    if blocked:
+        return {
+            "action": "blocked",
+            "reason": "The earliest unresolved capability cannot advance until its dependencies reach a terminal state.",
+            "capability_id": earliest["id"],
+            "blocked_by": blocked,
+        }
+
+    same_band = [
+        x for x in unresolved
+        if x["order"] // 100 == earliest["order"] // 100
+        and _dependencies_terminal(x, by_id)
+    ]
     active = [x for x in same_band if x["implementation_state"] in ACTIVE_STATES]
     if active:
         return {
             "action": "reconcile",
-            "reason": "Existing earlier-stage packets must be reconciled before new capability delegation.",
+            "reason": "Existing ready packets must be reconciled before opening or delegating further work.",
             "capability_ids": [x["id"] for x in active],
         }
+
+    planned = [x for x in same_band if x["implementation_state"] == "planned" and not x["references"]]
+    if planned:
+        return {
+            "action": "implement",
+            "reason": "The earliest ready capability has no active implementation packet.",
+            "capability_id": planned[0]["id"],
+        }
+
     return {
-        "action": "implement",
-        "reason": "No active packet exists in the earliest incomplete band.",
-        "capability_id": same_band[0]["id"],
+        "action": "inspect",
+        "reason": "The earliest ready band contains work that is neither active nor claimable; repair its inventory state before proceeding.",
+        "capability_ids": [x["id"] for x in same_band],
     }
 
 
 def next_unclaimed(data: dict[str, Any]) -> dict[str, Any] | None:
+    by_id = {x["id"]: x for x in data["capabilities"]}
     for item in sorted(data["capabilities"], key=lambda x: x["order"]):
-        if item["implementation_state"] == "planned" and not item["references"]:
+        if (
+            item["implementation_state"] == "planned"
+            and not item["references"]
+            and _dependencies_terminal(item, by_id)
+        ):
             return item
     return None
 
