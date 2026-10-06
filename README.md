@@ -37,6 +37,10 @@ Automate is developed as a verification-first engineering workspace: small steps
 
 Current principle: **build carefully, verify honestly, keep the next step visible.** 🌤️
 
+> **Everything may be questioned. Nothing is automatically believed. Nothing is automatically dismissed merely for being unconventional.**
+>
+> See **[Automate's One Giant Truth](docs/ONE_GIANT_TRUTH.md)** for the project's foundational stance on inquiry, verification, established knowledge, and unconventional ideas.
+
 ## Mathematics & Physics Capability Roadmap
 
 The active expansion program is capability-first: Automate is being extended from its current symbolic, mechanics, tensor/geometry, and numerical foundations into linear algebra, vector calculus, electromagnetism, broader differential equations, PDEs, relativity, thermodynamics, quantum mechanics, and advanced mathematical physics.
