@@ -25,3 +25,34 @@ def test_polarization_normalization():
 def test_diffraction():
     assert diffraction_single_slit(1,2,0)["relative_intensity"]==pytest.approx(1)
     assert diffraction_single_slit(1,2,math.asin(.5))["relative_intensity"]==pytest.approx((math.sin(math.pi)/math.pi)**2)
+
+
+def test_interference_and_wave_equation_evidence():
+    from automate.waves_optics import interference_intensity, verify_harmonic_wave_equation
+    w1 = HarmonicWave(1.0, 2.0, 1.0, 0.0)
+    w2 = HarmonicWave(1.0, 2.0, 1.0, 3.141592653589793)
+    result = interference_intensity(w1, w2, 0.0, 0.0)
+    assert result["status"] == "NUMERICALLY_CHECKED"
+    assert abs(result["relative_intensity"]) < 1e-20
+
+    checked = verify_harmonic_wave_equation(w1, 2.0)
+    assert checked["status"] == "SYMBOLIC_CHECKED"
+    assert checked["residual_amplitude"] == 0.0
+
+
+def test_dispersion_fresnel_and_stokes():
+    from automate.waves_optics import dispersion_curve, ReflectionRefraction, PolarizationState
+    curve = dispersion_curve(lambda k: 3.0 * k, [1.0, 2.0, 3.0])
+    assert curve["status"] == "NUMERICALLY_CHECKED"
+    assert all(abs(v - 3.0) < 1e-6 for v in curve["group_velocities"])
+
+    optics = ReflectionRefraction(1.0, 1.5, 0.3)
+    fresnel = optics.fresnel_reflectance()
+    assert fresnel["status"] == "NUMERICALLY_CHECKED"
+    assert 0.0 <= fresnel["reflectance_s"] <= 1.0
+    assert 0.0 <= fresnel["reflectance_p"] <= 1.0
+
+    stokes = PolarizationState(1.0 + 0j, 1.0j).stokes()
+    assert stokes["status"] == "NUMERICALLY_CHECKED"
+    assert abs(stokes["I"] - 1.0) < 1e-12
+    assert abs(stokes["V"] - 1.0) < 1e-12
