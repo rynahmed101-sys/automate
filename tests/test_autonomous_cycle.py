@@ -50,7 +50,7 @@ def test_cycle_stops_before_dispatch_when_supervisor_blocks():
 
 
 def test_cycle_can_queue_without_executing():
-    with patch("automate.dev.autonomous.supervisor_snapshot", return_value=decision()), patch(
+    with patch.dict("os.environ", {"MIRROR_RESEARCH_ENDPOINT": "https://mirror/research/world"}), patch("automate.dev.autonomous.supervisor_snapshot", return_value=decision()), patch(
         "automate.dev.autonomous.dispatch_worker",
         return_value={"queued": {"success": True, "jobId": "j1"}, "execution_requested": False},
     ) as dispatch:
