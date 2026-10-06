@@ -967,6 +967,30 @@ class RuleRegistry:
         ]:
             self.register(_rule)
 
+        for _rule in [
+            RuleDefinition(rule_id="wave_interference_intensity", name="Wave Interference Intensity", category="waves_optics",
+                description="Compute a normalized local squared-field interference observable for two harmonic waves without claiming absolute radiometric calibration.",
+                domain="waves", inputs=["Two harmonic waves", "Position", "Time"], outputs=["Relative intensity"],
+                implementation_backend="waves_optics", allowed_checkers=[]),
+            RuleDefinition(rule_id="wave_equation_verification", name="Harmonic Wave Equation Verification", category="waves_optics",
+                description="Check the exact harmonic residual of the 1-D homogeneous nondispersive wave equation under an explicit speed relation.",
+                domain="waves", inputs=["Harmonic wave", "Wave speed"], outputs=["Residual evidence"],
+                implementation_backend="waves_optics", allowed_checkers=[]),
+            RuleDefinition(rule_id="dispersion_curve", name="Dispersion Curve", category="waves_optics",
+                description="Sample omega(k), report phase velocity, and estimate group velocity by finite difference.",
+                domain="waves", inputs=["Dispersion function", "Wavenumbers"], outputs=["Dispersion evidence"],
+                implementation_backend="waves_optics", allowed_checkers=[]),
+            RuleDefinition(rule_id="fresnel_reflectance", name="Fresnel Reflectance", category="waves_optics",
+                description="Compute non-absorbing oblique-incidence s/p Fresnel reflectance and explicitly classify total internal reflection.",
+                domain="optics", inputs=["Refractive indices", "Incidence angle"], outputs=["Reflectance"],
+                implementation_backend="waves_optics", allowed_checkers=[]),
+            RuleDefinition(rule_id="polarization_stokes", name="Polarization Stokes Parameters", category="waves_optics",
+                description="Normalize a Jones polarization state and expose normalized Stokes parameters.",
+                domain="optics", inputs=["Complex transverse components"], outputs=["Stokes parameters"],
+                implementation_backend="waves_optics", allowed_checkers=[]),
+        ]:
+            self.register(_rule)
+
         self.register(RuleDefinition(
             rule_id="empirical_inference",
             name="Empirical Parameter Estimation",
