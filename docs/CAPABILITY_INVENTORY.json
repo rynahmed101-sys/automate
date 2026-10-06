@@ -161,12 +161,12 @@
         {
           "type": "pr",
           "number": 87,
-          "state": "open_duplicate"
+          "state": "closed_duplicate"
         },
         {
           "type": "pr",
           "number": 60,
-          "state": "open_historical"
+          "state": "closed_duplicate"
         }
       ],
       "depends_on": [
@@ -193,25 +193,27 @@
       "safe_to_delete": false
     },
     {
-      "id": "stage1a.complex_and_unitary",
+      "id": "stage1a.complex_semantics",
       "order": 40,
       "stage": "1A",
-      "name": "Complex, orthogonal and unitary semantics",
+      "name": "Complex scalar, vector and matrix semantics",
       "implementation_state": "awaiting_reconciliation",
       "authority": {
         "kind": "branch",
-        "ref": "PR65/PR91"
+        "ref": "PR65"
       },
       "references": [
         {
           "type": "pr",
           "number": 65,
-          "state": "open"
+          "branch": "reconcile/phase1a-complex-semantics",
+          "state": "open",
+          "role": "primary"
         },
         {
           "type": "pr",
-          "number": 91,
-          "state": "open"
+          "number": 59,
+          "state": "closed_duplicate"
         }
       ],
       "depends_on": [
@@ -219,11 +221,54 @@
       ],
       "canonical_files": [
         "automate/backend/linear_algebra_backend.py",
-        "automate/linear_algebra_transformations.py"
+        "tests/test_complex_linear_algebra.py"
       ],
       "shared_integration_points": [
         "automate/theory/rules.py",
         "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context."
+    },
+    {
+      "id": "stage1a.orthogonal_unitary",
+      "order": 70,
+      "stage": "1A",
+      "name": "Orthogonal and unitary matrix semantics",
+      "implementation_state": "awaiting_reconciliation",
+      "authority": {
+        "kind": "branch",
+        "ref": "PR91"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 91,
+          "branch": "feat/stage1a-orthogonal-unitary-verification",
+          "state": "open",
+          "role": "primary"
+        }
+      ],
+      "depends_on": [
+        "stage1a.complex_semantics"
+      ],
+      "canonical_files": [
+        "automate/linear_algebra_transformations.py",
+        "tests/test_linear_algebra_transformations.py"
+      ],
+      "shared_integration_points": [
+        "schemas/automate-agent-v1.json",
+        "tests/test_cli_schema_contracts.py"
       ],
       "verification": {
         "locally_tested": true,
@@ -309,6 +354,38 @@
       "notes": "Cumulative work must be reconciled onto main instead of merging the feature-branch-based PR #71 directly."
     },
     {
+      "id": "stage1b.fundamental_theorem",
+      "order": 140,
+      "stage": "1B",
+      "name": "Fundamental theorem of calculus",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "PROJECT_PHASE_LEDGER"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "First new Stage 1B capability after the existing calculus packets are reconciled and certified."
+    },
+    {
       "id": "stage1c.ode",
       "order": 200,
       "stage": "1C",
@@ -328,12 +405,12 @@
         {
           "type": "pr",
           "number": 90,
-          "state": "open_duplicate"
+          "state": "closed_duplicate"
         },
         {
           "type": "pr",
           "number": 73,
-          "state": "open_historical"
+          "state": "closed_duplicate"
         }
       ],
       "depends_on": [
