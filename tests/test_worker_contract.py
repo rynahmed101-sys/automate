@@ -29,7 +29,7 @@ def test_worker_result_rejects_out_of_scope_change():
         "schema_version": "automate.worker_result.v1",
         "request_id": packet["request_id"],
         "status": "proposed",
-        "changes": [{"operation": "update", "path": "automate/dev/inventory.py", "content": "bad"}],
+        "changes": [{"operation": "update", "path": "automate/dev/inventory.py", "expected_sha": "0000000000000000000000000000000000000000", "content": "bad"}],
         "tests": [],
         "unresolved": [],
     }
@@ -43,7 +43,7 @@ def test_worker_result_rejects_forbidden_control_plane_path():
         "schema_version": "automate.worker_result.v1",
         "request_id": packet["request_id"],
         "status": "proposed",
-        "changes": [{"operation": "update", "path": "docs/PROJECT_PHASE_LEDGER.md", "content": "bad"}],
+        "changes": [{"operation": "update", "path": "docs/PROJECT_PHASE_LEDGER.md", "expected_sha": "0000000000000000000000000000000000000000", "content": "bad"}],
         "tests": [],
         "unresolved": [],
     }
