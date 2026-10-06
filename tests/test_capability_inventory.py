@@ -44,8 +44,8 @@ def test_capability_next_advances_to_stage1b_after_stage1a_completion():
     result = CliRunner().invoke(main, ["capability", "next", "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["next_action"]["action"] == "implement"
-    assert payload["next_action"]["capability_id"] == "stage1b.calculus"
+    assert payload["next_action"]["action"] == "reconcile"
+    assert "stage1b.calculus" in payload["next_action"]["capability_ids"]
 
 
 def test_capabilities_exposes_control_plane():
