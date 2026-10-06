@@ -45,7 +45,7 @@ def test_capability_next_prioritizes_active_stage2b_reconciliation():
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["next_action"]["action"] == "reconcile"
-    assert "stage2b.pde_and_transforms" in payload["next_action"]["capability_ids"]
+    assert payload["next_action"]["capability_ids"] == ["stage2b.coordinate_and_pde"]
 
 
 def test_capabilities_exposes_control_plane():
