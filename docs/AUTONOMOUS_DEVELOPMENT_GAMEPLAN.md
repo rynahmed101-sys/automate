@@ -76,3 +76,14 @@ The control-plane boundary is:
 query request -> bounded provider execution -> provenance-preserving evidence packet -> worker reasoning -> independent verification.
 
 A provider adapter must fail closed when it cannot satisfy the requested row, byte, timeout, or provenance requirements.
+
+
+## Architecture correction: verification is a separate machine
+
+The Verification & Reconciliation Engine is a bounded subsystem hosted on Chanfana. It owns reconciliation, controlled repair, verification orchestration, CI/security evidence collection, mathematical cross-checks and verifiable-packet generation. It does not own scientific authority.
+
+Automate remains the only authority that may accept a capability into authoritative state. The verifier produces evidence packets for Automate rather than self-certifying.
+
+Mirror/external research remains ON HOLD while the verification backlog is cleared. Later, the verifier may request laboratory work through Chanfana, but Mirror remains a separate experimental compartment.
+
+Continuous operation after backlog clearance is permanent: verify/reconcile -> packet -> Automate decision -> next frontier -> repeat.
