@@ -247,8 +247,7 @@
         "automate/backend/linear_algebra_backend.py",
         "tests/test_complex_linear_algebra.py"
       ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
+      "shared_integration_points": [        "automate/theory/rules.py",
         "schemas/automate-agent-v1.json"
       ],
       "verification": {
@@ -472,7 +471,7 @@
           "Cover positive, negative, two-sided, endpoint, interior-singularity, and adversarial cases.",
           "Keep shared registry and control-plane integration under primary reconciliation ownership."
         ]
-      }
+      },
       "references": [
         {
           "type": "issue",
@@ -497,8 +496,7 @@
       ],
       "shared_integration_points": [
         "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
+        "schemas/automate-agent-v1.json"      ],
       "verification": {
         "locally_tested": false,
         "development_ci_verified": false,
@@ -747,8 +745,7 @@
       "references": [],
       "depends_on": [
         "stage1b.calculus"
-      ],
-      "canonical_files": [],
+      ],      "canonical_files": [],
       "shared_integration_points": [
         "automate/theory/rules.py",
         "schemas/automate-agent-v1.json"
@@ -997,8 +994,7 @@
       "canonical_files": [
         "automate/electromagnetism"
       ],
-      "shared_integration_points": [
-        "automate/theory/rules.py"
+      "shared_integration_points": [        "automate/theory/rules.py"
       ],
       "verification": {
         "locally_tested": true,
