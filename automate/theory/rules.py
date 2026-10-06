@@ -258,7 +258,23 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
-            rule_id="integrate",
+                    self.register(RuleDefinition(
+            rule_id="improper_integral",
+            name="Improper Integrals and Convergence",
+            category="calculus",
+            description="Verifies convergence and claimed value of one-dimensional improper integrals using explicit infinite bounds or endpoint/interior singularities. Unevaluated limits fail closed.",
+            domain="mathematics",
+            inputs=["Scalar Integrand", "Improper Integral Claim"],
+            outputs=["Convergent Integral Value or Divergence Evidence"],
+            required_assumptions=["explicit_integration_variable", "explicit_improper_domain"],
+            side_conditions=["convergence_limit_exists"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Improper Riemann integrals and convergence by limits",
+        ))
+
+rule_id="integrate",
             name="Definite and Indefinite Integration",
             category="calculus",
             description="Verifies symbolic definite or indefinite integration; indefinite results are checked by differentiation and may differ by integration constants or lower-order integration polynomials.",

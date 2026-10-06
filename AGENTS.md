@@ -81,3 +81,21 @@ Record verification transitions separately. Never mark a capability certified fr
 
 - `automate capability queue --json`: full deterministic queue state, including the controlling action, active packets, dependency-blocked work, and preserved out-of-order work.
 - `automate capability audit-live --repo <owner/name> --json`: cross-check live GitHub PR state against the inventory before treating a branch as active.
+
+
+## Autonomous development control plane
+
+Read docs/AUTONOMOUS_WORKER_PLAN.md before operating the autonomous worker pipeline.
+
+The autonomous boundary is:
+
+supervisor -> worker packet -> untrusted worker -> result validation -> isolated executor -> authoritative tests -> isolated branch -> draft PR -> reconciliation -> exact-head/security verification
+
+Useful commands:
+- automate capability supervise --repo <owner/name> --json
+- automate capability worker-packet <capability-id> --json
+- automate capability worker-run --repo <owner/name> --worker-url <url> --execute --json
+- automate capability autonomous-cycle --repo <owner/name> --execute-worker --json
+- automate capability autonomous-readiness --auto --json
+
+Workers remain OFF until the readiness evaluator reports every required gate true. Worker output never controls ledger state, capability inventory, verification certification, shared integration, or merge authority.

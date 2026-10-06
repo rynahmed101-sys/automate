@@ -155,6 +155,10 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_simplify(
                         in_nodes[0], out_nodes[0]
                     )
+                elif rule == "improper_integral":
+                    passed, details, certificates, error_msg = self._verify_improper_integral(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule == "fundamental_theorem_calculus":
                     passed, details, certificates, error_msg = self._verify_fundamental_theorem(
                         in_nodes, out_nodes, edge.parameters
@@ -1009,6 +1013,107 @@ class SymPyChecker(BaseChecker):
             {"step": 2, "operation": "differentiate_candidate" if not definite else "simplify(actual - expected)", "residual": str(residual)},
         ]
         return passed, details, steps, error
+
+    @classmethod
+    def _verify_improper_integral(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
+        """Verify convergence and value of a one-dimensional improper integral.
+
+        Supported representations are infinite bounds and endpoint/interior
+        singularities. The verifier constructs a truncated proper integral and
+        requires its limit to establish a finite result. It never treats an
+        unevaluated or indeterminate limit as convergence.
+        """
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip().isidentifier():
+            return False, {"rule": "improper_integral"}, [], "Malformed integration variable."
+        parser = SafeParser()
+        try:
+            variable = parser.make_symbol(variable_name.strip())
+            integrand = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "improper_integral"}, [], f"SafeParser rejected improper integral: {exc}"
+
+        lower_raw, upper_raw = params.get("lower"), params.get("upper")
+        singular_raw = params.get("singular_point")
+        if lower_raw is None or upper_raw is None:
+            return False, {"rule": "improper_integral"}, [], "Improper integral requires explicit lower and upper bounds."
+        if singular_raw is not None and (str(lower_raw) == str(singular_raw) or str(upper_raw) == str(singular_raw)):
+            return False, {"rule": "improper_integral"}, [], "Use endpoint='lower' or endpoint='upper' for endpoint singularities."
+        try:
+            lower = parser.parse(str(lower_raw))
+            upper = parser.parse(str(upper_raw))
+            if params.get("endpoint") in ("lower", "upper"):
+                endpoint = params["endpoint"]
+                singular = lower if endpoint == "lower" else upper
+                direction = "right" if endpoint == "lower" else "left"
+                eps = sp.symbols("epsilon", positive=True)
+                cutoff = singular + eps if direction == "right" else singular - eps
+                truncated = sp.integrate(integrand, (variable, cutoff, upper if endpoint == "lower" else lower))
+                if isinstance(truncated, sp.Integral) or truncated.has(sp.Integral):
+                    return False, {"rule": "improper_integral", "mode": "endpoint", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated integral remained unevaluated."
+                limit_value = sp.limit(truncated, eps, 0, dir="+")
+            elif singular_raw is not None:
+                singular = parser.parse(str(singular_raw))
+                eps = sp.symbols("epsilon", positive=True)
+                left = sp.integrate(integrand, (variable, lower, singular - eps))
+                right = sp.integrate(integrand, (variable, singular + eps, upper))
+                if left.has(sp.Integral) or right.has(sp.Integral):
+                    return False, {"rule": "improper_integral", "mode": "interior", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated interior integrals remained unevaluated."
+                left_limit, right_limit = sp.limit(left, eps, 0, dir="+"), sp.limit(right, eps, 0, dir="+")
+                if left_limit in (sp.oo, -sp.oo, sp.zoo) or right_limit in (sp.oo, -sp.oo, sp.zoo):
+                    return False, {"rule": "improper_integral", "mode": "interior", "converges": False, "left_limit": str(left_limit), "right_limit": str(right_limit)}, [{"step": 1, "operation": "endpoint_limits", "left": str(left_limit), "right": str(right_limit)}], "Verified divergence: at least one one-sided integral diverges."
+                if left_limit.has(sp.Limit) or right_limit.has(sp.Limit):
+                    return False, {"rule": "improper_integral", "mode": "interior", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: convergence could not be established."
+                limit_value = sp.simplify(left_limit + right_limit)
+            else:
+                # Infinite bounds are handled by the same epsilon-limit construction.
+                # For two-sided infinite intervals, convergence requires both tails
+                # to converge separately. This intentionally avoids silently using
+                # a symmetric principal value as ordinary convergence.
+                eps = sp.symbols("epsilon", positive=True)
+                if upper in (sp.oo, -sp.oo) and lower in (sp.oo, -sp.oo):
+                    if lower == sp.oo or upper == -sp.oo:
+                        return False, {"rule": "improper_integral"}, [], "Malformed infinite bounds: lower and upper must define an ordered interval."
+                    left_cut = lower + eps if lower == -sp.oo else lower - eps
+                    right_cut = upper - eps if upper == sp.oo else upper + eps
+                    left_piece = sp.integrate(integrand, (variable, lower, 0))
+                    right_piece = sp.integrate(integrand, (variable, 0, upper))
+                    if left_piece.has(sp.Integral) or right_piece.has(sp.Integral):
+                        return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: two-sided tail integral remained unevaluated."
+                    left_limit = sp.limit(sp.integrate(integrand, (variable, lower + eps, 0)), eps, 0, dir="+")
+                    right_limit = sp.limit(sp.integrate(integrand, (variable, 0, upper - eps)), eps, 0, dir="+")
+                    if left_limit in (sp.oo, -sp.oo, sp.zoo) or right_limit in (sp.oo, -sp.oo, sp.zoo):
+                        return False, {"rule": "improper_integral", "converges": False, "left_limit": str(left_limit), "right_limit": str(right_limit)}, [{"step": 1, "operation": "two_sided_tail_limits", "left": str(left_limit), "right": str(right_limit)}], "Verified divergence: at least one infinite tail diverges."
+                    if left_limit.has(sp.Limit) or right_limit.has(sp.Limit) or left_limit is sp.nan or right_limit is sp.nan:
+                        return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: two-sided convergence could not be established."
+                    limit_value = sp.simplify(left_limit + right_limit)
+                elif upper in (sp.oo, -sp.oo):
+                    truncated = sp.integrate(integrand, (variable, lower, upper - eps if upper == sp.oo else upper + eps))
+                    if truncated.has(sp.Integral):
+                        return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated integral remained unevaluated."
+                    limit_value = sp.limit(truncated, eps, 0, dir="+")
+                elif lower in (sp.oo, -sp.oo):
+                    truncated = sp.integrate(integrand, (variable, lower + eps if lower == sp.oo else lower - eps, upper))
+                    if truncated.has(sp.Integral):
+                        return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated integral remained unevaluated."
+                    limit_value = sp.limit(truncated, eps, 0, dir="+")
+                else:
+                    return False, {"rule": "improper_integral"}, [], "Finite bounds require singular_point or endpoint specification."
+            if limit_value in (sp.oo, -sp.oo, sp.zoo):
+                return False, {"rule": "improper_integral", "converges": False, "limit": str(limit_value)}, [{"step": 1, "operation": "convergence_limit", "result": str(limit_value)}], "Verified divergence of improper integral."
+            if limit_value.has(sp.Limit) or limit_value is sp.nan:
+                return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: convergence limit is indeterminate or unevaluated."
+            residual = sp.simplify(actual - limit_value)
+            equivalent = residual.equals(0) if hasattr(residual, "equals") else residual == 0
+            if residual == 0 or equivalent is True:
+                return True, {"rule": "improper_integral", "converges": True, "expected_result": str(limit_value), "actual_result": str(actual), "residual": str(residual)}, [{"step": 1, "operation": "convergence_limit", "result": str(limit_value)}, {"step": 2, "operation": "compare_claimed_value", "residual": str(residual)}], None
+            if equivalent is False:
+                return False, {"rule": "improper_integral", "converges": True, "expected_result": str(limit_value), "actual_result": str(actual), "residual": str(residual)}, [], "Improper integral converges, but claimed value is incorrect."
+            return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: convergent value comparison could not establish equality."
+        except Exception as exc:
+            return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], f"UNVERIFIED: improper-integral analysis failed: {type(exc).__name__}: {exc}"
 
     # ------------------------------------------------------------------
     # Rule: integration_by_substitution

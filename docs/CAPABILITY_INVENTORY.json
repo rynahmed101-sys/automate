@@ -7,6 +7,7 @@
   "inventory_purpose": "Track implementation ownership and verification separately from roadmap status.",
   "lifecycle_states": [
     "planned",
+    "active_development",
     "delegated",
     "awaiting_reconciliation",
     "reconciled",
@@ -456,10 +457,10 @@
       "order": 150,
       "stage": "1B",
       "name": "Improper integrals and convergence-aware handling",
-      "implementation_state": "planned",
+      "implementation_state": "active_development",
       "authority": {
-        "kind": "roadmap",
-        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+        "kind": "engine",
+        "ref": "03ada017462725d1ddd67be3b785c9eb8fe6ddfc9"
       },
       "references": [
         {
@@ -467,12 +468,22 @@
           "number": 115,
           "state": "open",
           "role": "tracking"
+        },
+        {
+          "type": "branch",
+          "branch": "engine",
+          "state": "active_development",
+          "role": "current_engine_implementation"
         }
       ],
       "depends_on": [
         "stage1b.calculus"
       ],
-      "canonical_files": [],
+      "canonical_files": [
+        "automate/backend/sympy_backend.py",
+        "automate/theory/rules.py",
+        "tests/test_improper_integrals.py"
+      ],
       "shared_integration_points": [
         "automate/theory/rules.py",
         "schemas/automate-agent-v1.json"
@@ -488,7 +499,7 @@
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "First claimable Stage 1B capability. Tracking issue #115."
+      "notes": "Active Stage 1B frontier. Engine implementation establishes convergence-aware semantics; release certification remains gated by development CI, independent cross-checks, main promotion, exact-head verification, and security audit."
     },
     {
       "id": "stage1b.series_expansions",

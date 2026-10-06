@@ -45,7 +45,7 @@ Current principle: **build carefully, verify honestly, keep the next step visibl
 
 The active expansion program is capability-first: Automate is being extended from its current symbolic, mechanics, tensor/geometry, and numerical foundations into linear algebra, vector calculus, electromagnetism, broader differential equations, PDEs, relativity, thermodynamics, quantum mechanics, and advanced mathematical physics.
 
-See **[Development Stages & Capability Ledger](docs/PROJECT_PHASE_LEDGER.md)** for the single dependency-ordered mathematical/physics roadmap, development-depth rules, current status, and next capability. `docs/MATH_PHYSICS_ROADMAP.md` is retained only as a compatibility pointer. The project deliberately favors coherent capability PRs and squash merges over thousands of micro-commits.
+See **[Autonomous Scientific System Master Plan](docs/AUTONOMOUS_SYSTEM_MASTER_PLAN.md)** first for the complete system architecture, infrastructure milestones, repository roles, worker boundaries, branch model, readiness gates, and operating rules. Then see **[Development Stages & Capability Ledger](docs/PROJECT_PHASE_LEDGER.md)** for the dependency-ordered mathematical/physics capability roadmap and capability status. `docs/MATH_PHYSICS_ROADMAP.md` is retained only as a compatibility pointer. The project deliberately favors coherent capability PRs and squash merges over thousands of micro-commits.
 
 ## Direct AI Coding Agent Interface
 

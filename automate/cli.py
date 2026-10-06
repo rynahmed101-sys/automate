@@ -530,7 +530,7 @@ def export_certificate(graph_file: str, output_dir: str, as_json: bool):
 
 
 @main.command()
-@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor", "proposal", "context", "agent", "capability"]), help="Schema name")
+@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor", "proposal", "context", "agent", "capability", "worker", "worker-result"]), help="Schema name")
 def schema(name: str):
     """Print an authoritative machine-readable JSON schema for an interchange contract."""
     if name == "ir":
@@ -554,6 +554,20 @@ def schema(name: str):
         click.echo(schema_path.read_text(encoding="utf-8"))
         return
 
+    if name == "worker":
+        schema_path = Path(__file__).parent.parent / "schemas" / "automate-worker-v1.json"
+        if not schema_path.exists():
+            raise click.ClickException("Worker packet schema file is unavailable.")
+        click.echo(schema_path.read_text(encoding="utf-8"))
+        return
+
+    if name == "worker-result":
+        schema_path = Path(__file__).parent.parent / "schemas" / "automate-worker-result-v1.json"
+        if not schema_path.exists():
+            raise click.ClickException("Worker result schema file is unavailable.")
+        click.echo(schema_path.read_text(encoding="utf-8"))
+        return
+
     if name == "tensor":
         model = TensorEquation
     else:
@@ -562,6 +576,51 @@ def schema(name: str):
     document["$id"] = f"https://automate.physics/schemas/automate-{name}-v1.json"
     document["title"] = f"Automate {name.capitalize()} Contract (v1)"
     click.echo(json.dumps(document, indent=2))
+
+
+
+@main.command()
+@click.option("--json", "as_json", is_flag=True, help="Output machine-readable engine manifest")
+def engine(as_json: bool):
+    """Show the standalone three-repository engine contract and trust boundary."""
+    manifest = {
+        "schema_version": "automate.ecosystem.v1",
+        "authority": "automate",
+        "components": {
+            "automate": {"role": "authority", "repository": "rynahmed101-sys/automate"},
+            "worker": {"role": "execution", "repository": "rynahmed101-sys/chanfana-openapi-template"},
+            "mirror": {"role": "laboratory", "repository": "rynahmed101-sys/the-mirror"},
+        },
+        "trust_ladder": [
+            "proposal",
+            "bounded_execution",
+            "experimental_evidence",
+            "independent_inspection",
+            "focused_tests",
+            "reconciliation",
+            "merged_main",
+            "exact_head_verified",
+            "security_verified",
+            "independently_cross_checked",
+            "certified",
+        ],
+        "development_trunk": "engine",
+        "release_surface": "main",
+        "capability_frontier": "Stage 1B improper integrals and convergence-aware handling",
+        "worker_activation": "gated",
+    }
+    if as_json:
+        click.echo(json.dumps(manifest, indent=2))
+    else:
+        console.print("[bold cyan]Autonomous Scientific Engine[/bold cyan]")
+        console.print("  Authority: Automate")
+        console.print("  Execution: Chanfana worker")
+        console.print("  Laboratory: THE MIRROR")
+        console.print("  Development trunk: engine")
+        console.print("  Release surface: main")
+        console.print("  Worker activation: gated")
+        console.print("  Capability frontier: Stage 1B")
+
 
 
 main.add_command(capability)

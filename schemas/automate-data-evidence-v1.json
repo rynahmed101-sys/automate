@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://automate.physics/schemas/automate-data-evidence-v1.json",
+  "title": "Automate Structured Data Evidence (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "provider",
+    "query",
+    "rows",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "automate.data_evidence.v1"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "rows": {
+      "type": "array",
+      "maxItems": 1000000,
+      "items": {
+        "type": "object"
+      }
+    },
+    "provenance": {
+      "type": "array",
+      "maxItems": 1000000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_type",
+          "locator",
+          "retrieved_at",
+          "content_sha256"
+        ],
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "database",
+              "dataset",
+              "local"
+            ]
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "retrieved_at": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "row_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "row_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
