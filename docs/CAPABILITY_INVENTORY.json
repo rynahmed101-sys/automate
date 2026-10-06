@@ -400,14 +400,14 @@
       "implementation_state": "awaiting_reconciliation",
       "authority": {
         "kind": "branch",
-        "ref": "PR107"
+        "ref": "PR108"
       },
       "references": [
         {
           "type": "pr",
-          "number": 107,
+          "number": 108,
           "branch": "integrate/stage1b-ftc",
-          "head_sha": "fd4fbd1667421aa80cf464af16058a80c313610a",
+          "head_sha": "46489cf43ecdb57f7879c84fb9e7f77eb6d5d043",
           "state": "open",
           "role": "primary"
         }
