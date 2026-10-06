@@ -1,0 +1,368 @@
+"""Verification & Reconciliation Engine primitives.
+
+This module is evidence machinery, not scientific authority.  It coordinates
+exact revision intake, reconciliation, diagnosis, bounded repair planning,
+Automate mathematical checks, Mirror request construction, evidence lineage,
+and verifiable-packet assembly.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import sqlite3
+import subprocess
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
+from typing import Any, Iterable, Mapping
+
+from jsonschema import Draft202012Validator
+
+from automate.backend.sympy_backend import SymPyChecker
+
+ROOT = Path(__file__).resolve().parents[2]
+REQUEST_SCHEMA = ROOT / "schemas" / "automate-verification-request-v1.json"
+PACKET_SCHEMA = ROOT / "schemas" / "automate-verifiable-packet-v1.json"
+
+class EvidenceState(str, Enum):
+    UNVERIFIED = "UNVERIFIED"
+    IN_PROGRESS = "IN_PROGRESS"
+    VERIFIED = "VERIFIED"
+    PARTIALLY_SUPPORTED = "PARTIALLY_SUPPORTED"
+    REPRODUCED = "REPRODUCED"
+    CONTRADICTED = "CONTRADICTED"
+    UNRESOLVED = "UNRESOLVED"
+    FALSE = "FALSE"
+    BLOCKED = "BLOCKED"
+    QUARANTINED = "QUARANTINED"
+
+FAILURE_CLASSES = (
+    "implementation_defect", "test_defect", "contract_schema_defect",
+    "missing_assumption", "mathematical_mistake", "physics_model_mistake",
+    "numerical_precision_problem", "truncation_discretization_problem",
+    "backend_mismatch", "coordinate_convention_mismatch", "data_inconsistency",
+    "provenance_inconsistency", "stale_revision", "ci_environment_failure",
+    "security_failure", "integration_defect", "genuine_contradiction",
+    "unresolved_scientific_behavior",
+)
+
+def canonical_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+
+def sha256(value: Any) -> str:
+    data = value if isinstance(value, (bytes, bytearray)) else canonical_json(value).encode()
+    return hashlib.sha256(data).hexdigest()
+
+def deterministic_id(prefix: str, *parts: Any) -> str:
+    return f"{prefix}_{sha256(parts)[:32]}"
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+@dataclass(frozen=True)
+class VerificationRequest:
+    action_cycle_id: str
+    request_id: str
+    capability_id: str
+    repository: str
+    revision: str
+    branch: str
+    scope: tuple[str, ...]
+    parent_ids: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": "automate.verification_request.v1",
+            "action_cycle_id": self.action_cycle_id,
+            "request_id": self.request_id,
+            "capability_id": self.capability_id,
+            "repository": self.repository,
+            "revision": self.revision,
+            "branch": self.branch,
+            "scope": list(self.scope),
+            "parent_ids": list(self.parent_ids),
+        }
+
+def build_request(*, capability_id: str, repository: str, revision: str,
+                  branch: str, scope: Iterable[str],
+                  action_cycle_id: str, parent_ids: Iterable[str] = ()) -> VerificationRequest:
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("verification request requires an exact 40-character commit SHA")
+    rid = deterministic_id("ver", capability_id, repository, revision, list(scope))
+    req = VerificationRequest(action_cycle_id, rid, capability_id, repository, revision,
+                              branch, tuple(scope), tuple(parent_ids))
+    errors = validate_schema(req.to_dict(), REQUEST_SCHEMA)
+    if errors:
+        raise ValueError("; ".join(errors))
+    return req
+
+def validate_schema(value: Mapping[str, Any], schema_path: Path) -> list[str]:
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    return [e.message for e in Draft202012Validator(schema).iter_errors(value)]
+
+class EvidenceGraph:
+    """Append-only local receipt graph used to assemble packets.
+
+    Chanfana remains the durable cross-service transport/persistence owner.
+    This graph is the Automate-side reasoning ledger and must never mint authority.
+    """
+    def __init__(self, path: str | Path = "data/verification-evidence.db") -> None:
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.db = sqlite3.connect(self.path)
+        self.db.execute(
+            "CREATE TABLE IF NOT EXISTS evidence("
+            "id TEXT PRIMARY KEY, kind TEXT NOT NULL, state TEXT NOT NULL,"
+            "payload_json TEXT NOT NULL, payload_sha256 TEXT NOT NULL,"
+            "parent_id TEXT, created_at TEXT NOT NULL)"
+        )
+        self.db.commit()
+
+    def add(self, *, kind: str, state: EvidenceState, payload: Mapping[str, Any],
+            parent_id: str | None = None, evidence_id: str | None = None) -> str:
+        eid = evidence_id or deterministic_id("evi", kind, state.value, payload, parent_id)
+        body = canonical_json(payload)
+        self.db.execute(
+            "INSERT OR IGNORE INTO evidence(id,kind,state,payload_json,payload_sha256,parent_id,created_at)"
+            " VALUES(?,?,?,?,?,?,?)",
+            (eid, kind, state.value, body, hashlib.sha256(body.encode()).hexdigest(),
+             parent_id, utc_now()),
+        )
+        self.db.commit()
+        return eid
+
+    def get(self, evidence_id: str) -> dict[str, Any] | None:
+        row = self.db.execute(
+            "SELECT id,kind,state,payload_json,payload_sha256,parent_id,created_at FROM evidence WHERE id=?",
+            (evidence_id,),
+        ).fetchone()
+        if not row:
+            return None
+        return {"id": row[0], "kind": row[1], "state": row[2],
+                "payload": json.loads(row[3]), "payload_sha256": row[4],
+                "parent_id": row[5], "created_at": row[6]}
+
+    def close(self) -> None:
+        self.db.close()
+
+@dataclass(frozen=True)
+class RepairPlan:
+    repair_id: str
+    base_revision: str
+    reason: str
+    responsible_layer: str
+    allowed_paths: tuple[str, ...]
+    expected_changes: tuple[Mapping[str, Any], ...]
+    rollback: str
+    justified: bool
+
+def plan_bounded_repair(*, base_revision: str, reason: str,
+                        responsible_layer: str, changes: Iterable[Mapping[str, Any]],
+                        allowed_prefixes: Iterable[str], max_files: int = 20) -> RepairPlan:
+    changes = tuple(dict(x) for x in changes)
+    prefixes = tuple(str(x).rstrip("/") for x in allowed_prefixes)
+    if len(changes) > max_files:
+        raise ValueError("repair exceeds bounded file count")
+    for change in changes:
+        path = str(change.get("path", ""))
+        if change.get("operation") not in {"create", "update"}:
+            raise ValueError("repair deletion is forbidden")
+        if not any(path == p or path.startswith(p + "/") for p in prefixes):
+            raise ValueError(f"repair path outside allowed prefixes: {path}")
+        if path in {
+            "docs/PROJECT_PHASE_LEDGER.md", "docs/CAPABILITY_INVENTORY.json",
+            ".github/workflows/ci.yml", ".github/workflows/security.yml",
+        }:
+            raise ValueError(f"repair may not mutate authority/security file: {path}")
+    return RepairPlan(
+        deterministic_id("rpr", base_revision, reason, changes),
+        base_revision, reason, responsible_layer, prefixes, changes,
+        "revert the isolated commit or restore the recorded preimage hashes",
+        True,
+    )
+
+def diagnose_failure(*, message: str, evidence_kinds: Iterable[str] = ()) -> list[dict[str, Any]]:
+    text = (message + " " + " ".join(evidence_kinds)).lower()
+    scores = {key: 0 for key in FAILURE_CLASSES}
+    rules = {
+        "stale_revision": ("stale", "sha", "commit", "revision"),
+        "ci_environment_failure": ("runner", "timeout", "environment", "workflow", "action"),
+        "security_failure": ("security", "codeql", "audit", "vulnerability"),
+        "provenance_inconsistency": ("provenance", "lineage", "fingerprint", "receipt"),
+        "test_defect": ("test", "assert", "expected output"),
+        "implementation_defect": ("implementation", "wrong result", "exception"),
+        "numerical_precision_problem": ("precision", "rounding", "floating", "ulp"),
+        "truncation_discretization_problem": ("truncation", "cutoff", "timestep", "resolution"),
+        "backend_mismatch": ("backend", "solver", "engine"),
+        "missing_assumption": ("assumption", "domain", "condition"),
+        "mathematical_mistake": ("identity", "derivation", "integral", "limit"),
+        "genuine_contradiction": ("contradict", "disagree", "inconsistent"),
+        "unresolved_scientific_behavior": ("unresolved", "unknown", "anomaly", "surprising"),
+    }
+    for key, tokens in rules.items():
+        scores[key] = sum(1 for token in tokens if token in text)
+    ranked = sorted(scores.items(), key=lambda x: (-x[1], x[0]))
+    if not ranked or ranked[0][1] == 0:
+        ranked = [("unresolved_scientific_behavior", 1), ("implementation_defect", 1),
+                  ("test_defect", 1)]
+    return [
+        {"failure_class": key, "score": score, "rank": i + 1}
+        for i, (key, score) in enumerate(ranked[:4])
+        if score > 0 or i < 2
+    ]
+
+def verify_improper_integral_cases() -> list[dict[str, Any]]:
+    cases = [
+        ({"variable":"x","lower":"1","upper":"oo"}, "1/x**2", "1", True),
+        ({"variable":"x","lower":"1","upper":"oo"}, "1/x", "0", False),
+        ({"variable":"x","lower":"0","upper":"1","endpoint":"lower"}, "1/sqrt(x)", "2", True),
+        ({"variable":"x","lower":"-oo","upper":"oo"}, "1/(1+x**2)", "pi", True),
+        ({"variable":"x","lower":"-oo","upper":"oo"}, "exp(x)", "0", False),
+        ({"variable":"x","lower":"0","upper":"1","endpoint":"upper"}, "1/sqrt(1-x)", "2", True),
+    ]
+    out = []
+    node = lambda expr: type("Node", (), {"expression": type("Expr", (), {"raw_str": expr})()})()
+    for params, integrand, claimed, expected in cases:
+        passed, details, evidence, error = SymPyChecker._verify_improper_integral(
+            node(integrand), node(claimed), params
+        )
+        out.append({
+            "case": {"params": params, "integrand": integrand, "claimed": claimed},
+            "passed": bool(passed), "expected": expected,
+            "details": details, "evidence": evidence,
+            "error": error,
+        })
+    return out
+
+def mirror_verification_request(*, request: VerificationRequest,
+                                hypothesis: str, inputs: Mapping[str, Any],
+                                assumptions: Iterable[str], experiment_budget: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "schema_version": "mirror.verification_request.v1",
+        "request_id": request.request_id,
+        "action_cycle_id": request.action_cycle_id,
+        "capability_id": request.capability_id,
+        "source_revision": request.revision,
+        "experiment_type": "convergence_stability",
+        "hypothesis": hypothesis,
+        "inputs": dict(inputs),
+        "assumptions": list(assumptions),
+        "budget": dict(experiment_budget),
+        "requirements": [
+            "Use multiple truncation strategies where applicable.",
+            "Escalate precision/resolution when convergence is sensitive.",
+            "Record numerical error, stability/convergence, and limitations.",
+            "Return observations, never certification.",
+        ],
+    }
+
+def reconcile_snapshot(*, requested_revision: str, snapshot: Mapping[str, Any],
+                       claimed: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Compare claimed state to observed live state without guessing."""
+    observed_main = snapshot.get("main_sha")
+    observed_engine = snapshot.get("engine_sha")
+    findings: list[dict[str, Any]] = []
+    if observed_main and requested_revision != observed_main:
+        findings.append({"kind":"stale_revision","state":EvidenceState.BLOCKED.value,
+                         "detail":f"requested {requested_revision}, live main is {observed_main}"})
+    if claimed:
+        for key in ("main_sha", "exact_head_sha", "security_run_ids"):
+            if key in claimed and claimed.get(key) != snapshot.get(key):
+                findings.append({"kind":"provenance_mismatch","state":EvidenceState.UNRESOLVED.value,
+                                 "detail":f"claimed {key}={claimed.get(key)!r}, observed {snapshot.get(key)!r}"})
+    if snapshot.get("exact_head_verified") is not True:
+        findings.append({"kind":"exact_head_missing","state":EvidenceState.BLOCKED.value,
+                         "detail":"no exact-head verification bound to the requested current revision"})
+    if snapshot.get("security_verified") is not True:
+        findings.append({"kind":"security_missing","state":EvidenceState.BLOCKED.value,
+                         "detail":"no current Security Audit evidence bound to the requested revision"})
+    return {
+        "observed_main_sha": observed_main,
+        "observed_engine_sha": observed_engine,
+        "findings": findings,
+        "diagnoses": [diagnose_failure(message=f["detail"], evidence_kinds=[f["kind"]])
+                      for f in findings],
+        "ready_for_authoritative_promotion": not findings,
+    }
+
+def build_verifiable_packet(*, request: VerificationRequest,
+                            graph_ids: Iterable[str], repository_state: Mapping[str, Any],
+                            tests: Iterable[str], ci_run_ids: Iterable[int],
+                            security_run_ids: Iterable[int], math_evidence: Mapping[str, Any],
+                            computational_evidence: Mapping[str, Any],
+                            provenance_evidence: Mapping[str, Any],
+                            mirror_experiment_ids: Iterable[str] = (),
+                            repair_history: Iterable[Mapping[str, Any]] = (),
+                            unresolved: Iterable[str] = (),
+                            limitations: Iterable[str] = ()) -> dict[str, Any]:
+    packet = {
+        "schema_version": "automate.verifiable_packet.v1",
+        "packet_id": deterministic_id("pkt", request.request_id, request.revision, list(graph_ids)),
+        "action_cycle_id": request.action_cycle_id,
+        "capability_id": request.capability_id,
+        "job_id": repository_state.get("job_id"),
+        "result_ids": list(repository_state.get("result_ids", [])),
+        "repository": request.repository,
+        "exact_commit_sha": request.revision,
+        "tree_sha": repository_state.get("tree_sha"),
+        "branch": request.branch,
+        "pr_number": repository_state.get("pr_number"),
+        "changed_file_hashes": list(repository_state.get("changed_file_hashes", [])),
+        "tests": list(tests),
+        "ci_run_ids": list(ci_run_ids),
+        "security_run_ids": list(security_run_ids),
+        "verifier_version": "verification-engine.v1",
+        "rule_set_hash": sha256({"module":"automate.dev.verification_engine","version":"v1"}),
+        "mathematical_evidence": dict(math_evidence),
+        "computational_evidence": dict(computational_evidence),
+        "data_provenance_evidence": dict(provenance_evidence),
+        "mirror_experiment_ids": list(mirror_experiment_ids),
+        "external_source_ids": list(repository_state.get("external_source_ids", [])),
+        "assumptions": list(repository_state.get("assumptions", [])),
+        "tolerances": dict(repository_state.get("tolerances", {})),
+        "repair_history": [dict(x) for x in repair_history],
+        "unresolved": list(unresolved),
+        "limitations": list(limitations),
+        "evidence_graph_ids": list(graph_ids),
+        "authority": "EVIDENCE_ONLY",
+    }
+    errors = validate_schema(packet, PACKET_SCHEMA)
+    if errors:
+        raise ValueError("; ".join(errors))
+    return packet
+
+def gh_api(path: str, *, timeout: int = 30) -> Any:
+    """Bounded live GitHub reader used by the verification engine."""
+    if not path.startswith("/"):
+        raise ValueError("GitHub API paths must be absolute")
+    proc = subprocess.run(
+        ["gh", "api", path, "--method", "GET"],
+        capture_output=True, text=True, timeout=timeout, check=False,
+    )
+    if proc.returncode:
+        raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("GitHub returned non-JSON verification data") from exc
+
+def live_repository_snapshot(repository: str) -> dict[str, Any]:
+    main = gh_api(f"/repos/{repository}/git/ref/heads/main")
+    engine = gh_api(f"/repos/{repository}/git/ref/heads/engine")
+    main_sha = main["object"]["sha"]
+    engine_sha = engine["object"]["sha"]
+    runs_main = gh_api(f"/repos/{repository}/actions/runs?branch=main&per_page=100")
+    runs_engine = gh_api(f"/repos/{repository}/actions/runs?branch=engine&per_page=100")
+    status = gh_api(f"/repos/{repository}/commits/{main_sha}/status")
+    prs = gh_api(f"/repos/{repository}/pulls?state=all&per_page=100")
+    compare = gh_api(f"/repos/{repository}/compare/main...engine")
+    return {
+        "repository": repository, "main_sha": main_sha, "engine_sha": engine_sha,
+        "workflow_runs_main": runs_main.get("workflow_runs", []),
+        "workflow_runs_engine": runs_engine.get("workflow_runs", []),
+        "combined_status": status,
+        "pull_requests": prs,
+        "compare": compare,
+    }
