@@ -108,6 +108,20 @@ def run_autonomous_cycle(
         "name": capability["name"],
         "task": packet["packet"].get("task", {}),
     }
+    selected_strategy = (
+        learning_store.select_strategy(
+            task_kind="capability_implementation",
+            task_target=capability_item["id"],
+        )
+        if learning_store is not None
+        else {
+            "strategy_id": "frontier-default",
+            "source": "disabled",
+            "confidence": "none",
+            "reason": "learning store not configured",
+        }
+    )
+
 
     # External world research stays disabled by governance until the current
     # 1A-3A reconciliation/verification frontier is cleared.
@@ -132,6 +146,17 @@ def run_autonomous_cycle(
 
     mirror_endpoint = os.getenv("MIRROR_RESEARCH_ENDPOINT", "").strip()
     if not mirror_endpoint:
+        record_learning(
+            outcome="failure",
+            task_kind="capability_implementation",
+            task_target=capability_item["id"],
+            strategy_id=selected_strategy["strategy_id"],
+            observation="external research was enabled but no Mirror research endpoint was configured",
+            failure_class="integration_defect",
+            correlation_id=packet["packet"]["request_id"],
+        )
+        if learning_store is not None:
+            learning_store.close()
         raise AutonomousCycleError("MIRROR_RESEARCH_ENDPOINT is required when external research is enabled")
 
     base_sha = packet["packet"]["repository"].get("base_sha_claim")
@@ -165,10 +190,23 @@ def run_autonomous_cycle(
         raise AutonomousCycleError("research commission failed: " + str(exc)) from exc
 
     if not execute_worker:
+        exp_id = record_learning(
+            outcome="unknown",
+            task_kind="capability_implementation",
+            task_target=capability_item["id"],
+            strategy_id=selected_strategy["strategy_id"],
+            observation="bounded Mirror research job was dispatched; completion was intentionally deferred",
+            evidence_refs=[{"id": str(research_dispatch.get("queued", {}).get("jobId") or "research-dispatch"), "kind": "research_job"}],
+            correlation_id=packet["packet"]["request_id"],
+        )
+        if learning_store is not None:
+            learning_store.close()
         return {
             "status": "research_dispatched",
             "decision": decision,
             "research": research_dispatch,
+            "learning_strategy": selected_strategy,
+            "experience_id": exp_id,
             "next_step": "poll the durable research job and reconcile its evidence",
         }
 
@@ -334,6 +372,17 @@ def run_autonomous_cycle(
     try:
         commit = build_worker_commit(packet["packet"], result, repository_root=local_root)
     except Exception as exc:
+        record_learning(
+            outcome="failure",
+            task_kind="capability_implementation",
+            task_target=capability_item["id"],
+            strategy_id=selected_strategy["strategy_id"],
+            observation="validated worker result could not be converted into a bounded local commit proposal: " + str(exc),
+            failure_class="implementation_defect",
+            correlation_id=packet["packet"]["request_id"],
+        )
+        if learning_store is not None:
+            learning_store.close()
         raise AutonomousCycleError(str(exc)) from exc
 
     exp_id = record_learning(
