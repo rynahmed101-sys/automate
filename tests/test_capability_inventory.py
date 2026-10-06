@@ -45,7 +45,7 @@ def test_capability_next_prioritizes_first_remaining_stage1b_capability():
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["next_action"]["action"] == "continue_development"
-    assert payload["next_action"]["capability_id"] == "stage1b.improper_integrals"
+    assert payload["next_action"]["capability_ids"] == ["stage1b.improper_integrals"]
 
 
 def test_capabilities_exposes_control_plane():
@@ -111,8 +111,8 @@ def test_capability_next_filters_active_packets_by_dependencies():
 
     data = load_inventory()
     payload = next_action(data)
-    assert payload["action"] == "implement"
-    assert payload["capability_id"] == "stage1b.improper_integrals"
+    assert payload["action"] == "continue_development"
+    assert payload["capability_ids"] == ["stage1b.improper_integrals"]
 
 
 def test_preserved_work_does_not_satisfy_dependency():
@@ -148,6 +148,7 @@ def test_tracked_planned_capability_remains_claimable():
     data = load_inventory()
     action = next_action(data)
     assert action["action"] == "continue_development"
+    assert action["capability_ids"] == ["stage1b.improper_integrals"]
     assert "stage1b.improper_integrals" in action["capability_ids"]
     candidate = next_unclaimed(data)
     assert candidate is not None
