@@ -138,3 +138,15 @@ def test_preserved_work_does_not_satisfy_dependency():
         ]
     }
     assert next_unclaimed(data) is None
+
+
+def test_tracked_planned_capability_remains_claimable():
+    from automate.dev.inventory import next_action, next_unclaimed
+
+    data = load_inventory()
+    action = next_action(data)
+    assert action["action"] == "implement"
+    assert action["capability_id"] == "stage1b.improper_integrals"
+    candidate = next_unclaimed(data)
+    assert candidate is not None
+    assert candidate["id"] == "stage1b.improper_integrals"
