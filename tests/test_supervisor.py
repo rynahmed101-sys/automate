@@ -14,7 +14,7 @@ def test_supervisor_stops_when_live_audit_fails(monkeypatch):
     assert "bad live state" in result["errors"]
 
 
-def test_supervisor_can_dispatch_current_frontier(monkeypatch):
+def test_supervisor_reports_current_frontier_without_dispatching(monkeypatch):
     monkeypatch.setattr(
         "automate.dev.supervisor.summarize_live",
         lambda _: {"repository": "x", "valid": True, "errors": []},
@@ -26,7 +26,3 @@ def test_supervisor_can_dispatch_current_frontier(monkeypatch):
     assert result["action"] == "continue_development"
     assert result["can_dispatch"] is False
     assert result["queue"]["next_action"]["capability_ids"] == ["stage1b.improper_integrals"]
-    assert (
-        result["worker_packet"]["packet"]["repository"]["base_sha_claim"]
-        == "0000000000000000000000000000000000000000"
-    )
