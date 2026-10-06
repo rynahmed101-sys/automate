@@ -78,6 +78,18 @@ def test_learned_strategy_requires_adopted_lesson_before_override(tmp_path: Path
         store.add_lesson(lesson)
         store.transition_lesson(
             lesson["lesson_id"],
+            "REPRODUCED",
+            reason="reproduction",
+            evidence=[{"id": "reproduction"}],
+        )
+        store.transition_lesson(
+            lesson["lesson_id"],
+            "REPRODUCED",
+            reason="independent route reproduced the successful strategy",
+            evidence=[{"id": "reproduction"}],
+        )
+        store.transition_lesson(
+            lesson["lesson_id"],
             "VERIFIED",
             reason="independent route reproduced the successful strategy",
             evidence=[{"id": "independent-1", "independence": "independent_route"}],
