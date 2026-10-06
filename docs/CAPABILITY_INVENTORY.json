@@ -1182,8 +1182,8 @@
     {
       "number": 133,
       "branch": "integrate/clear-1a-3a",
-      "state": "open",
-      "purpose": "Stage 1C current-main reconciliation candidate"
+      "state": "closed_future_work",
+      "purpose": "Stage 1C current-main reconciliation preserved for later harvest"
     }
   ]
 }
