@@ -21,7 +21,6 @@ def live_pull_requests(repository_full_name: str, *, limit: int = 100) -> list[d
         "gh", "pr", "list",
         "--repo", repository_full_name,
         "--state", "open",
-        "--base", "main",
         "--limit", str(limit),
         "--json", "number,headRefName,headRefOid,baseRefName,isDraft,url",
     ]
@@ -93,6 +92,9 @@ def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]]
             recorded_branch = integration_refs[number].get("branch")
             if recorded_branch and recorded_branch != branch:
                 errors.append(f"PR #{number} integration branch mismatch: inventory={recorded_branch}, live={branch}.")
+            recorded_sha = integration_refs[number].get("head_sha")
+            if recorded_sha and pr.get("headRefOid") and recorded_sha != pr["headRefOid"]:
+                errors.append(f"PR #{number} integration head mismatch: inventory={recorded_sha}, live={pr.get("headRefOid")}.")
 
     return errors
 
