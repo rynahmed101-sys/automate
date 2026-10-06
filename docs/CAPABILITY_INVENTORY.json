@@ -410,7 +410,7 @@
         {
           "type": "pr",
           "number": 73,
-          "state": "closed_duplicate"
+          "state": "open_historical"
         }
       ],
       "depends_on": [
