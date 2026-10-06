@@ -40,6 +40,8 @@ def build_worker_packet(
     *,
     repository: str = "rynahmed101-sys/automate",
     base_sha_claim: str | None = None,
+    context_files: list[dict[str, str]] | None = None,
+    context_notes: list[str] | None = None,
 ) -> dict[str, Any]:
     data = load_inventory()
     item = get_capability(capability_id)
@@ -95,6 +97,10 @@ def build_worker_packet(
                 "branch_prefix": data["branch_policy"]["capability_branch_prefix"],
                 "max_files": 20,
                 "allow_delete": False,
+            },
+            "context": {
+                "files": list(context_files or []),
+                "notes": list(context_notes or []),
             },
             "instructions": [
                 "Implement only the assigned capability.",
@@ -177,13 +183,60 @@ def worker_packet_json(
     *,
     repository: str,
     base_sha_claim: str | None = None,
+    context_files: list[dict[str, str]] | None = None,
+    context_notes: list[str] | None = None,
 ) -> str:
     return json.dumps(
         build_worker_packet(
             capability_id,
             repository=repository,
             base_sha_claim=base_sha_claim,
+            context_files=context_files,
+            context_notes=context_notes,
         ),
         indent=2,
         sort_keys=True,
     )
+
+
+def add_worker_context(
+    packet: dict[str, Any],
+    files: list[dict[str, str]],
+    notes: list[str] | None = None,
+) -> dict[str, Any]:
+    """Return a packet with bounded, explicitly supplied repository context."""
+    body = packet["packet"]
+    allowed = body["constraints"]["allowed_path_prefixes"]
+    if len(files) > 25:
+        raise InventoryError("worker context exceeds the 25-file limit")
+    if len(notes or []) > 20:
+        raise InventoryError("worker context exceeds the 20-note limit")
+
+    normalized_files: list[dict[str, str]] = []
+    total_chars = 0
+    for item in files:
+        path = str(item.get("path", ""))
+        content = item.get("content")
+        sha = item.get("sha")
+        if not _under_prefix(path, allowed):
+            raise InventoryError(f"worker context path is outside allowed paths: {path}")
+        if not isinstance(content, str) or len(content) > 100_000:
+            raise InventoryError(f"worker context file is missing or too large: {path}")
+        if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+            raise InventoryError(f"worker context file has invalid sha: {path}")
+        total_chars += len(content)
+        normalized_files.append({"path": path, "sha": sha, "content": content})
+
+    if total_chars > 400_000:
+        raise InventoryError("worker context exceeds the 400000-character total limit")
+
+    result = dict(packet)
+    result["packet"] = dict(body)
+    result["packet"]["context"] = {"files": normalized_files, "notes": list(notes or [])}
+    errors = [
+        error.message
+        for error in Draft202012Validator(_schema()["properties"]["packet"]).iter_errors(result["packet"])
+    ]
+    if errors:
+        raise InventoryError("; ".join(errors))
+    return result
