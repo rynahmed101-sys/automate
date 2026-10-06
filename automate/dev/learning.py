@@ -512,6 +512,46 @@ class LearningStore:
             "best_observed": best.to_dict(),
         }
 
+    def success_lesson_candidates(self, *, min_repetitions: int = 3) -> list[dict[str, Any]]:
+        """Generate candidate strategy lessons from repeated successful executions."""
+        if min_repetitions < 2:
+            raise LearningError("min_repetitions must be at least 2")
+        rows = self.db.execute("SELECT payload_json FROM experiences ORDER BY created_at, id").fetchall()
+        groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+        for row in rows:
+            exp = json.loads(row[0])
+            if exp["outcome"] != "success":
+                continue
+            key = (
+                exp["task"]["kind"],
+                exp["task"]["target"],
+                exp["strategy"]["strategy_id"],
+            )
+            groups.setdefault(key, []).append(exp)
+
+        candidates: list[dict[str, Any]] = []
+        for (kind, target, strategy_id), experiences in sorted(groups.items()):
+            if len(experiences) < min_repetitions:
+                continue
+            ids = [x["experience_id"] for x in experiences]
+            candidates.append(
+                build_lesson(
+                    lesson_type="strategy",
+                    statement=(
+                        f"Strategy '{strategy_id}' has repeated successful outcomes for "
+                        f"{kind}:{target}; test whether its success generalizes before adoption."
+                    ),
+                    scope={
+                        "task_kind": kind,
+                        "task_target": target,
+                        "strategy_id": strategy_id,
+                    },
+                    supporting_experience_ids=ids,
+                    expected_effect="Provide a candidate strategy worth independent reproduction.",
+                )
+            )
+        return candidates
+
     def failure_lesson_candidates(self, *, min_repetitions: int = 2) -> list[dict[str, Any]]:
         """Generate deterministic candidate lessons from repeated failure classes.
 
@@ -553,6 +593,32 @@ class LearningStore:
             )
         return candidates
 
+    def regression_candidates(self, *, minimum_reproducibility: int = 1) -> list[dict[str, Any]]:
+        """Return historical failures suitable for promotion into regression obligations."""
+        if minimum_reproducibility < 1:
+            raise LearningError("minimum_reproducibility must be at least 1")
+        rows = self.db.execute(
+            "SELECT payload_json FROM experiences ORDER BY created_at, id"
+        ).fetchall()
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            exp = json.loads(row[0])
+            if exp["outcome"] != "failure":
+                continue
+            if exp["observation"].get("reproducible") is False:
+                continue
+            results.append({
+                "experience_id": exp["experience_id"],
+                "task": exp["task"],
+                "strategy": exp["strategy"],
+                "failure_class": exp.get("failure_class"),
+                "regression_obligation": (
+                    "Reproduce the recorded failure boundary and verify that a future "
+                    "change does not reintroduce it."
+                ),
+            })
+        return results
+
     def snapshot(self) -> dict[str, Any]:
         experience_count = self.db.execute("SELECT COUNT(*) FROM experiences").fetchone()[0]
         lesson_rows = self.db.execute(
@@ -564,6 +630,8 @@ class LearningStore:
         return {
             "schema_version": "automate.learning_snapshot.v1",
             "experience_count": experience_count,
+            "candidate_failure_lesson_count": len(self.failure_lesson_candidates()),
+            "candidate_success_lesson_count": len(self.success_lesson_candidates()),
             "lesson_counts": {status: count for status, count in lesson_rows},
             "evolution_proposal_counts": {status: count for status, count in evolution_rows},
             "adopted_strategy_lesson_count": len(self.list_adopted_lessons(lesson_type="strategy")),
