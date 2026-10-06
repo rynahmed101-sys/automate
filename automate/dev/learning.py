@@ -211,7 +211,6 @@ def build_lesson(
         lesson_type,
         statement,
         body["scope"],
-        ids,
     )
     errors = validate_lesson(body)
     if errors:
@@ -353,9 +352,32 @@ class LearningStore:
         if missing:
             raise LearningError("lesson references unknown experiences: " + ", ".join(missing))
         lid = str(lesson["lesson_id"])
+        existing = self.get_lesson(lid)
+        if existing is not None:
+            # Same lesson fingerprint: merge new supporting evidence without
+            # downgrading a previously promoted state.
+            merged = dict(existing)
+            merged["supporting_experience_ids"] = sorted(
+                set(existing["supporting_experience_ids"])
+                | set(lesson["supporting_experience_ids"])
+            )
+            merged["verification_evidence"] = [
+                *existing.get("verification_evidence", []),
+                *[
+                    item for item in lesson.get("verification_evidence", [])
+                    if item not in existing.get("verification_evidence", [])
+                ],
+            ]
+            body = canonical_json(merged)
+            self.db.execute(
+                "UPDATE lessons SET payload_json=?, payload_sha256=? WHERE id=?",
+                (body, hashlib.sha256(body.encode()).hexdigest(), lid),
+            )
+            self.db.commit()
+            return lid
         body = canonical_json(lesson)
         self.db.execute(
-            "INSERT OR IGNORE INTO lessons(id,status,payload_json,payload_sha256,created_at) VALUES(?,?,?,?,?)",
+            "INSERT INTO lessons(id,status,payload_json,payload_sha256,created_at) VALUES(?,?,?,?,?)",
             (lid, lesson["status"], body, hashlib.sha256(body.encode()).hexdigest(), utc_now()),
         )
         self.db.commit()
