@@ -1103,6 +1103,15 @@
       ]
     },
     {
+      "rule_id": "matrix_svd",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
       "rule_id": "matrix_symmetric",
       "category": "linear_algebra",
       "domain": "mathematics",
