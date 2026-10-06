@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from automate.dev.inventory import load_inventory
 from automate.dev.verification_engine import (
     FAILURE_CLASSES,
     diagnose_failure,
@@ -48,8 +49,12 @@ def inventory_repository(repository: str) -> dict[str, Any]:
     main_sha = str(main_ref["object"]["sha"])
     engine_sha = str(engine_ref["object"]["sha"])
 
-    main_tree = gh_api(f"/repos/{repository}/git/trees/{main_sha}?recursive=1")
-    engine_tree = gh_api(f"/repos/{repository}/git/trees/{engine_sha}?recursive=1")
+    main_commit = gh_api(f"/repos/{repository}/git/commits/{main_sha}")
+    engine_commit = gh_api(f"/repos/{repository}/git/commits/{engine_sha}")
+    main_tree_sha = str(main_commit["tree"]["sha"])
+    engine_tree_sha = str(engine_commit["tree"]["sha"])
+    main_tree = gh_api(f"/repos/{repository}/git/trees/{main_tree_sha}?recursive=1")
+    engine_tree = gh_api(f"/repos/{repository}/git/trees/{engine_tree_sha}?recursive=1")
     main_paths = {
         str(e["path"]) for e in main_tree.get("tree", [])
         if e.get("type") == "blob"
@@ -61,6 +66,24 @@ def inventory_repository(repository: str) -> dict[str, Any]:
 
     prs = gh_api(f"/repos/{repository}/pulls?state=all&per_page=100")
     branches = gh_api(f"/repos/{repository}/branches?per_page=100")
+    capability_by_pr: dict[int, list[dict[str, Any]]] = {}
+    integration_by_pr: dict[int, dict[str, Any]] = {}
+    if repository == "rynahmed101-sys/automate":
+        try:
+            inv = load_inventory()
+        except Exception:
+            inv = {}
+        for item in inv.get("capabilities", []):
+            for ref in item.get("references", []):
+                if ref.get("type") == "pr" and isinstance(ref.get("number"), int):
+                    capability_by_pr.setdefault(ref["number"], []).append({
+                        "capability_id": item["id"],
+                        "stage": item.get("stage"),
+                        "state": item.get("implementation_state"),
+                    })
+        for ref in inv.get("integration_references", []):
+            if isinstance(ref.get("number"), int):
+                integration_by_pr[ref["number"]] = dict(ref)
     main_runs = gh_api(f"/repos/{repository}/actions/runs?branch=main&per_page=100")
     engine_runs = gh_api(f"/repos/{repository}/actions/runs?branch=engine&per_page=100")
 
@@ -86,6 +109,8 @@ def inventory_repository(repository: str) -> dict[str, Any]:
                     "head_sha": p.get("head", {}).get("sha"),
                     "title": p.get("title"),
                     "updated_at": p.get("updated_at"),
+                    "capabilities": capability_by_pr.get(int(p["number"]), []) if isinstance(p.get("number"), int) else [],
+                    "integration_reference": integration_by_pr.get(int(p["number"])) if isinstance(p.get("number"), int) else None,
                 }
                 for p in prs
             ],
@@ -158,8 +183,8 @@ def build_reconciliation_plan(
             target_revision=str(observed.get("main_sha") or ""),
             earliest_stage=earliest_stage,
             capability_stage=(
-                str(pr.get("capability_stage"))
-                if pr.get("capability_stage") is not None
+                str((pr.get("capabilities") or [{}])[0].get("stage"))
+                if pr.get("capabilities")
                 else None
             ),
         )
