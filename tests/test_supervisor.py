@@ -23,9 +23,9 @@ def test_supervisor_can_dispatch_current_frontier(monkeypatch):
         "rynahmed101-sys/automate",
         base_sha="0000000000000000000000000000000000000000",
     )
-    assert result["action"] == "dispatch"
-    assert result["can_dispatch"] is True
-    assert result["capability_id"] == "stage1b.improper_integrals"
+    assert result["action"] == "continue_development"
+    assert result["can_dispatch"] is False
+    assert "stage1b.improper_integrals" in result["capability_ids"]
     assert (
         result["worker_packet"]["packet"]["repository"]["base_sha_claim"]
         == "0000000000000000000000000000000000000000"
