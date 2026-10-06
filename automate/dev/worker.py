@@ -102,7 +102,7 @@ def build_worker_packet(
             seen.add(candidate)
             context_paths.append(candidate)
 
-    context_files: list[dict[str, str]] = []
+    generated_context_files: list[dict[str, str]] = []
     context_notes = list(context_notes or [])
     for relative_path in context_paths:
         context_path = ROOT / relative_path
@@ -116,7 +116,7 @@ def build_worker_packet(
         encoded = content.encode("utf-8")
         blob_prefix = f"blob {len(encoded)}\\0".encode("utf-8")
         sha = __import__("hashlib").sha1(blob_prefix + encoded).hexdigest()
-        context_files.append({"path": relative_path, "sha": sha, "content": content})
+        generated_context_files.append({"path": relative_path, "sha": sha, "content": content})
 
     packet = {
         "schema_version": "automate.worker.v1",
@@ -143,7 +143,10 @@ def build_worker_packet(
                 "allow_delete": False,
             },
             "context": {
-                "files": list(context_files or []),
+                "files": list(context_files or []) + [
+                    item for item in generated_context_files
+                    if item["path"] not in {existing["path"] for existing in (context_files or [])}
+                ],
                 "notes": context_notes,
             },
             "instructions": [
