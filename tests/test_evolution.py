@@ -86,7 +86,7 @@ def test_evolution_plan_rejects_delete():
 def test_evolution_proposal_requires_independent_evidence_and_regressions(tmp_path: Path):
     from automate.dev.learning import LearningStore
 
-    proposal = _proposal()
+    proposal = _proposal(status="CANDIDATE")
     store = LearningStore(tmp_path / "learning.db")
     try:
         store.add_evolution_proposal(proposal)
