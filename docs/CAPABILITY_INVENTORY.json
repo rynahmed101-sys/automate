@@ -496,8 +496,8 @@
         "locally_tested": false,
         "development_ci_verified": true,
         "merged_main": true,
-        "exact_head_verified": true,
-        "security_audit_verified": true,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
         "independently_cross_checked": false,
         "formally_proved": false,
         "certified": false
@@ -505,12 +505,12 @@
       "safe_to_delete": false,
       "notes": "Merged into authoritative main and verified on exact main SHA. Independent cross-check and formal proof remain absent, so certification is not claimed.",
       "verification_evidence": {
-        "main_sha": "6a324afac605719b7ff8644624bf21098f960eb8",
-        "exact_head_workflow_run": 37543335976,
-        "exact_head_conclusion": "success",
-        "security_workflow_run": 37543336009,
-        "security_conclusion": "success",
-        "note": "PR #135 development CI passed before merge; exact-head Python 3.10-3.13 and Lean 4 passed on this exact merged main SHA; CodeQL and pip-audit passed. Independent cross-check remains pending."
+        "previous_main_sha": "6a324afac605719b7ff8644624bf21098f960eb8",
+        "previous_exact_head_workflow_run": 37543335976,
+        "previous_exact_head_conclusion": "success",
+        "previous_security_workflow_run": 37543336009,
+        "previous_security_conclusion": "success",
+        "note": "Those checks verified the capability-bearing merge commit 6a324af. This subsequent inventory bookkeeping commit changes main and therefore requires fresh exact-head/security evidence for the current SHA before the ledger can mark those axes true."
       }
     },
     {
@@ -1148,12 +1148,10 @@
     }
   ],
   "authoritative_verification": {
-    "main_sha": "6a324afac605719b7ff8644624bf21098f960eb8",
-    "exact_head_workflow_run": 37543335976,
-    "exact_head_conclusion": "success",
-    "security_workflow_run": 37543336009,
-    "security_conclusion": "success",
-    "note": "Authoritative for the exact current main SHA. Prior workflow evidence remains attached to the historical SHAs it actually verified."
+    "main_sha": "e677387fb4b3ecdf4c8ec90290324c8f95d43e5f",
+    "exact_head_conclusion": "pending",
+    "security_conclusion": "pending",
+    "note": "Current main SHA is a bookkeeping commit after the capability-bearing merge. Fresh exact-head CI and Security Audit must verify this exact SHA."
   },
   "integration_references": [
     {
