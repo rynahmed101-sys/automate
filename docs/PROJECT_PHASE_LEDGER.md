@@ -130,8 +130,8 @@ This stage contains the mathematical basics that later physics must be able to r
 - [x] Positive-definite matrices
 - [x] Quadratic forms
 - [x] Singular-value decomposition
-- [~] Moore-Penrose pseudoinverse and least-squares solutions
-- [~] Complex scalar/vector/matrix semantics needed by later quantum and spectral reasoning
+- [x] Moore-Penrose pseudoinverse and least-squares solutions
+- [x] Complex scalar/vector/matrix semantics needed by later quantum and spectral reasoning
 
 **Depth rule:** vector/matrix operations should be dimension-generic where represented; subspace and basis operations must correctly handle rectangular, rank-deficient, zero-dimensional, symbolic, and degenerate cases.
 
@@ -144,7 +144,7 @@ This stage contains the mathematical basics that later physics must be able to r
 - [ ] Definite and indefinite integration
 - [ ] Repeated/nested integration where represented
 - [ ] Substitution, integration by parts, partial fractions, trigonometric and other general integration techniques where tractable
-- [ ] Fundamental theorem of calculus
+- [x] Fundamental theorem of calculus
 - [ ] Improper integrals and convergence-aware handling
 - [ ] Taylor / Maclaurin series and higher-order expansions
 - [ ] Partial derivatives and total differentials
@@ -175,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Stage 1A linear algebra and the implemented Stage 1B calculus stack are authoritatively verified on exact current main. The remaining Stage 1B ladder includes the Fundamental Theorem of Calculus, improper integrals/convergence, series and expansions, partial derivatives/total differentials, Jacobians/Hessians, multivariable chain rule, stationary/constrained optimization, and domain/assumption-aware extensions. Stage 1C ODE work is preserved out of order and does not displace the remaining Stage 1B ladder.
+**Current status:** [~] Active. Stage 1A linear algebra and the implemented Stage 1B calculus stack, including the Fundamental Theorem of Calculus, are authoritatively verified on exact current main. The remaining Stage 1B ladder includes improper integrals/convergence, series and expansions, partial derivatives/total differentials, Jacobians/Hessians, multivariable chain rule, stationary/constrained optimization, and domain/assumption-aware extensions. Stage 1C ODE work is preserved out of order and does not displace the remaining Stage 1B ladder.
 
 ---
 

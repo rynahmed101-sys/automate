@@ -36,7 +36,11 @@
       "tests/test_cli_schema_contracts.py",
       "automate/cli.py"
     ],
-    "rule": "Capability packets own math source, focused tests and semantic docs. Shared registry/schema/dispatch integration belongs to the primary integrator."
+    "rule": "Capability packets own math source, focused tests and semantic docs. Shared registry/schema/dispatch integration belongs to the primary integrator.",
+    "allowed_maintenance_branch_prefixes": [
+      "fix/",
+      "hotfix/"
+    ]
   },
   "capabilities": [
     {
@@ -91,9 +95,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
       }
     },
     {
@@ -146,9 +150,9 @@
       "notes": "PR93 was an isolated duplicate/hardening packet. Canonical change-of-basis verification already exists in main via PR62/backend acceptance tests.",
       "preserved_in": "main",
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
       }
     },
     {
@@ -166,8 +170,8 @@
           "type": "pr",
           "number": 92,
           "branch": "integrate/stage1-controlled-1c-1a",
-          "state": "open",
-          "role": "integration_batch"
+          "state": "closed_superseded_by_pr96",
+          "role": "historical_integration_batch"
         },
         {
           "type": "pr",
@@ -203,9 +207,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
       }
     },
     {
@@ -223,8 +227,8 @@
           "type": "pr",
           "number": 65,
           "branch": "reconcile/phase1a-complex-semantics",
-          "state": "open",
-          "role": "primary"
+          "state": "closed_superseded_by_pr100",
+          "role": "historical_source"
         },
         {
           "type": "pr",
@@ -256,9 +260,9 @@
       "safe_to_delete": false,
       "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context.",
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
       }
     },
     {
@@ -308,9 +312,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
       },
       "notes": "The useful orthogonal-matrix semantics from PR91 were integrated as central rule matrix_orthogonal in PR101. The duplicate unitary helper from PR91 was intentionally not carried forward."
     },
@@ -387,9 +391,9 @@
       "safe_to_delete": false,
       "notes": "PR75 is the authoritative current-main reconciliation of the implemented Stage 1B calculus stack. The remaining Stage 1B ladder is tracked separately.",
       "verification_evidence": {
-        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
-        "exact_head_workflow_run": 37419593778,
-        "security_workflow_run": 37419593763
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
       }
     },
     {
@@ -397,10 +401,10 @@
       "order": 140,
       "stage": "1B",
       "name": "Fundamental theorem of calculus",
-      "implementation_state": "awaiting_reconciliation",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "branch",
-        "ref": "PR108"
+        "kind": "main_merge",
+        "ref": "2838c33df8f33fcdea6e27d93b204b193cc9b939"
       },
       "references": [
         {
@@ -408,8 +412,14 @@
           "number": 108,
           "branch": "integrate/stage1b-ftc",
           "head_sha": "46489cf43ecdb57f7879c84fb9e7f77eb6d5d043",
-          "state": "open",
-          "role": "primary"
+          "state": "merged",
+          "role": "authoritative_merge"
+        },
+        {
+          "type": "pr",
+          "number": 111,
+          "state": "merged",
+          "role": "post_merge_defect_repair"
         }
       ],
       "depends_on": [
@@ -421,17 +431,22 @@
         "schemas/automate-agent-v1.json"
       ],
       "verification": {
-        "locally_tested": false,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "Current implementation packet for the next incomplete Stage 1B capability. Do not treat it as merged or certified until reconciled on main and exact-head/security verified."
+      "notes": "Current implementation packet for the next incomplete Stage 1B capability. Do not treat it as merged or certified until reconciled on main and exact-head/security verified.",
+      "verification_evidence": {
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
+      }
     },
     {
       "id": "stage1c.ode",
@@ -525,9 +540,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
       }
     },
     {
@@ -615,9 +630,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
       }
     },
     {
@@ -658,9 +673,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+        "exact_head_workflow_run": 37426898562,
+        "security_workflow_run": 37426898568
       }
     },
     {
@@ -791,11 +806,11 @@
     }
   ],
   "authoritative_verification": {
-    "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
-    "exact_head_workflow_run": 37419593778,
-    "security_workflow_run": 37419593763,
+    "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
+    "exact_head_workflow_run": 37426898562,
+    "security_workflow_run": 37426898568,
     "exact_head_conclusion": "success",
     "security_conclusion": "success",
-    "note": "This evidence certifies the code state of the verified main base. A subsequent bookkeeping-only merge must be re-run through Exact-head before the new main SHA is called authoritative."
+    "note": "This is authoritative for the code state at 7f8aa439. A later bookkeeping-only merge must pass Exact-head and Security Audit again before its new SHA is authoritative."
   }
 }
