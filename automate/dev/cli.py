@@ -233,6 +233,20 @@ def worker_run_command(
     }
     click.echo(json.dumps(payload, indent=2))
 
+@capability.command("worker-status")
+@click.argument("job_id")
+@click.option("--worker-url", default=None, help="Worker API base URL. Defaults to AUTOMATE_WORKER_URL.")
+@click.option("--worker-token", default=None, help="Worker API token. Defaults to AUTOMATE_WORKER_TOKEN.")
+def worker_status_command(job_id: str, worker_url: str | None, worker_token: str | None) -> None:
+    """Read a durable worker job including elapsed time, remaining time and ETA."""
+    from automate.dev.worker_client import WorkerTransportError, read_worker_job
+    try:
+        payload = read_worker_job(job_id, url=worker_url, token=worker_token)
+    except WorkerTransportError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2))
+
+
 @capability.command("autonomous-cycle")
 @click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
 @click.option("--worker-url", default=None, help="Worker API base URL. Defaults to AUTOMATE_WORKER_URL.")
