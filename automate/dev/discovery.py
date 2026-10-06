@@ -6,10 +6,18 @@ but it cannot append to the canonical capability inventory.
 """
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 from typing import Any, Mapping
 
+from jsonschema import Draft202012Validator
+
 from automate.dev.inventory import load_inventory
+
+
+ROOT = Path(__file__).resolve().parents[2]
+TRIAGE_SCHEMA = ROOT / "schemas/automate-discovery-triage-v1.json"
 
 
 class DiscoveryIntakeError(ValueError):
@@ -86,7 +94,7 @@ def triage_candidate(proposal: Mapping[str, Any]) -> dict[str, Any]:
         status = "READY_FOR_INVESTIGATION"
         reason = "candidate has no unknown or nonterminal canonical prerequisites"
 
-    return {
+    result = {
         "schema_version": "automate.discovery_triage.v1",
         "proposal_id": str(proposal["proposal_id"]),
         "candidate_capability_id": candidate_id,
@@ -103,3 +111,8 @@ def triage_candidate(proposal: Mapping[str, Any]) -> dict[str, Any]:
         ),
         "canonical_inventory_mutated": False,
     }
+    schema = json.loads(TRIAGE_SCHEMA.read_text(encoding="utf-8"))
+    errors = [error.message for error in Draft202012Validator(schema).iter_errors(result)]
+    if errors:
+        raise DiscoveryIntakeError("triage payload violates machine contract: " + "; ".join(errors))
+    return result
