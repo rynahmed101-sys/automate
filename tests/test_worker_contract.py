@@ -125,3 +125,19 @@ def test_worker_result_rejects_descendant_of_canonical_file():
     }
     errors = validate_worker_result(result, packet)
     assert any("outside allowed capability paths" in error for error in errors)
+
+
+def test_worker_packet_preserves_explicit_context():
+    from automate.dev.worker import build_worker_packet
+
+    packet = build_worker_packet(
+        "stage1b.improper_integrals",
+        context_files=[{
+            "path": "tests/test_improper_integrals.py",
+            "sha": "0" * 40,
+            "content": "explicit context",
+        }],
+    )
+    paths = [item["path"] for item in packet["packet"]["context"]["files"]]
+    assert "tests/test_improper_integrals.py" in paths
+    assert packet["packet"]["context"]["files"][0]["content"] == "explicit context"
