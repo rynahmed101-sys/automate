@@ -76,13 +76,13 @@ def test_build_worker_commit_completes_without_push(tmp_path: Path):
                 "operation": "create",
                 "path": "automate/backend/dry_run.py",
                 "expected_sha": None,
-                "content": "VALUE = 1\\n",
+                "content": "VALUE = 1\n",
             },
             {
                 "operation": "create",
                 "path": "tests/test_dry_run_generated.py",
                 "expected_sha": None,
-                "content": "def test_generated_value():\\n    from automate.backend.dry_run import VALUE\\n    assert VALUE == 1\\n",
+                "content": "def test_generated_value():\n    from automate.backend.dry_run import VALUE\n    assert VALUE == 1\n",
             },
             {
                 "operation": "create",
