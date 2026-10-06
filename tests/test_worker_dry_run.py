@@ -20,6 +20,9 @@ def git(cwd: Path, *args: str) -> str:
 def test_build_worker_commit_completes_without_push(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()
+    (repo / "automate/backend").mkdir(parents=True)
+    (repo / "automate/__init__.py").write_text("", encoding="utf-8")
+    (repo / "automate/backend/__init__.py").write_text("", encoding="utf-8")
     git(repo, "init")
     git(repo, "config", "user.email", "test@example.invalid")
     git(repo, "config", "user.name", "Automate Test")
