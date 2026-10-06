@@ -15,6 +15,7 @@ def test_worker_packet_for_current_frontier_is_bounded():
     assert body["repository"]["base_branch"] == "main"
     assert body["constraints"]["allow_delete"] is False
     assert "docs/PROJECT_PHASE_LEDGER.md" in body["constraints"]["forbidden_paths"]
+    assert body["verification"]["test_targets"] == ["tests/test_improper_integrals.py"]
     assert body["constraints"]["allowed_path_prefixes"] == [
         "automate/backend/improper_integrals_backend.py",
         "tests/test_improper_integrals.py",
