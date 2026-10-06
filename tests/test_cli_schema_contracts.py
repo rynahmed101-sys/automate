@@ -70,6 +70,6 @@ def test_schema_agent_returns_machine_agent_contract():
     assert {"discover", "context", "validate", "propose_dry_run", "propose_apply",
             "research", "check", "prove", "simulate", "stats",
             "query_assumptions", "expand", "report", "export_certificate",
-            "schema"}.issubset(payload["commands"])
+            "schema", "capability_inventory"}.issubset(payload["commands"])
     assert "capability_catalog" in payload
     assert "development_control_plane" in payload["capability_catalog"]
