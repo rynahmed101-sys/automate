@@ -156,6 +156,8 @@ This stage contains the mathematical basics that later physics must be able to r
 
 **Depth rule:** “derivative” means a general differentiation capability, not a permanently hard-coded first-derivative feature. The same principle applies to integrals, series order, and multivariable operations.
 
+**Control-plane frontier:** the next claimable Stage 1B capability is **Improper integrals and convergence-aware handling** (GitHub issue #115). Stage 1C ODE implementation is preserved as later work and must not leapfrog the unchecked 1B ladder.
+
 ## 1C. General ODEs
 
 - [ ] Separable first-order equations
