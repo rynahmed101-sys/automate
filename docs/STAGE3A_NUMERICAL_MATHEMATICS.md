@@ -16,13 +16,7 @@ This batch establishes reusable numerical evidence primitives without replacing 
 
 Every successful result is explicitly NUMERICALLY_CHECKED; unsupported or insufficiently evidenced results remain UNVERIFIED. Malformed inputs raise validation errors rather than being guessed.
 
-## Incomplete
-
-Nonlinear equation systems, generalized numerical linear algebra, eigenvalue conditioning, adaptive/validated convergence certificates, uncertainty propagation, sensitivity analysis, numerical PDE methods, and richer Monte Carlo estimators remain subsequent batches.
-
-Numerical outputs are evidence, not mathematical proof.
-
-### Completed foundation scope
+### Completed Stage 3A scope
 The reusable numerical layer now covers bracketed scalar roots, nonlinear systems, finite-difference differentiation, adaptive quadrature, interpolation without silent extrapolation, bounded optimization, numerical linear solves, eigenproblems with residuals, conditioning diagnostics, FFT round trips, Monte Carlo mean/standard error, parameter sweeps, local sensitivity, first-order uncertainty propagation, empirical convergence evidence, and a 1-D finite-difference Dirichlet Poisson solver.
 
 Numerical outputs are evidence, not proof. Residuals, refinement behavior, solver success, and explicit assumptions are returned with results; unsupported claims remain UNVERIFIED.
