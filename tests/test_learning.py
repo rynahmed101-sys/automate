@@ -97,6 +97,12 @@ def test_lesson_promotion_requires_independent_evidence(tmp_path: Path):
             reason="verified",
             evidence=[{"id": "mirror-1"}],
         )
+    store.transition_lesson(
+        lesson["lesson_id"],
+        "REPRODUCED",
+        reason="failure reproduced",
+        evidence=[{"id": "reproduction"}],
+    )
     verified = store.transition_lesson(
         lesson["lesson_id"],
         "VERIFIED",
@@ -243,6 +249,11 @@ def test_adopted_lesson_conflicts_are_flagged_without_auto_resolution(tmp_path: 
                 supporting_experience_ids=ids,
             )
             store.add_lesson(lesson)
+            store.transition_lesson(
+                lesson["lesson_id"], "REPRODUCED",
+                reason="failure reproduction",
+                evidence=[{"id": "reproduction"}],
+            )
             store.transition_lesson(
                 lesson["lesson_id"], "VERIFIED",
                 reason="independent review",
