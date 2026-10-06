@@ -461,7 +461,18 @@
       "authority": {
         "kind": "engine",
         "ref": "03ada017462725d1ddd67be3b785c9eb8fe6ddfc9"
-      },
+      },,
+      "task": {
+        "source": "docs/PROJECT_PHASE_LEDGER.md",
+        "ref": "stage1b.improper_integrals",
+        "summary": "Implement and verify improper integrals with explicit convergence semantics for infinite bounds and singular endpoints.",
+        "requirements": [
+          "Verify convergence before accepting a claimed value.",
+          "Distinguish divergence from symbolic unverified states and fail closed when convergence cannot be established.",
+          "Cover positive, negative, two-sided, endpoint, interior-singularity, and adversarial cases.",
+          "Keep shared registry and control-plane integration under primary reconciliation ownership."
+        ]
+      }
       "references": [
         {
           "type": "issue",
