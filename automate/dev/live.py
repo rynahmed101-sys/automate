@@ -46,6 +46,11 @@ def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]]
     errors: list[str] = []
     inventory_refs: dict[int, list[tuple[str, dict[str, Any]]]] = {}
     inventory_branches: dict[str, list[str]] = {}
+    integration_refs = {
+        ref["number"]: ref
+        for ref in data.get("integration_references", [])
+        if isinstance(ref.get("number"), int)
+    }
 
     for item in data["capabilities"]:
         if item["implementation_state"] not in ACTIVE_STATES:
@@ -80,8 +85,14 @@ def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]]
 
     for number, pr in by_number.items():
         branch = pr.get("headRefName", "")
-        if branch.startswith(("feat/", "integrate/")) and number not in inventory_refs:
-            errors.append(f"Open capability/integration PR #{number} ({branch}) has no inventory reference.")
+        if branch.startswith("feat/") and number not in inventory_refs:
+            errors.append(f"Open capability PR #{number} ({branch}) has no capability ownership reference.")
+        if branch.startswith("integrate/") and number not in integration_refs:
+            errors.append(f"Open reconciliation PR #{number} ({branch}) has no integration ownership reference.")
+        if branch.startswith("integrate/") and number in integration_refs:
+            recorded_branch = integration_refs[number].get("branch")
+            if recorded_branch and recorded_branch != branch:
+                errors.append(f"PR #{number} integration branch mismatch: inventory={recorded_branch}, live={branch}.")
 
     return errors
 
