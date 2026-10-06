@@ -3,7 +3,7 @@
 **Status:** AUTHORITATIVE SYSTEM MAP  
 **Owner:** Automate primary integrator  
 **Scope:** Automate + Chanfana Worker Substrate + Verification & Reconciliation Engine + THE MIRROR + external research/data providers  
-**Last reviewed:** 2026-10-06
+**Last reviewed:** 2026-10-07
 
 > **This is the single system-level architecture and infrastructure authority for the autonomous scientific ecosystem.**
 >
@@ -54,7 +54,7 @@ Automate owns:
 
 - canonical mathematical and physics semantics;
 - capability representation and rule registry;
-- mathematical verification backends;
+- mathematical verification semantics and supported backends; the Verification Engine executes them and records evidence;
 - capability inventory;
 - phase/capability ordering;
 - worker packet and result contracts;
@@ -115,7 +115,7 @@ It owns:
 - reproducible experiment provenance;
 - experimental evidence.
 
-Mirror observations are evidence to Automate, not Automate truth.
+Mirror observations are evidence to the Verification Engine and Automate, never Automate truth.
 
 Mirror must never mutate Automate's ledger, inventory, rule registry, certification state, or Git history.
 
@@ -304,7 +304,9 @@ Automate capability frontier
  → result/evidence
  → optional Mirror experiment
  → evidence normalization
- → Automate independent verification
+ → Verification & Reconciliation Engine verification
+ → verifiable packet
+ → Automate authority review
  → isolated code proposal
  → tests
  → PR
