@@ -47,7 +47,7 @@
               "minLength": 1
             },
             "base_branch": {
-              "const": "main"
+              "enum": ["main", "engine"]
             },
             "base_sha_claim": {
               "type": [
