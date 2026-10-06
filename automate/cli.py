@@ -64,6 +64,7 @@ def capabilities(as_json: bool):
         "symbolic": True,
         "dimensions": True,
         "numerical": True,
+        "numerical_mathematics": True,
         "statistics": True,
         "linear_algebra": True,
         "vector_calculus": True,
@@ -89,6 +90,7 @@ def capabilities(as_json: bool):
         console.print(f"  * SymPy (Symbolic):        [green]Active[/green]")
         console.print(f"  * DimensionChecker:        [green]Active[/green]")
         console.print(f"  * Numerical (SciPy RK45):  [green]Active[/green]")
+        console.print(f"  * Numerical Mathematics:   [green]Active[/green]")
         console.print(f"  * Statistical (Inference): [green]Active[/green]")
         lean_status = "[green]Active[/green]" if caps["lean4"] else "[yellow]Inactive (Not Installed)[/yellow]"
         console.print(f"  * Lean 4 (Theorem Prover): {lean_status} ({caps['lean4_version']})")
