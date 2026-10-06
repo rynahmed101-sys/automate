@@ -95,7 +95,22 @@ THE MIRROR supplies experiments, perturbations, counterexamples, and unusual/sci
 
 The Verification & Reconciliation Engine independently tests lessons and evolution proposals. Automate remains the final authority for repository state, but not a permanently fixed authority over scientific conclusions.
 
-## 7. Current boundary and remaining work
+## 7. Reversible system evolution
+
+A verified/adopted improvement can eventually target mutable Automate machinery. The current foundation intentionally stops one step before application:
+
+1. an evolution proposal is created;
+2. evidence and regression obligations are reviewed;
+3. the proposal reaches ADOPTED only through the normal verification boundary;
+4. an exact base revision is captured;
+5. a bounded proposal-only change plan is generated;
+6. the existing worker/PR/reconciliation/exact-head/security lifecycle applies the actual repository change;
+7. the resulting system version is evaluated against the same historical and newly generated regression corpus;
+8. failed evolution is rolled back or superseded rather than silently retained.
+
+The system must never use its own newly proposed behavior as the sole proof that its behavior is safe.
+
+## 8. Current boundary and remaining work
 
 The foundation now has bounded experience emission in the autonomous cycle when a learning database is supplied. Repeated failures can become candidate lessons, repeated successes can become candidate strategy lessons, historical failures can become regression obligations, and only ADOPTED strategy lessons may override the default strategy.
 
