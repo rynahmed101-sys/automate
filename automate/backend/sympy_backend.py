@@ -1125,7 +1125,11 @@ class SymPyChecker(BaseChecker):
                 direction = "right" if endpoint == "lower" else "left"
                 eps = sp.symbols("epsilon", positive=True)
                 cutoff = singular + eps if direction == "right" else singular - eps
-                truncated = (\n                    sp.integrate(integrand, (variable, cutoff, upper))\n                    if endpoint == "lower"\n                    else sp.integrate(integrand, (variable, lower, cutoff))\n                )
+                truncated = (
+                    sp.integrate(integrand, (variable, cutoff, upper))
+                    if endpoint == "lower"
+                    else sp.integrate(integrand, (variable, lower, cutoff))
+                )
                 if isinstance(truncated, sp.Integral) or truncated.has(sp.Integral):
                     return False, {"rule": "improper_integral", "mode": "endpoint", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated integral remained unevaluated."
                 limit_value = sp.limit(truncated, eps, 0, dir="+")
