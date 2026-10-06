@@ -279,7 +279,7 @@ def test_repeated_candidate_lessons_merge_supporting_evidence(tmp_path: Path):
         first = store.failure_lesson_candidates(min_repetitions=2)
         assert first == []
 
-        _experience(store, outcome="failure", strategy_id="s2", target="integral")
+        second_id = _experience(store, outcome="failure", strategy_id="s2", target="integral")
         candidates = store.failure_lesson_candidates(min_repetitions=2)
         assert len(candidates) == 1
         store.add_lesson(candidates[0])
@@ -293,7 +293,7 @@ def test_repeated_candidate_lessons_merge_supporting_evidence(tmp_path: Path):
         assert persisted is not None
         assert set(persisted["supporting_experience_ids"]) == {
             first_id,
-            candidates[0]["supporting_experience_ids"][1],
+            second_id,
             third_id,
         }
     finally:
