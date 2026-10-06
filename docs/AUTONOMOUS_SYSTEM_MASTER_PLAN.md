@@ -48,13 +48,13 @@ No worker, database, search result, external model, scientific package, Mirror e
 
 ## 2. Repository roles
 
-### Automate — authority and scientific reasoning engine
+### Automate — authority, canonical semantics, and acceptance surface
 
 Automate owns:
 
 - canonical mathematical and physics semantics;
 - capability representation and rule registry;
-- mathematical verification semantics and supported backends; the Verification Engine executes them and records evidence;
+- canonical mathematical and physics semantics, verification rules, and supported verification backends used by the Verification Engine;
 - capability inventory;
 - phase/capability ordering;
 - worker packet and result contracts;
@@ -71,7 +71,7 @@ Its `engine` branch is the living development trunk.
 
 Its `main` branch is the certified release surface.
 
-### Chanfana Worker Substrate — bounded execution infrastructure
+### Chanfana — bounded execution substrate and shared verifier infrastructure
 
 `rynahmed101-sys/chanfana-openapi-template` exists to execute bounded jobs reliably.
 
@@ -87,7 +87,7 @@ It owns:
 - runtime resource/time limits;
 - structured job/result transport.
 
-It does **not** own:
+It also supplies the durable/control-plane compartments used by the Verification & Reconciliation Engine, but it does **not** own:
 
 - mathematical truth;
 - the Automate capability ledger;
@@ -99,7 +99,7 @@ Its `engine` branch is the living infrastructure development trunk.
 
 Its `main` branch is the release surface.
 
-### THE MIRROR — experimental scientific laboratory
+### THE MIRROR — experimental laboratory and scientific verification execution
 
 `rynahmed101-sys/the-mirror` exists for experiments that should not become mathematical authority merely because a computation produced an interesting result.
 
@@ -115,7 +115,7 @@ It owns:
 - reproducible experiment provenance;
 - experimental evidence.
 
-Mirror observations are evidence to the Verification Engine and Automate, never Automate truth.
+Mirror observations are evidence to the Verification Engine and Automate, never Automate truth. Mirror also supplies scientific execution, numerical diagnostics, perturbation, simulation, and counterexample machinery when a verification task requires more than repository or CI inspection.
 
 Mirror must never mutate Automate's ledger, inventory, rule registry, certification state, or Git history.
 
@@ -934,3 +934,112 @@ The permanent cycle is:
 No final capability count is assumed.
 
 The Verification Engine is permanent machinery. Automate remains the sovereign authority.
+
+
+## Reconciled architecture: Verification & Reconciliation Engine is a distributed logical subsystem
+
+The Verification & Reconciliation Engine is **not a fourth repository and not a monolithic machine that belongs entirely to Chanfana**. It is a logical subsystem assembled from capabilities already present across the three repositories.
+
+Its job is to answer two questions: what is wrong, inconsistent, unsupported, or insufficiently evidenced, and what is the smallest justified correction or additional evidence needed to resolve it?
+
+It may diagnose and repair implementation, contract, numerical, data, provenance, test, CI, or integration mistakes under bounded repair policy. It must preserve the possibility that the apparent failure is actually a bad test, incomplete assumption, numerical artifact, backend mismatch, or genuinely unresolved scientific behavior. It must never weaken evidence merely to make a backlog item pass.
+
+### Distributed ownership
+
+```
+                 AUTOMATE
+      canonical mathematics / physics
+       rules + backends + contracts
+                  │
+                  │ evidence requests / canonical checks
+                  ▼
+        VERIFICATION & RECONCILIATION ENGINE
+        logical subsystem spanning the repos
+                  │
+        ┌─────────┴─────────┐
+        ▼                   ▼
+   CHANFANA              THE MIRROR
+ durable execution       scientific laboratory
+ queues / leases         models / simulations
+ recovery / auth         perturbations / sweeps
+ provenance / packets    numerical diagnostics
+ repair-job control      counterexamples / discovery
+ CI orchestration        experimental evidence
+        │                   │
+        └─────────┬─────────┘
+                  ▼
+          verifiable packet
+                  │
+                  ▼
+               AUTOMATE
+          authority / promotion
+```
+
+Chanfana is therefore an **internal substrate of the verifier**, not an external peer dependency. Mirror is a **scientific execution compartment of the verifier when laboratory work is required**, not merely a passive evidence mailbox. Automate supplies canonical semantics and remains the final authority.
+
+### Compartments that may be shared
+
+The repositories may jointly implement the verifier where separation would create needless duplication. Shared compartments include:
+
+- versioned job and packet contracts;
+- correlation IDs and provenance lineage;
+- evidence normalization and receipt formats;
+- bounded execution policies;
+- repair-request and repair-result contracts;
+- diagnostics and failure-classification vocabulary;
+- experiment request/result envelopes;
+- CI/security evidence collection interfaces;
+- verifiable-packet assembly;
+- provider-neutral research/data envelopes.
+
+Shared means **compatible ownership with one contract**, not duplicated competing implementations. Every shared capability still has one implementation owner or an explicit split of responsibility.
+
+### Strict ownership boundaries
+
+- Automate owns canonical scientific semantics, capability order, inventory, authoritative contracts, acceptance policy, Git promotion, and certification.
+- Chanfana owns durable execution/control-plane mechanics: jobs, queues, leases, heartbeats, recovery, authentication, resource bounds, transport, and persistence of execution/evidence state.
+- Mirror owns laboratory mechanics: hypothesis execution, simulation, perturbation, numerical experimentation, discovery analysis, counterexample search, and experimental provenance.
+- The Verification Engine owns the **reasoning workflow** that connects these capabilities: inventory, diagnosis, evidence selection, repair planning, bounded repair, independent checks, CI interpretation, and packet construction. Its authority is limited to producing evidence and verifiable packets.
+
+### Backlog-clearing role of Mirror
+
+The current verification backlog is not required to be cleared by Chanfana alone. Chanfana makes work durable and bounded; Mirror can perform substantial scientific investigation and numerical cross-checking; Automate provides canonical mathematical checks and the authority boundary. The verifier coordinates the appropriate combination.
+
+During the current Stage 1A–3A reconciliation period, Mirror/external-world research remains **ON HOLD as an autonomous discovery source**, but Mirror's existing local scientific machinery may be used in tightly bounded verification work when needed and explicitly authorized by the current activation policy. This prevents the laboratory from being needlessly idle while still preventing uncontrolled discovery from contaminating the backlog.
+
+### Repair rule
+
+```
+failure
+  → classify
+  → diagnose cause
+  → determine whether implementation/test/contract/assumption/data/numerics is responsible
+  → propose smallest safe repair
+  → apply in isolation
+  → preserve or strengthen evidence
+  → rerun focused checks
+  → assemble lineage
+```
+
+Forbidden:
+
+```
+failure → weaken/delete evidence → pass → certify
+```
+
+### Permanent cycle
+
+```
+Automate frontier/request
+  → Verification Engine intake
+  → Chanfana durable job
+  → deterministic checks and/or Mirror scientific work
+  → diagnosis / bounded repair
+  → independent evidence
+  → verifiable packet
+  → Automate authority decision
+  → next frontier
+  → repeat
+```
+
+The loop may run indefinitely. The verifier never becomes the authority simply because it has become good at verification.
