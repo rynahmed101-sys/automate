@@ -328,6 +328,15 @@
       "continuous charge potential kernels",
       "uniform finite line-charge potential",
       "bounded Cartesian Gauss-law verification"
+    ],
+    "waves_optics": [
+      "harmonic waves",
+      "superposition/interference",
+      "standing waves",
+      "dispersion",
+      "reflection and refraction",
+      "polarization",
+      "basic Fraunhofer single-slit diffraction"
     ]
   },
   "rules": [
@@ -1231,6 +1240,55 @@
       "allowed_checkers": [
         "linear_algebra"
       ]
+    },
+    {
+      "rule_id": "harmonic_wave",
+      "category": "waves_optics",
+      "domain": "waves",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "wave_superposition",
+      "category": "waves_optics",
+      "domain": "waves",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "standing_wave",
+      "category": "waves_optics",
+      "domain": "waves",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "wave_dispersion",
+      "category": "waves_optics",
+      "domain": "waves",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "reflection_refraction",
+      "category": "waves_optics",
+      "domain": "optics",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "polarization_state",
+      "category": "waves_optics",
+      "domain": "optics",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "single_slit_diffraction",
+      "category": "waves_optics",
+      "domain": "optics",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
     }
   ],
   "ai_workflow": {
