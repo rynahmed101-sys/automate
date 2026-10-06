@@ -78,3 +78,6 @@ The phase ledger remains the roadmap authority. `docs/CAPABILITY_INVENTORY.json`
 Capability packets own mathematical source, focused tests, and semantic documentation. Shared registry/schema/dispatch integration is primary-integrator work. One open PR has one direct capability owner; a multi-capability integration PR must be explicitly marked as an integration batch in the inventory.
 
 Record verification transitions separately. Never mark a capability certified from branch CI alone.
+
+- `automate capability queue --json`: full deterministic queue state, including the controlling action, active packets, dependency-blocked work, and preserved out-of-order work.
+- `automate capability audit-live --repo <owner/name> --json`: cross-check live GitHub PR state against the inventory before treating a branch as active.
