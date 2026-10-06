@@ -98,3 +98,41 @@ def test_loop_flags_adopted_conflicts_before_new_learning(tmp_path: Path):
         assert result["action"] == "VERIFY_CONFLICT"
     finally:
         store.close()
+
+
+def test_loop_prioritizes_discovery_candidates(tmp_path: Path):
+    from automate.dev.learning import LearningStore
+
+    proposal = {
+        "schema_version": "mirror.research_proposal.v1",
+        "authority": "UNTRUSTED_RESEARCH_PROPOSAL",
+        "proposal_id": "proposal_" + "a" * 32,
+        "request_id": "research_12345678",
+        "capability_id": "stage.discovery",
+        "source_revision": "b" * 40,
+        "candidate_capability": {
+            "id": "candidate.discovered.method",
+            "name": "Discovered method",
+            "summary": "Candidate method awaiting triage",
+            "prerequisites": ["stage1a.linear_algebra"],
+            "dependencies": ["stage1a.linear_algebra"],
+        },
+        "evidence_refs": ["experiment:1"],
+        "assumptions": ["bounded"],
+        "risks": ["unverified"],
+        "limitations": ["candidate"],
+        "status": "CANDIDATE",
+    }
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        store.add_discovery_candidate(proposal)
+        result = plan_next_learning_action(
+            store,
+            task_kind="capability_implementation",
+            task_target="stage1b.improper_integrals",
+        )
+        assert result["action"] == "TRIAGE_DISCOVERY"
+        assert result["requires_external_verification"] is True
+        assert result["candidate_lessons"][0]["proposal_id"] == proposal["proposal_id"]
+    finally:
+        store.close()
