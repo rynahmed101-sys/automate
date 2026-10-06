@@ -61,7 +61,7 @@ def test_sync_ingests_only_supported_validated_artifacts(monkeypatch, tmp_path: 
         store.close()
 
 
-def test_sync_ingests_mirror_research_proposal_as_candidate(tmp_path: Path):
+def test_sync_ingests_mirror_research_proposal_as_candidate(monkeypatch, tmp_path: Path):
     proposal = {
         "schema_version": "mirror.research_proposal.v1",
         "authority": "UNTRUSTED_RESEARCH_PROPOSAL",
