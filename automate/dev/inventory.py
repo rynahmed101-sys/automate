@@ -139,15 +139,11 @@ def summarize() -> dict[str, Any]:
     try:
         data = load_inventory()
     except Exception as exc:
-        return {
-            "schema_version": "automate.capability_inventory.v1",
-            "valid": False,
-            "errors": [str(exc)],
-        }
+        return {"schema_version":"automate.capability_inventory.v1","valid":False,"errors":[str(exc)]}
     counts: dict[str, int] = {}
     for item in data["capabilities"]:
         counts[item["implementation_state"]] = counts.get(item["implementation_state"], 0) + 1
-    unclaimed = next_unclaimed(data)
+    candidate = next_unclaimed(data)
     return {
         "schema_version": data["schema_version"],
         "valid": True,
@@ -156,7 +152,30 @@ def summarize() -> dict[str, Any]:
         "state_counts": counts,
         "active_reference_count": len(active_references(data)),
         "next_action": next_action(data),
-        "next_unclaimed": unclaimed["id"] if unclaimed else None,
+        "next_unclaimed": candidate["id"] if candidate else None,
         "inventory_file": "docs/CAPABILITY_INVENTORY.json",
         "schema_file": "schemas/automate-capability-inventory-v1.json",
+    }
+
+
+def packet(capability_id: str) -> dict[str, Any]:
+    item = get_capability(capability_id)
+    return {
+        "capability": item["id"],
+        "stage": item["stage"],
+        "name": item["name"],
+        "implementation_state": item["implementation_state"],
+        "authority": item["authority"],
+        "dependencies": item["depends_on"],
+        "canonical_files": item["canonical_files"],
+        "shared_integration_points": item["shared_integration_points"],
+        "references": item["references"],
+        "verification_required": item["verification"],
+        "safe_to_delete": item["safe_to_delete"],
+        "notes": item.get("notes"),
+        "agent_contract": {
+            "feature_rule": "Use feat/ branches for isolated capability packets; use integrate/ branches for controlled reconciliation.",
+            "shared_integration_rule": "Do not modify shared integration files from a capability packet unless the packet itself is an integration branch.",
+            "authority_rule": "An unmerged branch is an implementation container, never an authoritative merged-main state.",
+        },
     }
