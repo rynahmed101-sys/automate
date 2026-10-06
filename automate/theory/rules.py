@@ -929,6 +929,74 @@ class RuleRegistry:
             allowed_checkers=["sympy", "numerical"],
         ))
 
+        for ode_rule in [
+            RuleDefinition(
+                rule_id="solve_separable_ode", name="Separable First-Order ODE",
+                category="differential_equations",
+                description="Verifies dy/dx = f(x)g(y), records the separated relation, and verifies the proposed solution by residual substitution.",
+                domain="mathematics", inputs=["First-Order ODE"], outputs=["Analytical Solution"],
+                implementation_backend="sympy", allowed_checkers=["sympy"],
+            ),
+            RuleDefinition(
+                rule_id="solve_linear_first_order_ode", name="Linear First-Order ODE",
+                category="differential_equations",
+                description="Verifies y' + P(x)y = Q(x), including integrating-factor construction and candidate verification.",
+                domain="mathematics", inputs=["First-Order ODE"], outputs=["Analytical Solution"],
+                implementation_backend="sympy", allowed_checkers=["sympy"],
+            ),
+            RuleDefinition(
+                rule_id="solve_bernoulli_ode", name="Bernoulli ODE",
+                category="differential_equations",
+                description="Verifies y' + P(x)y = Q(x)y^n with an explicit v = y^(1-n) transformation and candidate residual check.",
+                domain="mathematics", inputs=["First-Order ODE"], outputs=["Analytical Solution"],
+                side_conditions=["n != 0", "n != 1", "y != 0 on transformed domain"],
+                implementation_backend="sympy", allowed_checkers=["sympy"],
+            ),
+            RuleDefinition(
+                rule_id="solve_exact_ode", name="Exact First-Order ODE",
+                category="differential_equations",
+                description="Verifies exactness M_y = N_x and a proposed potential for M dx + N dy = 0.",
+                domain="mathematics", inputs=["Differential Form"], outputs=["Potential Function"],
+                implementation_backend="sympy", allowed_checkers=["sympy"],
+            ),
+            RuleDefinition(
+                rule_id="solve_constant_coefficient_ode", name="Constant-Coefficient ODE Family",
+                category="differential_equations",
+                description="Handles represented homogeneous linear constant-coefficient ODEs of inferred order and verifies proposed solutions.",
+                domain="mathematics", inputs=["Higher-Order ODE"], outputs=["Homogeneous Analytical Solution"],
+                implementation_backend="sympy", allowed_checkers=["sympy"],
+            ),
+            RuleDefinition(
+                rule_id="verify_ode_ivp", name="ODE Initial-Value Problem Verification",
+                category="differential_equations",
+                description="Verifies a proposed ODE solution and represented initial conditions, including higher-order derivative conditions.",
+                domain="mathematics", inputs=["ODE", "Initial Conditions"], outputs=["IVP Solution"],
+                implementation_backend="sympy", allowed_checkers=["sympy"],
+            ),
+            RuleDefinition(
+                rule_id="verify_ode_bvp", name="ODE Boundary-Value Problem Verification",
+                category="differential_equations",
+                description="Verifies a proposed ODE solution and explicit boundary conditions without converting the problem into an IVP.",
+                domain="mathematics", inputs=["ODE", "Boundary Conditions"], outputs=["BVP Solution"],
+                implementation_backend="sympy", allowed_checkers=["sympy"],
+            ),
+            RuleDefinition(
+                rule_id="verify_ode_system", name="Coupled ODE System Verification",
+                category="differential_equations",
+                description="Verifies coupled first-order ODE systems represented as tuples of equations and tuple-valued solutions.",
+                domain="mathematics", inputs=["ODE System"], outputs=["System Solution"],
+                implementation_backend="sympy", allowed_checkers=["sympy"],
+            ),
+            RuleDefinition(
+                rule_id="ode_phase_space", name="ODE Phase-Space Conversion",
+                category="differential_equations",
+                description="Converts a represented scalar ODE of inferred order into an equivalent first-order state system and verifies the proposed RHS.",
+                domain="mathematics", inputs=["Higher-Order ODE"], outputs=["First-Order State System"],
+                implementation_backend="sympy", allowed_checkers=["sympy"],
+            ),
+        ]:
+            self.register(ode_rule)
+
         self.register(RuleDefinition(
             rule_id="algebraic_identity",
             name="Algebraic Identity",
