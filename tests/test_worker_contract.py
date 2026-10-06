@@ -1,5 +1,7 @@
 """Tests for the autonomous worker contract foundation."""
 
+from pathlib import Path
+
 import pytest
 
 from automate.dev.worker import build_worker_packet, validate_worker_result
@@ -13,6 +15,7 @@ def test_worker_packet_for_current_frontier_is_bounded():
     assert body["repository"]["base_branch"] == "main"
     assert body["constraints"]["allow_delete"] is False
     assert "docs/PROJECT_PHASE_LEDGER.md" in body["constraints"]["forbidden_paths"]
+    assert "automate/backend" in body["constraints"]["allowed_path_prefixes"]
 
 
 def test_worker_packet_rejects_unready_capability():
@@ -38,7 +41,7 @@ def test_worker_result_rejects_forbidden_control_plane_path():
     packet = build_worker_packet("stage1b.improper_integrals")["packet"]
     result = {
         "schema_version": "automate.worker_result.v1",
-        "request_id": packet["packet"]["request_id"],
+        "request_id": packet["request_id"],
         "status": "proposed",
         "changes": [{"operation": "update", "path": "docs/PROJECT_PHASE_LEDGER.md", "content": "bad"}],
         "tests": [],
@@ -61,3 +64,21 @@ def test_worker_result_rejects_self_certification():
     }
     errors = validate_worker_result(result, packet)
     assert any("self-certify" in error for error in errors)
+
+
+def test_worker_result_rejects_invalid_status():
+    packet = build_worker_packet("stage1b.improper_integrals")["packet"]
+    result = {
+        "schema_version": "automate.worker_result.v1",
+        "request_id": packet["request_id"],
+        "status": "not_run",
+        "changes": [],
+        "tests": [],
+        "unresolved": [],
+    }
+    errors = validate_worker_result(result, packet)
+    assert any("invalid" in error for error in errors)
+
+
+def test_worker_result_schema_file_exists():
+    assert Path("schemas/automate-worker-result-v1.json").exists()
