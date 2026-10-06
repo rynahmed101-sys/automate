@@ -34,7 +34,7 @@ class LinearAlgebraChecker(BaseChecker):
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
         "vector_span_membership", "vector_linear_independence", "vector_basis_of_span", "vector_change_of_basis",
         "linear_transformation_apply", "matrix_representation", "matrix_svd", "matrix_pseudoinverse", "linear_least_squares",
-        "matrix_conjugate_transpose", "matrix_unitary",
+        "matrix_conjugate_transpose", "matrix_unitary", "matrix_orthogonal",
         "matrix_positive_definite",
         "matrix_symmetric", "matrix_hermitian", "quadratic_form_evaluate",
     }
@@ -281,6 +281,27 @@ class LinearAlgebraChecker(BaseChecker):
                 "atol": 1e-10,
             }
 
+
+        if operation == "matrix_orthogonal":
+            try:
+                expected_value = int(np.asarray(expected["value"]).reshape(()))
+                actual_value = int(np.asarray(actual_np).reshape(()))
+                return {
+                    "available": True,
+                    "independence_class": "DIFFERENT_ENGINE",
+                    "engine": "numpy.T@numpy",
+                    "version": np.__version__,
+                    "operation": operation,
+                    "passed": actual_value == expected_value,
+                    "expected_indicator": expected_value,
+                    "actual_indicator": actual_value,
+                }
+            except (KeyError, TypeError, ValueError):
+                return {
+                    "available": False,
+                    "independence_class": "NOT_AVAILABLE",
+                    "reason": "NumPy orthogonality cross-check unavailable.",
+                }
 
         if operation == "matrix_conjugate_transpose":
             expected_np = np.asarray(expected)
@@ -1465,6 +1486,37 @@ class LinearAlgebraChecker(BaseChecker):
                     {"step": 2, "operation": "verify_minimum_norm_range_A_H", "nullspace_orthogonality": [str(v) for v in minimum_norm_residuals]},
                     {"step": 3, "operation": "report_residual", "residual": [str(v) for v in residual]},
                 ]
+
+            elif rule == "matrix_orthogonal":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
+                    raise LinearAlgebraParseError("matrix_orthogonal requires one square matrix input and one scalar indicator output.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(f"Orthogonal verification requires a square matrix; received shape {matrix.shape}.")
+                reality = [sp.simplify(sp.im(value)) for value in matrix]
+                if any(v.is_zero is False for v in reality):
+                    expected_value = sp.Integer(0)
+                elif any(v.is_zero is None for v in reality):
+                    return self._unverified(edge, graph, start, details, "Orthogonality requires an explicitly real matrix; symbolic reality is unresolved.")
+                else:
+                    residual = sp.simplify(matrix.T * matrix - sp.eye(matrix.rows))
+                    states = [sp.simplify(residual[i,j]) for i in range(matrix.rows) for j in range(matrix.cols)]
+                    if all(v == 0 for v in states):
+                        expected_value = sp.Integer(1)
+                    elif any(v.is_zero is False for v in states):
+                        expected_value = sp.Integer(0)
+                    else:
+                        return self._unverified(edge, graph, start, details, "Orthogonality cannot be decided for the supplied symbolic matrix.")
+                expected = ParsedLinearAlgebra("scalar", expected_value)
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    gram = numeric.T @ numeric
+                    error = float(np.max(np.abs(gram - np.eye(matrix.rows))))
+                    scale = max(1.0, float(np.max(np.abs(numeric))))
+                    tolerance = 1e-9 + 1e-8 * scale
+                    numpy_expected = {"value": np.asarray(1 if error <= tolerance else 0)}
+                residual = sp.simplify(matrix.T * matrix - sp.eye(matrix.rows))
+                steps = [{"step":1,"operation":"orthogonality","condition":"Q^T Q = I","residual":[[str(residual[i,j]) for j in range(matrix.cols)] for i in range(matrix.rows)]}]
 
             elif rule == "matrix_conjugate_transpose":
                 if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "matrix":
