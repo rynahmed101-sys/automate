@@ -17,4 +17,4 @@ Real matrices use the same operation correctly because conjugation leaves real e
 
 Malformed dimensions, non-square unitary candidates, incorrect claims, and unresolved symbolic conditions are not guessed through. These cases are rejected or classified as UNVERIFIED according to the available evidence.
 
-This is an implementation milestone, not a certification claim. Authoritative completion still requires the merged-main Exact-head and Security verification sequence.
+This packet now includes the central rule-registry and agent-contract exposure, but it remains an implementation/review milestone until merged-main Exact-head and Security verification complete.
