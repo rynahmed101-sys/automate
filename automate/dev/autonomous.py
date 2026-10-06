@@ -84,7 +84,15 @@ def run_autonomous_cycle(
                 ) or None,
                 correlation_id=correlation_id or action_cycle_id,
             )
-            return learning_store.add_experience(experience)
+            experience_id = learning_store.add_experience(experience)
+            # Repeated observations become candidate lessons automatically, but remain
+            # unverified until an independent verification path explicitly promotes them.
+            for lesson in (
+                learning_store.failure_lesson_candidates(min_repetitions=2)
+                + learning_store.success_lesson_candidates(min_repetitions=3)
+            ):
+                learning_store.add_lesson(lesson)
+            return experience_id
         except LearningError as exc:
             raise AutonomousCycleError("learning record rejected: " + str(exc)) from exc
 
@@ -222,6 +230,17 @@ def run_autonomous_cycle(
                 timeout=300.0,
             )
         except WorkerTransportError as exc:
+            record_learning(
+                outcome="failure",
+                task_kind="capability_implementation",
+                task_target=capability_item["id"],
+                strategy_id=selected_strategy["strategy_id"],
+                observation="research polling failed: " + str(exc),
+                failure_class="integration_defect",
+                correlation_id=packet["packet"]["request_id"],
+            )
+            if learning_store is not None:
+                learning_store.close()
             return {
                 "status": "research_queued",
                 "decision": decision,
