@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from automate.dev.verification_engine import (
+    build_request,
     live_repository_snapshot,
     run_backlog_item,
     validate_packet_consistency,
@@ -43,9 +44,19 @@ def main() -> int:
         snapshot=snapshot,
         evidence_db=Path("data/verification-evidence.db"),
     )
+    req_data = result["request"]
+    request = build_request(
+        capability_id=req_data["capability_id"],
+        repository=req_data["repository"],
+        revision=req_data["revision"],
+        branch=req_data["branch"],
+        scope=req_data["scope"],
+        action_cycle_id=req_data["action_cycle_id"],
+        parent_ids=req_data.get("parent_ids", []),
+    )
     packet_errors = validate_packet_consistency(
         result["packet"],
-        request=type("Request", (), result["request"])(),
+        request=request,
         repository_state=snapshot,
     )
     output = {

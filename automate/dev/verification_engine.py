@@ -390,6 +390,7 @@ def run_backlog_item(
     )
     snap = dict(snapshot)
     snap["requested_branch"] = branch
+    snap["requested_revision"] = revision
     reconciliation = reconcile_snapshot(requested_revision=revision, snapshot=snap)
     reconciliation_id = graph.add(
         kind="reconciliation",
