@@ -207,3 +207,14 @@ AI proposal -> bounded execution -> recorded evidence
 ```
 
 That boundary is the mechanism by which autonomy earns trust.
+
+
+## Architecture correction: Verification & Reconciliation Engine
+
+The autonomous ecosystem now has four logical compartments: Automate (authority), Chanfana (bounded execution/transport), the Verification & Reconciliation Engine (bounded verification/reconciliation hosted on Chanfana), and THE MIRROR (laboratory).
+
+The Verification Engine may reconcile, repair within strict rules, run tests/CI/security, perform theory-neutral mathematical cross-checks, collect evidence and produce a verifiable packet. It has no authority to certify or promote a capability. Automate remains the final decision boundary.
+
+Mirror/external research remains ON HOLD until the existing verification backlog is genuinely cleared. After activation, the verifier may request Mirror work only through Chanfana. The verifier does not contain the laboratory.
+
+The permanent loop is: Automate frontier -> Chanfana -> Verification Engine -> optional Chanfana-mediated Mirror experiment -> Verification Engine -> verifiable packet -> Automate decision -> next frontier, indefinitely.
