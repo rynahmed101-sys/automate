@@ -1153,6 +1153,12 @@
       "branch": "integrate/control-plane-final-bookkeeping",
       "state": "merged",
       "purpose": "final capability-control-plane verification bookkeeping"
+    },
+    {
+      "number": 118,
+      "branch": "integrate/control-plane-live-audit",
+      "state": "open",
+      "purpose": "live GitHub PR consistency and deterministic queue snapshot"
     }
   ]
 }
