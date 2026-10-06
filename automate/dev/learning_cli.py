@@ -279,3 +279,15 @@ def evolution_plan(
         click.echo(json.dumps({"status": "CREATED", "plan_id": plan.plan_id, "apply_mode": plan.apply_mode, "output": output}, indent=2))
     except (LearningError, ValueError, json.JSONDecodeError) as exc:
         raise click.ClickException(str(exc)) from exc
+
+
+@learn.command("discoveries")
+@click.option("--status", default="CANDIDATE", show_default=True)
+@click.option("--db", default="data/learning.db", show_default=True)
+def discoveries(status: str, db: str) -> None:
+    """List untrusted discovered capability candidates without promoting them."""
+    store = _store(db)
+    try:
+        click.echo(json.dumps(store.list_discovery_candidates(status=status), indent=2))
+    finally:
+        store.close()
