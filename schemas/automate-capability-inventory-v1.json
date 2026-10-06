@@ -4,27 +4,85 @@
   "title": "Automate Capability Inventory (v1)",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "authoritative_branch", "roadmap_authority", "registry_authority", "lifecycle_states", "verification_axes", "branch_policy", "capabilities"],
+  "required": [
+    "schema_version",
+    "authoritative_branch",
+    "roadmap_authority",
+    "registry_authority",
+    "lifecycle_states",
+    "verification_axes",
+    "branch_policy",
+    "capabilities"
+  ],
   "properties": {
-    "$schema": {"type": "string"},
-    "schema_version": {"const": "automate.capability_inventory.v1"},
-    "authoritative_branch": {"type": "string", "minLength": 1},
-    "roadmap_authority": {"type": "string", "minLength": 1},
-    "registry_authority": {"type": "string", "minLength": 1},
-    "inventory_purpose": {"type": "string"},
-    "lifecycle_states": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-    "verification_axes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "automate.capability_inventory.v1"
+    },
+    "authoritative_branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "roadmap_authority": {
+      "type": "string",
+      "minLength": 1
+    },
+    "registry_authority": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inventory_purpose": {
+      "type": "string"
+    },
+    "lifecycle_states": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "verification_axes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
     "branch_policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["capability_branch_prefix", "reconciliation_branch_prefix", "reconciliation_owner", "feature_base", "shared_integration_files", "rule"],
+      "required": [
+        "capability_branch_prefix",
+        "reconciliation_branch_prefix",
+        "reconciliation_owner",
+        "feature_base",
+        "shared_integration_files",
+        "rule"
+      ],
       "properties": {
-        "capability_branch_prefix": {"type": "string"},
-        "reconciliation_branch_prefix": {"type": "string"},
-        "reconciliation_owner": {"type": "string"},
-        "feature_base": {"type": "string"},
-        "shared_integration_files": {"type": "array", "items": {"type": "string"}},
-        "rule": {"type": "string"}
+        "capability_branch_prefix": {
+          "type": "string"
+        },
+        "reconciliation_branch_prefix": {
+          "type": "string"
+        },
+        "reconciliation_owner": {
+          "type": "string"
+        },
+        "feature_base": {
+          "type": "string"
+        },
+        "shared_integration_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rule": {
+          "type": "string"
+        }
       }
     },
     "capabilities": {
@@ -33,22 +91,151 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "order", "stage", "name", "implementation_state", "authority", "references", "depends_on", "canonical_files", "shared_integration_points", "verification", "safe_to_delete"],
+        "required": [
+          "id",
+          "order",
+          "stage",
+          "name",
+          "implementation_state",
+          "authority",
+          "references",
+          "depends_on",
+          "canonical_files",
+          "shared_integration_points",
+          "verification",
+          "safe_to_delete"
+        ],
         "properties": {
-          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]*$"},
-          "order": {"type": "integer", "minimum": 0},
-          "stage": {"type": "string"},
-          "name": {"type": "string", "minLength": 1},
-          "implementation_state": {"type": "string"},
-          "authority": {"type": "object", "required": ["kind", "ref"], "additionalProperties": true, "properties": {"kind": {"type": "string"}, "ref": {"type": "string"}}},
-          "references": {"type": "array", "items": {"type": "object", "required": ["type"], "additionalProperties": true}},
-          "depends_on": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-          "canonical_files": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-          "shared_integration_points": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-          "verification": {"type": "object", "additionalProperties": {"type": "boolean"}},
-          "safe_to_delete": {"type": "boolean"},
-          "preserved_in": {"type": "string"},
-          "notes": {"type": "string"}
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stage": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "implementation_state": {
+            "type": "string"
+          },
+          "authority": {
+            "type": "object",
+            "required": [
+              "kind",
+              "ref"
+            ],
+            "additionalProperties": true,
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "ref": {
+                "type": "string"
+              }
+            }
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "canonical_files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "shared_integration_points": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "verification": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
+          "safe_to_delete": {
+            "type": "boolean"
+          },
+          "preserved_in": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "verification_evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "main_sha",
+              "exact_head_workflow_run",
+              "security_workflow_run"
+            ],
+            "properties": {
+              "main_sha": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              "exact_head_workflow_run": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "security_workflow_run": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "authoritative_verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "main_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "exact_head_workflow_run": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "exact_head_conclusion": {
+          "type": "string"
+        },
+        "security_workflow_run": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "security_conclusion": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
         }
       }
     }
