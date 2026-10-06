@@ -30,10 +30,7 @@ def _under_prefix(path: str, prefixes: list[str]) -> bool:
     normalized = str(PurePosixPath(path))
     for prefix in prefixes:
         clean = prefix.rstrip("/")
-        if prefix.endswith("/"):
-            if normalized == clean or normalized.startswith(clean + "/"):
-                return True
-        elif normalized == clean:
+        if normalized == clean or normalized.startswith(clean + "/"):
             return True
     return False
 
