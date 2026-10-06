@@ -472,7 +472,11 @@
       "depends_on": [
         "stage1b.calculus"
       ],
-      "canonical_files": [],
+      "canonical_files": [
+        "automate/backend/improper_integrals_backend.py",
+        "tests/test_improper_integrals.py",
+        "docs/capabilities/improper_integrals.md"
+      ],
       "shared_integration_points": [
         "automate/theory/rules.py",
         "schemas/automate-agent-v1.json"
@@ -488,7 +492,7 @@
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "First claimable Stage 1B capability. Tracking issue #115."
+      "notes": "First claimable Stage 1B capability. Tracking issue #115. Worker boundary: owns dedicated backend source, focused tests, and semantic docs; shared rule/schema integration remains primary reconciliation work."
     },
     {
       "id": "stage1b.series_expansions",
