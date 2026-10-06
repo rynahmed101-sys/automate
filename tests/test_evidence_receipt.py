@@ -35,3 +35,29 @@ def test_receipt_can_bind_action_cycle_and_exact_head():
     assert receipt["action_cycle_id"] == "cycle_123"
     assert receipt["file_hashes"][0]["sha256"] == "a" * 64
     assert receipt["final_exact_head_sha"] == "1" * 40
+
+
+def test_receipt_preserves_scientific_lineage_and_source_identity():
+    from automate.dev.evidence import build_receipt
+    receipt = build_receipt(
+        action="mirror_experiment",
+        repository="rynahmed101-sys/the-mirror",
+        base_sha="0123456789abcdef0123456789abcdef01234567",
+        trust_state="OBSERVED" if False else "LOCALLY_TESTED",
+        evidence=[{"kind": "experiment_observation", "status": "observed", "reference": "exp_123"}],
+        capability_id="stage1b.improper_integrals",
+        job_id="job_123",
+        experiment_id="exp_123",
+        run_id="run_123",
+        source={
+            "provider": "local-mirror",
+            "source": "fixture://improper-integrals",
+            "retrieved_at": "2026-10-06T00:00:00Z",
+            "revision": "fixture-v1",
+            "fingerprint": "sha256:example",
+            "limitations": ["synthetic fixture"],
+        },
+    )
+    assert receipt["capability_id"] == "stage1b.improper_integrals"
+    assert receipt["experiment_id"] == "exp_123"
+    assert receipt["source"]["provider"] == "local-mirror"
