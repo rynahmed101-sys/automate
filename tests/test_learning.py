@@ -259,3 +259,31 @@ def test_adopted_lesson_conflicts_are_flagged_without_auto_resolution(tmp_path: 
         assert len(conflicts[0]["lesson_ids"]) == 2
     finally:
         store.close()
+
+
+def test_repeated_candidate_lessons_merge_supporting_evidence(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        first_id = _experience(store, outcome="failure", strategy_id="s1", target="integral")
+        first = store.failure_lesson_candidates(min_repetitions=2)
+        assert first == []
+
+        _experience(store, outcome="failure", strategy_id="s2", target="integral")
+        candidates = store.failure_lesson_candidates(min_repetitions=2)
+        assert len(candidates) == 1
+        store.add_lesson(candidates[0])
+
+        third_id = _experience(store, outcome="failure", strategy_id="s3", target="integral")
+        expanded = store.failure_lesson_candidates(min_repetitions=2)
+        assert expanded[0]["lesson_id"] == candidates[0]["lesson_id"]
+        store.add_lesson(expanded[0])
+
+        persisted = store.get_lesson(candidates[0]["lesson_id"])
+        assert persisted is not None
+        assert set(persisted["supporting_experience_ids"]) == {
+            first_id,
+            candidates[0]["supporting_experience_ids"][1],
+            third_id,
+        }
+    finally:
+        store.close()
