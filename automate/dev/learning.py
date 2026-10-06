@@ -111,6 +111,9 @@ def validate_lesson(value: Mapping[str, Any]) -> list[str]:
 def validate_evolution_proposal(value: Mapping[str, Any]) -> list[str]:
     return _validate(value, EVOLUTION_SCHEMA, max_bytes=MAX_EVOLUTION_BYTES)
 
+def validate_discovery_proposal(value: Mapping[str, Any]) -> list[str]:
+    return _validate(value, DISCOVERY_SCHEMA, max_bytes=MAX_EVOLUTION_BYTES)
+
 
 def build_experience(
     *,
@@ -371,6 +374,44 @@ class LearningStore:
         )
         self.db.commit()
         return lesson
+
+    def add_discovery_candidate(self, proposal: Mapping[str, Any]) -> str:
+        errors = validate_discovery_proposal(proposal)
+        if errors:
+            raise LearningError("; ".join(errors))
+        proposal_id = str(proposal["proposal_id"])
+        body = canonical_json(proposal)
+        self.db.execute(
+            "CREATE TABLE IF NOT EXISTS discovery_candidates("
+            "id TEXT PRIMARY KEY, status TEXT NOT NULL, candidate_id TEXT NOT NULL, "
+            "payload_json TEXT NOT NULL, payload_sha256 TEXT NOT NULL, created_at TEXT NOT NULL)"
+        )
+        self.db.execute(
+            "INSERT OR IGNORE INTO discovery_candidates"
+            "(id,status,candidate_id,payload_json,payload_sha256,created_at) VALUES(?,?,?,?,?,?)",
+            (
+                proposal_id,
+                "CANDIDATE",
+                proposal["candidate_capability"]["id"],
+                body,
+                hashlib.sha256(body.encode()).hexdigest(),
+                utc_now(),
+            ),
+        )
+        self.db.commit()
+        return proposal_id
+
+    def list_discovery_candidates(self, *, status: str = "CANDIDATE") -> list[dict[str, Any]]:
+        self.db.execute(
+            "CREATE TABLE IF NOT EXISTS discovery_candidates("
+            "id TEXT PRIMARY KEY, status TEXT NOT NULL, candidate_id TEXT NOT NULL, "
+            "payload_json TEXT NOT NULL, payload_sha256 TEXT NOT NULL, created_at TEXT NOT NULL)"
+        )
+        rows = self.db.execute(
+            "SELECT payload_json FROM discovery_candidates WHERE status=? ORDER BY created_at, id",
+            (status,),
+        ).fetchall()
+        return [json.loads(row[0]) for row in rows]
 
     def add_evolution_proposal(self, proposal: Mapping[str, Any]) -> str:
         errors = validate_evolution_proposal(proposal)
