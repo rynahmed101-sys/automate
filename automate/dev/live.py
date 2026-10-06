@@ -1,0 +1,95 @@
+"""Live GitHub checks for the capability control plane."""
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+from typing import Any
+
+from automate.dev.inventory import ACTIVE_STATES, load_inventory
+
+
+class LiveAuditError(RuntimeError):
+    """Raised when the live GitHub control-plane check cannot execute."""
+
+
+def live_pull_requests(repository_full_name: str, *, limit: int = 100) -> list[dict[str, Any]]:
+    env = os.environ.copy()
+    if not env.get("GH_TOKEN") and not env.get("GITHUB_TOKEN"):
+        raise LiveAuditError("GH_TOKEN or GITHUB_TOKEN is required for live capability audit.")
+    command = [
+        "gh", "pr", "list",
+        "--repo", repository_full_name,
+        "--state", "open",
+        "--base", "main",
+        "--limit", str(limit),
+        "--json", "number,headRefName,headRefOid,baseRefName,isDraft,url",
+    ]
+    try:
+        result = subprocess.run(command, check=True, capture_output=True, text=True, env=env)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise LiveAuditError(f"Unable to query live pull requests: {exc}") from exc
+    try:
+        payload = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError as exc:
+        raise LiveAuditError("GitHub pull-request query returned invalid JSON.") from exc
+    if not isinstance(payload, list):
+        raise LiveAuditError("GitHub pull-request query returned a non-list payload.")
+    return [dict(item) for item in payload if isinstance(item, dict)]
+
+
+def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]] | None = None) -> list[str]:
+    data = load_inventory()
+    prs = live_pull_requests(repository_full_name) if pull_requests is None else pull_requests
+    by_number = {int(pr["number"]): pr for pr in prs if "number" in pr}
+
+    errors: list[str] = []
+    inventory_refs: dict[int, list[tuple[str, dict[str, Any]]]] = {}
+    inventory_branches: dict[str, list[str]] = {}
+
+    for item in data["capabilities"]:
+        if item["implementation_state"] not in ACTIVE_STATES:
+            continue
+        for ref in item["references"]:
+            if ref.get("type") != "pr" or not str(ref.get("state", "")).startswith("open"):
+                continue
+            number = ref.get("number")
+            if not isinstance(number, int):
+                errors.append(f'{item["id"]}: active PR reference is missing an integer number')
+                continue
+            inventory_refs.setdefault(number, []).append((item["id"], ref))
+            branch = ref.get("branch")
+            if branch:
+                inventory_branches.setdefault(branch, []).append(item["id"])
+            pr = by_number.get(number)
+            if pr is None:
+                errors.append(f'PR #{number} is recorded active for {item["id"]} but is not open against main.')
+                continue
+            if pr.get("baseRefName") not in (None, data["branch_policy"]["feature_base"]):
+                errors.append(f'PR #{number} for {item["id"]} targets {pr.get("baseRefName")}, not main.')
+            if branch and pr.get("headRefName") != branch:
+                errors.append(f'PR #{number} for {item["id"]} branch mismatch: inventory={branch}, live={pr.get("headRefName")}.')
+            recorded_sha = ref.get("head_sha")
+            if recorded_sha and pr.get("headRefOid") and recorded_sha != pr["headRefOid"]:
+                errors.append(f'PR #{number} for {item["id"]} head mismatch: inventory={recorded_sha}, live={pr.get("headRefOid")}.')
+
+    for branch, owners in inventory_branches.items():
+        unique = sorted(set(owners))
+        if len(unique) > 1:
+            errors.append(f"Branch '{branch}' is claimed by multiple capabilities: {', '.join(unique)}")
+
+    for number, pr in by_number.items():
+        branch = pr.get("headRefName", "")
+        if branch.startswith(("feat/", "integrate/")) and number not in inventory_refs:
+            errors.append(f"Open capability/integration PR #{number} ({branch}) has no inventory reference.")
+
+    return errors
+
+
+def summarize_live(repository_full_name: str) -> dict[str, Any]:
+    errors = audit_live(repository_full_name)
+    return {
+        "repository": repository_full_name,
+        "valid": not errors,
+        "errors": errors,
+    }
