@@ -59,3 +59,39 @@ def test_sync_ingests_only_supported_validated_artifacts(monkeypatch, tmp_path: 
         assert store.get_experience(exp["experience_id"]) == exp
     finally:
         store.close()
+
+
+def test_sync_ingests_mirror_research_proposal_as_candidate(tmp_path: Path):
+    proposal = {
+        "schema_version": "mirror.research_proposal.v1",
+        "authority": "UNTRUSTED_RESEARCH_PROPOSAL",
+        "proposal_id": "proposal_" + "d" * 32,
+        "request_id": "research_12345678",
+        "capability_id": "stage.discovery",
+        "source_revision": "a" * 40,
+        "candidate_capability": {
+            "id": "candidate.novel.method",
+            "name": "Novel method",
+            "summary": "A candidate method discovered by Mirror",
+            "prerequisites": ["stage1b"],
+            "dependencies": ["stage1b"],
+        },
+        "evidence_refs": ["experiment:run-1"],
+        "assumptions": ["bounded input"],
+        "risks": ["unverified"],
+        "limitations": ["candidate only"],
+        "status": "CANDIDATE",
+    }
+    monkeypatch.setattr(
+        "automate.dev.learning_client.read_learning_artifacts",
+        lambda **_: [{"artifactType": "research_proposal", "artifact": proposal}],
+    )
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        result = sync_learning_store(store)
+        assert result["ingested"] == 1
+        candidates = store.list_discovery_candidates()
+        assert candidates[0]["proposal_id"] == proposal["proposal_id"]
+        assert candidates[0]["status"] == "CANDIDATE"
+    finally:
+        store.close()
