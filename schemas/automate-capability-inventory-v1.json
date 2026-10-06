@@ -274,6 +274,10 @@
           "purpose": {
             "type": "string",
             "minLength": 1
+          },
+          "head_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
           }
         }
       }
