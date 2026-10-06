@@ -91,9 +91,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
+        "exact_head_workflow_run": 37418561682,
+        "security_workflow_run": 37418561643
       }
     },
     {
@@ -146,9 +146,9 @@
       "notes": "PR93 was an isolated duplicate/hardening packet. Canonical change-of-basis verification already exists in main via PR62/backend acceptance tests.",
       "preserved_in": "main",
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
+        "exact_head_workflow_run": 37418561682,
+        "security_workflow_run": 37418561643
       }
     },
     {
@@ -156,10 +156,10 @@
       "order": 30,
       "stage": "1A",
       "name": "Pseudoinverse and least squares",
-      "implementation_state": "awaiting_reconciliation",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "integration_batch",
-        "ref": "PR92"
+        "kind": "main_merge",
+        "ref": "d3c52c4a8427beed72c5c27984b61d76d8105b65"
       },
       "references": [
         {
@@ -194,24 +194,29 @@
       "verification": {
         "locally_tested": true,
         "development_ci_verified": true,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
+        "exact_head_workflow_run": 37418561682,
+        "security_workflow_run": 37418561643
+      }
     },
     {
       "id": "stage1a.complex_semantics",
       "order": 40,
       "stage": "1A",
       "name": "Complex scalar, vector and matrix semantics",
-      "implementation_state": "awaiting_reconciliation",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "branch",
-        "ref": "PR65"
+        "kind": "main_merge",
+        "ref": "25101f7c2686e0fc7bd39d35ce48342c3a9a0762"
       },
       "references": [
         {
@@ -241,41 +246,51 @@
       "verification": {
         "locally_tested": true,
         "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context."
+      "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context.",
+      "verification_evidence": {
+        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
+        "exact_head_workflow_run": 37418561682,
+        "security_workflow_run": 37418561643
+      }
     },
     {
       "id": "stage1a.orthogonal_unitary",
       "order": 70,
       "stage": "1A",
       "name": "Orthogonal and unitary matrix semantics",
-      "implementation_state": "awaiting_reconciliation",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "branch",
-        "ref": "PR91"
+        "kind": "main_merge",
+        "ref": "7ea5570a69c0c41e61666b0d29007eabbc19c790"
       },
       "references": [
         {
           "type": "pr",
+          "number": 101,
+          "branch": "integrate/stage1a-orthogonal-v2",
+          "state": "merged"
+        },
+        {
+          "type": "pr",
           "number": 91,
-          "branch": "feat/stage1a-orthogonal-unitary-verification",
-          "state": "open",
-          "role": "primary"
+          "state": "closed_superseded",
+          "role": "historical_source"
         }
       ],
       "depends_on": [
         "stage1a.complex_semantics"
       ],
       "canonical_files": [
-        "automate/linear_algebra_transformations.py",
-        "tests/test_linear_algebra_transformations.py"
+        "automate/backend/linear_algebra_backend.py",
+        "tests/test_linear_algebra_orthogonal.py"
       ],
       "shared_integration_points": [
         "schemas/automate-agent-v1.json",
@@ -283,15 +298,21 @@
       ],
       "verification": {
         "locally_tested": true,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
+        "exact_head_workflow_run": 37418561682,
+        "security_workflow_run": 37418561643
+      },
+      "notes": "The useful orthogonal-matrix semantics from PR91 were integrated as central rule matrix_orthogonal in PR101. The duplicate unitary helper from PR91 was intentionally not carried forward."
     },
     {
       "id": "stage1b.calculus",
@@ -745,11 +766,11 @@
     }
   ],
   "authoritative_verification": {
-    "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-    "exact_head_workflow_run": 37416442716,
+    "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
+    "exact_head_workflow_run": 37418561682,
+    "security_workflow_run": 37418561643,
     "exact_head_conclusion": "success",
-    "security_workflow_run": 37416442720,
     "security_conclusion": "success",
-    "note": "These runs verified the exact merged main commit. Individual capabilities are only credited for exact/security evidence when their implementation_state is merged_main."
+    "note": "Pinned to the exact current main commit after the complete Stage 1A linear-algebra merge set."
   }
 }
