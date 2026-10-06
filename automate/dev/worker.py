@@ -241,6 +241,7 @@ def add_worker_context(
     """Return a packet with bounded, explicitly supplied repository context."""
     body = packet["packet"]
     allowed = body["constraints"]["allowed_path_prefixes"]
+    forbidden = set(body["constraints"]["forbidden_paths"])
     if len(files) > 25:
         raise InventoryError("worker context exceeds the 25-file limit")
     if len(notes or []) > 20:
