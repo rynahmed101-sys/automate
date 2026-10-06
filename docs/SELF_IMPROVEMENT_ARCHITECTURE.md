@@ -117,3 +117,20 @@ The foundation now has bounded experience emission in the autonomous cycle when 
 Remaining work is to make learning storage a durable cross-cycle service, ingest worker/Mirror verification evidence automatically, synthesize regression suites from important failures, connect learned lessons to more worker decisions, and build the reversible mutable-machinery evolution path.
 
 Those stages must be built incrementally and tested like any other capability.
+
+
+## 9. Self-evolution execution boundary
+
+The repository now contains a gated executor that can materialize an ADOPTED mutable evolution plan into one atomic Git commit and open a normal PR against `main`.
+
+Execution requires:
+
+- `AUTOMATE_SELF_EVOLUTION_ENABLED=1`;
+- an explicit `AUTOMATE_GITHUB_TOKEN`;
+- an exact plan base revision equal to the current remote `main`;
+- all update targets to match their expected blob SHA;
+- no governance/authority/security path changes.
+
+The executor never merges the PR and never marks the result certified. Normal CI, Security Audit, reconciliation, exact-head verification, and capability-authority bookkeeping remain the final boundary.
+
+This is the machine's first safe path from "I think the system should change" to "I have submitted a reviewable change to the system." It is not yet autonomous constitutional amendment.
