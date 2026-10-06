@@ -1170,7 +1170,7 @@
     {
       "number": 120,
       "branch": "integrate/autonomous-worker-foundation",
-      "state": "open",
+      "state": "merged",
       "purpose": "autonomous worker contract foundation"
     }
   ]
