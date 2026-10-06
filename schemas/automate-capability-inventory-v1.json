@@ -82,6 +82,13 @@
         },
         "rule": {
           "type": "string"
+        },
+        "allowed_maintenance_branch_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
         }
       }
     },
