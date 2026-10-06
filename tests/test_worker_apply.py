@@ -98,6 +98,8 @@ def test_apply_worker_rejects_non_proposed_status(tmp_path):
         "schema_version": "automate.worker_result.v1",
         "request_id": "wrk_test_12345678",
         "status": "submitted",
+        "branch": "feat/test-worker",
+        "pr_number": 999,
         "changes": [],
         "tests": [],
         "unresolved": [],
