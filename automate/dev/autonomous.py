@@ -301,6 +301,16 @@ def run_autonomous_cycle(
     packet["packet"]["context"]["notes"].append(
         "Selected learning strategy: " + str(selected_strategy["strategy_id"])
     )
+    for lesson in selected_strategy.get("adopted_lessons", []):
+        statement = str(lesson.get("statement", "")).strip()
+        if statement:
+            packet["packet"]["context"]["notes"].append(
+                "ADOPTED LESSON [" + str(lesson.get("lesson_id", "unknown")) + "]: " + statement
+            )
+        for precondition in lesson.get("preconditions", []):
+            packet["packet"]["context"]["notes"].append(
+                "LESSON PRECONDITION: " + str(precondition)
+            )
 
     try:
         dispatch = dispatch_worker(
