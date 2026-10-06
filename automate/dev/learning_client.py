@@ -148,6 +148,11 @@ def _ingest_one(store: LearningStore, item: Mapping[str, Any]) -> str:
         errors = validate_lesson(artifact)
         if errors:
             raise LearningError("; ".join(errors))
+        if artifact.get("status") != "CANDIDATE":
+            raise LearningError(
+                "remote learning lessons may be synchronized only as CANDIDATE artifacts; "
+                "promotion state must be re-established through the local verification boundary"
+            )
         return store.add_lesson(artifact)
     if artifact_type == "research_proposal":
         errors = validate_discovery_proposal(artifact)
@@ -158,6 +163,11 @@ def _ingest_one(store: LearningStore, item: Mapping[str, Any]) -> str:
         errors = validate_evolution_proposal(artifact)
         if errors:
             raise LearningError("; ".join(errors))
+        if artifact.get("status") != "CANDIDATE":
+            raise LearningError(
+                "remote evolution proposals may be synchronized only as CANDIDATE artifacts; "
+                "promotion state must be re-established through the local verification boundary"
+            )
         return store.add_evolution_proposal(artifact)
     raise LearningError(f"unsupported remote artifact type: {artifact_type}")
 
