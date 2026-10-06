@@ -449,6 +449,162 @@
       }
     },
     {
+      "id": "stage1b.improper_integrals",
+      "order": 150,
+      "stage": "1B",
+      "name": "Improper integrals and convergence-aware handling",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "First claimable Stage 1B packet. Tracking issue: #115."
+    },
+    {
+      "id": "stage1b.series_expansions",
+      "order": 160,
+      "stage": "1B",
+      "name": "Taylor, Maclaurin, and higher-order series expansions",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.partial_derivatives",
+      "order": 170,
+      "stage": "1B",
+      "name": "Partial derivatives and total differentials",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.higher_order_partials",
+      "order": 180,
+      "stage": "1B",
+      "name": "Higher-order partial derivatives",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.jacobians_hessians",
+      "order": 190,
+      "stage": "1B",
+      "name": "Jacobians and Hessians",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
       "id": "stage1c.ode",
       "order": 200,
       "stage": "1C",
@@ -456,15 +612,22 @@
       "implementation_state": "preserved_out_of_order",
       "authority": {
         "kind": "branch",
-        "ref": "PR105"
+        "ref": "PR114"
       },
       "references": [
+        {
+          "type": "pr",
+          "number": 114,
+          "branch": "integrate/stage1c-ode-current-main",
+          "state": "open",
+          "role": "preserved_out_of_order"
+        },
         {
           "type": "pr",
           "number": 105,
           "branch": "integrate/stage1c-ode-foundation",
           "state": "closed_future_work",
-          "role": "preserved_packet"
+          "role": "historical_source"
         },
         {
           "type": "pr",
@@ -506,7 +669,100 @@
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "ODE work is preserved out of roadmap order in PR105. It must not become the controlling priority until the Stage 1B ladder is complete."
+      "notes": "A current-main reconciliation packet exists in PR114, but it is intentionally preserved out of order until the remaining Stage 1B ladder reaches a terminal state."
+    },
+    {
+      "id": "stage1b.multivariable_chain_rule",
+      "order": 200,
+      "stage": "1B",
+      "name": "Multivariable chain rule",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.stationary_constrained_optimization",
+      "order": 210,
+      "stage": "1B",
+      "name": "Stationary points and constrained optimization",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.domain_singularity_assumptions",
+      "order": 220,
+      "stage": "1B",
+      "name": "Domain, singularity, and assumption-aware calculus",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
     },
     {
       "id": "stage2a.vector_calculus",
@@ -862,6 +1118,6 @@
     "security_workflow_run": 37426898568,
     "exact_head_conclusion": "success",
     "security_conclusion": "success",
-    "note": "This is authoritative for the code state at 7f8aa439. A later bookkeeping-only merge must pass Exact-head and Security Audit again before its new SHA is authoritative."
+    "note": "Main SHA d236cf1 has passed Exact-head and Security Audit. Future bookkeeping merges must re-run both authoritative gates for their new exact main SHA."
   }
 }
