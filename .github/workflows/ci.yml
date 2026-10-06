@@ -63,8 +63,15 @@ jobs:
           automate capability validate --json
 
       - name: Enforce capability branch scope
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          automate capability guard --branch "$GITHUB_HEAD_REF" --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}"
+          mapfile -t changed_files < <(gh pr diff "${{ github.event.pull_request.number }}" --name-only)
+          args=(--branch "$GITHUB_HEAD_REF")
+          for changed in "${changed_files[@]}"; do
+            [[ -n "$changed" ]] && args+=(--changed-file "$changed")
+          done
+          automate capability guard "${args[@]}"
 
       - name: Run development test suite
         run: |
