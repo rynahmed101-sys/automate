@@ -183,9 +183,9 @@
       "returns_contract": "automate.capability_inventory.v1"
     },
     "learn": {
-      "command": "automate learn <record|candidate-lessons|recommend|snapshot|add-lesson|evolution-admission> ...",
+      "command": "automate learn <record|candidate-lessons|recommend|snapshot|add-lesson|transition|evolution-admission|make-experience|make-evolution-proposal|evolution-plan> ...",
       "mode": "control_plane",
-      "purpose": "Record experience, inspect learned strategy evidence, and manage lessons without granting authority.",
+      "purpose": "Record experience, inspect learned strategy evidence, and manage lessons/evolution proposals without granting certification authority.",
       "returns": "machine-readable learning artifact or decision"
     },
     "evolve": {
