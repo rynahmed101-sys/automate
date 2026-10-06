@@ -39,7 +39,10 @@
     "rule": "Capability packets own math source, focused tests and semantic docs. Shared registry/schema/dispatch integration belongs to the primary integrator.",
     "allowed_maintenance_branch_prefixes": [
       "fix/",
-      "hotfix/"
+      "hotfix/",
+      "docs/",
+      "chore/",
+      "refactor/"
     ]
   },
   "capabilities": [
