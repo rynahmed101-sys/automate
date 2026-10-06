@@ -100,6 +100,7 @@ def test_build_worker_commit_completes_without_push(tmp_path: Path):
         result,
         repository_root=repo,
         commit_message="test: dry-run worker capability",
+        enforce_inventory_scope=False,
     )
 
     assert outcome["status"] == "committed"
