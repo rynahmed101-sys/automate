@@ -336,7 +336,12 @@
       "dispersion",
       "reflection and refraction",
       "polarization",
-      "basic Fraunhofer single-slit diffraction"
+      "basic Fraunhofer single-slit diffraction",
+      "wave interference observables",
+      "harmonic wave-equation residual checks",
+      "dispersion-curve sampling and group-velocity estimates",
+      "oblique Fresnel reflectance",
+      "Stokes polarization parameters"
     ]
   },
   "rules": [
@@ -1285,6 +1290,41 @@
     },
     {
       "rule_id": "single_slit_diffraction",
+      "category": "waves_optics",
+      "domain": "optics",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "wave_interference_intensity",
+      "category": "waves_optics",
+      "domain": "waves",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "wave_equation_verification",
+      "category": "waves_optics",
+      "domain": "waves",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "dispersion_curve",
+      "category": "waves_optics",
+      "domain": "waves",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "fresnel_reflectance",
+      "category": "waves_optics",
+      "domain": "optics",
+      "implementation_backend": "waves_optics",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "polarization_stokes",
       "category": "waves_optics",
       "domain": "optics",
       "implementation_backend": "waves_optics",
