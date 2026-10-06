@@ -47,9 +47,9 @@ def build_worker_packet(
     data = load_inventory()
     item = get_capability(capability_id)
 
-    if item["implementation_state"] != "planned":
+    if item["implementation_state"] not in {"planned", "active_development"}:
         raise InventoryError(
-            f"{capability_id}: worker packets are only issued for planned capabilities."
+            f"{capability_id}: worker packets are only issued for planned or active-development capabilities."
         )
 
     by_id = {entry["id"]: entry for entry in data["capabilities"]}
