@@ -91,9 +91,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+        "exact_head_workflow_run": 37419593778,
+        "security_workflow_run": 37419593763
       }
     },
     {
@@ -146,9 +146,9 @@
       "notes": "PR93 was an isolated duplicate/hardening packet. Canonical change-of-basis verification already exists in main via PR62/backend acceptance tests.",
       "preserved_in": "main",
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+        "exact_head_workflow_run": 37419593778,
+        "security_workflow_run": 37419593763
       }
     },
     {
@@ -203,9 +203,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+        "exact_head_workflow_run": 37419593778,
+        "security_workflow_run": 37419593763
       }
     },
     {
@@ -256,9 +256,9 @@
       "safe_to_delete": false,
       "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context.",
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+        "exact_head_workflow_run": 37419593778,
+        "security_workflow_run": 37419593763
       }
     },
     {
@@ -308,9 +308,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-        "exact_head_workflow_run": 37418561682,
-        "security_workflow_run": 37418561643
+        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+        "exact_head_workflow_run": 37419593778,
+        "security_workflow_run": 37419593763
       },
       "notes": "The useful orthogonal-matrix semantics from PR91 were integrated as central rule matrix_orthogonal in PR101. The duplicate unitary helper from PR91 was intentionally not carried forward."
     },
@@ -319,46 +319,48 @@
       "order": 100,
       "stage": "1B",
       "name": "Limits, continuity, differentiation and integration stack",
-      "implementation_state": "delegated",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "multiple_branches",
-        "ref": "PR61/66/68/69/70/71"
+        "kind": "main_merge",
+        "ref": "b92da859fcc43ba30cf919b15529e8d7e379dc6c6"
       },
       "references": [
         {
           "type": "pr",
+          "number": 75,
+          "branch": "reconcile/stage1b-current-main",
+          "state": "merged",
+          "role": "authoritative_merge"
+        },
+        {
+          "type": "pr",
           "number": 61,
-          "state": "open"
+          "state": "closed_superseded_by_pr75"
         },
         {
           "type": "pr",
           "number": 66,
-          "state": "open"
+          "state": "closed_superseded_by_pr75"
         },
         {
           "type": "pr",
           "number": 68,
-          "state": "open"
+          "state": "closed_superseded_by_pr75"
         },
         {
           "type": "pr",
           "number": 69,
-          "state": "open"
+          "state": "closed_superseded_by_pr75"
         },
         {
           "type": "pr",
           "number": 70,
-          "state": "open"
+          "state": "closed_superseded_by_pr75"
         },
         {
           "type": "pr",
           "number": 71,
-          "state": "open_misbased"
-        },
-        {
-          "type": "pr",
-          "number": 75,
-          "state": "merged_historical"
+          "state": "closed_superseded_by_pr75"
         }
       ],
       "depends_on": [
@@ -375,15 +377,20 @@
       "verification": {
         "locally_tested": true,
         "development_ci_verified": true,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "Cumulative work must be reconciled onto main instead of merging the feature-branch-based PR #71 directly."
+      "notes": "PR75 is the authoritative current-main reconciliation of the Stage 1B calculus stack. The older feature PRs were implementation containers and are now superseded.",
+      "verification_evidence": {
+        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+        "exact_head_workflow_run": 37419593778,
+        "security_workflow_run": 37419593763
+      }
     },
     {
       "id": "stage1b.fundamental_theorem",
@@ -500,9 +507,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+        "exact_head_workflow_run": 37419593778,
+        "security_workflow_run": 37419593763
       }
     },
     {
@@ -590,9 +597,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+        "exact_head_workflow_run": 37419593778,
+        "security_workflow_run": 37419593763
       }
     },
     {
@@ -633,9 +640,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+        "exact_head_workflow_run": 37419593778,
+        "security_workflow_run": 37419593763
       }
     },
     {
@@ -766,11 +773,11 @@
     }
   ],
   "authoritative_verification": {
-    "main_sha": "7ea5570a69c0c41e61666b0d29007eabbc19c790",
-    "exact_head_workflow_run": 37418561682,
-    "security_workflow_run": 37418561643,
+    "main_sha": "02d90ee01c8ffbd873371dbddf2037e7a4b3495a",
+    "exact_head_workflow_run": 37419593778,
+    "security_workflow_run": 37419593763,
     "exact_head_conclusion": "success",
     "security_conclusion": "success",
-    "note": "Pinned to the exact current main commit after the complete Stage 1A linear-algebra merge set."
+    "note": "Evidence is pinned to the exact current main commit 02d90ee01c8ffbd873371dbddf2037e7a4b3495a."
   }
 }
