@@ -22,7 +22,7 @@ def test_dispatch_queues_without_execution():
         "automate.dev.worker_client.submit_worker_packet",
         return_value={"jobId": "job-1", "state": "queued"},
     ) as submit, patch(
-        "automate.dev.worker_client.execute_worker_job"
+        "automate.dev.worker_client.start_worker_job"
     ) as execute:
         result = dispatch_worker(packet, url="https://worker.example", token="secret", execute=False)
     assert result["queued"]["jobId"] == "job-1"
@@ -48,10 +48,10 @@ def test_dispatch_execution_calls_worker_once():
         return_value={"jobId": "job-1", "state": "queued"},
     ), patch(
         "automate.dev.worker_client.execute_worker_job",
-        return_value={"success": True, "state": "succeeded"},
+        return_value={"success": True, "state": "running"},
     ) as execute:
         result = dispatch_worker(packet, url="https://worker.example", token="secret", execute=True)
-    assert result["execution"]["state"] == "succeeded"
+    assert result["execution"]["state"] == "running"
     execute.assert_called_once_with(
         "job-1",
         url="https://worker.example",
