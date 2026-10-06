@@ -56,5 +56,5 @@ def test_dispatch_execution_calls_worker_once():
         "job-1",
         url="https://worker.example",
         token="secret",
-        timeout=120.0,
+        timeout=30.0,
     )
