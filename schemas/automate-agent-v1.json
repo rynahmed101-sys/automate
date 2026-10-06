@@ -197,6 +197,20 @@
         "status",
         "reasons"
       ]
+    },
+    "evolve-plan": {
+      "command": "automate learn evolution-plan <proposal> <changes> --base-revision <sha> --allowed-prefix <path> ...",
+      "mode": "proposal_only",
+      "purpose": "Turn an adopted mutable evolution proposal into an exact, bounded, reversible change plan.",
+      "returns": [
+        "plan_id",
+        "proposal_id",
+        "base_revision",
+        "changes",
+        "regression_requirements",
+        "rollback",
+        "apply_mode"
+      ]
     }
   },
   "capability_catalog": {
