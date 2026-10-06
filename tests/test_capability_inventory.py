@@ -185,7 +185,7 @@ def test_live_audit_rejects_unrecorded_capability_pr():
         }
     ]
     errors = audit_live("rynahmed101-sys/automate", pull_requests=with_errors)
-    assert any("no inventory reference" in error for error in errors)
+    assert any("no capability ownership reference" in error for error in errors)
 
 
 def test_live_audit_allows_mutable_active_pr_head():
