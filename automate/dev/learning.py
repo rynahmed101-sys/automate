@@ -668,6 +668,19 @@ class LearningStore:
                 task_target=task_target,
             )
         }
+
+        blocked_by_failure_lessons: set[str] = set()
+        for lesson in self.list_adopted_lessons(lesson_type="failure"):
+            scope = lesson.get("scope", {})
+            if scope.get("task_kind") != task_kind or scope.get("task_target") != task_target:
+                continue
+            strategy_id = scope.get("strategy_id")
+            if isinstance(strategy_id, str):
+                blocked_by_failure_lessons.add(strategy_id)
+            for candidate_id in scope.get("strategy_ids", []):
+                if isinstance(candidate_id, str):
+                    blocked_by_failure_lessons.add(candidate_id)
+
         adopted = [
             lesson
             for lesson in self.list_adopted_lessons(lesson_type="strategy")
@@ -676,11 +689,20 @@ class LearningStore:
             and lesson.get("scope", {}).get("strategy_id") in recommendations
         ]
         if not adopted:
+            if default_strategy_id in blocked_by_failure_lessons:
+                return {
+                    "strategy_id": None,
+                    "source": "failure_memory",
+                    "confidence": "high",
+                    "reason": "an adopted failure lesson blocks the default strategy for this task",
+                    "blocked_strategies": sorted(blocked_by_failure_lessons),
+                }
             return {
                 "strategy_id": default_strategy_id,
                 "source": "default",
                 "confidence": "none",
                 "reason": "no adopted strategy lesson exists for this task",
+                "blocked_strategies": sorted(blocked_by_failure_lessons),
             }
 
         eligible = [
@@ -692,11 +714,21 @@ class LearningStore:
             and recommendations[lesson["scope"]["strategy_id"]].confidence in {"medium", "high"}
         ]
         if not eligible:
+            if default_strategy_id in blocked_by_failure_lessons:
+                return {
+                    "strategy_id": None,
+                    "source": "failure_memory",
+                    "confidence": "high",
+                    "reason": "all presently selectable strategies are blocked by adopted failure memory or insufficient evidence",
+                    "blocked_strategies": sorted(blocked_by_failure_lessons),
+                    "adopted_lesson_count": len(adopted),
+                }
             return {
                 "strategy_id": default_strategy_id,
                 "source": "default",
                 "confidence": "low",
                 "reason": "adopted strategy lessons exist, but current evidence has not cleared the selection threshold",
+                "blocked_strategies": sorted(blocked_by_failure_lessons),
                 "adopted_lesson_count": len(adopted),
             }
 
@@ -721,6 +753,7 @@ class LearningStore:
             "reason": "an adopted strategy lesson and conservative historical evidence cleared the selection threshold",
             "evidence": best.to_dict(),
             "adopted_lessons": applicable_lessons[:10],
+            "blocked_strategies": sorted(blocked_by_failure_lessons),
         }
 
     def success_lesson_candidates(self, *, min_repetitions: int = 3) -> list[dict[str, Any]]:
@@ -866,7 +899,16 @@ class LearningStore:
                         f"{kind}:{target}; investigate the shared failure mechanism "
                         "before retrying the same strategy."
                     ),
-                    scope={"task_kind": kind, "task_target": target, "failure_class": failure_class},
+                    scope={
+                        "task_kind": kind,
+                        "task_target": target,
+                        "failure_class": failure_class,
+                        "strategy_ids": sorted({
+                            str(item["strategy"]["strategy_id"])
+                            for item in experiences
+                            if item.get("strategy", {}).get("strategy_id")
+                        }),
+                    },
                     supporting_experience_ids=ids,
                     expected_effect="Avoid repeating an unchallenged failure pattern.",
                 )
