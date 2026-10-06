@@ -13,13 +13,13 @@ The worker is never authoritative. GitHub state, deterministic control-plane log
 ### Automate: supervisor and judge
 Automate owns roadmap ordering, dependency state, worker packet construction, allowed/forbidden file boundaries, reconciliation, verification/certification bookkeeping, merge decisions, retries, and stop conditions.
 
-### Worker: implementation actor
-The worker reads its packet, retrieves permitted context, uses a replaceable AI model, produces bounded changes, runs local checks, and may later open an isolated capability PR when explicitly authorized.
+### Worker: reasoning actor
+The worker reads its packet and explicit repository context, uses a replaceable AI model, and produces a bounded proposal. It does not become the repository executor. Automate remains responsible for applying proposals, running authoritative tests, creating/merging branches, and certifying results.
 
 Worker output is an attempted action, not proof.
 
 ### Chanfana/Cloudflare worker substrate
-Use `rynahmed101-sys/chanfana-openapi-template` as the machine-facing Worker reference:
+Use `rynahmed101-sys/chanfana-openapi-template` as the machine-facing Worker reference. The Worker is an API/model boundary, not a privileged Git executor:
 - Hono
 - Chanfana OpenAPI 3.1
 - Zod validation
@@ -31,6 +31,9 @@ Adapt only after the Automate contract is stable.
 
 ### THE MIRROR
 Keep Mirror as an optional laboratory for model experiments, sandboxing, independent evidence, and research. Mirror does not become authority over Automate's repository state.
+
+### Agent-computer interface principle
+Borrow the useful pattern from SWE-agent/OpenHands without importing their stacks: give the model explicit, bounded tools/context and keep the agent core separated from the application/executor. Repository mutation and verification stay outside the model process.
 
 ## Provider strategy
 Ollama is optional, not foundational. The worker contract is provider-neutral. The first Cloudflare implementation may use native Workers AI; another provider can be substituted later. Contract tests must work without a model.
