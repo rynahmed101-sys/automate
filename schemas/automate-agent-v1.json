@@ -203,6 +203,1244 @@
       "equivalent Cartesian Laplacian identity",
       "continuous charge electric-field kernels",
       "continuous charge potential kernels",
+      "reusable separable first-order ODE representation and verification",
+      "linear first-order ODE integrating-factor machinery",
+      "Bernoulli ODE transformation and verification",
+      "exact first-order differential-form exactness and potential verification",
+      "higher-order homogeneous constant-coefficient ODE characteristic-polynomial machinery",
+      "real, repeated, and complex characteristic-root classification where tractable",
+      "initial-value problem verification including higher-order initial conditions",
+      "boundary-value problem verification with explicit boundary conditions",
+      "coupled first-order ODE system verification",
+      "phase-space conversion from scalar higher-order ODEs"
+    ],
+    "classical_mechanics": [
+      "Lagrangian representation",
+      "Euler-Lagrange equations for one or multiple generalized coordinates",
+      "canonical momenta",
+      "Hamiltonian/Jacobi energy construction",
+      "Noether energy-conservation checking",
+      "harmonic oscillator verification",
+      "multi-coordinate mechanical systems"
+    ],
+    "field_theory": [
+      "functional variation of an action",
+      "Euler-Lagrange field-equation verification for configured scalar fields"
+    ],
+    "differential_geometry_and_general_relativity": [
+      "explicit tensor indices with variance, dimension, index space, dummy/free classification",
+      "Einstein summation/index-structure validation",
+      "tensor products and structured tensor expressions",
+      "Christoffel symbols",
+      "Riemann curvature tensor",
+      "Ricci curvature tensor",
+      "Ricci scalar",
+      "Einstein tensor",
+      "geodesic equations",
+      "contracted Bianchi identity checks",
+      "EinsteinPy cross-engine geometry checking where the dependency is available",
+      "Cadabra translation/verification boundaries where configured"
+    ],
+    "physical_units": [
+      "SI base-dimensional representation",
+      "dimensional homogeneity of supported derivation rules",
+      "coordinate-dimension-aware Euler-Lagrange checks"
+    ],
+    "numerical": [
+      "bounded IVP integration with SciPy RK45",
+      "trajectory evidence and fingerprints",
+      "energy-drift checks",
+      "convergence probes and numerical provenance"
+    ],
+    "statistics": [
+      "nonlinear/parametric model fitting",
+      "parameter estimates and covariance-related evidence",
+      "chi-square residual diagnostics",
+      "R-squared/goodness-of-fit diagnostics",
+      "graph-bound model/claim validation",
+      "dataset/result fingerprints and provenance"
+    ],
+    "formal_verification": [
+      "graph-to-Lean translation for the supported integer-polynomial claim subset",
+      "Lean 4 kernel-backed verification when the toolchain is installed",
+      "claim/dependency binding for formal evidence"
+    ],
+    "derivation_graph": [
+      "DAG validation and topological ordering",
+      "assumption dependency closure and impact queries",
+      "node/edge claim identity fingerprints",
+      "certificate staleness detection",
+      "verification evidence recording",
+      "certificate subgraph expansion",
+      "interactive HTML graph visualization"
+    ],
+    "ai_integration": [
+      "sanitized context generation",
+      "versioned AI proposal schema",
+      "zero-trust proposal validation",
+      "mock/offline AI provider",
+      "local HTTP AI provider adapter",
+      "OpenAI-compatible HTTP provider adapter",
+      "bounded multi-step research loop",
+      "machine-readable JSON CLI surface"
+    ],
+    "provenance_and_certificates": [
+      "runtime dependency provenance for external verification",
+      "claim and comparison-target fingerprints",
+      "independence classification for cross-engine evidence",
+      "lossless certificate package export",
+      "SHA-256 integrity manifest"
+    ],
+    "security": [
+      "SafeParser restrictions for untrusted mathematical strings",
+      "proposal injection/security validation",
+      "bounded execution sandbox for external computations",
+      "fail-closed unsupported semantics",
+      "credential exclusion from mathematical artifacts"
+    ],
+    "linear_algebra": [
+      "vectors and componentwise vector operations",
+      "vector scalar multiplication and dot products",
+      "explicit matrices and shape validation",
+      "matrix multiplication and transpose",
+      "determinant and trace",
+      "inverse and exact rank",
+      "Gaussian elimination and reduced row-echelon form",
+      "unique square-system solving Ax=b",
+      "numeric cross-checks using NumPy where inputs are numeric",
+      "characteristic polynomials for square matrices with an explicit generator",
+      "complete eigenvalue multisets with algebraic multiplicity",
+      "claimed eigenvector residual verification for explicit eigenvalues",
+      "diagonalization certificates verifying A = P*D*P^-1",
+      "exact Hermitian inner products for vectors",
+      "exact Euclidean vector norms",
+      "orthogonality claims with explicit indicator semantics",
+      "orthogonal projection onto a non-zero vector",
+      "Gram-Schmidt orthogonalization and optional orthonormalization",
+      "null-space basis verification with exact residual and nullity checks",
+      "row-space basis verification using column-oriented basis vectors",
+      "column-space basis verification",
+      "vector span-membership verification",
+      "linear-independence verification by exact rank",
+      "basis-of-span verification",
+      "vector coordinate change-of-basis verification"
+    ],
+    "physics": [
+      "Coulomb force for point charges",
+      "point-charge electric field",
+      "point-charge electric potential",
+      "continuous charge electric-field kernels",
+      "continuous charge potential kernels",
+      "uniform finite line-charge potential",
+      "bounded Cartesian Gauss-law verification"
+    ]
+  },
+  "rules": [
+    {
+      "rule_id": "euler_lagrange",
+      "category": "variational",
+      "domain": "classical_mechanics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy",
+        "numerical",
+        "lean4"
+      ]
+    },
+    {
+      "rule_id": "vary_action",
+      "category": "variational",
+      "domain": "field_theory",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "conserve_energy",
+      "category": "conservation",
+      "domain": "classical_mechanics",
+      "implementation_backend": "lean4",
+      "allowed_checkers": [
+        "sympy",
+        "numerical",
+        "lean4"
+      ]
+    },
+    {
+      "rule_id": "divide_both_sides",
+      "category": "algebra",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "differentiate_both_sides",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "substitute",
+      "category": "algebra",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "simplify",
+      "category": "algebra",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "christoffel_symbols",
+      "category": "tensors",
+      "domain": "differential_geometry",
+      "implementation_backend": "tensor",
+      "allowed_checkers": [
+        "tensor"
+      ]
+    },
+    {
+      "rule_id": "riemann_curvature",
+      "category": "tensors",
+      "domain": "differential_geometry",
+      "implementation_backend": "tensor",
+      "allowed_checkers": [
+        "tensor"
+      ]
+    },
+    {
+      "rule_id": "ricci_curvature",
+      "category": "tensors",
+      "domain": "differential_geometry",
+      "implementation_backend": "tensor",
+      "allowed_checkers": [
+        "tensor"
+      ]
+    },
+    {
+      "rule_id": "ricci_scalar",
+      "category": "tensors",
+      "domain": "differential_geometry",
+      "implementation_backend": "tensor",
+      "allowed_checkers": [
+        "tensor"
+      ]
+    },
+    {
+      "rule_id": "einstein_tensor",
+      "category": "tensors",
+      "domain": "general_relativity",
+      "implementation_backend": "tensor",
+      "allowed_checkers": [
+        "tensor"
+      ]
+    },
+    {
+      "rule_id": "geodesic_equations",
+      "category": "tensors",
+      "domain": "general_relativity",
+      "implementation_backend": "tensor",
+      "allowed_checkers": [
+        "tensor"
+      ]
+    },
+    {
+      "rule_id": "index_contract",
+      "category": "tensors",
+      "domain": "differential_geometry",
+      "implementation_backend": "tensor",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "raise_index",
+      "category": "tensors",
+      "domain": "differential_geometry",
+      "implementation_backend": "tensor",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "lower_index",
+      "category": "tensors",
+      "domain": "differential_geometry",
+      "implementation_backend": "tensor",
+      "allowed_checkers": []
+    },
+    {
+      "rule_id": "solve_harmonic_oscillator",
+      "category": "differential_equations",
+      "domain": "classical_mechanics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy",
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_solution",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy",
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "algebraic_identity",
+      "category": "algebra",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy",
+        "lean4"
+      ]
+    },
+    {
+      "rule_id": "solve_separable_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_linear_first_order_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_bernoulli_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_exact_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_constant_coefficient_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_ivp",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_bvp",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_system",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "ode_phase_space",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    }
+  ],
+  "ai_workflow": {
+    "sequence": [
+      "discover capabilities",
+      "retrieve controlled context",
+      "construct automate.proposal.v1",
+      "validate untrusted proposal",
+      "dry-run proposal",
+      "apply only when appropriate",
+      "inspect evidence and status",
+      "export certificate when a durable audit artifact is needed"
+    ],
+    "result_fields_recommended_to_agents": [
+      "status",
+      "operation",
+      "result",
+      "verification_method",
+      "independence",
+      "provenance",
+      "certificate"
+    ],
+    "important_semantics": {
+      "verified": "Evidence-derived status from an applicable backend.",
+      "unverified": "Insufficient evidence; not equivalent to false.",
+      "unsupported": "The current rule/backend does not represent enough semantics to perform the requested check.",
+      "failed": "A check ran and the claim did not pass or an execution error prevented verification.",
+      "caller_output": "A caller-supplied expected result is not independent evidence."
+    }
+  },
+  "providers": {
+    "mock": {
+      "availability": "intended for deterministic offline tests"
+    },
+    "local": {
+      "availability": "runtime-configured local HTTP endpoint",
+      "security_boundary": "external model output is still untrusted"
+    },
+    "openai": {
+      "availability": "runtime-configured credentials/endpoint",
+      "security_boundary": "external model output is still untrusted"
+    }
+  },
+  "artifacts": {
+    "certificate_package_files": [
+      "certificate.json",
+      "assumptions.json",
+      "obligations.json",
+      "evidence.json",
+      "subgraph_expansion.json",
+      "provenance.json",
+      "manifest.json"
+    ],
+    "integrity": "manifest.json records SHA-256 digests for the package artifacts."
+  },
+  "verification_statuses": [
+    "PARSED",
+    "STRUCTURALLY_VALID",
+    "DIMENSIONALLY_CHECKED",
+    "UNVERIFIED",
+    "SYMBOLIC_CHECKED",
+    "NUMERICALLY_CHECKED",
+    "STATISTICALLY_CHECKED",
+    "FORMALLY_PROVED",
+    "CONDITIONAL",
+    "FAILED",
+    "DISPROVED",
+    "TIMEOUT",
+    "NOT_APPLICABLE",
+    "AI_PROPOSED"
+  ],
+  "trust_rules": [
+    "AI output is untrusted input.",
+    "Verification status is evidence-derived.",
+    "Unsupported semantics fail closed.",
+    "Credentials never enter mathematical artifacts.",
+    "Caller-supplied expected output is not independent evidence.",
+    "Cross-engine claims must bind evidence to the same mathematical claim and record independence/provenance.",
+    "Empirical or numerical evidence is not silently upgraded to a formal proof."
+  ]
+}    {
+      "rule_id": "numerical_simulation",
+      "category": "numerics",
+      "domain": "computational_physics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "empirical_inference",
+      "category": "statistics",
+      "domain": "experimental_physics",
+      "implementation_backend": "statistical",
+      "allowed_checkers": [
+        "statistical"
+      ]
+    },
+    {
+      "rule_id": "vector_add",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_subtract",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_scalar_multiply",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_dot",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_multiply",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_transpose",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_determinant",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_trace",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_inverse",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_rank",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_rref",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "linear_system_solve",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_inner_product",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_norm",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_orthogonal",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_projection",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_gram_schmidt",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "scalar_field",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "vector_field",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "gradient",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "directional_derivative",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "divergence",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "curl",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "laplacian",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "conservative_field",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "continuous_charge_field",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "continuous_charge_potential",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "coulomb_force",
+      "category": "electromagnetism",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "point_charge_field",
+      "category": "electromagnetism",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "point_charge_potential",
+      "category": "electromagnetism",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "uniform_line_charge_potential",
+      "category": "electromagnetism",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "gauss_law_box",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "dipole_potential",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "dipole_field",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "conductor_boundary_field",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "parallel_plate_field",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "parallel_plate_capacitance",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "capacitor_energy",
+      "category": "electrostatics",
+      "domain": "electromagnetism",
+      "implementation_backend": "electrostatics",
+      "allowed_checkers": [
+        "electrostatics"
+      ]
+    },
+    {
+      "rule_id": "curl_gradient_identity",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "divergence_curl_identity",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "laplacian_identity",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "green_theorem",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "divergence_theorem",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "stokes_theorem",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "line_integral_scalar",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "line_integral_vector",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "surface_integral_scalar",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "surface_flux",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "volume_integral",
+      "category": "vector_calculus",
+      "domain": "mathematics",
+      "implementation_backend": "vector_calculus",
+      "allowed_checkers": [
+        "vector_calculus"
+      ]
+    },
+    {
+      "rule_id": "matrix_null_space",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_row_space",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_column_space",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_span_membership",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_linear_independence",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_basis_of_span",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "vector_change_of_basis",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_characteristic_polynomial",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_eigenvalues",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_eigenvector",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "linear_transformation_apply",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_representation",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "quadratic_form_evaluate",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_symmetric",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_hermitian",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_positive_definite",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_diagonalize",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "solve_separable_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_linear_first_order_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_bernoulli_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_exact_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_constant_coefficient_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_ivp",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_bvp",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_system",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "ode_phase_space",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    }
+  ],
+  "ai_workflow": {
+    "sequence": [
+      "discover capabilities",
+      "retrieve controlled context",
+      "construct automate.proposal.v1",
+      "validate untrusted proposal",
+      "dry-run proposal",
+      "apply only when appropriate",
+      "inspect evidence and status",
+      "export certificate when a durable audit artifact is needed"
+    ],
+    "result_fields_recommended_to_agents": [
+      "status",
+      "operation",
+      "result",
+      "verification_method",
+      "independence",
+      "provenance",
+      "certificate"
+    ],
+    "important_semantics": {
+      "verified": "Evidence-derived status from an applicable backend.",
+      "unverified": "Insufficient evidence; not equivalent to false.",
+      "unsupported": "The current rule/backend does not represent enough semantics to perform the requested check.",
+      "failed": "A check ran and the claim did not pass or an execution error prevented verification.",
+      "caller_output": "A caller-supplied expected result is not independent evidence."
+    }
+  },
+  "providers": {
+    "mock": {
+      "availability": "intended for deterministic offline tests"
+    },
+    "local": {
+      "availability": "runtime-configured local HTTP endpoint",
+      "security_boundary": "external model output is still untrusted"
+    },
+    "openai": {
+      "availability": "runtime-configured credentials/endpoint",
+      "security_boundary": "external model output is still untrusted"
+    }
+  },
+  "artifacts": {
+    "certificate_package_files": [
+      "certificate.json",
+      "assumptions.json",
+      "obligations.json",
+      "evidence.json",
+      "subgraph_expansion.json",
+      "provenance.json",
+      "manifest.json"
+    ],
+    "integrity": "manifest.json records SHA-256 digests for the package artifacts."
+  },
+  "verification_statuses": [
+    "PARSED",
+    "STRUCTURALLY_VALID",
+    "DIMENSIONALLY_CHECKED",
+    "UNVERIFIED",
+    "SYMBOLIC_CHECKED",
+    "NUMERICALLY_CHECKED",
+    "STATISTICALLY_CHECKED",
+    "FORMALLY_PROVED",
+    "CONDITIONAL",
+    "FAILED",
+    "DISPROVED",
+    "TIMEOUT",
+    "NOT_APPLICABLE",
+    "AI_PROPOSED"
+  ],
+  "trust_rules": [
+    "AI output is untrusted input.",
+    "Verification status is evidence-derived.",
+    "Unsupported semantics fail closed.",
+    "Credentials never enter mathematical artifacts.",
+    "Caller-supplied expected output is not independent evidence.",
+    "Cross-engine claims must bind evidence to the same mathematical claim and record independence/provenance.",
+    "Empirical or numerical evidence is not silently upgraded to a formal proof."
+  ]
+}
       "explicit chain-rule differentiation",
       "explicit product-rule differentiation",
       "explicit quotient-rule differentiation",
