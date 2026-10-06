@@ -5,6 +5,7 @@ from automate.dev.verification_engine import (
     EvidenceGraph, EvidenceState, build_request, build_verifiable_packet,
     diagnose_failure, mirror_verification_request, plan_bounded_repair,
     verify_improper_integral_cases, validate_schema, REQUEST_SCHEMA, PACKET_SCHEMA,
+    transition_evidence_state,
 )
 
 
@@ -87,6 +88,16 @@ def test_mirror_request_is_bounded_and_exact_revision_bound():
         {**payload, "result": None} if False else payload,
         Path("/nonexistent"),
     ) if False else True
+
+
+def test_evidence_state_machine_rejects_authority_shortcuts():
+    assert transition_evidence_state(EvidenceState.UNVERIFIED, EvidenceState.IN_PROGRESS) == EvidenceState.IN_PROGRESS
+    try:
+        transition_evidence_state(EvidenceState.UNVERIFIED, EvidenceState.VERIFIED)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("UNVERIFIED must not jump directly to VERIFIED")
 
 
 def test_packet_is_evidence_only_and_schema_bound():

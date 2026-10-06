@@ -38,6 +38,24 @@ class EvidenceState(str, Enum):
     BLOCKED = "BLOCKED"
     QUARANTINED = "QUARANTINED"
 
+EVIDENCE_TRANSITIONS = {
+    EvidenceState.UNVERIFIED: {EvidenceState.IN_PROGRESS, EvidenceState.BLOCKED, EvidenceState.QUARANTINED, EvidenceState.CONTRADICTED, EvidenceState.FALSE},
+    EvidenceState.IN_PROGRESS: {EvidenceState.VERIFIED, EvidenceState.PARTIALLY_SUPPORTED, EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.UNRESOLVED, EvidenceState.BLOCKED, EvidenceState.QUARANTINED},
+    EvidenceState.VERIFIED: {EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.QUARANTINED},
+    EvidenceState.PARTIALLY_SUPPORTED: {EvidenceState.VERIFIED, EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.UNRESOLVED, EvidenceState.QUARANTINED},
+    EvidenceState.REPRODUCED: {EvidenceState.VERIFIED, EvidenceState.CONTRADICTED, EvidenceState.QUARANTINED},
+    EvidenceState.CONTRADICTED: {EvidenceState.UNRESOLVED, EvidenceState.QUARANTINED},
+    EvidenceState.UNRESOLVED: {EvidenceState.IN_PROGRESS, EvidenceState.VERIFIED, EvidenceState.CONTRADICTED, EvidenceState.QUARANTINED},
+    EvidenceState.FALSE: {EvidenceState.IN_PROGRESS, EvidenceState.UNRESOLVED, EvidenceState.QUARANTINED},
+    EvidenceState.BLOCKED: {EvidenceState.IN_PROGRESS, EvidenceState.UNRESOLVED, EvidenceState.QUARANTINED},
+    EvidenceState.QUARANTINED: {EvidenceState.UNRESOLVED},
+}
+
+def transition_evidence_state(current: EvidenceState, next_state: EvidenceState) -> EvidenceState:
+    if next_state not in EVIDENCE_TRANSITIONS[current]:
+        raise ValueError(f"invalid evidence transition: {current.value} -> {next_state.value}")
+    return next_state
+
 FAILURE_CLASSES = (
     "implementation_defect", "test_defect", "contract_schema_defect",
     "missing_assumption", "mathematical_mistake", "physics_model_mistake",
@@ -319,6 +337,7 @@ def build_verifiable_packet(*, request: VerificationRequest,
         "computational_evidence": dict(computational_evidence),
         "data_provenance_evidence": dict(provenance_evidence),
         "mirror_experiment_ids": list(mirror_experiment_ids),
+        "evidence_state": repository_state.get("evidence_state", EvidenceState.UNRESOLVED.value),
         "external_source_ids": list(repository_state.get("external_source_ids", [])),
         "assumptions": list(repository_state.get("assumptions", [])),
         "tolerances": dict(repository_state.get("tolerances", {})),
