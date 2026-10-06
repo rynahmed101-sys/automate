@@ -398,7 +398,7 @@ Required:
 - reversible promotion with provenance and rollback;
 - periodic reevaluation of previously rejected or context-bound lessons when new evidence changes the case.
 
-**Current state:** FOUNDATION IMPLEMENTED ON `engine`, NOT YET WIRED INTO EVERY AUTONOMOUS CYCLE.
+**Current state:** FOUNDATION IMPLEMENTED ON `engine`; bounded outcome emission and adoption-gated strategy selection are wired into the autonomous cycle when a learning ledger is supplied. Full cross-repository ingestion, regression synthesis, and reversible machinery evolution remain pending.
 
 The first implementation intentionally remains dependency-free and LLM-agnostic. External or local models may generate richer diagnoses and lessons later, but the learning ledger, validation boundary, and promotion semantics do not depend on any one model provider.
 
