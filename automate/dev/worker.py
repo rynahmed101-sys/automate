@@ -28,11 +28,14 @@ def _schema() -> dict[str, Any]:
 
 def _under_prefix(path: str, prefixes: list[str]) -> bool:
     normalized = str(PurePosixPath(path))
-    return any(
-        normalized == prefix.rstrip("/")
-        or normalized.startswith(prefix.rstrip("/") + "/")
-        for prefix in prefixes
-    )
+    for prefix in prefixes:
+        clean = prefix.rstrip("/")
+        if prefix.endswith("/"):
+            if normalized == clean or normalized.startswith(clean + "/"):
+                return True
+        elif normalized == clean:
+            return True
+    return False
 
 
 def build_worker_packet(
