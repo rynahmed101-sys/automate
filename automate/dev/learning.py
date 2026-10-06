@@ -372,6 +372,32 @@ class LearningStore:
         self.db.commit()
         return lesson
 
+    def add_evolution_proposal(self, proposal: Mapping[str, Any]) -> str:
+        errors = validate_evolution_proposal(proposal)
+        if errors:
+            raise LearningError("; ".join(errors))
+        proposal_id = str(proposal["proposal_id"])
+        body = canonical_json(proposal)
+        self.db.execute(
+            "INSERT OR IGNORE INTO evolution_proposals(id,status,payload_json,payload_sha256,created_at) VALUES(?,?,?,?,?)",
+            (
+                proposal_id,
+                proposal["status"],
+                body,
+                hashlib.sha256(body.encode()).hexdigest(),
+                str(proposal.get("provenance", {}).get("created_at") or utc_now()),
+            ),
+        )
+        self.db.commit()
+        return proposal_id
+
+    def get_evolution_proposal(self, proposal_id: str) -> dict[str, Any] | None:
+        row = self.db.execute(
+            "SELECT payload_json FROM evolution_proposals WHERE id=?",
+            (proposal_id,),
+        ).fetchone()
+        return json.loads(row[0]) if row else None
+
     def list_adopted_lessons(self, *, lesson_type: str | None = None) -> list[dict[str, Any]]:
         rows = self.db.execute(
             "SELECT payload_json FROM lessons WHERE status='ADOPTED' ORDER BY created_at, id"
