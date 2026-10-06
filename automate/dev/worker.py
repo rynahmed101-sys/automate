@@ -131,6 +131,7 @@ def build_worker_packet(
                 "name": item["name"],
                 "dependencies": list(item["depends_on"]),
             },
+            "task": dict(item["task"]),
             "constraints": {
                 "allowed_path_prefixes": allowed,
                 "forbidden_paths": sorted(forbidden),
