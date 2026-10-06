@@ -15,12 +15,21 @@ def test_worker_packet_for_current_frontier_is_bounded():
     assert body["repository"]["base_branch"] == "main"
     assert body["constraints"]["allow_delete"] is False
     assert "docs/PROJECT_PHASE_LEDGER.md" in body["constraints"]["forbidden_paths"]
-    assert "automate/backend" in body["constraints"]["allowed_path_prefixes"]
+    assert body["constraints"]["allowed_path_prefixes"] == [
+        "automate/backend/improper_integrals_backend.py",
+        "tests/test_improper_integrals.py",
+        "docs/capabilities/improper_integrals.md",
+    ]
 
 
 def test_worker_packet_rejects_unready_capability():
     with pytest.raises(Exception):
         build_worker_packet("stage1c.ode")
+
+
+def test_worker_packet_rejects_capability_without_canonical_scope():
+    with pytest.raises(Exception):
+        build_worker_packet("stage1b.fundamental_theorem")
 
 
 def test_worker_result_rejects_out_of_scope_change():
