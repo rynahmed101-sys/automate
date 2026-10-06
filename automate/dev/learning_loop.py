@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from jsonschema import Draft202012Validator
 
@@ -26,7 +26,9 @@ def _validated_plan(payload: dict[str, Any]) -> dict[str, Any]:
     schema = json.loads(LOOP_SCHEMA.read_text(encoding="utf-8"))
     errors = [error.message for error in Draft202012Validator(schema).iter_errors(payload)]
     if errors:
-        raise LearningLoopError("learning loop plan violates machine contract: " + "; ".join(errors))
+        raise LearningLoopError(
+            "learning loop plan violates machine contract: " + "; ".join(errors)
+        )
     return payload
 
 
@@ -59,7 +61,7 @@ def plan_next_learning_action(
         and conflict.get("scope", {}).get("task_target") == task_target
     ]
     if scoped_conflicts:
-        return {
+        return _validated_plan({
             "schema_version": "automate.learning_loop_plan.v1",
             "action": "VERIFY_CONFLICT",
             "reason": "Conflicting adopted lessons share this exact scope.",
@@ -77,7 +79,7 @@ def plan_next_learning_action(
         and lesson.get("scope", {}).get("task_target") == task_target
     ]
     if scoped_failures:
-        return {
+        return _validated_plan({
             "schema_version": "automate.learning_loop_plan.v1",
             "action": "REPRODUCE_FAILURE_PATTERN",
             "reason": "Repeated failures form a candidate lesson that requires reproduction before adoption.",
@@ -95,7 +97,7 @@ def plan_next_learning_action(
         and lesson.get("scope", {}).get("task_target") == task_target
     ]
     if scoped_success:
-        return {
+        return _validated_plan({
             "schema_version": "automate.learning_loop_plan.v1",
             "action": "REPLAY_STRATEGY",
             "reason": "Repeated success produced a candidate strategy lesson that should be tested against the baseline.",
@@ -113,7 +115,7 @@ def plan_next_learning_action(
         and lesson.get("scope", {}).get("task_target") == task_target
     ]
     if adopted_improvements:
-        return {
+        return _validated_plan({
             "schema_version": "automate.learning_loop_plan.v1",
             "action": "PROPOSE_SYSTEM_EVOLUTION",
             "reason": "An adopted system-improvement lesson exists and can now produce a mutable evolution proposal.",
@@ -126,11 +128,11 @@ def plan_next_learning_action(
             "requires_external_verification": True,
         })
 
-    return {
+    return _validated_plan({
         "schema_version": "automate.learning_loop_plan.v1",
         "action": "ACT",
         "reason": "No unresolved candidate learning action is currently available.",
         "task_kind": task_kind,
         "task_target": task_target,
         "requires_external_verification": False,
-    }
+    })
