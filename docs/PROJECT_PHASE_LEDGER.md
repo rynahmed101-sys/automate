@@ -644,3 +644,8 @@ Every new feature should answer four questions:
 4. **How do we independently know that it is correct?**
 
 If the answer to the first question is merely “this one formula now works,” the implementation probably belongs one abstraction level too low.
+
+
+## Implementation-state companion
+
+The phase ledger remains the sole authority for roadmap ordering and completion markers. Implementation ownership, branch/PR location, reconciliation state, dependency links, and verification evidence are tracked separately in `docs/CAPABILITY_INVENTORY.json`. Agents must not infer implementation state from the presence or absence of code on `main` alone.
