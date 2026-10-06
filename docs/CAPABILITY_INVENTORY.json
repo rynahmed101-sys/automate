@@ -481,7 +481,6 @@
       ],
       "canonical_files": [
         "automate/backend/sympy_backend.py",
-        "automate/theory/rules.py",
         "tests/test_improper_integrals.py"
       ],
       "shared_integration_points": [
@@ -1175,6 +1174,12 @@
       "branch": "integrate/autonomous-worker-foundation",
       "state": "open",
       "purpose": "autonomous worker foundation integration"
+    },
+    {
+      "number": 133,
+      "branch": "integrate/clear-1a-3a",
+      "state": "closed_future_work",
+      "purpose": "Stage 1C current-main reconciliation preserved for later harvest"
     }
   ]
 }
