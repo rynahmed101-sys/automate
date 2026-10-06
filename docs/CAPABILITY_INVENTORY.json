@@ -1144,9 +1144,15 @@
     },
     {
       "number": 116,
-      "branch": "integrate/control-plane-live-audit",
-      "state": "open",
-      "purpose": "live GitHub PR consistency and full queue snapshot"
+      "branch": "integrate/control-plane-stage1b-frontier",
+      "state": "merged",
+      "purpose": "Stage 1B frontier inventory and issue bookkeeping"
+    },
+    {
+      "number": 117,
+      "branch": "integrate/control-plane-final-bookkeeping",
+      "state": "merged",
+      "purpose": "final capability-control-plane verification bookkeeping"
     }
   ]
 }
