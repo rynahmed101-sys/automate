@@ -11,6 +11,9 @@ def test_worker_packet_for_current_frontier_is_bounded():
     packet = build_worker_packet("stage1b.improper_integrals")
     body = packet["packet"]
     assert packet["schema_version"] == "automate.worker.v1"
+    assert body["task"]["source"] == "github_issue"
+    assert body["task"]["ref"] == "115"
+    assert "Fail closed when symbolic convergence cannot be established." in body["task"]["requirements"]
     assert body["capability"]["id"] == "stage1b.improper_integrals"
     assert body["repository"]["base_branch"] == "main"
     assert body["constraints"]["allow_delete"] is False
