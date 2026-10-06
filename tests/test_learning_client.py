@@ -95,3 +95,31 @@ def test_sync_ingests_mirror_research_proposal_as_candidate(tmp_path: Path):
         assert candidates[0]["status"] == "CANDIDATE"
     finally:
         store.close()
+
+
+def test_sync_rejects_remote_adopted_lesson(monkeypatch, tmp_path: Path):
+    lesson = {
+        "schema_version": "automate.learning_lesson.v1",
+        "lesson_id": "les_" + "e" * 32,
+        "lesson_type": "strategy",
+        "statement": "Remote artifact must not self-promote.",
+        "scope": {"task_kind": "calculus", "task_target": "example", "strategy_id": "s"},
+        "preconditions": [],
+        "expected_effect": "none",
+        "supporting_experience_ids": ["exp_" + "f" * 32],
+        "verification_evidence": [{"id": "remote"}],
+        "status": "ADOPTED",
+        "provenance": {},
+    }
+    monkeypatch.setattr(
+        "automate.dev.learning_client.read_learning_artifacts",
+        lambda **_: [{"artifactType": "learning_lesson", "artifact": lesson}],
+    )
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        result = sync_learning_store(store)
+        assert result["ingested"] == 0
+        assert result["skipped"] == 1
+        assert "promotion state" in result["errors"][0]
+    finally:
+        store.close()
