@@ -62,6 +62,10 @@ jobs:
         run: |
           automate capability validate --json
 
+      - name: Enforce capability branch scope
+        run: |
+          automate capability guard --branch "$GITHUB_HEAD_REF" --base "$GITHUB_BASE_SHA" --head "$GITHUB_SHA"
+
       - name: Run development test suite
         run: |
           pytest -q --tb=short --strict-markers
