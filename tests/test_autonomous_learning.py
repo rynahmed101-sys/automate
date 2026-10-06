@@ -79,12 +79,6 @@ def test_learned_strategy_requires_adopted_lesson_before_override(tmp_path: Path
         store.transition_lesson(
             lesson["lesson_id"],
             "REPRODUCED",
-            reason="reproduction",
-            evidence=[{"id": "reproduction"}],
-        )
-        store.transition_lesson(
-            lesson["lesson_id"],
-            "REPRODUCED",
             reason="independent route reproduced the successful strategy",
             evidence=[{"id": "reproduction"}],
         )
@@ -197,6 +191,11 @@ def test_adopted_lesson_guidance_is_returned_for_worker_selection(tmp_path: Path
             preconditions=["domain and orientation are explicit"],
         )
         store.add_lesson(lesson)
+        store.transition_lesson(
+            lesson["lesson_id"], "REPRODUCED",
+            reason="independent reproduction",
+            evidence=[{"id": "reproduction"}],
+        )
         store.transition_lesson(
             lesson["lesson_id"], "VERIFIED",
             reason="independent reproduction",
