@@ -163,7 +163,7 @@
       "returns": "artifact file map"
     },
     "schema": {
-      "command": "automate schema --name <ir|tensor|proposal|context|agent>",
+      "command": "automate schema --name <ir|tensor|proposal|context|agent|capability>",
       "mode": "read_only",
       "purpose": "Retrieve authoritative interchange schemas and this machine-agent capability contract."
     },
