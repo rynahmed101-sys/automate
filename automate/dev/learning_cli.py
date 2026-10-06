@@ -6,6 +6,7 @@ from pathlib import Path
 
 import click
 
+from automate.dev.discovery import DiscoveryIntakeError, triage_candidate
 from automate.dev.evolution import build_evolution_plan
 from automate.dev.evolution_executor import EvolutionExecutionError, execute_evolution_plan
 from automate.dev.learning import (
@@ -309,4 +310,15 @@ def evolution_execute(plan_file: str, repository: str, base_branch: str) -> None
         )
         click.echo(json.dumps(result, indent=2))
     except (EvolutionExecutionError, json.JSONDecodeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@learn.command("triage-discovery")
+@click.argument("proposal_file", type=click.Path(exists=True))
+def triage_discovery(proposal_file: str) -> None:
+    """Triage one untrusted Mirror capability candidate against the canonical inventory."""
+    try:
+        proposal = json.loads(Path(proposal_file).read_text(encoding="utf-8"))
+        click.echo(json.dumps(triage_candidate(proposal), indent=2))
+    except (DiscoveryIntakeError, json.JSONDecodeError) as exc:
         raise click.ClickException(str(exc)) from exc
