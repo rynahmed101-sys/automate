@@ -30,7 +30,9 @@ def _under_prefix(path: str, prefixes: list[str]) -> bool:
     normalized = str(PurePosixPath(path))
     for prefix in prefixes:
         clean = prefix.rstrip("/")
-        if normalized == clean or normalized.startswith(clean + "/"):
+        if normalized == clean:
+            return True
+        if PurePosixPath(clean).suffix == "" and normalized.startswith(clean + "/"):
             return True
     return False
 
@@ -116,6 +118,18 @@ def build_worker_packet(
         sha = __import__("hashlib").sha1(blob_prefix + encoded).hexdigest()
         generated_context_files.append({"path": relative_path, "sha": sha, "content": content})
 
+    task = item.get("task") or {
+        "summary": item["name"],
+        "requirements": [
+            "implement the capability within the declared canonical files",
+            "preserve existing verification and authority boundaries",
+        ],
+        "acceptance": {
+            "focused_tests": test_targets,
+            "must_fail_closed": True,
+        },
+    }
+
     packet = {
         "schema_version": "automate.worker.v1",
         "packet": {
@@ -132,7 +146,7 @@ def build_worker_packet(
                 "name": item["name"],
                 "dependencies": list(item["depends_on"]),
             },
-            "task": dict(item["task"]),
+            "task": dict(task),
             "constraints": {
                 "allowed_path_prefixes": allowed,
                 "forbidden_paths": sorted(forbidden),

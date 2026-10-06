@@ -115,3 +115,15 @@ def test_upper_endpoint_singularity_converges():
     assert passed is True
     assert details["converges"] is True
     assert error is None
+
+
+def test_uncertain_symbolic_value_comparison_fails_closed():
+    passed, details, evidence, error = run(
+        {"variable": "x", "lower": "0", "upper": "oo"},
+        "1/(1+x**2)",
+        "a",
+    )
+    assert passed is False
+    assert details.get("_status_override") == VerificationStatus.UNVERIFIED.value
+    assert evidence == []
+    assert "UNVERIFIED" in error
