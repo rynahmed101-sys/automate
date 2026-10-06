@@ -6,6 +6,7 @@ from automate.dev.verification_engine import (
     diagnose_failure, mirror_verification_request, plan_bounded_repair,
     verify_improper_integral_cases, validate_schema, REQUEST_SCHEMA, PACKET_SCHEMA,
     transition_evidence_state,
+    validate_packet_consistency,
     run_backlog_item,
 )
 
@@ -138,3 +139,66 @@ def test_real_backlog_item_runs_through_reconciliation_and_packet():
     assert result["packet"]["authority"] == "EVIDENCE_ONLY"
     assert result["evidence_state"] == "PARTIALLY_SUPPORTED"
     assert result["packet"]["unresolved"]
+
+
+def test_packet_consistency_rejects_mismatched_revision_and_false_verified_state():
+    request = build_request(
+        capability_id="stage1b.improper_integrals",
+        repository="rynahmed101-sys/automate",
+        revision="d"*40,
+        branch="engine",
+        scope=["mathematical"],
+        action_cycle_id="cycle_12345678",
+    )
+    packet = build_verifiable_packet(
+        request=request,
+        graph_ids=["evi_test"],
+        repository_state={
+            "evidence_state": EvidenceState.VERIFIED.value,
+            "exact_head_verified": False,
+            "security_verified": False,
+        },
+        tests=[],
+        ci_run_ids=[],
+        security_run_ids=[],
+        math_evidence={},
+        computational_evidence={},
+        provenance_evidence={"source_revision": request.revision},
+    )
+    forged = dict(packet)
+    forged["exact_commit_sha"] = "e"*40
+    errors = validate_packet_consistency(
+        forged,
+        request=request,
+        repository_state={"requested_revision": request.revision},
+    )
+    assert any("exact_commit_sha" in e for e in errors)
+    assert any("VERIFIED packet lacks exact-head" in e for e in errors)
+    assert any("VERIFIED packet lacks security" in e for e in errors)
+
+
+def test_packet_consistency_rejects_fake_authority_and_packet_identity():
+    request = build_request(
+        capability_id="stage1b.improper_integrals",
+        repository="rynahmed101-sys/automate",
+        revision="f"*40,
+        branch="engine",
+        scope=["mathematical"],
+        action_cycle_id="cycle_12345678",
+    )
+    packet = build_verifiable_packet(
+        request=request,
+        graph_ids=["evi_other"],
+        repository_state={"evidence_state": EvidenceState.PARTIALLY_SUPPORTED.value},
+        tests=[],
+        ci_run_ids=[],
+        security_run_ids=[],
+        math_evidence={},
+        computational_evidence={},
+        provenance_evidence={},
+    )
+    packet["authority"] = "CERTIFIED"
+    packet["packet_id"] = "pkt_" + "0"*32
+    errors = validate_packet_consistency(packet, request=request, repository_state={})
+    assert any("authority" in e for e in errors)
+    assert any("packet_id" in e for e in errors)

@@ -478,6 +478,43 @@ def run_backlog_item(
         "evidence_state": state.value,
     }
 
+
+
+def validate_packet_consistency(
+    packet: Mapping[str, Any],
+    *,
+    request: VerificationRequest,
+    repository_state: Mapping[str, Any],
+) -> list[str]:
+    """Validate evidence identity and gate conditions beyond JSON schema shape."""
+    errors: list[str] = []
+    if packet.get("authority") != "EVIDENCE_ONLY":
+        errors.append("packet authority must be EVIDENCE_ONLY")
+    if packet.get("action_cycle_id") != request.action_cycle_id:
+        errors.append("packet action_cycle_id does not match request")
+    if packet.get("capability_id") != request.capability_id:
+        errors.append("packet capability_id does not match request")
+    if packet.get("repository") != request.repository:
+        errors.append("packet repository does not match request")
+    if packet.get("exact_commit_sha") != request.revision:
+        errors.append("packet exact_commit_sha does not match request revision")
+    expected_packet = deterministic_id(
+        "pkt", request.request_id, request.revision, packet.get("evidence_graph_ids", [])
+    )
+    if packet.get("packet_id") != expected_packet:
+        errors.append("packet_id is not content-bound to request revision and evidence graph")
+    for key in ("ci_run_ids", "security_run_ids", "evidence_graph_ids"):
+        if not isinstance(packet.get(key), list):
+            errors.append(f"packet {key} missing")
+    state = str(packet.get("evidence_state", ""))
+    if state == EvidenceState.VERIFIED.value:
+        if repository_state.get("exact_head_verified") is not True:
+            errors.append("VERIFIED packet lacks exact-head verification")
+        if repository_state.get("security_verified") is not True:
+            errors.append("VERIFIED packet lacks security verification")
+    if repository_state.get("requested_revision") and repository_state.get("requested_revision") != request.revision:
+        errors.append("repository snapshot revision does not match request")
+    return errors
 def build_verifiable_packet(*, request: VerificationRequest,
                             graph_ids: Iterable[str], repository_state: Mapping[str, Any],
                             tests: Iterable[str], ci_run_ids: Iterable[int],
