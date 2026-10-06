@@ -11,7 +11,7 @@ def canonical_json(value: Any) -> str:
 
 
 def sha256(value: Any) -> str:
-    data = value if isinstance(value, (bytes, bytearray) else canonical_json(value).encode("utf-8")
+    data = value if isinstance(value, (bytes, bytearray)) else canonical_json(value).encode("utf-8")
     return hashlib.sha256(data).hexdigest()
 
 
