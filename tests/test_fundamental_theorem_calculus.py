@@ -137,7 +137,7 @@ def test_ftc_part_i_rejects_wrong_accumulation_anchor():
     )
     report = SymPyChecker().verify_edge(edge, graph)
     assert not report.passed
-    assert "anchoring" in (report.error_message or "").lower()
+    assert "f(lower)" in (report.error_message or "").lower()
 
 
 def test_ftc_fails_closed_without_continuity_obligation():
