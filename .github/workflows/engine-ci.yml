@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+
+concurrency:
+  group: automate-engine-ci
+  cancel-in-progress: true
+
 jobs:
   engine:
     runs-on: ubuntu-latest
