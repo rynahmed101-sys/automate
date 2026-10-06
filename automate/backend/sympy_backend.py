@@ -155,6 +155,10 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_simplify(
                         in_nodes[0], out_nodes[0]
                     )
+                elif rule == "fundamental_theorem_calculus":
+                    passed, details, certificates, error_msg = self._verify_fundamental_theorem(
+                        in_nodes, out_nodes, edge.parameters
+                    )
                 elif rule == "limit":
                     passed, details, certificates, error_msg = self._verify_limit(
                         in_nodes[0], out_nodes[0], edge.parameters
@@ -1588,6 +1592,196 @@ class SymPyChecker(BaseChecker):
             return False, "real-domain analysis was unavailable"
     
     @classmethod
+    @staticmethod
+    def _ftc_zero_state(expr: sp.Expr) -> Optional[bool]:
+        try:
+            reduced = sp.simplify(expr)
+        except Exception:
+            return None
+        if reduced == 0 or reduced.is_zero is True:
+            return True
+        if reduced.is_zero is False:
+            return False
+        try:
+            result = reduced.equals(0)
+        except Exception:
+            return None
+        return result if result in (True, False) else None
+
+    @classmethod
+    def _verify_fundamental_theorem(
+        cls,
+        in_nodes: List[Any],
+        out_nodes: List[Any],
+        params: Dict[str, Any],
+    ):
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+
+        mode = params.get("mode", "evaluation")
+        if mode not in {"evaluation", "accumulation_derivative"}:
+            return False, {"rule": "fundamental_theorem_calculus", "mode": mode}, [], \
+                "Unsupported FTC mode; use 'evaluation' or 'accumulation_derivative'."
+        if len(in_nodes) != 2 or len(out_nodes) != 1:
+            return False, {"rule": "fundamental_theorem_calculus", "mode": mode}, [], \
+                "FTC requires two inputs and one scalar output claim."
+
+        variable_name = params.get("variable", "")
+        integration_name = params.get("integration_variable", variable_name)
+        if not isinstance(variable_name, str) or not variable_name.strip().isidentifier():
+            return False, {"rule": "fundamental_theorem_calculus"}, [], \
+                "parameters['variable'] must be a valid identifier."
+        if not isinstance(integration_name, str) or not integration_name.strip().isidentifier():
+            return False, {"rule": "fundamental_theorem_calculus"}, [], \
+                "parameters['integration_variable'] must be a valid identifier."
+        if mode == "accumulation_derivative" and variable_name.strip() == integration_name.strip():
+            return False, {"rule": "fundamental_theorem_calculus"}, [], \
+                "accumulation_derivative mode requires distinct differentiation and integration variables."
+
+        variable = sp.Symbol(variable_name.strip(), real=True)
+        integration_variable = sp.Symbol(integration_name.strip(), real=True)
+        parser = SafeParser(extra_symbols={
+            variable_name.strip(): variable,
+            integration_name.strip(): integration_variable,
+        })
+
+        lower_raw = params.get("lower")
+        if lower_raw is None:
+            return False, {"rule": "fundamental_theorem_calculus", "mode": mode}, [], \
+                "parameters['lower'] is required."
+        try:
+            integrand = parser.parse(in_nodes[0].expression.raw_str)
+            candidate_function = parser.parse(in_nodes[1].expression.raw_str)
+            output = parser.parse(out_nodes[0].expression.raw_str)
+            lower = parser.parse(str(lower_raw))
+        except SafeParseError as exc:
+            return False, {"rule": "fundamental_theorem_calculus", "mode": mode}, [], \
+                f"SafeParser rejected FTC expression: {exc}"
+
+        if lower.has(variable) or lower.has(integration_variable):
+            return False, {"rule": "fundamental_theorem_calculus", "lower": str(lower)}, [], \
+                "FTC lower bound must be independent of theorem variables."
+        extra_integrand_symbols = integrand.free_symbols - {integration_variable}
+        if mode == "accumulation_derivative":
+            extra_integrand_symbols -= {variable}
+        if extra_integrand_symbols:
+            return False, {"rule": "fundamental_theorem_calculus", "integrand": str(integrand)}, [], \
+                "FTC integrand contains undeclared free variables."
+
+        details = {
+            "rule": "fundamental_theorem_calculus",
+            "mode": mode,
+            "variable": str(variable),
+            "integration_variable": str(integration_variable),
+            "lower": str(lower),
+            "integrand": str(integrand),
+            "candidate_function": str(candidate_function),
+            "continuity_obligation": "ftc_integrand_continuous_on_interval",
+        }
+
+        if mode == "accumulation_derivative":
+            integrand_at_x = integrand.xreplace({integration_variable: variable})
+            derivative = sp.diff(candidate_function, variable)
+            derivative_residual = sp.simplify(derivative - integrand_at_x)
+            anchor_residual = sp.simplify(candidate_function.subs(variable, lower))
+            derivative_zero = cls._ftc_zero_state(derivative_residual)
+            anchor_zero = cls._ftc_zero_state(anchor_residual)
+            if derivative_zero is False:
+                return False, {**details, "derivative_residual": str(derivative_residual)}, [], \
+                    "FTC Part I failed: F'(x) does not equal f(x)."
+            if anchor_zero is False:
+                return False, {**details, "anchor_residual": str(anchor_residual)}, [], \
+                    "FTC Part I failed: the accumulation function does not satisfy F(lower) = 0."
+            if derivative_zero is None or anchor_zero is None:
+                return False, {**details,
+                               "derivative_residual": str(derivative_residual),
+                               "anchor_residual": str(anchor_residual),
+                               "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                    "FTC Part I could not establish its required identities exactly."
+            candidate_residual = sp.simplify(output - integrand_at_x)
+            candidate_zero = cls._ftc_zero_state(candidate_residual)
+            if candidate_zero is False:
+                return False, {**details,
+                               "expected_derivative": str(integrand_at_x),
+                               "claimed_derivative": str(output),
+                               "candidate_residual": str(candidate_residual)}, [], \
+                    "FTC Part I derivative claim does not equal f(x)."
+            if candidate_zero is None:
+                return False, {**details,
+                               "expected_derivative": str(integrand_at_x),
+                               "claimed_derivative": str(output),
+                               "candidate_residual": str(candidate_residual),
+                               "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                    "FTC Part I derivative claim comparison remained unresolved."
+            details.update({
+                "expected_derivative": str(integrand_at_x),
+                "claimed_derivative": str(output),
+                "derivative_residual": str(derivative_residual),
+                "anchor_residual": str(anchor_residual),
+                "candidate_residual": str(candidate_residual),
+            })
+            steps = [
+                {"step": 1, "operation": "verify_F_prime_equals_f_x", "residual": str(derivative_residual)},
+                {"step": 2, "operation": "verify_F_lower_equals_zero", "residual": str(anchor_residual)},
+                {"step": 3, "operation": "verify_claimed_derivative", "residual": str(candidate_residual)},
+            ]
+            return True, details, steps, None
+
+        upper_raw = params.get("upper")
+        if upper_raw is None:
+            return False, {**details}, [], \
+                "parameters['upper'] is required for FTC evaluation mode."
+        try:
+            upper = parser.parse(str(upper_raw))
+        except SafeParseError as exc:
+            return False, {**details}, [], f"SafeParser rejected FTC upper bound: {exc}"
+        if upper.has(integration_variable):
+            return False, {**details, "upper": str(upper)}, [], \
+                "FTC upper bound must be independent of the integration variable."
+        derivative = sp.diff(candidate_function, integration_variable)
+        derivative_residual = sp.simplify(derivative - integrand)
+        derivative_zero = cls._ftc_zero_state(derivative_residual)
+        if derivative_zero is False:
+            return False, {**details, "upper": str(upper), "derivative_residual": str(derivative_residual)}, [], \
+                "FTC Part II failed: the supplied antiderivative does not differentiate to the integrand."
+        if derivative_zero is None:
+            return False, {**details, "upper": str(upper), "derivative_residual": str(derivative_residual),
+                           "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                "FTC Part II antiderivative identity remained unresolved."
+        expected_value = sp.simplify(
+            candidate_function.subs(integration_variable, upper)
+            - candidate_function.subs(integration_variable, lower)
+        )
+        candidate_residual = sp.simplify(output - expected_value)
+        candidate_zero = cls._ftc_zero_state(candidate_residual)
+        if candidate_zero is False:
+            return False, {**details,
+                           "upper": str(upper),
+                           "expected_integral": str(expected_value),
+                           "claimed_integral": str(output),
+                           "candidate_residual": str(candidate_residual)}, [], \
+                "FTC Part II result does not equal F(upper) - F(lower)."
+        if candidate_zero is None:
+            return False, {**details,
+                           "upper": str(upper),
+                           "expected_integral": str(expected_value),
+                           "claimed_integral": str(output),
+                           "candidate_residual": str(candidate_residual),
+                           "_status_override": VerificationStatus.UNVERIFIED.value}, [], \
+                "FTC Part II result comparison remained unresolved."
+        details.update({
+            "upper": str(upper),
+            "expected_integral": str(expected_value),
+            "claimed_integral": str(output),
+            "derivative_residual": str(derivative_residual),
+            "candidate_residual": str(candidate_residual),
+        })
+        steps = [
+            {"step": 1, "operation": "verify_F_prime_equals_f", "residual": str(derivative_residual)},
+            {"step": 2, "operation": "evaluate_F_at_bounds", "lower": str(lower), "upper": str(upper)},
+            {"step": 3, "operation": "verify_integral_equals_Fb_minus_Fa", "residual": str(candidate_residual)},
+        ]
+        return True, details, steps, None
+
     def _verify_limit(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
         from automate.ir.safe_parser import SafeParser, SafeParseError
         expr, variable, point, direction = cls._parse_limit_inputs(in_node, params)
