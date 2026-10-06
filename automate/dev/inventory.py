@@ -63,6 +63,16 @@ def validate_inventory(data: dict[str, Any]) -> list[str]:
         ):
             errors.append(f"{cid}: certified requires merged main plus exact-head and security evidence")
 
+    integration_numbers: set[int] = set()
+    for ref in data.get("integration_references", []):
+        number = ref.get("number")
+        if not isinstance(number, int):
+            errors.append("integration_references: every entry needs an integer PR number")
+            continue
+        if number in integration_numbers:
+            errors.append(f"integration_references: duplicate PR #{number}")
+        integration_numbers.add(number)
+
     direct_owners: dict[int, str] = {}
     for item in records:
         for ref in item["references"]:
@@ -76,6 +86,11 @@ def validate_inventory(data: dict[str, Any]) -> list[str]:
                 if old and old != item["id"]:
                     errors.append(f"PR #{number}: direct ownership collision between '{old}' and '{item['id']}'")
                 direct_owners[number] = item["id"]
+
+    for number in integration_numbers:
+        if number in direct_owners:
+            errors.append(f"PR #{number}: cannot be both capability-owned and integration-owned")
+
     return errors
 
 
