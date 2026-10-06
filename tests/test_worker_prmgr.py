@@ -28,8 +28,7 @@ def test_create_worker_pr_uses_draft_mode():
         "automate.dev.prmgr.subprocess.run"
     ) as run:
         run.return_value.returncode = 0
-        run.return_value.stdout = "https://github.com/owner/repo/pull/1
-"
+        run.return_value.stdout = "https://github.com/owner/repo/pull/1\\n"
         run.return_value.stderr = ""
         result = create_worker_pr(
             "owner/repo",
