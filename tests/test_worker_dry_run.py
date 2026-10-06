@@ -23,8 +23,7 @@ def test_build_worker_commit_completes_without_push(tmp_path: Path):
     git(repo, "init")
     git(repo, "config", "user.email", "test@example.invalid")
     git(repo, "config", "user.name", "Automate Test")
-    (repo / "README.md").write_text("baseline
-", encoding="utf-8")
+    (repo / "README.md").write_text("baseline\\n", encoding="utf-8")
     git(repo, "add", "README.md")
     git(repo, "commit", "-m", "baseline")
     base_sha = git(repo, "rev-parse", "HEAD")
@@ -74,24 +73,19 @@ def test_build_worker_commit_completes_without_push(tmp_path: Path):
                 "operation": "create",
                 "path": "automate/backend/dry_run.py",
                 "expected_sha": None,
-                "content": "VALUE = 1
-",
+                "content": "VALUE = 1\\n",
             },
             {
                 "operation": "create",
                 "path": "tests/test_dry_run_generated.py",
                 "expected_sha": None,
-                "content": "def test_generated_value():
-    from automate.backend.dry_run import VALUE
-    assert VALUE == 1
-",
+                "content": "def test_generated_value():\\n    from automate.backend.dry_run import VALUE\\n    assert VALUE == 1\\n",
             },
             {
                 "operation": "create",
                 "path": "docs/capabilities/dry_run.md",
                 "expected_sha": None,
-                "content": "# Dry run
-",
+                "content": "# Dry run\\n",
             },
         ],
         "tests": [],
