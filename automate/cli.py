@@ -629,3 +629,32 @@ main.add_command(learn)
 
 if __name__ == "__main__":
     main()
+
+@main.command("autonomous-loop")
+@click.option("--repository", default="rynahmed101-sys/automate", show_default=True)
+@click.option("--max-cycles", default=1, type=click.IntRange(min=1, max=100), show_default=True)
+@click.option("--interval-seconds", default=0.0, type=float, show_default=True)
+@click.option("--learning-db", type=click.Path(path_type=Path), default=None)
+@click.option("--execute-worker", is_flag=True, help="Permit actual worker execution; default is bounded planning/dispatch only.")
+@click.option("--json", "as_json", is_flag=True)
+def autonomous_loop_command(
+    repository: str,
+    max_cycles: int,
+    interval_seconds: float,
+    learning_db: Path | None,
+    execute_worker: bool,
+    as_json: bool,
+) -> None:
+    """Wake the existing autonomous cycle in bounded, observable steps."""
+    from automate.dev.daemon import AutonomousLoopError, run_bounded_loop
+    try:
+        result = run_bounded_loop(
+            repository,
+            learning_db=learning_db,
+            execute_worker=execute_worker,
+            max_cycles=max_cycles,
+            interval_seconds=interval_seconds,
+        )
+    except AutonomousLoopError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(result, indent=2))
