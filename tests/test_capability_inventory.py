@@ -111,3 +111,30 @@ def test_capability_next_filters_active_packets_by_dependencies():
     payload = next_action(data)
     assert payload["action"] == "reconcile"
     assert payload["capability_ids"] == ["stage2b.coordinate_and_pde"]
+
+
+def test_preserved_work_does_not_satisfy_dependency():
+    from automate.dev.inventory import next_unclaimed
+
+    data = {
+        "capabilities": [
+            {
+                "id": "future", "order": 20, "stage": "1C", "name": "Future",
+                "implementation_state": "planned",
+                "authority": {"kind": "roadmap", "ref": "ledger"},
+                "references": [], "depends_on": ["preserved"],
+                "canonical_files": [], "shared_integration_points": [],
+                "verification": {"merged_main": False}, "safe_to_delete": False,
+            },
+            {
+                "id": "preserved", "order": 10, "stage": "1C", "name": "Preserved",
+                "implementation_state": "preserved_out_of_order",
+                "authority": {"kind": "branch", "ref": "PR1"},
+                "references": [{"type": "pr", "number": 1, "state": "closed_future_work"}],
+                "depends_on": [], "canonical_files": [],
+                "shared_integration_points": [],
+                "verification": {"merged_main": False}, "safe_to_delete": False,
+            },
+        ]
+    }
+    assert next_unclaimed(data) is None
