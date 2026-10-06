@@ -287,6 +287,7 @@ def test_repeated_candidate_lessons_merge_supporting_evidence(tmp_path: Path):
         third_id = _experience(store, outcome="failure", strategy_id="s3", target="integral")
         expanded = store.failure_lesson_candidates(min_repetitions=2)
         assert expanded[0]["lesson_id"] == candidates[0]["lesson_id"]
+        assert set(expanded[0]["strategy_ids"]) == {"s1", "s2", "s3"}
         store.add_lesson(expanded[0])
 
         persisted = store.get_lesson(candidates[0]["lesson_id"])
@@ -344,5 +345,6 @@ def test_adopted_failure_memory_blocks_unsafe_strategy(tmp_path: Path):
         assert selected["strategy_id"] is None
         assert selected["source"] == "failure_memory"
         assert "frontier-default" in selected["blocked_strategies"]
+        assert "alternate-bad" in selected["blocked_strategies"]
     finally:
         store.close()
