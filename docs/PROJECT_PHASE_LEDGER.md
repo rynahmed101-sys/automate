@@ -175,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Current main exact-head verification and Security Audit both pass for SHA `e52ed749d65e9e965684b8b99678006b9a920fe0`. The merged Stage 1A linear-algebra baseline, including change-of-basis, quadratic forms, and SVD, is therefore authoritatively verified. Moore-Penrose pseudoinverse/least-squares and complex semantics remain implementation/reconciliation work on open branches. Stage 1B calculus and Stage 1C ODE foundations remain unfinished.
+**Current status:** [~] Active. Current main exact-head verification and Security Audit both pass for SHA `1b9b4f2745eefa0c8a74b514871053b8f9549898`. The merged Stage 1A linear-algebra baseline, including change-of-basis, quadratic forms, and SVD, is therefore authoritatively verified on the exact current main SHA `1b9b4f2745eefa0c8a74b514871053b8f9549898`. Moore-Penrose pseudoinverse/least-squares and complex semantics remain implementation/reconciliation work on open branches. Stage 1B calculus and Stage 1C ODE foundations remain unfinished.
 
 ---
 
