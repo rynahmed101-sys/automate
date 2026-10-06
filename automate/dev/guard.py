@@ -29,17 +29,23 @@ def validate_branch_scope(branch: str, files: list[str]) -> list[str]:
                 "Capability branches must not modify shared integration files: "
                 + ", ".join(touched)
             )
-        recorded = any(
-            ref.get("type") == "pr"
-            and ref.get("branch") == branch
-            and str(ref.get("state", "")).startswith("open")
+        recorded = [
+            item["id"]
             for item in data["capabilities"]
             for ref in item["references"]
-        )
+            if ref.get("type") == "pr"
+            and ref.get("branch") == branch
+            and str(ref.get("state", "")).startswith("open")
+        ]
         if not recorded:
             errors.append(
                 f"Capability branch '{branch}' has no active ownership record in "
                 "docs/CAPABILITY_INVENTORY.json."
+            )
+        elif len(recorded) > 1:
+            errors.append(
+                f"Capability branch '{branch}' is claimed by multiple capabilities: "
+                + ", ".join(sorted(set(recorded)))
             )
     elif branch.startswith("integrate/"):
         return errors
