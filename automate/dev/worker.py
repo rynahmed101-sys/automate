@@ -132,7 +132,16 @@ def build_worker_packet(
                 "name": item["name"],
                 "dependencies": list(item["depends_on"]),
             },
-            "task": dict(item.get("task") or {\n                "source": "docs/PROJECT_PHASE_LEDGER.md",\n                "ref": item["id"],\n                "summary": item["name"],\n                "requirements": [\n                    "Implement the capability within its declared canonical file boundary.",\n                    "Add focused positive, negative, boundary, and adversarial verification.",\n                    "Preserve the repository control-plane and fail closed on unresolved semantics.",\n                ],\n            }),
+            "task": dict(item.get("task") or {
+                "source": "docs/PROJECT_PHASE_LEDGER.md",
+                "ref": item["id"],
+                "summary": item["name"],
+                "requirements": [
+                    "Implement the capability within its declared canonical file boundary.",
+                    "Add focused positive, negative, boundary, and adversarial verification.",
+                    "Preserve the repository control-plane and fail closed on unresolved semantics.",
+                ],
+            }),
             "constraints": {
                 "allowed_path_prefixes": allowed,
                 "forbidden_paths": sorted(forbidden),
