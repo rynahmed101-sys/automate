@@ -177,7 +177,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Stage 1A linear algebra and the implemented Stage 1B calculus stack, including the Fundamental Theorem of Calculus, are authoritatively verified on exact current main. The remaining Stage 1B ladder includes improper integrals/convergence, series and expansions, partial derivatives/total differentials, Jacobians/Hessians, multivariable chain rule, stationary/constrained optimization, and domain/assumption-aware extensions. Stage 1C ODE work is preserved out of order and does not displace the remaining Stage 1B ladder.
+**Current status:** [~] Active. Stage 1A linear algebra and the implemented Stage 1B calculus stack, including the Fundamental Theorem of Calculus, are authoritatively verified on merged main. The current main HEAD is `d822c218f25dbec0e1758fa3d211517c72653885`, and its Exact-head verification and Security Audit both pass. The controlling next capability is Stage 1B improper integrals and convergence-aware handling (Issue #115). Stage 1C ODE work is preserved out of order and cannot leapfrog the remaining Stage 1B ladder.
 
 ---
 
@@ -617,7 +617,7 @@ When entering a new chat:
 
 **Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
 
-**Current authoritative baseline:** the current `main` HEAD. The latest merged Stage 2C and Stage 2D implementation passes are present on main but remain `[!]` until authoritative Exact-head verification and Security Audit evidence exist for the exact current HEAD. The ledger must not claim certification for capabilities that are only present on unmerged branches.
+**Current authoritative baseline:** the current `main` HEAD. The latest current main HEAD is `d822c218f25dbec0e1758fa3d211517c72653885`, and its Exact-head and Security Audit workflows both pass. Stage 2C and 2D are therefore verified for the slices already marked `[x]`; this does not imply the entire physics families are complete. The ledger must not claim certification for capabilities that are only present on unmerged branches.
 
 ---
 
