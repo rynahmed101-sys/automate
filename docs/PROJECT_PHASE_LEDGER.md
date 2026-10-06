@@ -175,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Stage 1A linear algebra is now fully implemented and authoritatively verified on the exact current main commit `7ea5570a69c0c41e61666b0d29007eabbc19c790`. This includes core linear algebra, change of basis, quadratic forms, SVD, Moore-Penrose pseudoinverse/least squares, complex semantics, and orthogonal/unitary matrix semantics. Stage 1B calculus and Stage 1C ODE foundations remain unfinished.
+**Current status:** [~] Active. Stage 1A linear algebra and the implemented Stage 1B calculus stack are authoritatively verified on exact current main. The remaining Stage 1B ladder includes the Fundamental Theorem of Calculus, improper integrals/convergence, series and expansions, partial derivatives/total differentials, Jacobians/Hessians, multivariable chain rule, stationary/constrained optimization, and domain/assumption-aware extensions. Stage 1C ODE work is preserved out of order and does not displace the remaining Stage 1B ladder.
 
 ---
 
@@ -611,7 +611,7 @@ When entering a new chat:
 
 **Active development stage:** Stage 1 — Complete Core Mathematical Engine.
 
-**Current priority:** build the Stage 1B calculus foundation, starting with limits and continuity, then general differentiation/integration and the remaining calculus ladder.
+**Current priority:** complete the remaining Stage 1B calculus ladder, beginning with the Fundamental Theorem of Calculus and then the convergence, series, multivariable, and assumption-aware extensions.
 
 **Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
 
