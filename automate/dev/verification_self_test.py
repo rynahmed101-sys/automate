@@ -1,0 +1,66 @@
+"""Execute the installed production backlog against the live engine state.
+
+This command is intentionally evidence-only. It picks the ledger-defined first
+frontier, binds it to the live engine SHA, runs the verification engine, and
+prints the resulting packet. It never promotes a capability.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+from automate.dev.verification_engine import (
+    live_repository_snapshot,
+    run_backlog_item,
+    validate_packet_consistency,
+)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--repository",
+        default="rynahmed101-sys/automate",
+    )
+    parser.add_argument(
+        "--backlog",
+        default="docs/VERIFICATION_BACKLOG.json",
+    )
+    args = parser.parse_args()
+
+    backlog = json.loads(Path(args.backlog).read_text(encoding="utf-8"))
+    first = backlog["first_frontier"]
+    snapshot = live_repository_snapshot(args.repository)
+    revision = snapshot["engine_sha"]
+    snapshot["requested_revision"] = revision
+    result = run_backlog_item(
+        capability_id=first["capability_id"],
+        repository=args.repository,
+        revision=revision,
+        branch="engine",
+        action_cycle_id="cycle_" + revision[:32],
+        snapshot=snapshot,
+        evidence_db=Path("data/verification-evidence.db"),
+    )
+    packet_errors = validate_packet_consistency(
+        result["packet"],
+        request=type("Request", (), result["request"])(),
+        repository_state=snapshot,
+    )
+    output = {
+        "status": "evidence_generated" if not packet_errors else "evidence_generated_with_consistency_findings",
+        "backlog_source": args.backlog,
+        "first_frontier": first,
+        "live_engine_sha": revision,
+        "evidence_state": result["evidence_state"],
+        "packet": result["packet"],
+        "packet_consistency_findings": packet_errors,
+        "reconciliation": result["reconciliation"],
+    }
+    print(json.dumps(output, indent=2, sort_keys=True, default=str))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

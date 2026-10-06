@@ -19,4 +19,6 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
+      - name: Run installed first-frontier verification
+        run: python -m automate.dev.verification_self_test
       - run: python -m automate.cli engine --json
