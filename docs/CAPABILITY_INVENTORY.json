@@ -95,9 +95,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       }
     },
     {
@@ -150,9 +150,9 @@
       "notes": "PR93 was an isolated duplicate/hardening packet. Canonical change-of-basis verification already exists in main via PR62/backend acceptance tests.",
       "preserved_in": "main",
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       }
     },
     {
@@ -207,9 +207,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       }
     },
     {
@@ -260,9 +260,9 @@
       "safe_to_delete": false,
       "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context.",
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       }
     },
     {
@@ -312,9 +312,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       },
       "notes": "The useful orthogonal-matrix semantics from PR91 were integrated as central rule matrix_orthogonal in PR101. The duplicate unitary helper from PR91 was intentionally not carried forward."
     },
@@ -391,9 +391,9 @@
       "safe_to_delete": false,
       "notes": "PR75 is the authoritative current-main reconciliation of the implemented Stage 1B calculus stack. The remaining Stage 1B ladder is tracked separately.",
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       }
     },
     {
@@ -443,9 +443,9 @@
       "safe_to_delete": false,
       "notes": "Current implementation packet for the next incomplete Stage 1B capability. Do not treat it as merged or certified until reconciled on main and exact-head/security verified.",
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       }
     },
     {
@@ -458,7 +458,14 @@
         "kind": "roadmap",
         "ref": "docs/PROJECT_PHASE_LEDGER.md"
       },
-      "references": [],
+      "references": [
+        {
+          "type": "issue",
+          "number": 115,
+          "state": "open",
+          "role": "tracking"
+        }
+      ],
       "depends_on": [
         "stage1b.calculus"
       ],
@@ -478,7 +485,7 @@
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "First claimable Stage 1B packet. Tracking issue: #115."
+      "notes": "First claimable Stage 1B capability. Tracking issue #115."
     },
     {
       "id": "stage1b.series_expansions",
@@ -619,7 +626,7 @@
           "type": "pr",
           "number": 114,
           "branch": "integrate/stage1c-ode-current-main",
-          "state": "open",
+          "state": "closed_future_work",
           "role": "preserved_out_of_order"
         },
         {
@@ -796,9 +803,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       }
     },
     {
@@ -817,7 +824,7 @@
           "number": 76,
           "branch": "feat/stage2-vector-pde-foundation",
           "head_sha": "67dad73d5e2112d8156238b2e1fcf4361a18b033",
-          "state": "open",
+          "state": "closed_future_work",
           "role": "primary"
         }
       ],
@@ -867,7 +874,7 @@
           "number": 79,
           "branch": "feat/stage2b-transform-foundation",
           "head_sha": "b1c0039fbb7853ede536ba87f562a62698e373a8",
-          "state": "open",
+          "state": "closed_future_work",
           "role": "primary"
         }
       ],
@@ -937,9 +944,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       }
     },
     {
@@ -980,9 +987,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-        "exact_head_workflow_run": 37426898562,
-        "security_workflow_run": 37426898568
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
       }
     },
     {
@@ -999,12 +1006,12 @@
         {
           "type": "pr",
           "number": 85,
-          "state": "open"
+          "state": "closed_future_work"
         },
         {
           "type": "pr",
           "number": 88,
-          "state": "open"
+          "state": "closed_future_work"
         }
       ],
       "depends_on": [
@@ -1046,7 +1053,7 @@
         {
           "type": "pr",
           "number": 89,
-          "state": "open"
+          "state": "closed_future_work"
         }
       ],
       "depends_on": [
@@ -1089,7 +1096,7 @@
         {
           "type": "pr",
           "number": 86,
-          "state": "open",
+          "state": "closed_future_work",
           "role": "future_work"
         }
       ],
@@ -1115,11 +1122,11 @@
     }
   ],
   "authoritative_verification": {
-    "main_sha": "7f8aa43905508be43f07d0801c9e960355cd2a4b",
-    "exact_head_workflow_run": 37426898562,
-    "security_workflow_run": 37426898568,
+    "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+    "exact_head_workflow_run": 37430727665,
     "exact_head_conclusion": "success",
+    "security_workflow_run": 37430727700,
     "security_conclusion": "success",
-    "note": "Main SHA d236cf1 has passed Exact-head and Security Audit. Future bookkeeping merges must re-run both authoritative gates for their new exact main SHA."
+    "note": "This is authoritative for current main. A later merge requires fresh exact-head and Security Audit evidence for its new main SHA."
   }
 }

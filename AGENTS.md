@@ -22,7 +22,7 @@ All normal agent interactions should prefer structured JSON:
 - `automate research <theory> --provider <provider> --max-steps N --json`: bounded research loop.
 - `automate check <graph> --json`: graph verification.
 - `automate parse <theory> --json`: canonical graph generation.
-- `automate schema --name <ir|tensor|proposal|context>`: machine-readable interchange schema discovery.
+- `automate schema --name <ir|tensor|proposal|context|agent|capability>`: machine-readable interchange schema discovery.
 - `schemas/automate-tensor-v1.json`: versioned canonical Tensor Equation contract.
 
 ## Integration rule
