@@ -74,7 +74,7 @@ def submit_worker_packet(
     )
 
 
-def execute_worker_job(
+def start_worker_job(
     job_id: str,
     *,
     url: str | None = None,
@@ -103,6 +103,29 @@ def read_worker_job(
     )
 
 
+
+
+def wait_worker_job(
+    job_id: str,
+    *,
+    url: str | None = None,
+    token: str | None = None,
+    poll_seconds: float = 2.0,
+    timeout: float = 1800.0,
+) -> dict[str, Any]:
+    import time
+
+    deadline = time.monotonic() + timeout
+    while True:
+        job = read_worker_job(job_id, url=url, token=token)
+        payload = job.get("job", {})
+        if payload.get("state") in {"succeeded", "failed", "cancelled"}:
+            return job
+        if time.monotonic() >= deadline:
+            raise WorkerTransportError("worker wait timed out; job remains durable and can be polled later")
+        time.sleep(poll_seconds)
+
+
 def dispatch_worker(
     packet: dict[str, Any],
     *,
@@ -120,11 +143,11 @@ def dispatch_worker(
 
     if not isinstance(job_id, str) or not job_id:
         raise WorkerTransportError("worker did not return a jobId")
-    result = execute_worker_job(job_id, url=url, token=token, timeout=max(timeout, 120.0))
-    if result.get("success") is False:
-        raise WorkerTransportError("worker execution failed")
+    execution = start_worker_job(job_id, url=url, token=token, timeout=timeout)
+    if execution.get("success") is False:
+        raise WorkerTransportError("worker execution could not be started")
     return {
         "queued": queued,
         "execution_requested": True,
-        "execution": result,
+        "execution": execution,
     }
