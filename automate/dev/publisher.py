@@ -88,6 +88,7 @@ def build_worker_commit(
     *,
     repository_root: Path,
     commit_message: str | None = None,
+    enforce_inventory_scope: bool = True,
 ) -> dict:
     base_sha = packet.get("repository", {}).get("base_sha_claim")
     if not isinstance(base_sha, str):
@@ -112,6 +113,7 @@ def build_worker_commit(
             root=worktree,
             branch_name=branch_name,
             run_tests=True,
+            enforce_inventory_scope=enforce_inventory_scope,
         )
         if execution["status"] != "ready_for_commit":
             return {
