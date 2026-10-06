@@ -623,3 +623,46 @@ Automate request -> Chanfana bounded execution -> Mirror experiment/research -> 
 The three repositories may progress independently when dependencies permit. A blocked or queued subsystem must not stall unrelated capability work.
 
 External research is deliberately broader than the implementation-worker role. Mirror may inspect public scholarly metadata, repositories, datasets/models, and other explicitly supported providers; this is a research capability, not a bypass around Automate's verification boundary.
+
+
+## Laboratory operating contract — hardened 2026-10-06
+
+THE MIRROR's existing laboratory instruments are first-class research capabilities. The external researcher and experiment workers may use them when they materially reduce uncertainty:
+
+- perturbation laboratory;
+- blinded controlled suites;
+- projection/simulation suites;
+- sandbox probes;
+- experiment, prediction, observation, and evidence ledgers;
+- anomaly/new-science classification.
+
+The rule is **instrument selection by research need, not continuous activity**. Research when outside evidence can clarify an idea, perturb when sensitivity or falsification matters, simulate when model comparison is useful, and stop when evidence is insufficient or the question is answered.
+
+Mirror may generate candidate mathematics, physics, alternative models, anomalies, counterexamples, and proposed experiments. Those outputs remain observations/proposals until Automate independently evaluates them. Established mathematics and physics are comparison baselines, not mandatory conclusions for Mirror's frontier laboratory.
+
+The hardened loop is:
+
+```
+Automate capability frontier / research question
+        ↓
+Chanfana bounded job envelope
+        ↓
+Mirror researcher selects the least-powerful useful instrument
+        ├── world research
+        ├── perturbation
+        ├── simulation
+        ├── controlled/blinded experiment
+        └── sandbox / observation tools
+        ↓
+raw observation + provenance + experiment/run identity
+        ↓
+Automate evidence normalization and independent verification
+        ↓
+candidate capability / anomaly / refutation / new hypothesis
+        ↓
+mathematical + numerical + independent checks
+        ↓
+proposal / PR / reconciliation
+```
+
+No Mirror instrument may mutate Automate authority records, and no external source may self-certify. The researcher is expected to use the laboratory when needed, not manufacture an endless stream of weak evidence merely because the system can call a tool.
