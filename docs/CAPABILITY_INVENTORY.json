@@ -39,7 +39,10 @@
     "rule": "Capability packets own math source, focused tests and semantic docs. Shared registry/schema/dispatch integration belongs to the primary integrator.",
     "allowed_maintenance_branch_prefixes": [
       "fix/",
-      "hotfix/"
+      "hotfix/",
+      "docs/",
+      "chore/",
+      "refactor/"
     ]
   },
   "capabilities": [
@@ -1128,5 +1131,37 @@
     "security_workflow_run": 37430727700,
     "security_conclusion": "success",
     "note": "This is authoritative for current main. A later merge requires fresh exact-head and Security Audit evidence for its new main SHA."
-  }
+  },
+  "integration_references": [
+    {
+      "number": 95,
+      "branch": "integrate/verification-bookkeeping",
+      "state": "merged",
+      "purpose": "authoritative verification bookkeeping"
+    },
+    {
+      "number": 113,
+      "branch": "integrate/control-plane-dependency-aware-queue",
+      "state": "merged",
+      "purpose": "dependency-aware queue hardening"
+    },
+    {
+      "number": 116,
+      "branch": "integrate/control-plane-stage1b-frontier",
+      "state": "merged",
+      "purpose": "Stage 1B frontier inventory and issue bookkeeping"
+    },
+    {
+      "number": 117,
+      "branch": "integrate/control-plane-final-bookkeeping",
+      "state": "merged",
+      "purpose": "final capability-control-plane verification bookkeeping"
+    },
+    {
+      "number": 118,
+      "branch": "integrate/control-plane-live-audit",
+      "state": "open",
+      "purpose": "live GitHub PR consistency and deterministic queue snapshot"
+    }
+  ]
 }

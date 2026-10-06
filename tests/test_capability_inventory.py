@@ -66,6 +66,8 @@ def test_scope_guard_allows_maintenance_branches():
 
     assert validate_branch_scope("fix/ftc-decorator", ["automate/backend/sympy_backend.py"]) == []
     assert validate_branch_scope("hotfix/security-regression", ["automate/backend/sympy_backend.py"]) == []
+    assert validate_branch_scope("docs/one-giant-truth", ["docs/ONE_GIANT_TRUTH.md"]) == []
+    assert validate_branch_scope("chore/control-plane", ["docs/CAPABILITY_INVENTORY.json"]) == []
 
 
 def test_scope_guard_rejects_unregistered_capability_branch():
@@ -150,3 +152,77 @@ def test_tracked_planned_capability_remains_claimable():
     candidate = next_unclaimed(data)
     assert candidate is not None
     assert candidate["id"] == "stage1b.improper_integrals"
+
+
+def test_queue_command_exposes_active_and_blocked_state():
+    result = CliRunner().invoke(main, ["capability", "queue", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["next_action"]["action"] == "implement"
+    assert payload["next_unclaimed"] == "stage1b.improper_integrals"
+    assert "stage1c.ode" in payload["preserved_out_of_order"]
+
+
+def test_live_audit_accepts_matching_pr_inventory():
+    from automate.dev.live import audit_live
+
+    data = load_inventory()
+    item = next(x for x in data["capabilities"] if x["implementation_state"] == "merged_main")
+    assert audit_live("rynahmed101-sys/automate", pull_requests=[]) == []
+
+
+def test_live_audit_rejects_unrecorded_capability_pr():
+    from automate.dev.live import audit_live
+
+    with_errors = [
+        {
+            "number": 999,
+            "headRefName": "feat/unrecorded-capability",
+            "headRefOid": "0" * 40,
+            "baseRefName": "main",
+            "isDraft": False,
+            "url": "https://github.com/rynahmed101-sys/automate/pull/999",
+        }
+    ]
+    errors = audit_live("rynahmed101-sys/automate", pull_requests=with_errors)
+    assert any("no capability ownership reference" in error for error in errors)
+
+
+def test_live_audit_allows_mutable_active_pr_head():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 118,
+        "headRefName": "integrate/control-plane-live-audit",
+        "headRefOid": "f" * 40,
+        "baseRefName": "main",
+        "isDraft": False,
+    }
+    assert audit_live("rynahmed101-sys/automate", pull_requests=[pr]) == []
+
+
+def test_live_audit_accepts_matching_integration_pr():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 118,
+        "headRefName": "integrate/control-plane-live-audit",
+        "headRefOid": "0a0d80bf0d7c3a08c2a04a0db78cbb70b11a7f5f",
+        "baseRefName": "main",
+        "isDraft": False,
+    }
+    assert audit_live("rynahmed101-sys/automate", pull_requests=[pr]) == []
+
+
+def test_live_audit_rejects_feature_pr_targeting_non_main():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 999,
+        "headRefName": "feat/unrecorded-capability",
+        "headRefOid": "0" * 40,
+        "baseRefName": "feature/old-base",
+        "isDraft": False,
+    }
+    errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
+    assert any("no capability ownership reference" in error for error in errors)

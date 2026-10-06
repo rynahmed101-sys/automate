@@ -61,6 +61,14 @@ jobs:
       - name: Validate development control plane
         run: |
           automate capability validate --json
+          automate capability queue --json
+
+      - name: Audit live capability references
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          automate capability audit-live --repo "${{ github.repository }}" --json
+
 
       - name: Enforce capability branch scope
         env:
@@ -114,6 +122,14 @@ jobs:
       - name: Validate development control plane
         run: |
           automate capability validate --json
+          automate capability queue --json
+
+      - name: Audit live capability references
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          automate capability audit-live --repo "${{ github.repository }}" --json
+
 
       - name: Run full test suite
         run: |

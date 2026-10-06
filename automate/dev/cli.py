@@ -12,6 +12,7 @@ from automate.dev.inventory import (
     next_action,
     next_unclaimed,
     packet as capability_packet,
+    queue_snapshot,
     validate_inventory,
 )
 
@@ -124,3 +125,26 @@ def guard_command(branch: str, base: str | None, head: str, changed_file: tuple[
             click.echo(f"ERROR: {error}", err=True)
         raise click.exceptions.Exit(1)
     click.echo(f"BRANCH_SCOPE_OK: {branch} ({len(files)} changed files)")
+
+
+@capability.command("queue")
+@click.option("--json", "as_json", is_flag=True)
+def queue_command(as_json: bool) -> None:
+    """Print the complete deterministic capability queue state."""
+    payload = queue_snapshot(load_inventory())
+    click.echo(json.dumps(payload, indent=2) if as_json else json.dumps(payload, indent=2))
+
+
+@capability.command("audit-live")
+@click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--json", "as_json", is_flag=True)
+def audit_live_command(repository: str, as_json: bool) -> None:
+    """Cross-check inventory references against live open GitHub PRs."""
+    from automate.dev.live import LiveAuditError, summarize_live
+    try:
+        payload = summarize_live(repository)
+    except LiveAuditError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2) if as_json else ("VALID" if payload["valid"] else "\n".join(payload["errors"])))
+    if not payload["valid"]:
+        raise click.exceptions.Exit(1)
