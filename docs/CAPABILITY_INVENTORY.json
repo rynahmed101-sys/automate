@@ -492,7 +492,23 @@
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "First claimable Stage 1B capability. Tracking issue #115. Worker boundary: owns dedicated backend source, focused tests, and semantic docs; shared rule/schema integration remains primary reconciliation work."
+      "notes": "First claimable Stage 1B capability. Tracking issue #115. Worker boundary: owns dedicated backend source, focused tests, and semantic docs; shared rule/schema integration remains primary reconciliation work.",
+      "task": {
+        "source": "github_issue",
+        "ref": "115",
+        "summary": "Implement improper integrals and convergence-aware verification as the next authoritative Stage 1B calculus capability.",
+        "requirements": [
+          "Support finite-endpoint and infinite-endpoint improper integrals.",
+          "Handle explicit interior singularity split points.",
+          "Classify convergence or divergence and preserve unresolved cases.",
+          "Represent one-sided endpoint semantics correctly.",
+          "Fail closed when symbolic convergence cannot be established.",
+          "Distinguish unevaluated integrals from proved convergent values.",
+          "Cover positive, negative, singular, divergent, malformed, and unresolved-symbolic tests.",
+          "Use independent evidence where practical without treating numerical sampling as proof.",
+          "Leave shared registry, machine-agent schema, ledger, inventory, and development control-plane integration to the primary reconciler."
+        ]
+      }
     },
     {
       "id": "stage1b.series_expansions",
