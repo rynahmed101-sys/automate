@@ -1162,6 +1162,12 @@
       "branch": "integrate/control-plane-live-audit",
       "state": "open",
       "purpose": "live GitHub PR consistency and deterministic queue snapshot"
+    },
+    {
+      "number": 120,
+      "branch": "integrate/autonomous-worker-foundation",
+      "state": "open",
+      "purpose": "autonomous worker foundation integration"
     }
   ]
 }
