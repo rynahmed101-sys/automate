@@ -64,3 +64,17 @@ For changes affecting verification semantics:
 ## Agent compatibility
 
 This contract is intentionally tool-agnostic. A capable integration can use GitHub, a local shell, an IDE, an MCP server, or another orchestration layer. The integration mechanism is replaceable; Automate's JSON contracts and verification boundary are not.
+
+## Development control-plane first actions
+
+Before starting or delegating a capability, query:
+- `automate capability list --json`
+- `automate capability refs --json`
+- `automate capability status <capability-id> --json`
+- `automate capability next --json`
+
+The phase ledger remains the roadmap authority. `docs/CAPABILITY_INVENTORY.json` is the implementation/ownership authority. An absent capability on main is not automatically unimplemented; inspect recorded branches and PRs first.
+
+Capability packets own mathematical source, focused tests, and semantic documentation. Shared registry/schema/dispatch integration is primary-integrator work. One open PR has one direct capability owner; a multi-capability integration PR must be explicitly marked as an integration batch in the inventory.
+
+Record verification transitions separately. Never mark a capability certified from branch CI alone.
