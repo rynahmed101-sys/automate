@@ -1,7 +1,25 @@
-"""Reusable harmonic-wave and basic-optics representations and verification."""
+"""Reusable harmonic-wave and basic-optics representations and evidence checks."""
 from .core import (
-    HarmonicWave, superpose, standing_wave, dispersion_relation,
-    ReflectionRefraction, PolarizationState, diffraction_single_slit,
+    HarmonicWave,
+    superpose,
+    interference_intensity,
+    standing_wave,
+    verify_harmonic_wave_equation,
+    dispersion_relation,
+    dispersion_curve,
+    ReflectionRefraction,
+    PolarizationState,
+    diffraction_single_slit,
 )
-__all__ = ["HarmonicWave","superpose","standing_wave","dispersion_relation",
-           "ReflectionRefraction","PolarizationState","diffraction_single_slit"]
+__all__ = [
+    "HarmonicWave",
+    "superpose",
+    "interference_intensity",
+    "standing_wave",
+    "verify_harmonic_wave_equation",
+    "dispersion_relation",
+    "dispersion_curve",
+    "ReflectionRefraction",
+    "PolarizationState",
+    "diffraction_single_slit",
+]
