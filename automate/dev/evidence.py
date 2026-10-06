@@ -27,7 +27,14 @@ def build_receipt(*, action: str, repository: str, base_sha: str,
                   trust_state: str, evidence: list[dict[str, Any]],
                   branch: str | None = None, pr_number: int | None = None,
                   merge_sha: str | None = None,
-                  unresolved: list[str] | None = None) -> dict[str, Any]:
+                  unresolved: list[str] | None = None,
+                  action_cycle_id: str | None = None,
+                  target: str | None = None,
+                  packet_id: str | None = None,
+                  result_id: str | None = None,
+                  file_hashes: list[dict[str, str]] | None = None,
+                  verification: dict[str, Any] | None = None,
+                  final_exact_head_sha: str | None = None) -> dict[str, Any]:
     if trust_state not in _TRUST_ORDER:
         raise ValueError(f"unknown trust state: {trust_state}")
     receipt = {
@@ -38,6 +45,13 @@ def build_receipt(*, action: str, repository: str, base_sha: str,
                        "branch": branch, "pr_number": pr_number, "merge_sha": merge_sha},
         "observed_at": datetime.now(timezone.utc).isoformat(),
         "trust_state": trust_state,
+        "action_cycle_id": action_cycle_id,
+        "target": target,
+        "packet_id": packet_id,
+        "result_id": result_id,
+        "file_hashes": list(file_hashes or []),
+        "verification": verification or {},
+        "final_exact_head_sha": final_exact_head_sha,
         "evidence": {"items": evidence},
         "unresolved": list(unresolved or []),
     }
