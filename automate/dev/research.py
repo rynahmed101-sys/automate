@@ -61,3 +61,59 @@ def source_digest(source: dict[str, Any]) -> str:
     if missing:
         raise ValueError("research source missing required fields: "+", ".join(missing))
     return hashlib.sha256(json.dumps(source, sort_keys=True, separators=(",",":")).encode()).hexdigest()
+
+
+def build_mirror_research_job(
+    *,
+    capability: dict[str, Any],
+    mirror_endpoint: str,
+    request_id: str,
+    correlation_id: str,
+    max_results_per_provider: int = 5,
+    deadline_ms: int = 120_000,
+    max_response_bytes: int = 1_000_000,
+) -> dict[str, Any]:
+    """Build the bounded Chanfana envelope that commissions Mirror to research a capability.
+
+    Research is evidence acquisition, not implementation authority. The resulting packet
+    deliberately names the capability frontier so the researcher can investigate mature
+    implementations, counterexamples, mathematical prerequisites, and unusual alternatives.
+    """
+    if not mirror_endpoint:
+        raise ValueError("mirror_endpoint is required")
+    objective = str(capability.get("name") or capability.get("id") or "").strip()
+    task = capability.get("task") or {}
+    summary = str(task.get("summary") or "").strip()
+    requirements = [str(x) for x in task.get("requirements", []) if str(x).strip()]
+    query = objective + (": " + summary if summary else "")
+    query = query[:500]
+    job = {
+        "schema_version": "mirror.research_job.v1",
+        "request_id": request_id,
+        "execution_kind": "external_research",
+        "target": {"mirror_endpoint": mirror_endpoint},
+        "query": query,
+        "providers": ["crossref", "openalex", "arxiv", "github", "huggingface"],
+        "limits": {
+            "max_results_per_provider": max_results_per_provider,
+            "deadline_ms": deadline_ms,
+            "max_response_bytes": max_response_bytes,
+        },
+        "provenance": {
+            "capability_id": str(capability.get("id") or ""),
+            "experiment_id": None,
+            "correlation_id": correlation_id,
+        },
+        "research_intent": {
+            "objective": objective,
+            "summary": summary,
+            "requirements": requirements,
+            "instructions": [
+                "Find mature scientific and open-source approaches before recommending reinvention.",
+                "Look for counterexamples, edge cases, known failure modes, and contradictory evidence.",
+                "Include unusual or frontier approaches when evidence warrants them; established theory is a baseline, not a veto.",
+                "Return evidence and uncertainty, not certification.",
+            ],
+        },
+    }
+    return job
