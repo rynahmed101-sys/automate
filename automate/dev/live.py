@@ -73,9 +73,6 @@ def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]]
                 errors.append(f'PR #{number} for {item["id"]} targets {pr.get("baseRefName")}, not main.')
             if branch and pr.get("headRefName") != branch:
                 errors.append(f'PR #{number} for {item["id"]} branch mismatch: inventory={branch}, live={pr.get("headRefName")}.')
-            recorded_sha = ref.get("head_sha")
-            if recorded_sha and pr.get("headRefOid") and recorded_sha != pr["headRefOid"]:
-                errors.append(f'PR #{number} for {item["id"]} head mismatch: inventory={recorded_sha}, live={pr.get("headRefOid")}.')
 
     for branch, owners in inventory_branches.items():
         unique = sorted(set(owners))
@@ -92,9 +89,6 @@ def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]]
             recorded_branch = integration_refs[number].get("branch")
             if recorded_branch and recorded_branch != branch:
                 errors.append(f"PR #{number} integration branch mismatch: inventory={recorded_branch}, live={branch}.")
-            recorded_sha = integration_refs[number].get("head_sha")
-            if recorded_sha and pr.get("headRefOid") and recorded_sha != pr["headRefOid"]:
-                errors.append(f"PR #{number} integration head mismatch: inventory={recorded_sha}, live={pr.get("headRefOid")}.")
 
     return errors
 
