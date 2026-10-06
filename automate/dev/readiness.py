@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import base64
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 from typing import Any
 
 from automate.dev.live import summarize_live
@@ -20,18 +26,11 @@ REQUIRED_GATES = (
 
 
 def evaluate_readiness(evidence: dict[str, Any]) -> dict[str, Any]:
-    failures = [
-        gate for gate in REQUIRED_GATES
-        if evidence.get(gate) is not True
-    ]
-
+    failures = [gate for gate in REQUIRED_GATES if evidence.get(gate) is not True]
     return {
         "schema_version": "automate.autonomy_readiness.v1",
         "ready": not failures,
-        "gates": {
-            gate: bool(evidence.get(gate) is True)
-            for gate in REQUIRED_GATES
-        },
+        "gates": {gate: evidence.get(gate) is True for gate in REQUIRED_GATES},
         "blocking_gates": failures,
         "worker_mode": "enabled" if not failures else "off",
         "policy": (
@@ -42,13 +41,6 @@ def evaluate_readiness(evidence: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-import json
-import os
-import subprocess
-import sys
-from pathlib import Path
-
-
 def _gh_json(repository: str, *args: str) -> Any:
     env = os.environ.copy()
     if not env.get("GH_TOKEN") and not env.get("GITHUB_TOKEN"):
@@ -56,8 +48,13 @@ def _gh_json(repository: str, *args: str) -> Any:
     endpoint = "repos/" + repository
     if args:
         endpoint += "/" + "/".join(arg.strip("/") for arg in args)
-    command = ["gh", "api", endpoint]
-    result = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
+    result = subprocess.run(
+        ["gh", "api", endpoint],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "GitHub query failed")
     try:
@@ -70,24 +67,32 @@ def _workflow_success(repository: str, workflow_file: str, commit_sha: str) -> b
     env = os.environ.copy()
     if not env.get("GH_TOKEN") and not env.get("GITHUB_TOKEN"):
         return False
-    command = [
-        "gh", "run", "list",
-        "--repo", repository,
-        "--workflow", workflow_file,
-        "--commit", commit_sha,
-        "--status", "completed",
-        "--limit", "20",
-        "--json", "databaseId,conclusion",
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, check=False, env=env)
+    result = subprocess.run(
+        [
+            "gh", "run", "list",
+            "--repo", repository,
+            "--workflow", workflow_file,
+            "--commit", commit_sha,
+            "--status", "completed",
+            "--limit", "20",
+            "--json", "databaseId,conclusion",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
     if result.returncode != 0:
         return False
     try:
         runs = json.loads(result.stdout or "[]")
     except json.JSONDecodeError:
         return False
-    return any(run.get("conclusion") == "success" for run in runs if isinstance(run, dict))
-
+    return any(
+        run.get("conclusion") == "success"
+        for run in runs
+        if isinstance(run, dict)
+    )
 
 
 def _github_content_exists(repository: str, path: str, ref: str) -> bool:
@@ -96,6 +101,23 @@ def _github_content_exists(repository: str, path: str, ref: str) -> bool:
         return True
     except Exception:
         return False
+
+
+def _merged_foundation_pr(repository: str, pr_number: int = 120) -> bool:
+    """Require live GitHub merge evidence, never inventory self-report."""
+    try:
+        pr = _gh_json(repository, f"/pulls/{pr_number}")
+    except Exception:
+        return False
+    return (
+        pr.get("number") == pr_number
+        and pr.get("base", {}).get("ref") == "main"
+        and pr.get("head", {}).get("ref") == "integrate/autonomous-worker-foundation"
+        and bool(pr.get("merged_at"))
+        and bool(pr.get("merge_commit_sha"))
+    )
+
+
 def collect_readiness_evidence(
     repository: str,
     *,
@@ -105,10 +127,7 @@ def collect_readiness_evidence(
     errors: list[str] = []
 
     try:
-        ref = _gh_json(
-            repository,
-            "/git/ref/heads/main",
-        )
+        ref = _gh_json(repository, "/git/ref/heads/main")
         main_sha = ref.get("object", {}).get("sha")
     except Exception as exc:
         main_sha = None
@@ -120,40 +139,23 @@ def collect_readiness_evidence(
         and _workflow_success(repository, "ci.yml", main_sha)
         and _workflow_success(repository, "security.yml", main_sha)
     )
-    evidence["autonomous_foundation_merged_main"] = False
-    try:
-        inventory = _gh_json(repository, "/contents/docs/CAPABILITY_INVENTORY.json?ref=main")
-        import base64
 
-        encoded = inventory.get("content")
-        if isinstance(encoded, str):
-            decoded = base64.b64decode(encoded).decode("utf-8")
-            inv = json.loads(decoded)
-            refs = inv.get("integration_references", [])
-            merged_ref = any(
-                ref.get("number") == 120 and ref.get("state") == "merged"
-                for ref in refs
-                if isinstance(ref, dict)
-            )
-            required_files = (
-                "automate/dev/autonomous.py",
-                "automate/dev/readiness.py",
-                "automate/dev/worker_client.py",
-                "automate/dev/executor.py",
-                "automate/dev/publisher.py",
-            )
-            files_present = all(
-                _github_content_exists(repository, path, "main")
-                for path in required_files
-            )
-            evidence["autonomous_foundation_merged_main"] = merged_ref and files_present
-    except Exception as exc:
-        errors.append(f"autonomous foundation merge inspection failed: {exc}")
+    required_files = (
+        "automate/dev/autonomous.py",
+        "automate/dev/readiness.py",
+        "automate/dev/worker_client.py",
+        "automate/dev/executor.py",
+        "automate/dev/publisher.py",
+    )
+    evidence["autonomous_foundation_merged_main"] = bool(
+        _merged_foundation_pr(repository)
+        and all(_github_content_exists(repository, path, "main") for path in required_files)
+    )
 
     evidence["live_control_plane_clean"] = False
     try:
         live = summarize_live(repository)
-        evidence["live_control_plane_clean"] = bool(live.get("valid") is True)
+        evidence["live_control_plane_clean"] = live.get("valid") is True
         if not evidence["live_control_plane_clean"]:
             errors.extend(list(live.get("errors", [])))
     except Exception as exc:
@@ -179,10 +181,11 @@ def collect_readiness_evidence(
             timeout=1200,
             check=False,
         )
-        evidence["worker_contract_tested"] = completed.returncode == 0
-        evidence["worker_output_independently_validated"] = completed.returncode == 0
-        evidence["end_to_end_dry_run_passed"] = completed.returncode == 0
-        if completed.returncode != 0:
+        passed = completed.returncode == 0
+        evidence["worker_contract_tested"] = passed
+        evidence["worker_output_independently_validated"] = passed
+        evidence["end_to_end_dry_run_passed"] = passed
+        if not passed:
             errors.append("autonomous foundation test suite failed")
     except (OSError, subprocess.SubprocessError) as exc:
         errors.append(f"autonomous foundation tests could not run: {exc}")
@@ -200,13 +203,10 @@ def collect_readiness_evidence(
             "src/worker/guard.ts",
             "src/endpoints/worker/jobExecute.ts",
         )
-        present = True
-        for path in required_worker_files:
-            try:
-                _gh_json(worker_repository, f"/contents/{path}?ref=main")
-            except Exception:
-                present = False
-                break
+        present = all(
+            _github_content_exists(worker_repository, path, "main")
+            for path in required_worker_files
+        )
         worker_ci = (
             isinstance(worker_sha, str)
             and _workflow_success(worker_repository, "worker-ci.yml", worker_sha)
@@ -214,7 +214,10 @@ def collect_readiness_evidence(
         evidence["worker_api_authenticated_bounded"] = present and worker_ci
         merged_pr = False
         try:
-            closed_prs = _gh_json(worker_repository, "/pulls?state=closed&base=main&per_page=50")
+            closed_prs = _gh_json(
+                worker_repository,
+                "/pulls?state=closed&base=main&per_page=50",
+            )
             merged_pr = any(
                 isinstance(pr, dict) and pr.get("merged_at")
                 for pr in closed_prs
@@ -242,5 +245,4 @@ def auto_readiness(
         repository,
         worker_repository=worker_repository,
     )
-    result = evaluate_readiness(collected["evidence"])
-    return {**result, **collected}
+    return {**evaluate_readiness(collected["evidence"]), **collected}
