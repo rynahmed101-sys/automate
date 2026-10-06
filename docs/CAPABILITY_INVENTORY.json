@@ -507,8 +507,7 @@
       "verification_evidence": {
         "main_sha": "a191f1100578189e97f3603178dc7027dbfd0ec7",
         "exact_head_workflow_run": 37544252524,
-        "security_workflow_run": 37544252443,
-        "note": "Exact-head and Security Audit are currently running for this exact main SHA. Earlier successful checks for 6a324af remain historical evidence only."
+        "security_workflow_run": 37544252443
       }
     },
     {
