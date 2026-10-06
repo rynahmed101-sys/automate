@@ -36,7 +36,7 @@ def test_capability_status_exposes_real_frontier():
     result = CliRunner().invoke(main, ["capability", "status", "stage1c.ode", "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["implementation_state"] == "awaiting_reconciliation"
+    assert payload["implementation_state"] == "preserved_out_of_order"
     assert any(ref.get("number") == 92 for ref in payload["references"])
 
 
