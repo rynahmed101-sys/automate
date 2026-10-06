@@ -75,6 +75,11 @@ def build_worker_packet(
             f"{capability_id}: canonical worker file boundary is not declared."
         )
     allowed = list(item["canonical_files"])
+    test_targets = [path for path in allowed if path.startswith("tests/")]
+    if not test_targets:
+        raise InventoryError(
+            f"{capability_id}: at least one canonical focused test target is required."
+        )
 
     context_paths: list[str] = []
     seen: set[str] = set()
@@ -150,6 +155,7 @@ def build_worker_packet(
                 "must_run_tests": True,
                 "must_report_unresolved": True,
                 "must_not_claim_certification": True,
+                "test_targets": test_targets,
             },
         },
     }
