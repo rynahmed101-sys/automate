@@ -10,6 +10,8 @@ from automate.dev.discovery import DiscoveryIntakeError, triage_candidate
 from automate.dev.evolution import build_evolution_plan
 from automate.dev.learning_loop import plan_next_learning_action
 from automate.dev.evolution_executor import EvolutionExecutionError, execute_evolution_plan
+from automate.dev.discovery import DiscoveryIntakeError, triage_candidate
+from automate.dev.learning_loop import LearningLoopError, plan_next_learning_action
 from automate.dev.learning import (
     LearningError,
     LearningStore,
