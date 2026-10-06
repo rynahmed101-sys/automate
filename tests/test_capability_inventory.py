@@ -210,3 +210,30 @@ def test_live_audit_rejects_head_mismatch():
     }
     errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
     assert any("head mismatch" in error for error in errors)
+
+
+def test_live_audit_accepts_matching_integration_pr():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 118,
+        "headRefName": "integrate/control-plane-live-audit",
+        "headRefOid": "0a0d80bf0d7c3a08c2a04a0db78cbb70b11a7f5f",
+        "baseRefName": "main",
+        "isDraft": False,
+    }
+    assert audit_live("rynahmed101-sys/automate", pull_requests=[pr]) == []
+
+
+def test_live_audit_rejects_feature_pr_targeting_non_main():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 999,
+        "headRefName": "feat/unrecorded-capability",
+        "headRefOid": "0" * 40,
+        "baseRefName": "feature/old-base",
+        "isDraft": False,
+    }
+    errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
+    assert any("no capability ownership reference" in error for error in errors)
