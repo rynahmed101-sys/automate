@@ -112,6 +112,8 @@ def dispatch_worker(
     timeout: float = 30.0,
 ) -> dict[str, Any]:
     queued = submit_worker_packet(packet, url=url, token=token, timeout=timeout)
+    if queued.get("success") is False:
+        raise WorkerTransportError("worker rejected packet submission")
     job_id = queued.get("jobId")
     if not execute:
         return {"queued": queued, "execution_requested": False}
@@ -119,6 +121,8 @@ def dispatch_worker(
     if not isinstance(job_id, str) or not job_id:
         raise WorkerTransportError("worker did not return a jobId")
     result = execute_worker_job(job_id, url=url, token=token, timeout=max(timeout, 120.0))
+    if result.get("success") is False:
+        raise WorkerTransportError("worker execution failed")
     return {
         "queued": queued,
         "execution_requested": True,
