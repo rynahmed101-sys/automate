@@ -162,3 +162,100 @@ def test_constitutional_evolution_cannot_be_auto_promoted():
     )
     assert decision["admit"] is False
     assert decision["status"] == "CONSTITUTIONAL_REVIEW_REQUIRED"
+
+
+def test_strategy_replay_comparison_is_fail_closed_when_samples_are_sparse(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        _experience(store, outcome="success", strategy_id="baseline", target="replay")
+        _experience(store, outcome="success", strategy_id="candidate", target="replay")
+        result = store.evaluate_strategy_change(
+            task_kind="calculus",
+            task_target="replay",
+            baseline_strategy_id="baseline",
+            candidate_strategy_id="candidate",
+            minimum_samples=2,
+        )
+        assert result["status"] == "INSUFFICIENT_SAMPLES"
+    finally:
+        store.close()
+
+
+def test_strategy_replay_comparison_does_not_claim_causality(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        for idx, outcome in enumerate(("success", "failure", "success", "success", "failure")):
+            exp = build_experience(
+                action_cycle_id=f"baseline-{idx}",
+                outcome=outcome,
+                task_kind="calculus",
+                task_target="replay",
+                strategy_id="baseline",
+                strategy_name="baseline",
+                observation=outcome,
+                evidence_refs=[{"id": f"b-{idx}"}],
+            )
+            store.add_experience(exp)
+        for idx, outcome in enumerate(("success", "success", "success", "success", "failure")):
+            exp = build_experience(
+                action_cycle_id=f"candidate-{idx}",
+                outcome=outcome,
+                task_kind="calculus",
+                task_target="replay",
+                strategy_id="candidate",
+                strategy_name="candidate",
+                observation=outcome,
+                evidence_refs=[{"id": f"c-{idx}"}],
+            )
+            store.add_experience(exp)
+        result = store.evaluate_strategy_change(
+            task_kind="calculus",
+            task_target="replay",
+            baseline_strategy_id="baseline",
+            candidate_strategy_id="candidate",
+            minimum_samples=5,
+        )
+        assert result["status"] == "candidate_better"
+        assert result["causal_claim"] is False
+        assert "prospective" in result["next_step"]
+    finally:
+        store.close()
+
+
+def test_adopted_lesson_conflicts_are_flagged_without_auto_resolution(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        ids = []
+        for idx in range(2):
+            ids.append(_experience(store, outcome="success", strategy_id=f"s{idx}", target="conflict"))
+        for statement in (
+            "Use strategy A for this task.",
+            "Use strategy B for this task.",
+        ):
+            lesson = build_lesson(
+                lesson_type="strategy",
+                statement=statement,
+                scope={
+                    "task_kind": "calculus",
+                    "task_target": "conflict",
+                    "strategy_id": "shared-scope",
+                },
+                supporting_experience_ids=ids,
+            )
+            store.add_lesson(lesson)
+            store.transition_lesson(
+                lesson["lesson_id"], "VERIFIED",
+                reason="independent review",
+                evidence=[{"id": "independent", "independence": "independent_route"}],
+            )
+            store.transition_lesson(
+                lesson["lesson_id"], "ADOPTED",
+                reason="cross-engine review",
+                evidence=[{"id": "cross", "independence": "cross_engine"}],
+            )
+        conflicts = store.lesson_conflicts(lesson_type="strategy")
+        assert len(conflicts) == 1
+        assert conflicts[0]["requires_verification"] is True
+        assert len(conflicts[0]["lesson_ids"]) == 2
+    finally:
+        store.close()
