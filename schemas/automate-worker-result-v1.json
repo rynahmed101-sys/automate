@@ -15,10 +15,11 @@
       "type":"array","maxItems":100,
       "items":{
         "type":"object","additionalProperties":false,
-        "required":["operation","path"],
+        "required":["operation","path","expected_sha"],
         "properties":{
           "operation":{"type":"string","enum":["create","update"]},
           "path":{"type":"string","minLength":1,"maxLength":500},
+          "expected_sha":{"type":["string","null"],"pattern":"^[0-9a-f]{40}$"},
           "content":{"type":["string","null"],"maxLength":200000},
           "summary":{"type":["string","null"],"maxLength":1000}
         }
