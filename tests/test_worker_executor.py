@@ -30,3 +30,27 @@ def test_executor_never_accepts_non_test_target(tmp_path: Path):
         assert "authoritative test targets" in str(exc)
     else:
         raise AssertionError("unsafe test target was accepted")
+
+
+def test_executor_rejects_path_traversal_test_target(tmp_path):
+    from automate.dev.executor import WorkerExecutionError, run_approved_tests
+
+    packet = {"verification": {"test_targets": ["tests/../escape.py"]}}
+    try:
+        run_approved_tests(packet, root=tmp_path)
+    except WorkerExecutionError as exc:
+        assert "unsafe authoritative test target" in str(exc)
+    else:
+        raise AssertionError("unsafe test target was accepted")
+
+
+def test_executor_requires_real_test_file(tmp_path):
+    from automate.dev.executor import WorkerExecutionError, run_approved_tests
+
+    packet = {"verification": {"test_targets": ["tests/missing.py"]}}
+    try:
+        run_approved_tests(packet, root=tmp_path)
+    except WorkerExecutionError as exc:
+        assert "does not exist" in str(exc)
+    else:
+        raise AssertionError("missing test file was accepted")
