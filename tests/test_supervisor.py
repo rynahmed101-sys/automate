@@ -25,7 +25,7 @@ def test_supervisor_can_dispatch_current_frontier(monkeypatch):
     )
     assert result["action"] == "continue_development"
     assert result["can_dispatch"] is False
-    assert "stage1b.improper_integrals" in result["capability_ids"]
+    assert result["capability_ids"] == ["stage1b.improper_integrals"]
     assert (
         result["worker_packet"]["packet"]["repository"]["base_sha_claim"]
         == "0000000000000000000000000000000000000000"
