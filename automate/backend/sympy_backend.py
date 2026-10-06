@@ -1106,11 +1106,12 @@ class SymPyChecker(BaseChecker):
             if limit_value.has(sp.Limit) or limit_value is sp.nan:
                 return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: convergence limit is indeterminate or unevaluated."
             residual = sp.simplify(actual - limit_value)
-            equivalent = residual.equals(0) if hasattr(residual, "equals") else residual == 0
-            if residual == 0 or equivalent is True:
+            # SymPy .equals(False) is not a proof of inequality. Only explicit
+            # zero/non-zero information is strong enough for a definitive result.
+            if residual == 0 or getattr(residual, "is_zero", None) is True:
                 return True, {"rule": "improper_integral", "converges": True, "expected_result": str(limit_value), "actual_result": str(actual), "residual": str(residual)}, [{"step": 1, "operation": "convergence_limit", "result": str(limit_value)}, {"step": 2, "operation": "compare_claimed_value", "residual": str(residual)}], None
-            if equivalent is False:
-                return False, {"rule": "improper_integral", "converges": True, "expected_result": str(limit_value), "actual_result": str(actual), "residual": str(residual)}, [], "Improper integral converges, but claimed value is incorrect."
+            if getattr(residual, "is_zero", None) is False:
+                return False, {"rule": "improper_integral", "converges": True, "expected_result": str(limit_value), "actual_result": str(actual), "residual": str(residual)}, [{"step": 1, "operation": "convergence_limit", "result": str(limit_value)}, {"step": 2, "operation": "prove_nonzero_residual", "residual": str(residual)}], "Improper integral converges, but claimed value is provably incorrect."
             return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: convergent value comparison could not establish equality."
         except Exception as exc:
             return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], f"UNVERIFIED: improper-integral analysis failed: {type(exc).__name__}: {exc}"
