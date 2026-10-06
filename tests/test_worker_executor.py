@@ -1,5 +1,6 @@
 """Tests for the isolated worker executor."""
 
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -7,9 +8,7 @@ from automate.dev.executor import run_approved_tests
 
 
 def test_executor_uses_packet_test_targets(tmp_path: Path):
-    packet = {
-        "verification": {"test_targets": ["tests/test_example.py"]},
-    }
+    packet = {"verification": {"test_targets": ["tests/test_example.py"]}}
     with patch("automate.dev.executor.subprocess.run") as run:
         run.return_value.returncode = 0
         run.return_value.stdout = "ok"
@@ -18,7 +17,7 @@ def test_executor_uses_packet_test_targets(tmp_path: Path):
     assert result["status"] == "passed"
     run.assert_called_once()
     args = run.call_args.args[0]
-    assert args[:4] == ["python", "-m", "pytest", "-q"]
+    assert args[:4] == [sys.executable, "-m", "pytest", "-q"]
     assert args[4:] == ["tests/test_example.py"]
 
 
@@ -34,7 +33,6 @@ def test_executor_never_accepts_non_test_target(tmp_path: Path):
 
 def test_executor_rejects_path_traversal_test_target(tmp_path):
     from automate.dev.executor import WorkerExecutionError, run_approved_tests
-
     packet = {"verification": {"test_targets": ["tests/../escape.py"]}}
     try:
         run_approved_tests(packet, root=tmp_path)
@@ -46,7 +44,6 @@ def test_executor_rejects_path_traversal_test_target(tmp_path):
 
 def test_executor_requires_real_test_file(tmp_path):
     from automate.dev.executor import WorkerExecutionError, run_approved_tests
-
     packet = {"verification": {"test_targets": ["tests/missing.py"]}}
     try:
         run_approved_tests(packet, root=tmp_path)
