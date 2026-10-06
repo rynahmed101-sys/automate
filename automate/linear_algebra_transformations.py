@@ -49,7 +49,9 @@ def _zero_state(expr: sp.Expr) -> bool | None:
         proved = reduced.equals(0)
     except Exception:
         proved = None
-    return proved if proved in (True, False) else None
+    # SymPy may return False from equals() when it cannot prove equality.
+    # Only True is proof of zero; ambiguity must remain UNVERIFIED.
+    return True if proved is True else None
 
 
 def _matrix_zero_state(matrix: sp.MatrixBase) -> bool | None:
