@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://automate.physics/schemas/automate-learning-experience-v1.json",
+  "title": "Automate Learning Experience (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "experience_id",
+    "action_cycle_id",
+    "outcome",
+    "task",
+    "strategy",
+    "observation",
+    "failure_class",
+    "evidence_refs",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"const": "automate.learning_experience.v1"},
+    "experience_id": {"type": "string", "pattern": "^exp_[0-9a-f]{32}$"},
+    "action_cycle_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "outcome": {"enum": ["success", "failure", "unknown", "contradiction"]},
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1}
+      }
+    },
+    "strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy_id", "name"],
+      "properties": {
+        "strategy_id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1}
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "reproducible"],
+      "properties": {
+        "summary": {"type": "string", "minLength": 1, "maxLength": 10000},
+        "reproducible": {"type": ["boolean", "null"]}
+      }
+    },
+    "failure_class": {"type": ["string", "null"]},
+    "evidence_refs": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "correlation_id", "created_at"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "revision": {"type": ["string", "null"]},
+        "correlation_id": {"type": ["string", "null"]},
+        "created_at": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
