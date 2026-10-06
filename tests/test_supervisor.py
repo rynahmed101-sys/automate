@@ -14,7 +14,7 @@ def test_supervisor_stops_when_live_audit_fails(monkeypatch):
     assert "bad live state" in result["errors"]
 
 
-def test_supervisor_can_dispatch_current_frontier(monkeypatch):
+def test_supervisor_respects_active_engine_frontier(monkeypatch):
     monkeypatch.setattr(
         "automate.dev.supervisor.summarize_live",
         lambda _: {"repository": "x", "valid": True, "errors": []},
