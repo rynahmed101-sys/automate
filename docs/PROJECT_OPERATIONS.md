@@ -137,3 +137,21 @@ The goal is not artificial optimism. It is useful optimism:
 - boring infrastructure is valuable;
 - every finished boundary makes the next boundary easier.
 
+
+## Development control plane
+
+The phase ledger is the roadmap authority. Implementation ownership and verification state are tracked separately in `docs/CAPABILITY_INVENTORY.json`, with schema `automate.capability_inventory.v1`.
+
+Before new capability work, agents should run:
+```bash
+automate capability list --json
+automate capability refs --json
+automate capability status <capability-id> --json
+automate capability next --json
+```
+
+Capability branches must target `main` and own the mathematical source, focused tests, and semantic docs. The primary integrator owns shared registry/schema/dispatch files. A PR may directly own one capability; integration batches may reference multiple capabilities only with explicit `integration_batch` role.
+
+The inventory is intentionally separate from the roadmap. It records planned/delegated/awaiting-reconciliation/reconciled/merged/superseded state, branch/PR evidence, dependencies, and verification axes. Missing code on main is therefore not evidence that a capability never existed.
+
+CI uses one fast PR path and one authoritative main path. Feature branch pushes do not run the development suite independently of PR updates. Exact-head runs only on main commits. Security audit is authoritative on main and on its scheduled cadence.
