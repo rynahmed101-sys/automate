@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://automate.physics/schemas/automate-data-query-v1.json",
+  "title": "Automate Structured Data Query (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "provider",
+    "query",
+    "limits"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "automate.data_query.v1"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "sources": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_rows",
+        "max_bytes",
+        "timeout_ms"
+      ],
+      "properties": {
+        "max_rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 50000000
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 300000
+        }
+      }
+    },
+    "required_provenance": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      }
+    }
+  }
+}
