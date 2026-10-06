@@ -258,7 +258,6 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
-                    self.register(RuleDefinition(
             rule_id="improper_integral",
             name="Improper Integrals and Convergence",
             category="calculus",
@@ -274,7 +273,8 @@ class RuleRegistry:
             citation="Improper Riemann integrals and convergence by limits",
         ))
 
-rule_id="integrate",
+        self.register(RuleDefinition(
+            rule_id="integrate",
             name="Definite and Indefinite Integration",
             category="calculus",
             description="Verifies symbolic definite or indefinite integration; indefinite results are checked by differentiation and may differ by integration constants or lower-order integration polynomials.",
