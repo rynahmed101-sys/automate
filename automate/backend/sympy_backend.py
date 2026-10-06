@@ -1591,7 +1591,6 @@ class SymPyChecker(BaseChecker):
         except (NotImplementedError, ValueError, TypeError):
             return False, "real-domain analysis was unavailable"
     
-    @classmethod
     @staticmethod
     def _ftc_zero_state(expr: sp.Expr) -> Optional[bool]:
         try:
@@ -1782,6 +1781,7 @@ class SymPyChecker(BaseChecker):
         ]
         return True, details, steps, None
 
+    @classmethod
     def _verify_limit(cls, in_node: Any, out_node: Any, params: Dict[str, Any]):
         from automate.ir.safe_parser import SafeParser, SafeParseError
         expr, variable, point, direction = cls._parse_limit_inputs(in_node, params)
