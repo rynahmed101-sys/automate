@@ -28,7 +28,9 @@
     "capability_inventory": "automate.capability_inventory.v1",
     "learning_experience": "automate.learning_experience.v1",
     "learning_lesson": "automate.learning_lesson.v1",
-    "system_evolution_proposal": "automate.system_evolution_proposal.v1"
+    "system_evolution_proposal": "automate.system_evolution_proposal.v1",
+    "discovery_triage": "automate.discovery_triage.v1",
+    "learning_loop_plan": "automate.learning_loop_plan.v1"
   },
   "command_protocol": {
     "input_convention": "CLI arguments plus UTF-8 JSON files where a command accepts structured artifacts.",
@@ -223,6 +225,31 @@
         "base_revision",
         "self_merge",
         "certified"
+      ]
+    },
+    "triage-discovery": {
+      "command": "automate learn triage-discovery <proposal>",
+      "mode": "read_only",
+      "purpose": "Classify an untrusted discovered capability against canonical prerequisites without mutating the ledger or inventory.",
+      "returns": [
+        "status",
+        "candidate_capability_id",
+        "dependencies",
+        "prerequisites",
+        "canonical_inventory_mutated"
+      ]
+    },
+    "learning-loop": {
+      "command": "automate learn loop --task-kind <kind> --task-target <target>",
+      "mode": "read_only",
+      "purpose": "Choose the next bounded learning action from recorded experience, candidate lessons, conflicts, and adopted improvements.",
+      "returns": [
+        "action",
+        "reason",
+        "candidate_lessons",
+        "conflicts",
+        "lessons",
+        "requires_external_verification"
       ]
     }
   },
