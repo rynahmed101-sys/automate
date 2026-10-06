@@ -188,3 +188,46 @@ def supervise_command(repository: str, base_sha: str | None, skip_live: bool, as
     click.echo(json.dumps(payload, indent=2) if as_json else json.dumps(payload, indent=2))
     if payload["action"] == "stop":
         raise click.exceptions.Exit(1)
+
+@capability.command("worker-run")
+@click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--worker-url", default=None, help="Worker API base URL. Defaults to AUTOMATE_WORKER_URL.")
+@click.option("--worker-token", default=None, help="Worker API token. Defaults to AUTOMATE_WORKER_TOKEN.")
+@click.option("--execute", is_flag=True, help="Also ask the worker to execute the queued job.")
+@click.option("--base-sha", default=None, help="Observed main SHA to bind into the worker packet.")
+@click.option("--json", "as_json", is_flag=True)
+def worker_run_command(
+    repository: str,
+    worker_url: str | None,
+    worker_token: str | None,
+    execute: bool,
+    base_sha: str | None,
+    as_json: bool,
+) -> None:
+    """Run one supervisor-approved worker dispatch without merging anything."""
+    from automate.dev.supervisor import supervisor_snapshot
+    from automate.dev.worker_client import WorkerTransportError, dispatch_worker
+
+    try:
+        decision = supervisor_snapshot(
+            repository,
+            live=True,
+            base_sha=base_sha,
+        )
+        if not decision["can_dispatch"]:
+            click.echo(json.dumps(decision, indent=2))
+            raise click.exceptions.Exit(1)
+        result = dispatch_worker(
+            decision["worker_packet"],
+            url=worker_url,
+            token=worker_token,
+            execute=execute,
+        )
+    except (InventoryError, WorkerTransportError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    payload = {
+        "decision": decision,
+        "dispatch": result,
+    }
+    click.echo(json.dumps(payload, indent=2))
