@@ -59,3 +59,18 @@ def test_capabilities_exposes_control_plane():
 def test_invalid_status_is_rejected():
     result = CliRunner().invoke(main, ["capability", "status", "does.not.exist", "--json"])
     assert result.exit_code != 0
+
+
+def test_scope_guard_allows_maintenance_branches():
+    from automate.dev.guard import validate_branch_scope
+
+    assert validate_branch_scope("fix/ftc-decorator", ["automate/backend/sympy_backend.py"]) == []
+    assert validate_branch_scope("hotfix/security-regression", ["automate/backend/sympy_backend.py"]) == []
+
+
+def test_scope_guard_rejects_unregistered_capability_branch():
+    from automate.dev.guard import validate_branch_scope
+
+    errors = validate_branch_scope("feat/unregistered-capability", ["tests/test_new.py"])
+    assert errors
+    assert "ownership record" in errors[0]

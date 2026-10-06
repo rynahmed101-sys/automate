@@ -43,7 +43,7 @@ def validate_branch_scope(branch: str, files: list[str]) -> list[str]:
             )
     elif branch.startswith("integrate/"):
         return errors
-    elif branch.startswith("hotfix/"):
+    elif branch.startswith("fix/") or branch.startswith("hotfix/"):
         return errors
     else:
         errors.append(
