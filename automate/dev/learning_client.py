@@ -20,6 +20,7 @@ from automate.dev.learning import (
     validate_evolution_proposal,
     validate_experience,
     validate_lesson,
+    validate_discovery_proposal,
 )
 from automate.dev.worker_client import WorkerTransportError, _request_json
 
@@ -148,6 +149,11 @@ def _ingest_one(store: LearningStore, item: Mapping[str, Any]) -> str:
         if errors:
             raise LearningError("; ".join(errors))
         return store.add_lesson(artifact)
+    if artifact_type == "research_proposal":
+        errors = validate_discovery_proposal(artifact)
+        if errors:
+            raise LearningError("; ".join(errors))
+        return store.add_discovery_candidate(artifact)
     if artifact_type == "evolution_proposal":
         errors = validate_evolution_proposal(artifact)
         if errors:
