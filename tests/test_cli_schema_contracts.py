@@ -74,3 +74,8 @@ def test_schema_agent_returns_machine_agent_contract():
             "schema", "capability_inventory"}.issubset(payload["commands"])
     assert "capability_catalog" in payload
     assert "development_control_plane" in payload["capability_catalog"]
+    assert "learn" in payload["commands"]
+    assert "evolve" in payload["commands"]
+    assert payload["contracts"]["learning_experience"] == "automate.learning_experience.v1"
+    assert payload["contracts"]["system_evolution_proposal"] == "automate.system_evolution_proposal.v1"
+    assert payload["self_improvement"]["constitutional_boundary"]
