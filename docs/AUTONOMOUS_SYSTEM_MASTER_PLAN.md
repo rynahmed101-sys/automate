@@ -666,3 +666,20 @@ proposal / PR / reconciliation
 ```
 
 No Mirror instrument may mutate Automate authority records, and no external source may self-certify. The researcher is expected to use the laboratory when needed, not manufacture an endless stream of weak evidence merely because the system can call a tool.
+
+
+## Self-developing capability loop — permanent contract
+
+Automate is not intended to depend on humans supplying capability PRs. The capability ledger is a living frontier: Automate identifies the earliest dependency-ready missing capability, commissions external research through Chanfana, and gives the resulting untrusted evidence to the implementation worker. Mirror is the external researcher and laboratory; Chanfana transports and bounds the work; Automate remains the evaluator and release authority.
+
+The loop is continuous:
+
+1. inspect the capability frontier;
+2. commission Mirror to research mature approaches, contradictions, counterexamples, prerequisites, and unconventional alternatives;
+3. use Mirror's laboratory instruments when research alone cannot resolve the question;
+4. feed bounded evidence into capability implementation;
+5. test, cross-check, reconcile, and verify;
+6. promote only after the existing verification ladder succeeds;
+7. re-read the frontier and continue with the next capability.
+
+This loop must not assume a final capability count. New capabilities discovered by research or laboratory work may become proposals for the ledger after independent evaluation. Novelty is a candidate outcome, never an automatic promotion. The system is therefore designed to keep developing as the mathematical/physical frontier expands rather than reaching a fixed “finished” state.
