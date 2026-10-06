@@ -263,15 +263,17 @@ def autonomous_cycle_command(
     click.echo(json.dumps(payload, indent=2))
 
 @capability.command("autonomous-readiness")
-@click.option("--worker-contract-tested", is_flag=True)
-@click.option("--worker-api-authenticated-bounded", is_flag=True)
-@click.option("--worker-output-independently-validated", is_flag=True)
-@click.option("--github-lifecycle-exercised", is_flag=True)
-@click.option("--live-control-plane-clean", is_flag=True)
-@click.option("--exact-head-authority-current", is_flag=True)
-@click.option("--end-to-end-dry-run-passed", is_flag=True)
+@click.option("--auto", "automatic", is_flag=True, help="Collect readiness evidence from the live repository and Actions state.")
+@click.option("--worker-contract-tested", is_flag=True, hidden=True)
+@click.option("--worker-api-authenticated-bounded", is_flag=True, hidden=True)
+@click.option("--worker-output-independently-validated", is_flag=True, hidden=True)
+@click.option("--github-lifecycle-exercised", is_flag=True, hidden=True)
+@click.option("--live-control-plane-clean", is_flag=True, hidden=True)
+@click.option("--exact-head-authority-current", is_flag=True, hidden=True)
+@click.option("--end-to-end-dry-run-passed", is_flag=True, hidden=True)
 @click.option("--json", "as_json", is_flag=True)
 def autonomous_readiness_command(
+    automatic: bool,
     worker_contract_tested: bool,
     worker_api_authenticated_bounded: bool,
     worker_output_independently_validated: bool,
@@ -282,16 +284,22 @@ def autonomous_readiness_command(
     as_json: bool,
 ) -> None:
     """Evaluate the fail-closed autonomous worker activation gates."""
-    from automate.dev.readiness import evaluate_readiness
-    payload = evaluate_readiness({
-        "worker_contract_tested": worker_contract_tested,
-        "worker_api_authenticated_bounded": worker_api_authenticated_bounded,
-        "worker_output_independently_validated": worker_output_independently_validated,
-        "github_lifecycle_exercised": github_lifecycle_exercised,
-        "live_control_plane_clean": live_control_plane_clean,
-        "exact_head_authority_current": exact_head_authority_current,
-        "end_to_end_dry_run_passed": end_to_end_dry_run_passed,
-    })
+    from automate.dev.readiness import auto_readiness, evaluate_readiness
+    if automatic:
+        try:
+            payload = auto_readiness("rynahmed101-sys/automate")
+        except Exception as exc:
+            raise click.ClickException(str(exc)) from exc
+    else:
+        payload = evaluate_readiness({
+            "worker_contract_tested": worker_contract_tested,
+            "worker_api_authenticated_bounded": worker_api_authenticated_bounded,
+            "worker_output_independently_validated": worker_output_independently_validated,
+            "github_lifecycle_exercised": github_lifecycle_exercised,
+            "live_control_plane_clean": live_control_plane_clean,
+            "exact_head_authority_current": exact_head_authority_current,
+            "end_to_end_dry_run_passed": end_to_end_dry_run_passed,
+        })
     click.echo(json.dumps(payload, indent=2))
     if not payload["ready"]:
         raise click.exceptions.Exit(1)
