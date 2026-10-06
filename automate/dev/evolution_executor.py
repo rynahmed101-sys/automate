@@ -114,6 +114,23 @@ def _remote_main_sha(token: str, repository: str) -> str:
     return sha
 
 
+def _remote_tree_sha(token: str, repository: str, commit_sha: str) -> str:
+    response = _github_request(
+        token=token,
+        method="GET",
+        url=_api_base(repository) + "/git/commits/" + commit_sha,
+    )
+    payload = _require_object(response, action="read base commit")
+    if response.status != 200:
+        raise EvolutionExecutionError(
+            f"read base commit failed: {payload.get('message', response.status)}"
+        )
+    tree_sha = payload.get("tree", {}).get("sha")
+    if not isinstance(tree_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", tree_sha):
+        raise EvolutionExecutionError("GitHub base commit returned an invalid tree SHA")
+    return tree_sha
+
+
 def _existing_blob_sha(token: str, repository: str, path: str, base_sha: str) -> tuple[int, str | None]:
     response = _github_request(
         token=token,
@@ -140,6 +157,9 @@ def execute_evolution_plan(
     if not token:
         raise EvolutionExecutionError("GitHub token is required")
 
+    plan_errors = validate_evolution_plan(plan)
+    if plan_errors:
+        raise EvolutionExecutionError("invalid evolution plan: " + "; ".join(plan_errors))
     if plan.get("apply_mode") != "proposal_only":
         raise EvolutionExecutionError("only proposal-only plans may enter this executor")
     if plan.get("kind") == "governance":
@@ -209,11 +229,12 @@ def execute_evolution_plan(
             "sha": blob_sha,
         })
 
+    base_tree_sha = _remote_tree_sha(token, repository, base_sha)
     tree = _github_request(
         token=token,
         method="POST",
         url=_api_base(repository) + "/git/trees",
-        body={"base_tree": base_sha, "tree": tree_entries},
+        body={"base_tree": base_tree_sha, "tree": tree_entries},
         timeout=timeout,
     )
     tree_payload = _require_object(tree, action="create evolution tree")
