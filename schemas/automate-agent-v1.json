@@ -174,7 +174,7 @@
       "machine_protocol": false
     },
     "capability_inventory": {
-      "command": "automate capability <list|status|refs|next|validate> --json",
+      "command": "automate capability <list|status|refs|next|packet|guard|validate> [options] --json",
       "mode": "read_only",
       "purpose": "Inspect capability ownership, reconciliation, dependencies and verification state without conflating roadmap state with implementation state.",
       "returns_contract": "automate.capability_inventory.v1"
@@ -347,7 +347,9 @@
       "earliest unresolved action selection",
       "direct PR ownership collision detection",
       "dependency and certification-state validation",
-      "safe-to-delete preservation assertions"
+      "safe-to-delete preservation assertions",
+      "capability implementation packet rendering",
+      "branch-scope guardrails for shared integration files"
     ]
   },
   "rules": [
