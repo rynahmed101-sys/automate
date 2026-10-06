@@ -18,17 +18,7 @@ These are explicit mathematical models, not claims that a physical configuration
 
 Basic diffraction is deliberately limited to the single-slit Fraunhofer intensity model. Full wave-optics propagation, near-field diffraction, apertures, boundary conditions, multilayer optics, and polarization propagation are not claimed.
 
-## Incomplete
-
-- General vector/spacetime wave fields.
-- Dispersion-curve construction and group velocity from omega(k).
-- Fresnel amplitude coefficients for oblique incidence and polarization.
-- Boundary/interface field matching.
-- Multi-element polarization optics.
-- Double/multi-slit and Fresnel diffraction.
-- PDE-level wave-equation solution families.
-
-### Completed foundation scope
+### Completed Stage 2E scope
 The reusable layer now covers 1-D harmonic waves, compatible superposition, a normalized interference observable, equal-amplitude standing waves, exact harmonic wave-equation residual checking, sampled dispersion relations with phase/group velocity evidence, Snell refraction, normal and oblique Fresnel reflectance (including explicit total-internal-reflection classification), Jones polarization with normalized Stokes parameters, and normalized Fraunhofer single-slit diffraction.
 
 Every bounded numerical observable reports explicit evidence status. Unsupported broader semantics remain fail-closed rather than inferred.
