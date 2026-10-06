@@ -356,7 +356,7 @@ Required:
 
 **Current state:** PARTIAL / MANUAL.
 
-The architecture is present, but the new `engine)-trunk model must be fully reconciled with promotion and certification bookkeeping.
+The architecture is present, but the new `engine`-trunk model must be fully reconciled with promotion and certification bookkeeping.
 
 ### I9 — Autonomous capability discovery and expansion
 
@@ -378,6 +378,30 @@ Only after I0–I8 are sufficiently mature should the system autonomously:
 **Current state:** FUTURE.
 
 This is the long-term “engine develops new capabilities” milestone. It is not equivalent to turning on a generic coding agent today.
+
+### I10 — Self-improvement and self-evolution
+
+**Goal:** The system learns from its own execution history and can safely improve its strategies, reusable capabilities, and verification machinery without requiring a human to hand-author every lesson.
+
+Required:
+
+- durable experience ledger;
+- explicit success/failure/unknown/contradiction outcomes;
+- failure-pattern clustering without treating correlation as causation;
+- candidate lesson generation;
+- reproduction and independent challenge of lessons;
+- promoted lesson lifecycle with supersession and context-bounding;
+- conservative strategy selection from historical evidence;
+- regression synthesis from important failures;
+- system-evolution proposal contract;
+- separation of mutable machinery changes from constitutional/authority changes;
+- reversible promotion with provenance and rollback;
+- periodic reevaluation of previously rejected or context-bound lessons when new evidence changes the case.
+
+**Current state:** FOUNDATION IMPLEMENTED ON `engine`, NOT YET WIRED INTO EVERY AUTONOMOUS CYCLE.
+
+The first implementation intentionally remains dependency-free and LLM-agnostic. External or local models may generate richer diagnoses and lessons later, but the learning ledger, validation boundary, and promotion semantics do not depend on any one model provider.
+
 
 ## 4. Worker classes and their boundaries
 
