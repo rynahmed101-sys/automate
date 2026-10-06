@@ -1175,6 +1175,12 @@
       "branch": "integrate/autonomous-worker-foundation",
       "state": "open",
       "purpose": "autonomous worker foundation integration"
+    },
+    {
+      "number": 133,
+      "branch": "integrate/clear-1a-3a",
+      "state": "open",
+      "purpose": "Stage 1C reconciliation ownership"
     }
   ]
 }
