@@ -221,8 +221,16 @@ def make_evolution_proposal(
 @click.argument("to_status")
 @click.option("--reason", required=True)
 @click.option("--evidence-id", multiple=True)
+@click.option("--independence", type=click.Choice(["independent_route", "cross_engine", "cross_checked"]), default=None)
 @click.option("--db", default="data/learning.db", show_default=True)
-def transition_lesson(lesson_id: str, to_status: str, reason: str, evidence_id: tuple[str, ...], db: str) -> None:
+def transition_lesson(
+    lesson_id: str,
+    to_status: str,
+    reason: str,
+    evidence_id: tuple[str, ...],
+    independence: str | None,
+    db: str,
+) -> None:
     """Advance one lesson through its explicit promotion lifecycle."""
     store = _store(db)
     try:
@@ -230,7 +238,10 @@ def transition_lesson(lesson_id: str, to_status: str, reason: str, evidence_id: 
             lesson_id,
             to_status,
             reason=reason,
-            evidence=[{"id": x, "independence": "independent_route"} for x in evidence_id],
+            evidence=[
+                {"id": x, **({"independence": independence} if independence else {})}
+                for x in evidence_id
+            ],
         )
         click.echo(json.dumps(lesson, indent=2))
     except LearningError as exc:
