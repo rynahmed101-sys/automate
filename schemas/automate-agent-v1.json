@@ -25,7 +25,10 @@
     "tensor": "automate-tensor-v1",
     "certificate": "automate.cert.v0.2",
     "agent": "automate.agent.v1",
-    "capability_inventory": "automate.capability_inventory.v1"
+    "capability_inventory": "automate.capability_inventory.v1",
+    "learning_experience": "automate.learning_experience.v1",
+    "learning_lesson": "automate.learning_lesson.v1",
+    "system_evolution_proposal": "automate.system_evolution_proposal.v1"
   },
   "command_protocol": {
     "input_convention": "CLI arguments plus UTF-8 JSON files where a command accepts structured artifacts.",
@@ -178,6 +181,22 @@
       "mode": "read_only",
       "purpose": "Inspect capability ownership, reconciliation, dependencies and verification state without conflating roadmap state with implementation state.",
       "returns_contract": "automate.capability_inventory.v1"
+    },
+    "learn": {
+      "command": "automate learn <record|candidate-lessons|recommend|snapshot|add-lesson|evolution-admission> ...",
+      "mode": "control_plane",
+      "purpose": "Record experience, inspect learned strategy evidence, and manage lessons without granting authority.",
+      "returns": "machine-readable learning artifact or decision"
+    },
+    "evolve": {
+      "command": "automate learn evolution-admission <proposal> <regressions> --verified-evidence-count <n>",
+      "mode": "read_only",
+      "purpose": "Evaluate whether a mutable system-evolution proposal is ready for independent verification; constitutional changes are always blocked from automatic promotion.",
+      "returns": [
+        "admit",
+        "status",
+        "reasons"
+      ]
     }
   },
   "capability_catalog": {
@@ -1401,5 +1420,24 @@
     "Caller-supplied expected output is not independent evidence.",
     "Cross-engine claims must bind evidence to the same mathematical claim and record independence/provenance.",
     "Empirical or numerical evidence is not silently upgraded to a formal proof."
-  ]
+  ],
+  "self_improvement": {
+    "principle": "Future system decisions may use only explicitly adopted lessons and conservative strategy evidence derived from recorded experience.",
+    "lifecycle": [
+      "experience",
+      "candidate_lesson",
+      "reproduced",
+      "verified",
+      "adopted",
+      "superseded_or_rejected"
+    ],
+    "memory_classes": [
+      "experience",
+      "lesson",
+      "strategy_evidence",
+      "system_evolution_proposal"
+    ],
+    "authority_rule": "Learning artifacts are evidence. They do not mutate canonical capability authority, the phase ledger, certification state, or Git history by themselves.",
+    "constitutional_boundary": "Changes classified CONSTITUTIONAL are never auto-promotable."
+  }
 }
