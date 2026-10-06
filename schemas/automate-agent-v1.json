@@ -1240,6 +1240,87 @@
       "allowed_checkers": [
         "linear_algebra"
       ]
+    },
+    {
+      "rule_id": "solve_separable_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_linear_first_order_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_bernoulli_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_exact_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_constant_coefficient_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_ivp",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_bvp",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_system",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "ode_phase_space",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
     }
   ],
   "ai_workflow": {
