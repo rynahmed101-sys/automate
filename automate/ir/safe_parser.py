@@ -382,7 +382,7 @@ class SafeParser:
             return sp.Symbol(node.id)
 
         if isinstance(node, ast.Tuple):
-            return tuple(self._convert(elt, safe_locals) for elt in node.elts)
+            return sp.Tuple(*(self._convert(elt, safe_locals) for elt in node.elts))
 
         if isinstance(node, ast.UnaryOp):
             op = _SAFE_UNARY_OPS.get(type(node.op))
