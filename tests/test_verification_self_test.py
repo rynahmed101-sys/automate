@@ -62,3 +62,5 @@ def test_real_installed_backlog_identifies_stage1b(monkeypatch, tmp_path, capsys
     output = json.loads(capsys.readouterr().out)
     assert output["first_frontier"]["capability_id"] == "stage1b.improper_integrals"
     assert output["evidence_state"] == "PARTIALLY_SUPPORTED"
+    assert output["promotion"]["allowed"] is False
+    assert output["packet_path"].startswith("data/verification-packets/")

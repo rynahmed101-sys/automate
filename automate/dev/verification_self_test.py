@@ -10,6 +10,7 @@ import argparse
 import json
 from pathlib import Path
 
+from automate.dev.promotion_gate import evaluate_promotion
 from automate.dev.verification_engine import (
     build_request,
     live_repository_snapshot,
@@ -59,6 +60,18 @@ def main() -> int:
         request=request,
         repository_state=snapshot,
     )
+    promotion = evaluate_promotion(
+        packet=result["packet"],
+        live_state=snapshot,
+        pr={"merged": False, "base_sha": snapshot.get("main_sha")},
+        prior_frontier_clear=False,
+    )
+    packet_path = Path("data/verification-packets") / f"{result['packet']['packet_id']}.json"
+    packet_path.parent.mkdir(parents=True, exist_ok=True)
+    packet_path.write_text(
+        json.dumps(result["packet"], indent=2, sort_keys=True, default=str),
+        encoding="utf-8",
+    )
     output = {
         "status": "evidence_generated" if not packet_errors else "evidence_generated_with_consistency_findings",
         "backlog_source": args.backlog,
@@ -67,6 +80,12 @@ def main() -> int:
         "evidence_state": result["evidence_state"],
         "packet": result["packet"],
         "packet_consistency_findings": packet_errors,
+        "promotion": {
+            "allowed": promotion.allowed,
+            "reasons": list(promotion.reasons),
+            "required_evidence": list(promotion.required_evidence),
+        },
+        "packet_path": str(packet_path),
         "reconciliation": result["reconciliation"],
     }
     print(json.dumps(output, indent=2, sort_keys=True, default=str))
