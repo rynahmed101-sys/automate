@@ -68,11 +68,12 @@
         },
         "verification":{
           "type":"object","additionalProperties":false,
-          "required":["must_run_tests","must_report_unresolved","must_not_claim_certification"],
+          "required":["must_run_tests","must_report_unresolved","must_not_claim_certification","test_targets"],
           "properties":{
             "must_run_tests":{"const":true},
             "must_report_unresolved":{"const":true},
-            "must_not_claim_certification":{"const":true}
+            "must_not_claim_certification":{"const":true},
+            "test_targets":{"type":"array","minItems":1,"maxItems":20,"items":{"type":"string","pattern":"^tests/"}}
           }
         }
       }
