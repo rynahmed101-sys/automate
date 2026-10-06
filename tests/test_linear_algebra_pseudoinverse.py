@@ -42,7 +42,7 @@ def test_pseudoinverse_wrong_claim_rejected():
 
 
 def test_least_squares_overdetermined():
-    report=_check("linear_least_squares", ["Matrix([[1, 0], [1, 1], [1, 2]])", "Matrix([1, 2, 2])"], "Vector([4/3, 1/2])")
+    report=_check("linear_least_squares", ["Matrix([[1, 0], [1, 1], [1, 2]])", "Vector([1, 2, 2])"], "Vector([4/3, 1/2])")
     assert report.passed, report.error_message
     assert report.details["numpy_cross_check"]["passed"] is True
 
