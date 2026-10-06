@@ -1550,6 +1550,8 @@ class LinearAlgebraChecker(BaseChecker):
                 details["expected"] = None if expected is None else self._display(expected)
                 details["actual"] = self._display(output)
                 if symbolic_passed is None:
+                    if expected is None:
+                        raise AssertionError(f"Rule '{rule}' did not establish a symbolic verification result.")
                     symbolic_passed = self._equal(output, expected)
                 details["symbolic_equivalence"] = symbolic_passed
 
@@ -1614,6 +1616,15 @@ class LinearAlgebraChecker(BaseChecker):
                     }
                 else:
                     cross = {"available": False, "independence_class": "NOT_AVAILABLE", "reason": "Basis cross-check requires numeric inputs."}
+            elif rule in {"matrix_pseudoinverse", "linear_least_squares"}:
+                if numpy_expected is not None:
+                    cross = self._numpy_compare(output, numpy_expected, rule)
+                else:
+                    cross = {
+                        "available": False,
+                        "independence_class": "NOT_AVAILABLE",
+                        "reason": "Independent NumPy cross-check requires fully numeric inputs.",
+                    }
             elif rule == "vector_change_of_basis":
                 cross = self._numpy_subspace_compare(rule, parsed_inputs, parsed_outputs)
             elif rule == "matrix_svd":
