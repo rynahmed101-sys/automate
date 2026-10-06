@@ -1160,8 +1160,14 @@
     {
       "number": 118,
       "branch": "integrate/control-plane-live-audit",
-      "state": "open",
+      "state": "merged",
       "purpose": "live GitHub PR consistency and deterministic queue snapshot"
+    },
+    {
+      "number": 120,
+      "branch": "integrate/autonomous-worker-foundation",
+      "state": "open",
+      "purpose": "autonomous worker contract foundation"
     }
   ]
 }
