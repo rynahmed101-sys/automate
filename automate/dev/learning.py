@@ -741,6 +741,75 @@ class LearningStore:
             )
         return candidates
 
+    def evaluate_strategy_change(
+        self,
+        *,
+        task_kind: str,
+        task_target: str,
+        baseline_strategy_id: str,
+        candidate_strategy_id: str,
+        minimum_samples: int = 5,
+    ) -> dict[str, Any]:
+        """Compare two strategies over recorded, directly comparable outcomes.
+
+        This is a historical gate, not a causal proof. It is intentionally
+        fail-closed when samples are sparse or when either strategy lacks a
+        comparable record.
+        """
+        if minimum_samples < 2:
+            raise LearningError("minimum_samples must be at least 2")
+        rows = self.db.execute(
+            "SELECT payload_json FROM experiences ORDER BY created_at, id"
+        ).fetchall()
+        buckets = {
+            baseline_strategy_id: {"success": 0, "failure": 0, "contradiction": 0, "unknown": 0},
+            candidate_strategy_id: {"success": 0, "failure": 0, "contradiction": 0, "unknown": 0},
+        }
+        for row in rows:
+            exp = json.loads(row[0])
+            if exp["task"]["kind"] != task_kind or exp["task"]["target"] != task_target:
+                continue
+            sid = exp["strategy"]["strategy_id"]
+            if sid not in buckets:
+                continue
+            buckets[sid][exp["outcome"]] += 1
+
+        comparable = {}
+        for sid, counts in buckets.items():
+            denominator = counts["success"] + counts["failure"] + counts["contradiction"]
+            comparable[sid] = {
+                **counts,
+                "evaluated_attempts": denominator,
+                "success_rate": (
+                    counts["success"] / denominator if denominator else None
+                ),
+            }
+
+        b = comparable[baseline_strategy_id]
+        c = comparable[candidate_strategy_id]
+        if b["evaluated_attempts"] < minimum_samples or c["evaluated_attempts"] < minimum_samples:
+            return {
+                "status": "INSUFFICIENT_SAMPLES",
+                "baseline": comparable[baseline_strategy_id],
+                "candidate": comparable[candidate_strategy_id],
+                "minimum_samples": minimum_samples,
+            }
+
+        delta = float(c["success_rate"]) - float(b["success_rate"])
+        return {
+            "status": "candidate_better" if delta > 0 else "candidate_not_better",
+            "baseline": comparable[baseline_strategy_id],
+            "candidate": comparable[candidate_strategy_id],
+            "success_rate_delta": round(delta, 6),
+            "minimum_samples": minimum_samples,
+            "causal_claim": False,
+            "next_step": (
+                "run prospective independent replay/experiment before adoption"
+                if delta > 0
+                else "retain baseline and continue collecting evidence"
+            ),
+        }
+
     def failure_lesson_candidates(self, *, min_repetitions: int = 2) -> list[dict[str, Any]]:
         """Generate deterministic candidate lessons from repeated failure classes.
 
@@ -807,6 +876,31 @@ class LearningStore:
                 ),
             })
         return results
+
+    def lesson_conflicts(self, *, lesson_type: str | None = None) -> list[dict[str, Any]]:
+        """Detect potentially conflicting adopted lessons for the same scope.
+
+        Conflict detection is syntactic/conservative. It flags multiple distinct
+        statements occupying the same exact scope so a verifier can resolve them.
+        It never chooses a winner automatically.
+        """
+        lessons = self.list_adopted_lessons(lesson_type=lesson_type)
+        buckets: dict[str, list[dict[str, Any]]] = {}
+        for lesson in lessons:
+            scope_key = canonical_json(lesson.get("scope", {}))
+            buckets.setdefault(scope_key, []).append(lesson)
+
+        conflicts: list[dict[str, Any]] = []
+        for scope_key, items in buckets.items():
+            statements = {str(x.get("statement", "")).strip() for x in items}
+            if len(items) > 1 and len(statements) > 1:
+                conflicts.append({
+                    "scope": json.loads(scope_key),
+                    "lesson_ids": sorted(x["lesson_id"] for x in items),
+                    "reason": "multiple distinct adopted lessons share the same exact scope",
+                    "requires_verification": True,
+                })
+        return conflicts
 
     def snapshot(self) -> dict[str, Any]:
         experience_count = self.db.execute("SELECT COUNT(*) FROM experiences").fetchone()[0]
