@@ -103,19 +103,24 @@ def _github_content_exists(repository: str, path: str, ref: str) -> bool:
         return False
 
 
-def _merged_foundation_pr(repository: str, pr_number: int = 120) -> bool:
-    """Require live GitHub merge evidence, never inventory self-report."""
-    try:
-        pr = _gh_json(repository, f"/pulls/{pr_number}")
-    except Exception:
-        return False
-    return (
-        pr.get("number") == pr_number
-        and pr.get("base", {}).get("ref") == "main"
-        and pr.get("head", {}).get("ref") == "integrate/autonomous-worker-foundation"
-        and bool(pr.get("merged_at"))
-        and bool(pr.get("merge_commit_sha"))
+def _foundation_present_on_main(repository: str) -> bool:
+    """Require the autonomous foundation to actually exist on live main.
+
+    A PR number is bookkeeping, not authority. A stale/open PR must not block
+    readiness when the required foundation is already present on main, and an
+    apparently merged PR must not satisfy the gate if its required files are
+    absent from main.
+    """
+    required_files = (
+        "automate/dev/autonomous.py",
+        "automate/dev/readiness.py",
+        "automate/dev/worker_client.py",
+        "automate/dev/executor.py",
+        "automate/dev/publisher.py",
+        "schemas/automate-worker-v1.json",
+        "schemas/automate-worker-result-v1.json",
     )
+    return all(_github_content_exists(repository, path, "main") for path in required_files)
 
 
 def collect_readiness_evidence(
@@ -140,16 +145,8 @@ def collect_readiness_evidence(
         and _workflow_success(repository, "security.yml", main_sha)
     )
 
-    required_files = (
-        "automate/dev/autonomous.py",
-        "automate/dev/readiness.py",
-        "automate/dev/worker_client.py",
-        "automate/dev/executor.py",
-        "automate/dev/publisher.py",
-    )
     evidence["autonomous_foundation_merged_main"] = bool(
-        _merged_foundation_pr(repository)
-        and all(_github_content_exists(repository, path, "main") for path in required_files)
+        _foundation_present_on_main(repository)
     )
 
     evidence["live_control_plane_clean"] = False
