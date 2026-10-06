@@ -319,6 +319,30 @@ class ODEEngine:
             q = self.parse_parameters(params, "Q")
             yp = sp.diff(y, self.variable)
             expected_eq = sp.simplify(yp + p * y - q)
+            # Normalizing a first-order ODE by P(x) requires P to be
+            # defined on the claimed domain. A symbolic denominator such
+            # as 1/a is not provably safe without an explicit a != 0
+            # assumption, so fail closed rather than silently divide by it.
+            denominator = sp.denom(sp.together(p))
+            if denominator != 1:
+                denominator_state = self._zero_state(denominator)
+                if denominator_state is True:
+                    return self._result(
+                        False,
+                        {"rule": "solve_linear_first_order_ode", "P": str(p), "Q": str(q),
+                         "denominator": str(denominator)},
+                        [],
+                        "Linear coefficient P has an identically zero denominator.",
+                    )
+                if getattr(denominator, "is_zero", None) is not False:
+                    return self._result(
+                        False,
+                        {"rule": "solve_linear_first_order_ode", "P": str(p), "Q": str(q),
+                         "denominator": str(denominator)},
+                        [],
+                        "Linear coefficient P contains a denominator whose nonzero domain is unproven.",
+                        unresolved=True,
+                    )
             structure = self._zero_state(eq - expected_eq)
             if structure is not True:
                 return self._result(
