@@ -472,11 +472,7 @@
       "depends_on": [
         "stage1b.calculus"
       ],
-      "canonical_files": [
-        "automate/backend/improper_integrals_backend.py",
-        "tests/test_improper_integrals.py",
-        "docs/capabilities/improper_integrals.md"
-      ],
+      "canonical_files": [],
       "shared_integration_points": [
         "automate/theory/rules.py",
         "schemas/automate-agent-v1.json"
@@ -492,23 +488,7 @@
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "First claimable Stage 1B capability. Tracking issue #115. Worker boundary: owns dedicated backend source, focused tests, and semantic docs; shared rule/schema integration remains primary reconciliation work.",
-      "task": {
-        "source": "github_issue",
-        "ref": "115",
-        "summary": "Implement improper integrals and convergence-aware verification as the next authoritative Stage 1B calculus capability.",
-        "requirements": [
-          "Support finite-endpoint and infinite-endpoint improper integrals.",
-          "Handle explicit interior singularity split points.",
-          "Classify convergence or divergence and preserve unresolved cases.",
-          "Represent one-sided endpoint semantics correctly.",
-          "Fail closed when symbolic convergence cannot be established.",
-          "Distinguish unevaluated integrals from proved convergent values.",
-          "Cover positive, negative, singular, divergent, malformed, and unresolved-symbolic tests.",
-          "Use independent evidence where practical without treating numerical sampling as proof.",
-          "Leave shared registry, machine-agent schema, ledger, inventory, and development control-plane integration to the primary reconciler."
-        ]
-      }
+      "notes": "First claimable Stage 1B capability. Tracking issue #115."
     },
     {
       "id": "stage1b.series_expansions",
@@ -1180,7 +1160,7 @@
     {
       "number": 118,
       "branch": "integrate/control-plane-live-audit",
-      "state": "merged",
+      "state": "open",
       "purpose": "live GitHub PR consistency and deterministic queue snapshot"
     },
     {
