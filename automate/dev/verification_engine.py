@@ -21,6 +21,7 @@ from typing import Any, Iterable, Mapping
 from jsonschema import Draft202012Validator
 
 from automate.backend.sympy_backend import SymPyChecker
+from automate.dev.diagnostics import FAILURE_CLASSES, diagnose_failure
 from automate.dev.identifiers import canonical_json, deterministic_id, sha256
 from automate.dev.learning import LearningStore
 from automate.dev.learning_events import record_ci_result, record_reconciliation_result, record_verification_result
@@ -58,16 +59,6 @@ def transition_evidence_state(current: EvidenceState, next_state: EvidenceState)
     if next_state not in EVIDENCE_TRANSITIONS[current]:
         raise ValueError(f"invalid evidence transition: {current.value} -> {next_state.value}")
     return next_state
-
-FAILURE_CLASSES = (
-    "implementation_defect", "test_defect", "contract_schema_defect",
-    "missing_assumption", "mathematical_mistake", "physics_model_mistake",
-    "numerical_precision_problem", "truncation_discretization_problem",
-    "backend_mismatch", "coordinate_convention_mismatch", "data_inconsistency",
-    "provenance_inconsistency", "stale_revision", "ci_environment_failure",
-    "security_failure", "integration_defect", "genuine_contradiction",
-    "unresolved_scientific_behavior",
-)
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -193,36 +184,6 @@ def plan_bounded_repair(*, base_revision: str, reason: str,
         "revert the isolated commit or restore the recorded preimage hashes",
         True,
     )
-
-def diagnose_failure(*, message: str, evidence_kinds: Iterable[str] = ()) -> list[dict[str, Any]]:
-    text = (message + " " + " ".join(evidence_kinds)).lower()
-    scores = {key: 0 for key in FAILURE_CLASSES}
-    rules = {
-        "stale_revision": ("stale", "sha", "commit", "revision"),
-        "ci_environment_failure": ("runner", "timeout", "environment", "workflow", "action"),
-        "security_failure": ("security", "codeql", "audit", "vulnerability"),
-        "provenance_inconsistency": ("provenance", "lineage", "fingerprint", "receipt"),
-        "test_defect": ("test", "assert", "expected output"),
-        "implementation_defect": ("implementation", "wrong result", "exception"),
-        "numerical_precision_problem": ("precision", "rounding", "floating", "ulp"),
-        "truncation_discretization_problem": ("truncation", "cutoff", "timestep", "resolution"),
-        "backend_mismatch": ("backend", "solver", "engine"),
-        "missing_assumption": ("assumption", "domain", "condition"),
-        "mathematical_mistake": ("identity", "derivation", "integral", "limit"),
-        "genuine_contradiction": ("contradict", "disagree", "inconsistent"),
-        "unresolved_scientific_behavior": ("unresolved", "unknown", "anomaly", "surprising"),
-    }
-    for key, tokens in rules.items():
-        scores[key] = sum(1 for token in tokens if token in text)
-    ranked = sorted(scores.items(), key=lambda x: (-x[1], x[0]))
-    if not ranked or ranked[0][1] == 0:
-        ranked = [("unresolved_scientific_behavior", 1), ("implementation_defect", 1),
-                  ("test_defect", 1)]
-    return [
-        {"failure_class": key, "score": score, "rank": i + 1}
-        for i, (key, score) in enumerate(ranked[:4])
-        if score > 0 or i < 2
-    ]
 
 def verify_improper_integral_cases() -> list[dict[str, Any]]:
     cases = [
