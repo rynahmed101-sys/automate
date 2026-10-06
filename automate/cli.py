@@ -530,7 +530,7 @@ def export_certificate(graph_file: str, output_dir: str, as_json: bool):
 
 
 @main.command()
-@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor", "proposal", "context", "agent", "capability"]), help="Schema name")
+@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor", "proposal", "context", "agent", "capability", "worker", "worker-result"]), help="Schema name")
 def schema(name: str):
     """Print an authoritative machine-readable JSON schema for an interchange contract."""
     if name == "ir":
@@ -551,6 +551,20 @@ def schema(name: str):
         schema_path = Path(__file__).parent.parent / "schemas" / "automate-capability-inventory-v1.json"
         if not schema_path.exists():
             raise click.ClickException("Capability inventory schema file is unavailable.")
+        click.echo(schema_path.read_text(encoding="utf-8"))
+        return
+
+    if name == "worker":
+        schema_path = Path(__file__).parent.parent / "schemas" / "automate-worker-v1.json"
+        if not schema_path.exists():
+            raise click.ClickException("Worker packet schema file is unavailable.")
+        click.echo(schema_path.read_text(encoding="utf-8"))
+        return
+
+    if name == "worker-result":
+        schema_path = Path(__file__).parent.parent / "schemas" / "automate-worker-result-v1.json"
+        if not schema_path.exists():
+            raise click.ClickException("Worker result schema file is unavailable.")
         click.echo(schema_path.read_text(encoding="utf-8"))
         return
 
