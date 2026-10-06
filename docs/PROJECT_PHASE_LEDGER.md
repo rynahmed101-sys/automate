@@ -613,7 +613,7 @@ When entering a new chat:
 
 **Active development stage:** Stage 1 — Complete Core Mathematical Engine.
 
-**Current priority:** complete the remaining Stage 1B calculus ladder, beginning with the Fundamental Theorem of Calculus and then the convergence, series, multivariable, and assumption-aware extensions.
+**Current priority:** actively develop the Stage 1B convergence frontier, beginning with improper integrals and then series, multivariable, and assumption-aware extensions. The Fundamental Theorem of Calculus is already implemented on the authoritative baseline; development may proceed on the living `engine` trunk without waiting for `main` promotion.
 
 **Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
 
@@ -630,7 +630,7 @@ The primary agent owns repository ground work, reconciliation, defect repair, ce
 - PR #83 — Stage 2D completion: merged to main; differential Maxwell equations, Lorentz force, and Poynting-vector/energy-balance verification are now `[x]` after exact-head/security verification of current main.
 - Existing Stage 2B/Stage 2C/Stage 2D branches that predate the current main may be stale; do not blindly merge them.
 
-These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The earliest incomplete Stage 1B calculus capability is now the controlling priority.
+These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The active Stage 1B frontier is `stage1b.improper_integrals`. It is developed on the living `engine` trunk and advances through evidence gates before promotion to `main`.
 
 ---
 
