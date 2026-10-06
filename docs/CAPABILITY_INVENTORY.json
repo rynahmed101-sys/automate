@@ -1128,5 +1128,25 @@
     "security_workflow_run": 37430727700,
     "security_conclusion": "success",
     "note": "This is authoritative for current main. A later merge requires fresh exact-head and Security Audit evidence for its new main SHA."
-  }
+  },
+  "integration_references": [
+    {
+      "number": 95,
+      "branch": "integrate/verification-bookkeeping",
+      "state": "merged",
+      "purpose": "authoritative verification bookkeeping"
+    },
+    {
+      "number": 113,
+      "branch": "integrate/control-plane-dependency-aware-queue",
+      "state": "merged",
+      "purpose": "dependency-aware queue hardening"
+    },
+    {
+      "number": 116,
+      "branch": "integrate/control-plane-live-audit",
+      "state": "open",
+      "purpose": "live GitHub PR consistency and full queue snapshot"
+    }
+  ]
 }
