@@ -75,6 +75,40 @@ def build_worker_packet(
     # reconciliation pass records narrower canonical files.
     allowed = list(item["canonical_files"]) or ["automate/backend", "tests", "docs"]
 
+    context_paths: list[str] = []
+    seen: set[str] = set()
+    dependency_queue = list(item["depends_on"])
+    while dependency_queue:
+        dependency_id = dependency_queue.pop(0)
+        dependency = by_id.get(dependency_id)
+        if not dependency:
+            continue
+        dependency_queue.extend(dependency.get("depends_on", []))
+        for candidate in [*dependency.get("canonical_files", []), *dependency.get("shared_integration_points", [])]:
+            if candidate not in seen:
+                seen.add(candidate)
+                context_paths.append(candidate)
+    for candidate in [*item.get("canonical_files", []), *item.get("shared_integration_points", [])]:
+        if candidate not in seen:
+            seen.add(candidate)
+            context_paths.append(candidate)
+
+    context_files: list[dict[str, str]] = []
+    context_notes = list(context_notes or [])
+    for relative_path in context_paths:
+        context_path = ROOT / relative_path
+        if not context_path.is_file():
+            context_notes.append(f"context file unavailable: {relative_path}")
+            continue
+        content = context_path.read_text(encoding="utf-8")
+        if len(content) > 100_000:
+            context_notes.append(f"context file skipped because it exceeds 100000 characters: {relative_path}")
+            continue
+        encoded = content.encode("utf-8")
+        blob_prefix = f"blob {len(encoded)}\\0".encode("utf-8")
+        sha = __import__("hashlib").sha1(blob_prefix + encoded).hexdigest()
+        context_files.append({"path": relative_path, "sha": sha, "content": content})
+
     packet = {
         "schema_version": "automate.worker.v1",
         "packet": {
@@ -100,7 +134,7 @@ def build_worker_packet(
             },
             "context": {
                 "files": list(context_files or []),
-                "notes": list(context_notes or []),
+                "notes": context_notes,
             },
             "instructions": [
                 "Implement only the assigned capability.",
@@ -218,8 +252,8 @@ def add_worker_context(
         path = str(item.get("path", ""))
         content = item.get("content")
         sha = item.get("sha")
-        if not _under_prefix(path, allowed):
-            raise InventoryError(f"worker context path is outside allowed paths: {path}")
+        if not _under_prefix(path, allowed) and path not in forbidden:
+            raise InventoryError(f"worker context path is outside allowed/read-only integration paths: {path}")
         if not isinstance(content, str) or len(content) > 100_000:
             raise InventoryError(f"worker context file is missing or too large: {path}")
         if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
