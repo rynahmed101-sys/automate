@@ -265,9 +265,9 @@ Stage 1 is complete only when its mathematical machinery is sufficiently general
 
 - [ ] Kinematics and dynamics
 - [ ] Work, energy, and momentum
-- [ ] Constraints and Lagrange multipliers
-- [ ] Lagrangian mechanics
-- [ ] Hamilton equations
+- [x] Constraints and Lagrange multipliers
+- [x] Lagrangian mechanics
+- [x] Hamilton equations
 - [ ] Poisson brackets
 - [ ] Canonical transformations
 - [ ] Central-force / Kepler problems
@@ -292,13 +292,13 @@ Stage 1 is complete only when its mathematical machinery is sufficiently general
 - [ ] Vector potential
 - [ ] Magnetic dipoles
 - [ ] Gauge conditions where represented
-- [ ] Differential Maxwell equations
+- [x] Differential Maxwell equations
 - [ ] Integral Maxwell equations
 - [ ] Differential ↔ integral consistency
 - [ ] Charge conservation
 - [ ] Electromagnetic potentials
-- [ ] Lorentz force
-- [ ] Poynting vector
+- [x] Lorentz force
+- [x] Poynting vector
 - [ ] Electromagnetic wave equation
 
 ## 2E. Waves and optics
@@ -624,8 +624,8 @@ When entering a new chat:
 The primary agent owns repository ground work, reconciliation, defect repair, certification bookkeeping, and this ledger. Other AIs may implement isolated capability families, but their branches are not authoritative until reconciled and certified on merged main.
 
 - Stage 1A linear-algebra branches remain delegated implementation/review work and must be reconciled against the current main before certification.
-- PR #82 — Stage 2C completion: merged to main; constraints/Lagrange multipliers, Lagrangian mechanics, and Hamilton-equation verification are now `[!]`.
-- PR #83 — Stage 2D completion: merged to main; differential Maxwell equations, Lorentz force, and Poynting-vector/energy-balance verification are now `[!]`.
+- PR #82 — Stage 2C completion: merged to main; constraints/Lagrange multipliers, Lagrangian mechanics, and Hamilton-equation verification are now `[x]` after exact-head/security verification of current main.
+- PR #83 — Stage 2D completion: merged to main; differential Maxwell equations, Lorentz force, and Poynting-vector/energy-balance verification are now `[x]` after exact-head/security verification of current main.
 - Existing Stage 2B/Stage 2C/Stage 2D branches that predate the current main may be stale; do not blindly merge them.
 
 These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The earliest incomplete Stage 1A capability remains the controlling priority.
