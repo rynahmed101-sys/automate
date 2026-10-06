@@ -130,8 +130,8 @@ This stage contains the mathematical basics that later physics must be able to r
 - [x] Positive-definite matrices
 - [x] Quadratic forms
 - [x] Singular-value decomposition
-- [~] Moore-Penrose pseudoinverse and least-squares solutions
-- [~] Complex scalar/vector/matrix semantics needed by later quantum and spectral reasoning
+- [x] Moore-Penrose pseudoinverse and least-squares solutions
+- [x] Complex scalar/vector/matrix semantics needed by later quantum and spectral reasoning
 
 **Depth rule:** vector/matrix operations should be dimension-generic where represented; subspace and basis operations must correctly handle rectangular, rank-deficient, zero-dimensional, symbolic, and degenerate cases.
 
@@ -175,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Current main exact-head verification and Security Audit both pass for SHA `e52ed749d65e9e965684b8b99678006b9a920fe0`. The merged Stage 1A linear-algebra baseline, including change-of-basis, quadratic forms, and SVD, is therefore authoritatively verified. Moore-Penrose pseudoinverse/least-squares and complex semantics remain implementation/reconciliation work on open branches. Stage 1B calculus and Stage 1C ODE foundations remain unfinished.
+**Current status:** [~] Active. Exact-head and Security Audit both pass for current main SHA `25101f7c2686e0fc7bd39d35ce48342c3a9a0762`. Stage 1A linear algebra is now fully implemented and authoritatively verified through the merged pseudoinverse/least-squares and complex-semantics capabilities. Stage 1B calculus and Stage 1C ODE foundations remain unfinished.
 
 ---
 
@@ -623,12 +623,12 @@ When entering a new chat:
 
 The primary agent owns repository ground work, reconciliation, defect repair, certification bookkeeping, and this ledger. Other AIs may implement isolated capability families, but their branches are not authoritative until reconciled and certified on merged main.
 
-- Stage 1A linear-algebra branches remain delegated implementation/review work and must be reconciled against the current main before certification.
+- Stage 1A linear-algebra reconciliation is complete for the capabilities represented in this ledger. The remaining orthogonal-matrix helper work is tracked separately and must not be treated as a prerequisite unless/while it remains in the Stage 1A capability inventory.
 - PR #82 — Stage 2C completion: merged to main; constraints/Lagrange multipliers, Lagrangian mechanics, and Hamilton-equation verification are now `[x]` after exact-head/security verification of current main.
 - PR #83 — Stage 2D completion: merged to main; differential Maxwell equations, Lorentz force, and Poynting-vector/energy-balance verification are now `[x]` after exact-head/security verification of current main.
 - Existing Stage 2B/Stage 2C/Stage 2D branches that predate the current main may be stale; do not blindly merge them.
 
-These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The earliest incomplete Stage 1A capability remains the controlling priority.
+These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The earliest incomplete Stage 1B calculus capability is now the controlling priority.
 
 ---
 
