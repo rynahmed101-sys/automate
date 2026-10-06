@@ -77,6 +77,18 @@ def supervisor_snapshot(
             "can_dispatch": False,
         }
 
+    live_main_sha = base_sha or observed_main_sha()
+    if not live_main_sha:
+        return {
+            "schema_version": "automate.supervisor.v1",
+            "action": "stop",
+            "reason": "Supervisor could not establish the exact current main SHA.",
+            "errors": ["current main SHA is unavailable"],
+            "queue": queue,
+            "live": live_state,
+            "can_dispatch": False,
+        }
+
     action = next_action(data)
     if action["action"] != "implement":
         return {
@@ -96,7 +108,7 @@ def supervisor_snapshot(
     packet = build_worker_packet(
         capability_id,
         repository=repository,
-        base_sha_claim=base_sha or observed_main_sha(),
+        base_sha_claim=live_main_sha,
     )
     return {
         "schema_version": "automate.supervisor.v1",
