@@ -59,7 +59,7 @@ def execute_worker_proposal(
     if not branch_name.startswith(packet["constraints"]["branch_prefix"]):
         raise WorkerExecutionError("worker branch violates packet branch prefix")
 
-    changed = apply_worker_result(packet["constraints"] | {"request_id": packet["request_id"]}, result, root=root)
+    changed = apply_worker_result(packet, result, root=root)
 
     scope_errors = validate_branch_scope(branch_name, changed)
     if scope_errors:
