@@ -65,6 +65,7 @@ def capabilities(as_json: bool):
         "dimensions": True,
         "numerical": True,
         "statistics": True,
+        "waves_optics": True,
         "linear_algebra": True,
         "vector_calculus": True,
         "lean4": lean_checker.is_available(),
@@ -90,6 +91,7 @@ def capabilities(as_json: bool):
         console.print(f"  * DimensionChecker:        [green]Active[/green]")
         console.print(f"  * Numerical (SciPy RK45):  [green]Active[/green]")
         console.print(f"  * Statistical (Inference): [green]Active[/green]")
+        console.print(f"  * Waves & Optics:          [green]Active[/green]")
         lean_status = "[green]Active[/green]" if caps["lean4"] else "[yellow]Inactive (Not Installed)[/yellow]"
         console.print(f"  * Lean 4 (Theorem Prover): {lean_status} ({caps['lean4_version']})")
         console.print(f"  * Universal AI Providers:  mock: [green]{providers['mock']}[/green], openai: [{ 'green' if providers['openai'] else 'dim'}]{providers['openai']}[/], local: [{ 'green' if providers['local'] else 'dim'}]{providers['local']}[/]")
