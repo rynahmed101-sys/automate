@@ -523,12 +523,23 @@ class LearningStore:
             eligible,
             key=lambda x: (-x.conservative_score, -x.attempts, x.strategy_id),
         )[0]
+        applicable_lessons = [
+            {
+                "lesson_id": lesson["lesson_id"],
+                "statement": lesson["statement"],
+                "preconditions": lesson.get("preconditions", []),
+                "expected_effect": lesson.get("expected_effect", ""),
+            }
+            for lesson in adopted
+            if lesson.get("scope", {}).get("strategy_id") == best.strategy_id
+        ]
         return {
             "strategy_id": best.strategy_id,
             "source": "adopted_lesson",
             "confidence": best.confidence,
             "reason": "an adopted strategy lesson and conservative historical evidence cleared the selection threshold",
             "evidence": best.to_dict(),
+            "adopted_lessons": applicable_lessons[:10],
         }
 
     def success_lesson_candidates(self, *, min_repetitions: int = 3) -> list[dict[str, Any]]:
