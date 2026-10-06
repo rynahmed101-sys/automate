@@ -6,13 +6,13 @@ from pathlib import Path
 
 import click
 
+from automate.dev.evolution import build_evolution_plan
 from automate.dev.evolution_executor import EvolutionExecutionError, execute_evolution_plan
 from automate.dev.learning import (
     LearningError,
     LearningStore,
     admission_decision,
     build_evolution_proposal,
-    build_evolution_plan,
     build_experience,
     build_lesson,
 )
