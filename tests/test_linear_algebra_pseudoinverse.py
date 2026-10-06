@@ -21,18 +21,18 @@ def _check(rule, inputs, output):
 
 def test_pseudoinverse_square_invertible():
     report=_check("matrix_pseudoinverse", ["Matrix([[1, 2], [3, 4]])"], "Matrix([[-2, 1], [3/2, -1/2]])")
-    assert report.passed
+    assert report.passed, report.error_message
     assert report.details["numpy_cross_check"]["passed"] is True
 
 
 def test_pseudoinverse_rectangular_rank_deficient():
     report=_check("matrix_pseudoinverse", ["Matrix([[1, 2], [2, 4], [3, 6]])"], "Matrix([[1/70, 1/35, 3/70], [1/35, 2/35, 3/35]])")
-    assert report.passed
+    assert report.passed, report.error_message
 
 
 def test_pseudoinverse_zero_matrix():
     report=_check("matrix_pseudoinverse", ["Matrix([[0, 0], [0, 0]])"], "Matrix([[0, 0], [0, 0]])")
-    assert report.passed
+    assert report.passed, report.error_message
 
 
 def test_pseudoinverse_wrong_claim_rejected():
@@ -43,7 +43,7 @@ def test_pseudoinverse_wrong_claim_rejected():
 
 def test_least_squares_overdetermined():
     report=_check("linear_least_squares", ["Matrix([[1, 0], [1, 1], [1, 2]])", "Matrix([1, 2, 2])"], "Vector([4/3, 1/2])")
-    assert report.passed
+    assert report.passed, report.error_message
     assert report.details["numpy_cross_check"]["passed"] is True
 
 
@@ -67,7 +67,7 @@ def test_least_squares_shape_mismatch_rejected():
 
 def test_symbolic_pseudoinverse_does_not_fake_certainty():
     report=_check("matrix_pseudoinverse", ["Matrix([[a, 0], [0, 1]])"], "Matrix([[1/a, 0], [0, 1]])")
-    assert report.status in {VerificationStatus.SYMBOLIC_CHECKED, VerificationStatus.UNVERIFIED}
+    assert report.status in {VerificationStatus.SYMBOLIC_CHECKED, VerificationStatus.UNVERIFIED}, report.error_message
 
 
 def test_registry_exposes_both_rules():
