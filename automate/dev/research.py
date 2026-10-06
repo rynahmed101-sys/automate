@@ -9,7 +9,6 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from automate.dev.worker import ROOT
-from automate.dev.verification_engine import deterministic_id
 
 RESEARCH_REQUEST_SCHEMA_PATH = ROOT / "schemas" / "automate-research-request-v1.json"
 RESEARCH_SCHEMA_PATH = ROOT / "schemas" / "automate-research-evidence-v1.json"
@@ -82,9 +81,6 @@ def build_mirror_research_job(
     """
     if not mirror_endpoint:
         raise ValueError("mirror_endpoint is required")
-    if request_id != deterministic_id("res", str(capability.get("id") or ""), request_id.split("_")[-1] if request_id.startswith("ver_") else request_id, "external_research") and request_id.startswith("res_"):
-        # Callers using a deterministic capability/revision identity are preferred.
-        # Legacy externally supplied IDs remain accepted for compatibility.
     objective = str(capability.get("name") or capability.get("id") or "").strip()
     task = capability.get("task") or {}
     summary = str(task.get("summary") or "").strip()
