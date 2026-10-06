@@ -60,6 +60,9 @@ Build from the Chanfana template:
 - bounded packet submission
 - execution request
 - job status/result
+- durable wall-clock timing: start, heartbeat, deadline, elapsed, remaining, ETA, overdue
+- capability-specific completion estimates from prior successful jobs
+- non-blocking execution with durable polling
 - authentication
 - idempotency
 - explicit limits
