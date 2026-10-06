@@ -77,7 +77,7 @@ def test_worker_result_rejects_invalid_status():
         "unresolved": [],
     }
     errors = validate_worker_result(result, packet)
-    assert any("invalid" in error for error in errors)
+    assert any("not one of" in error for error in errors)
 
 
 def test_worker_result_schema_file_exists():
