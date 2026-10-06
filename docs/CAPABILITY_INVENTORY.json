@@ -546,25 +546,23 @@
       }
     },
     {
-      "id": "stage2b.pde_and_transforms",
+      "id": "stage2b.coordinate_and_pde",
       "order": 320,
       "stage": "2B",
-      "name": "PDE foundation and transforms",
+      "name": "Coordinate-aware vector calculus and generic PDE residual verification",
       "implementation_state": "awaiting_reconciliation",
       "authority": {
-        "kind": "branches",
-        "ref": "PR76/PR79"
+        "kind": "branch",
+        "ref": "PR76"
       },
       "references": [
         {
           "type": "pr",
           "number": 76,
-          "state": "open"
-        },
-        {
-          "type": "pr",
-          "number": 79,
-          "state": "open"
+          "branch": "feat/stage2-vector-pde-foundation",
+          "head_sha": "67dad73d5e2112d8156238b2e1fcf4361a18b033",
+          "state": "open",
+          "role": "primary"
         }
       ],
       "depends_on": [
@@ -572,10 +570,14 @@
         "stage1b.calculus"
       ],
       "canonical_files": [
+        "automate/backend/coordinate_vector_calculus_backend.py",
         "automate/backend/pde_backend.py",
-        "automate/backend/transform_backend.py"
+        "tests/test_stage2a_coordinate_calculus.py",
+        "tests/test_pde_backend.py"
       ],
       "shared_integration_points": [
+        "automate/backend/vector_calculus_backend.py",
+        "automate/backend/__init__.py",
         "automate/theory/rules.py",
         "schemas/automate-agent-v1.json",
         "automate/cli.py"
@@ -590,7 +592,56 @@
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "notes": "PR76 is a cumulative packet. Its useful coordinate/PDE work must be transplanted onto current main; its stale shared-file edits are not authoritative."
+    },
+    {
+      "id": "stage2b.transforms",
+      "order": 330,
+      "stage": "2B",
+      "name": "Fourier/Laplace transform and convolution foundation",
+      "implementation_state": "awaiting_reconciliation",
+      "authority": {
+        "kind": "branch",
+        "ref": "PR79"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 79,
+          "branch": "feat/stage2b-transform-foundation",
+          "head_sha": "b1c0039fbb7853ede536ba87f562a62698e373a8",
+          "state": "open",
+          "role": "primary"
+        }
+      ],
+      "depends_on": [
+        "stage2b.coordinate_and_pde"
+      ],
+      "canonical_files": [
+        "automate/backend/transform_backend.py",
+        "automate/ir/ast.py",
+        "tests/test_stage2c_transforms.py",
+        "docs/STAGE2C_TRANSFORMS.md"
+      ],
+      "shared_integration_points": [
+        "automate/backend/__init__.py",
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json",
+        "automate/cli.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "PR79 contains some registered placeholder rules without backend implementations. Only implemented semantics should be transplanted; placeholders must not be certified."
     },
     {
       "id": "stage2c.mechanics",
