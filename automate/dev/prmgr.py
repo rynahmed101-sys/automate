@@ -33,8 +33,7 @@ def create_worker_pr(
     if len(base_sha) != 40:
         raise WorkerExecutionError("worker PR requires an exact 40-character base sha")
 
-    body = "
-".join(
+    body = "\\n".join(
         [
             "Automated capability implementation generated through Automate's bounded worker pipeline.",
             "",
