@@ -68,6 +68,7 @@ The first implementation does not pretend to understand causality automatically.
 It records which strategy was used and whether the bounded action produced success, failure, contradiction, or unknown. Strategy recommendations use a conservative Wilson lower bound rather than raw success rate. This means a strategy with one lucky success is not allowed to outrank a repeatedly tested strategy without qualification.
 
 Future work can add richer causal analysis while retaining the same evidence boundary.
+Raw experience is never sufficient to change autonomous strategy. A strategy override requires an explicitly adopted lesson and enough conservative historical evidence to clear the configured threshold.
 
 ## 5. Self-evolution
 
@@ -94,8 +95,10 @@ THE MIRROR supplies experiments, perturbations, counterexamples, and unusual/sci
 
 The Verification & Reconciliation Engine independently tests lessons and evolution proposals. Automate remains the final authority for repository state, but not a permanently fixed authority over scientific conclusions.
 
-## 7. What is deliberately not here yet
+## 7. Current boundary and remaining work
 
-This foundation does **not** claim that Automate already learns automatically from every execution. The remaining work is wiring experience emission into action cycles, ingesting Mirror/worker evidence, generating richer lessons, running regression suites automatically, and connecting adopted lessons to future worker strategy selection.
+The foundation now has bounded experience emission in the autonomous cycle when a learning database is supplied. Repeated failures can become candidate lessons, repeated successes can become candidate strategy lessons, historical failures can become regression obligations, and only ADOPTED strategy lessons may override the default strategy.
+
+Remaining work is to make learning storage a durable cross-cycle service, ingest worker/Mirror verification evidence automatically, synthesize regression suites from important failures, connect learned lessons to more worker decisions, and build the reversible mutable-machinery evolution path.
 
 Those stages must be built incrementally and tested like any other capability.
