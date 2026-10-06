@@ -80,6 +80,11 @@ def test_loop_flags_adopted_conflicts_before_new_learning(tmp_path: Path):
             )
             store.add_lesson(lesson)
             store.transition_lesson(
+                lesson["lesson_id"], "REPRODUCED",
+                reason="reproduced",
+                evidence=[{"id":"r"}],
+            )
+            store.transition_lesson(
                 lesson["lesson_id"], "VERIFIED",
                 reason="independent",
                 evidence=[{"id":"i","independence":"independent_route"}],
