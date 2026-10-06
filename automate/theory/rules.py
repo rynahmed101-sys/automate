@@ -966,6 +966,38 @@ class RuleRegistry:
         ]:
             self.register(_rule)
 
+        for _rule in [
+            RuleDefinition(rule_id="numerical_nonlinear_system", name="Numerical Nonlinear System", category="numerics",
+                description="Solve a square nonlinear system with solver-success and independently evaluated residual evidence.",
+                domain="numerics", inputs=["Nonlinear system", "Initial guess"], outputs=["Numerical solution"],
+                implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_linear_solve", name="Numerical Linear Solve", category="numerics",
+                description="Solve a square numeric linear system with residual and condition-number evidence.",
+                domain="numerics", inputs=["Square matrix", "Right-hand side"], outputs=["Numerical solution"],
+                implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_conditioning", name="Numerical Conditioning", category="numerics",
+                description="Report a matrix condition number as a sensitivity diagnostic without imposing a universal cutoff.",
+                domain="numerics", inputs=["Square matrix"], outputs=["Condition number"],
+                implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_sensitivity", name="Numerical Sensitivity", category="numerics",
+                description="Estimate local scalar sensitivity by finite perturbation and report the perturbation scale.",
+                domain="numerics", inputs=["Scalar function", "Parameter"], outputs=["Sensitivity estimate"],
+                implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_uncertainty_propagation", name="Numerical Uncertainty Propagation", category="numerics",
+                description="Propagate independent input standard uncertainties with first-order finite-difference gradients.",
+                domain="numerics", inputs=["Function", "Means", "Standard deviations"], outputs=["Output uncertainty"],
+                implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_convergence_evidence", name="Numerical Convergence Evidence", category="numerics",
+                description="Inspect successive approximations for empirically decreasing increments; no theorem is inferred.",
+                domain="numerics", inputs=["Approximations"], outputs=["Convergence evidence"],
+                implementation_backend="numerical", allowed_checkers=["numerical"]),
+            RuleDefinition(rule_id="numerical_pde_1d_dirichlet", name="Numerical 1-D PDE Boundary Solver", category="numerics",
+                description="Solve a finite-interval 1-D Poisson boundary problem by centered finite differences with discrete residual evidence.",
+                domain="numerics", inputs=["Source function", "Domain", "Dirichlet boundary values"], outputs=["Grid solution"],
+                implementation_backend="numerical", allowed_checkers=["numerical"]),
+        ]:
+            self.register(_rule)
+
         self.register(RuleDefinition(
             rule_id="empirical_inference",
             name="Empirical Parameter Estimation",
