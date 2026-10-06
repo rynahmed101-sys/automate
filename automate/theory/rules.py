@@ -383,6 +383,28 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="fundamental_theorem_calculus",
+            name="Fundamental Theorem of Calculus",
+            category="calculus",
+            description="Verifies the accumulation-function derivative form or antiderivative-evaluation form of the Fundamental Theorem of Calculus with an explicit continuity obligation on the interval.",
+            domain="mathematics",
+            inputs=["Scalar Integrand", "Antiderivative or Accumulation Function"],
+            outputs=["Scalar Derivative or Definite Integral"],
+            required_assumptions=["explicit_calculus_variables", "ftc_integrand_continuous_on_interval"],
+            side_conditions=["ftc_integrand_continuous_on_interval"],
+            implementation_backend="sympy",
+            formal_proof_available=False,
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Fundamental Theorem of Calculus",
+            default_obligations=[{
+                "type": "continuity_on_interval",
+                "claim": "integrand is continuous on the represented interval",
+                "description": "The Fundamental Theorem requires the integrand to satisfy its stated regularity condition on the interval."
+            }]
+        ))
+
+        self.register(RuleDefinition(
             rule_id="substitute",
             name="Substitute Expression",
             category="algebra",
