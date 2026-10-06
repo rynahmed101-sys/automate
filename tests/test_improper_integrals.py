@@ -81,3 +81,37 @@ def test_incorrect_convergent_value_is_rejected():
     assert passed is False
     assert details["converges"] is True
     assert "incorrect" in error.lower()
+
+
+def test_two_sided_infinite_integral_requires_both_tails():
+    passed, details, _, error = run(
+        {"variable": "x", "lower": "-oo", "upper": "oo"},
+        "1/(1+x**2)",
+        "pi",
+    )
+    assert passed is True
+    assert details["converges"] is True
+    assert error is None
+
+
+def test_two_sided_infinite_integral_diverges_if_one_tail_diverges():
+    passed, details, evidence, error = run(
+        {"variable": "x", "lower": "-oo", "upper": "oo"},
+        "exp(x)",
+        "0",
+    )
+    assert passed is False
+    assert details["converges"] is False
+    assert evidence
+    assert "diverg" in error.lower()
+
+
+def test_upper_endpoint_singularity_converges():
+    passed, details, _, error = run(
+        {"variable": "x", "lower": "0", "upper": "1", "endpoint": "upper"},
+        "1/sqrt(1-x)",
+        "2",
+    )
+    assert passed is True
+    assert details["converges"] is True
+    assert error is None
