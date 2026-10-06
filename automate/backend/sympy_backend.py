@@ -18,6 +18,7 @@ from automate.backend.base import BaseChecker, VerificationReport
 from automate.core.status import VerificationStatus
 from automate.core.edge import DerivationEdge, DerivationCertificate
 from automate.core.graph import DerivationGraph
+from automate.ode import ODEEngine
 
 
 class SymPyChecker(BaseChecker):
@@ -49,6 +50,7 @@ class SymPyChecker(BaseChecker):
         error_msg = None
         details: Dict[str, Any] = {"rule": rule}
         certificates: List[Dict[str, Any]] = []
+        status_override = None
 
         # Check side conditions against active assumptions
         active_asms = {aid for aid, a in graph.assumptions.items() if a.active}
@@ -64,22 +66,29 @@ class SymPyChecker(BaseChecker):
             status = VerificationStatus.CONDITIONAL
         else:
             try:
-                if rule == "euler_lagrange":
+                if rule in {
+                    "solve_harmonic_oscillator",
+                    "verify_ode_solution",
+                    "solve_separable_ode",
+                    "solve_linear_first_order_ode",
+                    "solve_bernoulli_ode",
+                    "solve_exact_ode",
+                    "solve_constant_coefficient_ode",
+                    "verify_ode_ivp",
+                    "verify_ode_bvp",
+                    "verify_ode_system",
+                    "ode_phase_space",
+                }:
+                    result = self._verify_ode_rule(rule, in_nodes, out_nodes, edge.parameters)
+                    passed, details, certificates, error_msg, status_override = result
+                    status = status_override
+                elif rule == "euler_lagrange":
                     passed, details, certificates, error_msg = self._verify_euler_lagrange(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
                 elif rule == "conserve_energy":
                     passed, details, certificates, error_msg = self._verify_energy_conservation(
                         in_nodes, out_nodes[0], edge.parameters
-                    )
-                elif rule == "solve_harmonic_oscillator":
-                    passed, details, certificates, error_msg = self._verify_ode_solution(
-                        in_nodes[0], out_nodes[0], edge.parameters
-                    )
-                elif rule == "verify_ode_solution":
-                    # Generic ODE verifier — same substitution logic, no SHO-specific assumptions
-                    passed, details, certificates, error_msg = self._verify_ode_solution(
-                        in_nodes[0], out_nodes[0], edge.parameters
                     )
                 elif rule == "algebraic_identity":
                     passed, details, certificates, error_msg = self._verify_algebraic_identity(
@@ -185,8 +194,8 @@ class SymPyChecker(BaseChecker):
                 passed = False
                 error_msg = f"SymPy computation error: {type(e).__name__}: {str(e)}"
 
-            if details.get("_status_override"):
-                status = VerificationStatus(details.pop("_status_override"))
+            if status_override is not None:
+                status = status_override
             else:
                 status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
 
@@ -245,6 +254,54 @@ class SymPyChecker(BaseChecker):
             certificates=certificates,
             evidence=evidence
         )
+
+    def _verify_ode_rule(
+        self,
+        rule: str,
+        in_nodes: List[Any],
+        out_nodes: List[Any],
+        params: Dict[str, Any],
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str], VerificationStatus]:
+        """Route all reusable ODE capabilities through one semantic engine."""
+        variable = str(params.get("variable", "t"))
+        coordinate_names = params.get("coordinates")
+        default_function = coordinate_names[0] if isinstance(coordinate_names, list) and coordinate_names else "y"
+        function = str(params.get("function", params.get("dependent_variable", default_function)))
+        engine = ODEEngine(variable=variable, function=function)
+        equation = in_nodes[0].expression.raw_str
+        candidate = out_nodes[0].expression.raw_str
+        try:
+            if rule in {"solve_harmonic_oscillator", "verify_ode_solution"}:
+                result = engine.verify_solution(equation, candidate, params)
+            elif rule == "solve_separable_ode":
+                result = engine.verify_separable(equation, candidate, params)
+            elif rule == "solve_linear_first_order_ode":
+                result = engine.verify_linear_first_order(equation, candidate, params)
+            elif rule == "solve_bernoulli_ode":
+                result = engine.verify_bernoulli(equation, candidate, params)
+            elif rule == "solve_exact_ode":
+                result = engine.verify_exact(equation, candidate, params)
+            elif rule == "solve_constant_coefficient_ode":
+                result = engine.verify_constant_coefficient(equation, candidate, params)
+            elif rule == "verify_ode_ivp":
+                result = engine.verify_ivp(equation, candidate, params)
+            elif rule == "verify_ode_bvp":
+                result = engine.verify_bvp(equation, candidate, params)
+            elif rule == "verify_ode_system":
+                result = engine.verify_system(equation, candidate, params)
+            elif rule == "ode_phase_space":
+                result = engine.phase_space(equation, candidate, params)
+            else:
+                return False, {"rule": rule}, [], "Unsupported ODE rule.", VerificationStatus.NOT_APPLICABLE
+        except Exception as exc:
+            return False, {"rule": rule}, [], f"ODE engine error: {type(exc).__name__}: {exc}", VerificationStatus.FAILED
+        try:
+            status = VerificationStatus(result.status)
+        except ValueError:
+            status = VerificationStatus.UNVERIFIED
+        details = dict(result.details)
+        details["rule"] = rule
+        return result.passed, details, result.steps, result.error, status
 
     # ------------------------------------------------------------------
     # Rule: euler_lagrange
