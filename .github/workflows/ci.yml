@@ -64,7 +64,7 @@ jobs:
 
       - name: Enforce capability branch scope
         run: |
-          automate capability guard --branch "$GITHUB_HEAD_REF" --base "$GITHUB_BASE_SHA" --head "$GITHUB_SHA"
+          automate capability guard --branch "$GITHUB_HEAD_REF" --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}"
 
       - name: Run development test suite
         run: |
