@@ -1145,12 +1145,12 @@
     }
   ],
   "authoritative_verification": {
-    "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-    "exact_head_workflow_run": 37430727665,
+    "main_sha": "1b6abfa199679597cc5ad6221eb15cc634fb055c",
+    "exact_head_workflow_run": 37441055219,
     "exact_head_conclusion": "success",
-    "security_workflow_run": 37430727700,
+    "security_workflow_run": 37441055227,
     "security_conclusion": "success",
-    "note": "This is authoritative for current main. A later merge requires fresh exact-head and Security Audit evidence for its new main SHA."
+    "note": "Authoritative for the exact current main SHA. Historical capability evidence remains attached to the commits it actually verified; every later merge requires fresh exact-head and Security Audit evidence."
   },
   "integration_references": [
     {
