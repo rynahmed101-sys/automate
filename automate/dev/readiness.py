@@ -161,37 +161,40 @@ def collect_readiness_evidence(
     except Exception as exc:
         errors.append(f"live audit failed: {exc}")
 
-    local_tests = [
-        "tests/test_worker_contract.py",
-        "tests/test_worker_apply.py",
-        "tests/test_worker_executor.py",
-        "tests/test_worker_publisher.py",
-        "tests/test_worker_prmgr.py",
-        "tests/test_autonomous_cycle.py",
-        "tests/test_worker_dry_run.py",
-        "tests/test_autonomy_readiness.py",
-    ]
-    test_command = [sys.executable, "-m", "pytest", "-q", *local_tests]
-    try:
-        completed = subprocess.run(
-            test_command,
-            cwd=Path(__file__).resolve().parents[2],
-            capture_output=True,
-            text=True,
-            timeout=1200,
-            check=False,
-        )
-        passed = completed.returncode == 0
-        evidence["worker_contract_tested"] = passed
-        evidence["worker_output_independently_validated"] = passed
-        evidence["end_to_end_dry_run_passed"] = passed
-        if not passed:
-            errors.append("autonomous foundation test suite failed")
-    except (OSError, subprocess.SubprocessError) as exc:
-        errors.append(f"autonomous foundation tests could not run: {exc}")
-        evidence["worker_contract_tested"] = False
-        evidence["worker_output_independently_validated"] = False
-        evidence["end_to_end_dry_run_passed"] = False
+    independent_test_groups = {
+        "worker_contract_tested": [
+            "tests/test_worker_contract.py",
+            "tests/test_worker_client.py",
+        ],
+        "worker_output_independently_validated": [
+            "tests/test_worker_apply.py",
+            "tests/test_worker_executor.py",
+            "tests/test_worker_publisher.py",
+            "tests/test_worker_prmgr.py",
+        ],
+        "end_to_end_dry_run_passed": [
+            "tests/test_autonomous_cycle.py",
+            "tests/test_worker_dry_run.py",
+            "tests/test_autonomy_readiness.py",
+        ],
+    }
+    for gate, targets in independent_test_groups.items():
+        command = [sys.executable, "-m", "pytest", "-q", *targets]
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=Path(__file__).resolve().parents[2],
+                capture_output=True,
+                text=True,
+                timeout=300,
+                check=False,
+            )
+            evidence[gate] = completed.returncode == 0
+            if completed.returncode != 0:
+                errors.append(f"{gate} evidence suite failed")
+        except (OSError, subprocess.SubprocessError) as exc:
+            evidence[gate] = False
+            errors.append(f"{gate} evidence could not be collected: {exc}")
 
     evidence["worker_api_authenticated_bounded"] = False
     evidence["github_lifecycle_exercised"] = False
@@ -212,19 +215,9 @@ def collect_readiness_evidence(
             and _workflow_success(worker_repository, "worker-ci.yml", worker_sha)
         )
         evidence["worker_api_authenticated_bounded"] = present and worker_ci
-        merged_pr = False
-        try:
-            closed_prs = _gh_json(
-                worker_repository,
-                "/pulls?state=closed&base=main&per_page=50",
-            )
-            merged_pr = any(
-                isinstance(pr, dict) and pr.get("merged_at")
-                for pr in closed_prs
-            )
-        except Exception as exc:
-            errors.append(f"worker PR lifecycle inspection failed: {exc}")
-        evidence["github_lifecycle_exercised"] = present and worker_ci and merged_pr
+        # Worker repository health is not proof that Automate exercised its own
+        # worker -> proposal -> branch -> PR lifecycle.
+        evidence["github_lifecycle_exercised"] = False
     except Exception as exc:
         errors.append(f"worker substrate inspection failed: {exc}")
 
