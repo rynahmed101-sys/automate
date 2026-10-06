@@ -115,6 +115,19 @@ def run_autonomous_cycle(
                 + learning_store.success_lesson_candidates(min_repetitions=3)
             ):
                 learning_store.add_lesson(lesson)
+                if os.getenv("AUTOMATE_LEARNING_ENDPOINT") and os.getenv("AUTOMATE_LEARNING_TOKEN"):
+                    try:
+                        submit_learning_artifact(
+                            lesson,
+                            artifact_type="learning_lesson",
+                            request_id="lesson_" + str(lesson["lesson_id"]).removeprefix("les_"),
+                            correlation_id=correlation_id or action_cycle_id,
+                            source_revision=experience["provenance"]["revision"],
+                            source_repo=repository,
+                            source_component="autonomous",
+                        )
+                    except Exception:
+                        pass
             return experience_id
         except LearningError as exc:
             raise AutonomousCycleError("learning record rejected: " + str(exc)) from exc
