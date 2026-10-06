@@ -11,6 +11,7 @@ from automate.dev.learning import (
     LearningStore,
     admission_decision,
     build_evolution_proposal,
+    build_evolution_plan,
     build_experience,
     build_lesson,
 )
@@ -178,6 +179,7 @@ def make_experience(
 @click.option("--regression", multiple=True, required=True)
 @click.option("--rollback", required=True)
 @click.option("--constitutional", is_flag=True)
+@click.option("--db", default="data/learning.db", show_default=True)
 @click.option("--output", type=click.Path(), required=True)
 def make_evolution_proposal(
     kind: str,
@@ -188,6 +190,7 @@ def make_evolution_proposal(
     regression: tuple[str, ...],
     rollback: str,
     constitutional: bool,
+    db: str,
     output: str,
 ) -> None:
     """Create a reviewable system-evolution proposal; never applies it."""
@@ -202,8 +205,13 @@ def make_evolution_proposal(
             rollback=rollback,
             constitutional=constitutional,
         )
+        store = _store(db)
+        try:
+            store.add_evolution_proposal(payload)
+        finally:
+            store.close()
         Path(output).write_text(json.dumps(payload, indent=2), encoding="utf-8")
-        click.echo(json.dumps({"status": "CREATED", "proposal_id": payload["proposal_id"], "output": output}, indent=2))
+        click.echo(json.dumps({"status": "CREATED", "proposal_id": payload["proposal_id"], "output": output, "stored": True}, indent=2))
     except LearningError as exc:
         raise click.ClickException(str(exc)) from exc
 
@@ -229,3 +237,34 @@ def transition_lesson(lesson_id: str, to_status: str, reason: str, evidence_id: 
         raise click.ClickException(str(exc)) from exc
     finally:
         store.close()
+
+
+@learn.command("evolution-plan")
+@click.argument("proposal_file", type=click.Path(exists=True))
+@click.argument("changes_file", type=click.Path(exists=True))
+@click.option("--base-revision", required=True, help="Exact 40-hex base revision being changed.")
+@click.option("--allowed-prefix", multiple=True, required=True, help="Allowed source path prefix; repeatable.")
+@click.option("--output", type=click.Path(), required=True)
+def evolution_plan(
+    proposal_file: str,
+    changes_file: str,
+    base_revision: str,
+    allowed_prefix: tuple[str, ...],
+    output: str,
+) -> None:
+    """Convert an ADOPTED mutable evolution proposal into a reversible proposal-only plan."""
+    try:
+        proposal = json.loads(Path(proposal_file).read_text(encoding="utf-8"))
+        changes = json.loads(Path(changes_file).read_text(encoding="utf-8"))
+        if not isinstance(changes, list):
+            raise LearningError("changes file must contain a JSON array")
+        plan = build_evolution_plan(
+            proposal,
+            base_revision=base_revision,
+            allowed_path_prefixes=allowed_prefix,
+            changes=changes,
+        )
+        Path(output).write_text(json.dumps(plan.to_dict(), indent=2), encoding="utf-8")
+        click.echo(json.dumps({"status": "CREATED", "plan_id": plan.plan_id, "apply_mode": plan.apply_mode, "output": output}, indent=2))
+    except (LearningError, ValueError, json.JSONDecodeError) as exc:
+        raise click.ClickException(str(exc)) from exc
