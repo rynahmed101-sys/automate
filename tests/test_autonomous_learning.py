@@ -148,3 +148,64 @@ def test_candidate_lessons_include_regression_obligations(tmp_path: Path):
         assert "regression_obligation" in candidates[0]
     finally:
         store.close()
+
+
+def test_adopted_lesson_guidance_is_returned_for_worker_selection(tmp_path: Path):
+    from automate.dev.learning import build_experience, build_lesson
+
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        ids = []
+        for index in range(3):
+            exp = build_experience(
+                action_cycle_id=f"guided-{index}",
+                outcome="success",
+                task_kind="capability_implementation",
+                task_target="stage1b.example",
+                strategy_id="strategy-guided",
+                strategy_name="Guided strategy",
+                observation="successful guided execution",
+                evidence_refs=[{"id": f"e-{index}"}],
+                repository="test/repo",
+                revision="a" * 40,
+                correlation_id=f"guided-{index}",
+                reproducible=True,
+            )
+            ids.append(store.add_experience(exp))
+
+        lesson = build_lesson(
+            lesson_type="strategy",
+            statement="Preserve explicit endpoint assumptions before convergence checks.",
+            scope={
+                "task_kind": "capability_implementation",
+                "task_target": "stage1b.example",
+                "strategy_id": "strategy-guided",
+            },
+            supporting_experience_ids=ids,
+            preconditions=["domain and orientation are explicit"],
+        )
+        store.add_lesson(lesson)
+        store.transition_lesson(
+            lesson["lesson_id"], "VERIFIED",
+            reason="independent reproduction",
+            evidence=[{"id": "independent", "independence": "independent_route"}],
+        )
+        store.transition_lesson(
+            lesson["lesson_id"], "ADOPTED",
+            reason="cross-engine agreement",
+            evidence=[{"id": "cross-engine", "independence": "cross_engine"}],
+        )
+
+        selected = store.select_strategy(
+            task_kind="capability_implementation",
+            task_target="stage1b.example",
+            minimum_attempts=3,
+            minimum_conservative_score=0.1,
+        )
+        assert selected["adopted_lessons"][0]["lesson_id"] == lesson["lesson_id"]
+        assert "endpoint assumptions" in selected["adopted_lessons"][0]["statement"]
+        assert selected["adopted_lessons"][0]["preconditions"] == [
+            "domain and orientation are explicit"
+        ]
+    finally:
+        store.close()
