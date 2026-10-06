@@ -95,3 +95,33 @@ def test_worker_result_rejects_invalid_status():
 
 def test_worker_result_schema_file_exists():
     assert Path("schemas/automate-worker-result-v1.json").exists()
+
+
+def test_worker_result_rejects_descendant_of_canonical_file():
+    from automate.dev.worker import validate_worker_result
+
+    packet = {
+        "request_id": "wrk_test_12345678",
+        "constraints": {
+            "allowed_path_prefixes": ["automate/backend/example.py"],
+            "forbidden_paths": [],
+            "max_files": 5,
+        },
+    }
+    result = {
+        "schema_version": "automate.worker_result.v1",
+        "request_id": "wrk_test_12345678",
+        "status": "proposed",
+        "changes": [
+            {
+                "operation": "create",
+                "path": "automate/backend/example.py/extra.py",
+                "expected_sha": None,
+                "content": "bad\n",
+            }
+        ],
+        "tests": [],
+        "unresolved": [],
+    }
+    errors = validate_worker_result(result, packet)
+    assert any("outside allowed capability paths" in error for error in errors)
