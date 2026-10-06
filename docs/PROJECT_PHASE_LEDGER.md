@@ -137,13 +137,13 @@ This stage contains the mathematical basics that later physics must be able to r
 
 ## 1B. Calculus
 
-- [ ] Limits and continuity
-- [ ] Derivatives and higher-order derivatives
-- [ ] Chain/product/quotient and implicit differentiation
-- [ ] Higher-order symbolic differentiation without arbitrary order ceilings
-- [ ] Definite and indefinite integration
-- [ ] Repeated/nested integration where represented
-- [ ] Substitution, integration by parts, partial fractions, trigonometric and other general integration techniques where tractable
+- [x] Limits and continuity
+- [x] Derivatives and higher-order derivatives
+- [x] Chain/product/quotient and implicit differentiation
+- [x] Higher-order symbolic differentiation without arbitrary order ceilings
+- [x] Definite and indefinite integration
+- [x] Repeated/nested integration where represented
+- [x] Substitution, integration by parts, partial fractions, trigonometric and other general integration techniques where tractable
 - [ ] Fundamental theorem of calculus
 - [ ] Improper integrals and convergence-aware handling
 - [ ] Taylor / Maclaurin series and higher-order expansions
@@ -175,7 +175,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Stage 1A linear algebra is now fully implemented and authoritatively verified on the exact current main commit `7ea5570a69c0c41e61666b0d29007eabbc19c790`. This includes core linear algebra, change of basis, quadratic forms, SVD, Moore-Penrose pseudoinverse/least squares, complex semantics, and orthogonal/unitary matrix semantics. Stage 1B calculus and Stage 1C ODE foundations remain unfinished.
+**Current status:** [~] Active. Stage 1A linear algebra and the implemented Stage 1B calculus stack are authoritatively verified on exact current main. The remaining Stage 1B ladder still includes the Fundamental Theorem of Calculus, improper integrals/convergence handling, series/expansion work, multivariable calculus, Jacobians/Hessians, constrained optimization, and domain/assumption-aware extensions. Stage 1C ODE foundations are the controlling priority.
 
 ---
 
@@ -611,7 +611,7 @@ When entering a new chat:
 
 **Active development stage:** Stage 1 — Complete Core Mathematical Engine.
 
-**Current priority:** build the Stage 1B calculus foundation, starting with limits and continuity, then general differentiation/integration and the remaining calculus ladder.
+**Current priority:** build and certify the Stage 1C reusable ODE foundation, using the completed Stage 1B calculus stack as its mathematical substrate.
 
 **Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
 
