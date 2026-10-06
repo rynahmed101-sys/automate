@@ -177,6 +177,38 @@ def next_unclaimed(data: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def queue_snapshot(data: dict[str, Any]) -> dict[str, Any]:
+    """Return a complete deterministic view of the current capability queue."""
+    by_id = {x["id"]: x for x in data["capabilities"]}
+    unresolved = [
+        x for x in sorted(data["capabilities"], key=lambda x: x["order"])
+        if x["implementation_state"] not in TERMINAL_STATES and x["stage"] != "7"
+    ]
+    blocked = []
+    ready = []
+    preserved = []
+    for item in unresolved:
+        blockers = [
+            dep for dep in item["depends_on"]
+            if by_id[dep]["implementation_state"] not in TERMINAL_STATES
+        ]
+        if blockers:
+            blocked.append({"capability_id": item["id"], "blocked_by": blockers})
+        elif item["implementation_state"] == "planned":
+            ready.append(item["id"])
+        if item["implementation_state"] == "preserved_out_of_order":
+            preserved.append(item["id"])
+    return {
+        "next_action": next_action(data),
+        "next_unclaimed": (next_unclaimed(data)["id"] if next_unclaimed(data) else None),
+        "active_packets": active_references(data),
+        "ready_by_dependency": ready,
+        "blocked": blocked,
+        "preserved_out_of_order": preserved,
+        "note": "ready_by_dependency is informational; next_action remains the strict roadmap gate.",
+    }
+
+
 def summarize() -> dict[str, Any]:
     try:
         data = load_inventory()
@@ -195,6 +227,7 @@ def summarize() -> dict[str, Any]:
         "active_reference_count": len(active_references(data)),
         "next_action": next_action(data),
         "next_unclaimed": candidate["id"] if candidate else None,
+        "queue": queue_snapshot(data),
         "inventory_file": "docs/CAPABILITY_INVENTORY.json",
         "schema_file": "schemas/automate-capability-inventory-v1.json",
     }
