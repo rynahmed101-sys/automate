@@ -238,6 +238,7 @@ def worker_packet_json(
             capability_id,
             repository=repository,
             base_sha_claim=base_sha_claim,
+            development_branch=development_branch,
             context_files=context_files,
             context_notes=context_notes,
         ),
