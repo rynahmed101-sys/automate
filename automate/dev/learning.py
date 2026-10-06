@@ -186,6 +186,7 @@ def build_lesson(
     preconditions: Iterable[str] = (),
     expected_effect: str = "",
     verification_evidence: Iterable[Mapping[str, Any]] = (),
+    strategy_ids: Iterable[str] = (),
     status: str = "CANDIDATE",
     provenance: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -203,6 +204,7 @@ def build_lesson(
         "expected_effect": expected_effect,
         "supporting_experience_ids": ids,
         "verification_evidence": [dict(x) for x in verification_evidence],
+        "strategy_ids": sorted({str(x) for x in strategy_ids if str(x)}),
         "status": status,
         "provenance": dict(provenance or {"created_at": utc_now()}),
     }
@@ -677,7 +679,7 @@ class LearningStore:
             strategy_id = scope.get("strategy_id")
             if isinstance(strategy_id, str):
                 blocked_by_failure_lessons.add(strategy_id)
-            for candidate_id in scope.get("strategy_ids", []):
+            for candidate_id in lesson.get("strategy_ids", []):
                 if isinstance(candidate_id, str):
                     blocked_by_failure_lessons.add(candidate_id)
 
@@ -903,13 +905,13 @@ class LearningStore:
                         "task_kind": kind,
                         "task_target": target,
                         "failure_class": failure_class,
-                        "strategy_ids": sorted({
-                            str(item["strategy"]["strategy_id"])
-                            for item in experiences
-                            if item.get("strategy", {}).get("strategy_id")
-                        }),
                     },
                     supporting_experience_ids=ids,
+                    strategy_ids=sorted({
+                        str(item["strategy"]["strategy_id"])
+                        for item in experiences
+                        if item.get("strategy", {}).get("strategy_id")
+                    }),
                     expected_effect="Avoid repeating an unchallenged failure pattern.",
                 )
             )
