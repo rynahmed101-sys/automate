@@ -80,6 +80,24 @@ def _validate_plan(value: Mapping[str, Any]) -> list[str]:
     return errors
 
 
+def validate_evolution_plan(value: Mapping[str, Any]) -> list[str]:
+    """Validate an already-materialized plan at an execution boundary."""
+    errors = _validate_plan(value)
+    if errors:
+        return errors
+    prefixes = value.get("allowed_path_prefixes", [])
+    changes = value.get("changes", [])
+    for change in changes:
+        path = str(change.get("path", "")).replace("\\", "/").lstrip("/")
+        if not _under_prefix(path, prefixes):
+            errors.append(f"change is outside allowed evolution prefixes: {path}")
+        if path in FORBIDDEN_AUTHORITY_PATHS:
+            errors.append(f"change targets forbidden authority/security path: {path}")
+        if ".." in path.split("/"):
+            errors.append(f"change contains path traversal segment: {path}")
+    return errors
+
+
 def build_evolution_plan(
     proposal: Mapping[str, Any],
     *,
