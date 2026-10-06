@@ -246,7 +246,16 @@
       "bounded IVP integration with SciPy RK45",
       "trajectory evidence and fingerprints",
       "energy-drift checks",
-      "convergence probes and numerical provenance"
+      "convergence probes and numerical provenance",
+      "numerical root finding",
+      "numerical differentiation",
+      "quadrature",
+      "interpolation",
+      "optimization",
+      "numerical eigenproblems",
+      "FFT",
+      "Monte Carlo estimation",
+      "parameter sweeps"
     ],
     "statistics": [
       "nonlinear/parametric model fitting",
@@ -1230,6 +1239,87 @@
       "implementation_backend": "linear_algebra",
       "allowed_checkers": [
         "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "numerical_root",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_derivative",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_quadrature",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_interpolation",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_optimization",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_eigenproblem",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "fft",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "monte_carlo_mean",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "parameter_sweep",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
       ]
     }
   ],
