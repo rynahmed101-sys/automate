@@ -1391,6 +1391,15 @@
       "allowed_checkers": [
         "numerical"
       ]
+    },
+    {
+      "rule_id": "matrix_svd",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "numpy",
+      "allowed_checkers": [
+        "numerical"
+      ]
     }
   ],
   "ai_workflow": {
