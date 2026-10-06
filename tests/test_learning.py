@@ -1,0 +1,164 @@
+from pathlib import Path
+
+import pytest
+
+from automate.dev.learning import (
+    LearningError,
+    LearningStore,
+    admission_decision,
+    build_evolution_proposal,
+    build_experience,
+    build_lesson,
+    validate_experience,
+    validate_lesson,
+)
+
+
+def _experience(store: LearningStore, *, outcome: str, strategy_id: str, target: str = "integral") -> str:
+    exp = build_experience(
+        action_cycle_id=f"cycle-{outcome}-{strategy_id}-{target}",
+        outcome=outcome,
+        task_kind="calculus",
+        task_target=target,
+        strategy_id=strategy_id,
+        strategy_name=strategy_id,
+        observation=f"observed {outcome}",
+        evidence_refs=[{"id": f"evidence-{outcome}-{strategy_id}", "kind": "test"}],
+        failure_class="missing_assumption" if outcome == "failure" else None,
+        repository="test/repo",
+        revision="a" * 40,
+        correlation_id="corr-1",
+        reproducible=outcome != "unknown",
+    )
+    return store.add_experience(exp)
+
+
+def test_experience_ids_are_deterministic_and_schema_valid(tmp_path: Path):
+    first = build_experience(
+        action_cycle_id="cycle-1",
+        outcome="failure",
+        task_kind="calculus",
+        task_target="improper_integral",
+        strategy_id="endpoint-aware",
+        strategy_name="Endpoint aware",
+        observation="upper tail orientation was omitted",
+        evidence_refs=[{"id": "run-1"}],
+    )
+    second = build_experience(
+        action_cycle_id="cycle-1",
+        outcome="failure",
+        task_kind="calculus",
+        task_target="improper_integral",
+        strategy_id="endpoint-aware",
+        strategy_name="Endpoint aware",
+        observation="upper tail orientation was omitted",
+        evidence_refs=[{"id": "run-1"}],
+    )
+    assert first["experience_id"] == second["experience_id"]
+    assert validate_experience(first) == []
+
+
+def test_lesson_requires_existing_experiences(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    exp_id = _experience(store, outcome="failure", strategy_id="s1")
+    lesson = build_lesson(
+        lesson_type="failure",
+        statement="Repeated failures share a missing-assumption pattern.",
+        scope={"task_kind": "calculus"},
+        supporting_experience_ids=[exp_id],
+        expected_effect="Investigate assumptions before retrying.",
+    )
+    assert validate_lesson(lesson) == []
+    assert store.add_lesson(lesson) == lesson["lesson_id"]
+    with pytest.raises(LearningError):
+        store.add_lesson(build_lesson(
+            lesson_type="failure",
+            statement="bad",
+            scope={},
+            supporting_experience_ids=["exp_" + "0" * 32],
+        ))
+    store.close()
+
+
+def test_lesson_promotion_requires_independent_evidence(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    exp_id = _experience(store, outcome="failure", strategy_id="s1")
+    lesson = build_lesson(
+        lesson_type="strategy",
+        statement="Use endpoint-aware decomposition before convergence evaluation.",
+        scope={"task_kind": "calculus", "task_target": "integral"},
+        supporting_experience_ids=[exp_id],
+    )
+    store.add_lesson(lesson)
+    with pytest.raises(LearningError):
+        store.transition_lesson(
+            lesson["lesson_id"],
+            "VERIFIED",
+            reason="verified",
+            evidence=[{"id": "mirror-1"}],
+        )
+    verified = store.transition_lesson(
+        lesson["lesson_id"],
+        "VERIFIED",
+        reason="independent route reproduced the failure boundary",
+        evidence=[{"id": "mirror-1", "independence": "independent_route"}],
+    )
+    assert verified["status"] == "VERIFIED"
+    with pytest.raises(LearningError):
+        store.transition_lesson(
+            lesson["lesson_id"],
+            "ADOPTED",
+            reason="adopt",
+            evidence=[{"id": "same-run"}],
+        )
+    adopted = store.transition_lesson(
+        lesson["lesson_id"],
+        "ADOPTED",
+        reason="adopt after cross-check",
+        evidence=[{"id": "cross-check-1", "independence": "cross_engine"}],
+    )
+    assert adopted["status"] == "ADOPTED"
+    store.close()
+
+
+def test_strategy_recommendation_is_conservative(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    for outcome in ("success", "success", "failure"):
+        _experience(store, outcome=outcome, strategy_id="a")
+    for outcome in ("success", "failure", "failure", "failure"):
+        _experience(store, outcome=outcome, strategy_id="b")
+    recs = store.strategy_recommendations(task_kind="calculus", task_target="integral")
+    assert [r.strategy_id for r in recs][0] == "a"
+    assert recs[0].conservative_score < 1.0
+    store.close()
+
+
+def test_failure_candidates_require_repetition(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    _experience(store, outcome="failure", strategy_id="s1", target="integral")
+    _experience(store, outcome="failure", strategy_id="s2", target="integral")
+    candidates = store.failure_lesson_candidates(min_repetitions=2)
+    assert len(candidates) == 1
+    assert candidates[0]["status"] == "CANDIDATE"
+    assert len(candidates[0]["supporting_experience_ids"]) == 2
+    store.close()
+
+
+def test_constitutional_evolution_cannot_be_auto_promoted():
+    proposal = build_evolution_proposal(
+        kind="governance",
+        subject="change epistemic kernel",
+        rationale="experiment suggested a change",
+        expected_benefit="broader exploration",
+        evidence_refs=[{"id": "e1"}],
+        regression_requirements=["run full regression corpus"],
+        rollback="revert immutable release",
+        constitutional=True,
+    )
+    decision = admission_decision(
+        proposal,
+        verified_evidence_count=4,
+        regression_results=[{"name": "full-suite", "status": "passed"}],
+    )
+    assert decision["admit"] is False
+    assert decision["status"] == "CONSTITUTIONAL_REVIEW_REQUIRED"
