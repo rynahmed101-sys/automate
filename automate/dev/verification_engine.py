@@ -282,9 +282,11 @@ def reconcile_snapshot(*, requested_revision: str, snapshot: Mapping[str, Any],
     observed_main = snapshot.get("main_sha")
     observed_engine = snapshot.get("engine_sha")
     findings: list[dict[str, Any]] = []
-    if observed_main and requested_revision != observed_main:
+    target_key = "main_sha" if snapshot.get("requested_branch") in {None, "main"} else "engine_sha"
+    observed_target = snapshot.get(target_key)
+    if observed_target and requested_revision != observed_target:
         findings.append({"kind":"stale_revision","state":EvidenceState.BLOCKED.value,
-                         "detail":f"requested {requested_revision}, live main is {observed_main}"})
+                         "detail":f"requested {requested_revision}, live {target_key} is {observed_target}"})
     if claimed:
         for key in ("main_sha", "exact_head_sha", "security_run_ids"):
             if key in claimed and claimed.get(key) != snapshot.get(key):
@@ -299,10 +301,181 @@ def reconcile_snapshot(*, requested_revision: str, snapshot: Mapping[str, Any],
     return {
         "observed_main_sha": observed_main,
         "observed_engine_sha": observed_engine,
+        "requested_revision": requested_revision,
         "findings": findings,
         "diagnoses": [diagnose_failure(message=f["detail"], evidence_kinds=[f["kind"]])
                       for f in findings],
         "ready_for_authoritative_promotion": not findings,
+    }
+
+
+def action_evidence(snapshot: Mapping[str, Any], revision: str) -> dict[str, Any]:
+    runs = list(snapshot.get("workflow_runs_main", [])) + list(snapshot.get("workflow_runs_engine", []))
+    exact = [
+        r for r in runs
+        if r.get("head_sha") == revision
+        and r.get("status") == "completed"
+        and r.get("conclusion") == "success"
+    ]
+    security = [
+        r for r in exact
+        if "security" in str(r.get("name", "")).lower()
+        or "audit" in str(r.get("name", "")).lower()
+    ]
+    ci = [
+        r for r in exact
+        if "ci" in str(r.get("name", "")).lower()
+        or "test" in str(r.get("name", "")).lower()
+    ]
+    return {
+        "exact_head_verified": bool(ci),
+        "security_verified": bool(security),
+        "ci_run_ids": [int(r["id"]) for r in ci if str(r.get("id", "")).isdigit()],
+        "security_run_ids": [int(r["id"]) for r in security if str(r.get("id", "")).isdigit()],
+        "matching_success_runs": [int(r["id"]) for r in exact if str(r.get("id", "")).isdigit()],
+    }
+
+
+def apply_bounded_repair(*, root: str | Path, plan: RepairPlan) -> list[dict[str, Any]]:
+    root_path = Path(root).resolve()
+    records: list[dict[str, Any]] = []
+    for change in plan.expected_changes:
+        path = str(change["path"])
+        target = (root_path / path).resolve()
+        try:
+            target.relative_to(root_path)
+        except ValueError as exc:
+            raise ValueError(f"repair escapes checkout: {path}") from exc
+        if change.get("operation") == "create" and target.exists():
+            raise ValueError(f"repair create target already exists: {path}")
+        if change.get("operation") == "update":
+            if not target.is_file():
+                raise ValueError(f"repair target missing: {path}")
+            expected = change.get("expected_sha256")
+            if expected and hashlib.sha256(target.read_bytes()).hexdigest() != expected:
+                raise ValueError(f"repair preimage hash mismatch: {path}")
+        content = change.get("content")
+        if not isinstance(content, str):
+            raise ValueError(f"repair requires textual content: {path}")
+        before = hashlib.sha256(target.read_bytes()).hexdigest() if target.exists() else None
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        after = hashlib.sha256(target.read_bytes()).hexdigest()
+        records.append({
+            "path": path,
+            "before_sha256": before,
+            "after_sha256": after,
+            "repair_id": plan.repair_id,
+        })
+    return records
+
+
+def run_backlog_item(
+    *, capability_id: str, repository: str, revision: str, branch: str,
+    action_cycle_id: str, snapshot: Mapping[str, Any], evidence_db: str | Path
+) -> dict[str, Any]:
+    request = build_request(
+        capability_id=capability_id,
+        repository=repository,
+        revision=revision,
+        branch=branch,
+        scope=["inventory", "diagnosis", "mathematical", "computational", "ci", "security", "provenance"],
+        action_cycle_id=action_cycle_id,
+    )
+    graph = EvidenceGraph(evidence_db)
+    request_id = graph.add(
+        kind="verification_request",
+        state=EvidenceState.IN_PROGRESS,
+        payload=request.to_dict(),
+    )
+    snap = dict(snapshot)
+    snap["requested_branch"] = branch
+    reconciliation = reconcile_snapshot(requested_revision=revision, snapshot=snap)
+    reconciliation_id = graph.add(
+        kind="reconciliation",
+        state=EvidenceState.BLOCKED if reconciliation["findings"] else EvidenceState.VERIFIED,
+        payload=reconciliation,
+        parent_id=request_id,
+    )
+    math_results = (
+        verify_improper_integral_cases()
+        if capability_id == "stage1b.improper_integrals"
+        else []
+    )
+    math_ok = bool(math_results) and all(
+        row["passed"] is row["expected"] for row in math_results
+    )
+    math_state = EvidenceState.VERIFIED if math_ok else EvidenceState.CONTRADICTED
+    math_id = graph.add(
+        kind="mathematical_check",
+        state=math_state,
+        payload={"cases": math_results},
+        parent_id=reconciliation_id,
+    )
+    actions = action_evidence(snap, revision)
+    actions_id = graph.add(
+        kind="ci_security",
+        state=EvidenceState.VERIFIED
+        if actions["exact_head_verified"] and actions["security_verified"]
+        else EvidenceState.BLOCKED,
+        payload=actions,
+        parent_id=math_id,
+    )
+    mirror_request = mirror_verification_request(
+        request=request,
+        hypothesis="independent convergence/stability check for the first real Stage 1B frontier",
+        inputs={"integrand": "1/(1+x**2)", "lower": "-oo", "upper": "oo"},
+        assumptions=(),
+        experiment_budget={
+            "max_precision": 80,
+            "max_truncation": 8,
+            "max_runtime_ms": 30000,
+        },
+    )
+    mirror_id = graph.add(
+        kind="mirror_request",
+        state=EvidenceState.IN_PROGRESS,
+        payload=mirror_request,
+        parent_id=math_id,
+    )
+    state = (
+        EvidenceState.VERIFIED
+        if math_ok and actions["exact_head_verified"] and actions["security_verified"]
+        else EvidenceState.PARTIALLY_SUPPORTED if math_ok
+        else EvidenceState.CONTRADICTED
+    )
+    packet = build_verifiable_packet(
+        request=request,
+        graph_ids=[request_id, reconciliation_id, math_id, actions_id, mirror_id],
+        repository_state={**snap, "evidence_state": state.value},
+        tests=["python -m pytest -q tests/test_improper_integrals.py"],
+        ci_run_ids=actions["ci_run_ids"],
+        security_run_ids=actions["security_run_ids"],
+        math_evidence={"state": math_state.value, "cases_checked": len(math_results)},
+        computational_evidence={
+            "state": EvidenceState.UNVERIFIED.value,
+            "alternate_route": "Mirror requested, result not fabricated",
+        },
+        provenance_evidence={
+            "source_revision": revision,
+            "reconciliation_evidence_id": reconciliation_id,
+        },
+        mirror_experiment_ids=[],
+        unresolved=[f["detail"] for f in reconciliation["findings"]],
+        limitations=(
+            ["The verifier cannot certify or promote."]
+            + ([] if actions["exact_head_verified"] else ["Exact-head CI evidence is missing."])
+            + ([] if actions["security_verified"] else ["Security Audit evidence is missing."])
+        ),
+    )
+    graph.close()
+    return {
+        "request": request.to_dict(),
+        "reconciliation": reconciliation,
+        "actions": actions,
+        "math": math_results,
+        "packet": packet,
+        "evidence_state": state.value,
     }
 
 def build_verifiable_packet(*, request: VerificationRequest,

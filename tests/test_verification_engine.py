@@ -6,6 +6,7 @@ from automate.dev.verification_engine import (
     diagnose_failure, mirror_verification_request, plan_bounded_repair,
     verify_improper_integral_cases, validate_schema, REQUEST_SCHEMA, PACKET_SCHEMA,
     transition_evidence_state,
+    run_backlog_item,
 )
 
 
@@ -115,3 +116,25 @@ def test_packet_is_evidence_only_and_schema_bound():
     )
     assert packet["authority"] == "EVIDENCE_ONLY"
     assert validate_schema(packet, PACKET_SCHEMA) == []
+
+def test_real_backlog_item_runs_through_reconciliation_and_packet():
+    with TemporaryDirectory() as d:
+        snapshot = {
+            "main_sha": "1b0bb0b6707d76ff403c46bb93e353a97d16e26",
+            "engine_sha": "ee7556b9ab5078c89052eecfb83490355dbeb497",
+            "workflow_runs_main": [],
+            "workflow_runs_engine": [],
+        }
+        result = run_backlog_item(
+            capability_id="stage1b.improper_integrals",
+            repository="rynahmed101-sys/automate",
+            revision=snapshot["engine_sha"],
+            branch="engine",
+            action_cycle_id="cycle_real_12345678",
+            snapshot=snapshot,
+            evidence_db=Path(d) / "run.db",
+        )
+    assert result["math"]
+    assert result["packet"]["authority"] == "EVIDENCE_ONLY"
+    assert result["evidence_state"] == "PARTIALLY_SUPPORTED"
+    assert result["packet"]["unresolved"]
