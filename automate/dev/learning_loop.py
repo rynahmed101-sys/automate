@@ -38,6 +38,18 @@ def plan_next_learning_action(
     task_kind: str,
     task_target: str,
 ) -> dict[str, Any]:
+    discoveries = store.list_discovery_candidates(status="CANDIDATE")
+    if discoveries:
+        return _validated_plan({
+            "schema_version": "automate.learning_loop_plan.v1",
+            "action": "TRIAGE_DISCOVERY",
+            "reason": "A new untrusted capability candidate is waiting for canonical prerequisite triage.",
+            "task_kind": task_kind,
+            "task_target": task_target,
+            "candidate_lessons": discoveries[:20],
+            "requires_external_verification": True,
+        })
+
     experiences = store.recent_experiences(
         task_kind=task_kind,
         task_target=task_target,
