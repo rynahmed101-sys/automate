@@ -156,18 +156,24 @@
       "order": 30,
       "stage": "1A",
       "name": "Pseudoinverse and least squares",
-      "implementation_state": "awaiting_reconciliation",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "integration_batch",
-        "ref": "PR92"
+        "kind": "main_merge",
+        "ref": "d3c52c4a8427beed72c5c27984b61d76d8105b65"
       },
       "references": [
         {
           "type": "pr",
+          "number": 96,
+          "branch": "integrate/stage1a-pseudoinverse",
+          "state": "merged"
+        },
+        {
+          "type": "pr",
           "number": 92,
           "branch": "integrate/stage1-controlled-1c-1a",
-          "state": "open",
-          "role": "integration_batch"
+          "state": "open_historical_partial",
+          "role": "source_batch"
         },
         {
           "type": "pr",
@@ -194,32 +200,45 @@
       "verification": {
         "locally_tested": true,
         "development_ci_verified": true,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "25101f7c2686e0fc7bd39d35ce48342c3a9a0762",
+        "exact_head_workflow_run": 37418075804,
+        "security_workflow_run": 37418075771
+      }
     },
     {
       "id": "stage1a.complex_semantics",
       "order": 40,
       "stage": "1A",
       "name": "Complex scalar, vector and matrix semantics",
-      "implementation_state": "awaiting_reconciliation",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "branch",
-        "ref": "PR65"
+        "kind": "main_merge",
+        "ref": "25101f7c2686e0fc7bd39d35ce48342c3a9a0762"
       },
       "references": [
         {
           "type": "pr",
+          "number": 100,
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 98,
+          "state": "closed_duplicate"
+        },
+        {
+          "type": "pr",
           "number": 65,
-          "branch": "reconcile/phase1a-complex-semantics",
-          "state": "open",
-          "role": "primary"
+          "state": "closed_duplicate"
         },
         {
           "type": "pr",
@@ -240,16 +259,21 @@
       ],
       "verification": {
         "locally_tested": true,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context."
+      "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context.",
+      "verification_evidence": {
+        "main_sha": "25101f7c2686e0fc7bd39d35ce48342c3a9a0762",
+        "exact_head_workflow_run": 37418075804,
+        "security_workflow_run": 37418075771
+      }
     },
     {
       "id": "stage1a.orthogonal_unitary",
@@ -264,10 +288,16 @@
       "references": [
         {
           "type": "pr",
-          "number": 91,
-          "branch": "feat/stage1a-orthogonal-unitary-verification",
+          "number": 101,
+          "branch": "integrate/stage1a-orthogonal-v2",
           "state": "open",
           "role": "primary"
+        },
+        {
+          "type": "pr",
+          "number": 91,
+          "state": "open_historical",
+          "role": "source"
         }
       ],
       "depends_on": [
@@ -291,7 +321,8 @@
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "notes": "PR91 remains the source of optional helper semantics. Its unitary portion is superseded by merged matrix_unitary; the remaining orthogonal-matrix capability is being reconciled as PR #101."
     },
     {
       "id": "stage1b.calculus",
