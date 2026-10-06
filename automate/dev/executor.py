@@ -72,13 +72,14 @@ def execute_worker_proposal(
     root: Path,
     branch_name: str,
     run_tests: bool = True,
+    enforce_inventory_scope: bool = True,
 ) -> dict[str, Any]:
     if not branch_name.startswith(packet["constraints"]["branch_prefix"]):
         raise WorkerExecutionError("worker branch violates packet branch prefix")
 
     changed = apply_worker_result(packet, result, root=root)
 
-    scope_errors = validate_branch_scope(branch_name, changed)
+    scope_errors = validate_branch_scope(branch_name, changed) if enforce_inventory_scope else []
     if scope_errors:
         raise WorkerExecutionError("; ".join(scope_errors))
 
