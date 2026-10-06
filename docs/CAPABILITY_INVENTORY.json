@@ -457,12 +457,17 @@
       "order": 150,
       "stage": "1B",
       "name": "Improper integrals and convergence-aware handling",
-      "implementation_state": "active_development",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "engine",
-        "ref": "03ada017462725d1ddd67be3b785c9eb8fe6ddfc9"
+        "kind": "main_merge",
+        "ref": "6a324afac605719b7ff8644624bf21098f960eb8"
       },
       "references": [
+        {
+          "type": "pr",
+          "number": 135,
+          "state": "merged"
+        },
         {
           "type": "issue",
           "number": 115,
@@ -472,7 +477,7 @@
         {
           "type": "branch",
           "branch": "engine",
-          "state": "active_development",
+          "state": "historical_engine_work",
           "role": "current_engine_implementation"
         }
       ],
@@ -489,16 +494,24 @@
       ],
       "verification": {
         "locally_tested": false,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": false,
         "formally_proved": false,
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "Active Stage 1B frontier. Engine implementation establishes convergence-aware semantics; release certification remains gated by development CI, independent cross-checks, main promotion, exact-head verification, and security audit."
+      "notes": "Merged into authoritative main and verified on exact main SHA. Independent cross-check and formal proof remain absent, so certification is not claimed.",
+      "verification_evidence": {
+        "main_sha": "6a324afac605719b7ff8644624bf21098f960eb8",
+        "exact_head_workflow_run": 37543335976,
+        "exact_head_conclusion": "success",
+        "security_workflow_run": 37543336009,
+        "security_conclusion": "success",
+        "note": "PR #135 development CI passed before merge; exact-head Python 3.10-3.13 and Lean 4 passed on this exact merged main SHA; CodeQL and pip-audit passed. Independent cross-check remains pending."
+      }
     },
     {
       "id": "stage1b.series_expansions",
@@ -1135,8 +1148,12 @@
     }
   ],
   "authoritative_verification": {
-    "main_sha": "d3f5a55c231d18a127dbf86fbf2740cae98f8a81",
-    "note": "Current main SHA after release promotion. Exact-head CI and Security Audit evidence are pending for this exact SHA; prior workflow evidence remains attached to the historical SHAs it actually verified."
+    "main_sha": "6a324afac605719b7ff8644624bf21098f960eb8",
+    "exact_head_workflow_run": 37543335976,
+    "exact_head_conclusion": "success",
+    "security_workflow_run": 37543336009,
+    "security_conclusion": "success",
+    "note": "Authoritative for the exact current main SHA. Prior workflow evidence remains attached to the historical SHAs it actually verified."
   },
   "integration_references": [
     {
