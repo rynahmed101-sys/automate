@@ -217,19 +217,10 @@ def collect_readiness_evidence(
             and _workflow_success(worker_repository, "worker-ci.yml", worker_sha)
         )
         evidence["worker_api_authenticated_bounded"] = present and worker_ci
-        merged_pr = False
-        try:
-            closed_prs = _gh_json(
-                worker_repository,
-                "/pulls?state=closed&base=main&per_page=50",
-            )
-            merged_pr = any(
-                isinstance(pr, dict) and pr.get("merged_at")
-                for pr in closed_prs
-            )
-        except Exception as exc:
-            errors.append(f"worker PR lifecycle inspection failed: {exc}")
-        evidence["github_lifecycle_exercised"] = present and worker_ci and merged_pr
+        # A healthy worker substrate is not proof that Automate has exercised
+        # its own worker -> proposal -> isolated branch -> PR lifecycle.
+        # Keep this gate false until a real Automate worker lifecycle receipt exists.
+        evidence["github_lifecycle_exercised"] = False
     except Exception as exc:
         errors.append(f"worker substrate inspection failed: {exc}")
 
