@@ -37,15 +37,15 @@ def test_capability_status_exposes_real_frontier():
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["implementation_state"] == "preserved_out_of_order"
-    assert any(ref.get("number") == 105 for ref in payload["references"])
+    assert any(ref.get("number") == 114 for ref in payload["references"])
 
 
-def test_capability_next_prioritizes_active_stage2b_reconciliation():
+def test_capability_next_prioritizes_first_remaining_stage1b_capability():
     result = CliRunner().invoke(main, ["capability", "next", "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["next_action"]["action"] == "reconcile"
-    assert payload["next_action"]["capability_ids"] == ["stage2b.coordinate_and_pde"]
+    assert payload["next_action"]["action"] == "implement"
+    assert payload["next_action"]["capability_id"] == "stage1b.improper_integrals"
 
 
 def test_capabilities_exposes_control_plane():
@@ -109,8 +109,8 @@ def test_capability_next_filters_active_packets_by_dependencies():
 
     data = load_inventory()
     payload = next_action(data)
-    assert payload["action"] == "reconcile"
-    assert payload["capability_ids"] == ["stage2b.coordinate_and_pde"]
+    assert payload["action"] == "implement"
+    assert payload["capability_id"] == "stage1b.improper_integrals"
 
 
 def test_preserved_work_does_not_satisfy_dependency():
