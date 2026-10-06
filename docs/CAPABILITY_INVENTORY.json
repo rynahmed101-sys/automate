@@ -461,7 +461,7 @@
       "authority": {
         "kind": "engine",
         "ref": "03ada017462725d1ddd67be3b785c9eb8fe6ddfc9"
-      },,
+      },
       "task": {
         "source": "docs/PROJECT_PHASE_LEDGER.md",
         "ref": "stage1b.improper_integrals",
