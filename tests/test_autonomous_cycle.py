@@ -50,13 +50,14 @@ def test_cycle_stops_before_dispatch_when_supervisor_blocks():
 
 
 def test_cycle_can_queue_without_executing():
-    with patch("automate.dev.autonomous.supervisor_snapshot", return_value=decision()), patch(
+    with patch.dict("os.environ", {"MIRROR_RESEARCH_ENDPOINT": "https://mirror/research/world"}), patch("automate.dev.autonomous.supervisor_snapshot", return_value=decision()), patch(
         "automate.dev.autonomous.dispatch_worker",
         return_value={"queued": {"success": True, "jobId": "j1"}, "execution_requested": False},
     ) as dispatch:
         result = run_autonomous_cycle("x", worker_url="https://worker", worker_token="secret")
-    assert result["status"] == "dispatched"
+    assert result["status"] == "research_dispatched"
     dispatch.assert_called_once()
+    assert dispatch.call_args.args[0]["schema_version"] == "mirror.research_job.v1"
 
 
 def test_cycle_validates_worker_result_before_local_apply():
@@ -70,7 +71,10 @@ def test_cycle_validates_worker_result_before_local_apply():
     }
     with patch("automate.dev.autonomous.supervisor_snapshot", return_value=decision()), patch(
         "automate.dev.autonomous.dispatch_worker",
-        return_value={"execution": {"success": True, "result": result}},
+        side_effect=[
+            {"execution": {"success": True, "result": {"schema_version": "mirror.research_result.v1", "authority": "UNTRUSTED_EXTERNAL_EVIDENCE", "results": []}}},
+            {"execution": {"success": True, "result": result}},
+        ],
     ), patch("automate.dev.autonomous.build_worker_commit") as commit:
         outcome = run_autonomous_cycle(
             "x",
