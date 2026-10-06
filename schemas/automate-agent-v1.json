@@ -211,6 +211,19 @@
         "rollback",
         "apply_mode"
       ]
+    },
+    "evolve-execute": {
+      "command": "automate learn evolution-execute <plan>",
+      "mode": "gated_pr_creation",
+      "purpose": "Materialize an adopted mutable evolution plan into one atomic maintenance commit and open a normal PR to main; never self-merge.",
+      "returns": [
+        "pull_request_number",
+        "pull_request_url",
+        "commit_sha",
+        "base_revision",
+        "self_merge",
+        "certified"
+      ]
     }
   },
   "capability_catalog": {
