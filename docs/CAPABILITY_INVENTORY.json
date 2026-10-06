@@ -91,9 +91,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "1b9b4f2745eefa0c8a74b514871053b8f9549898",
+        "exact_head_workflow_run": 37417004726,
+        "security_workflow_run": 37417004694
       }
     },
     {
@@ -146,9 +146,9 @@
       "notes": "PR93 was an isolated duplicate/hardening packet. Canonical change-of-basis verification already exists in main via PR62/backend acceptance tests.",
       "preserved_in": "main",
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "1b9b4f2745eefa0c8a74b514871053b8f9549898",
+        "exact_head_workflow_run": 37417004726,
+        "security_workflow_run": 37417004694
       }
     },
     {
@@ -162,6 +162,14 @@
         "ref": "PR92"
       },
       "references": [
+        {
+          "type": "pr",
+          "number": 96,
+          "branch": "integrate/stage1a-pseudoinverse",
+          "state": "open",
+          "role": "primary",
+          "head_sha": "0abfd7e88336f618c91dc249108ca48beb57980e"
+        },
         {
           "type": "pr",
           "number": 92,
@@ -214,6 +222,14 @@
         "ref": "PR65"
       },
       "references": [
+        {
+          "type": "pr",
+          "number": 98,
+          "branch": "integrate/stage1a-complex-semantics",
+          "state": "open",
+          "role": "primary",
+          "head_sha": "b5f42e021d653420ead9fe88cee3266fcd923847"
+        },
         {
           "type": "pr",
           "number": 65,
@@ -479,9 +495,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "1b9b4f2745eefa0c8a74b514871053b8f9549898",
+        "exact_head_workflow_run": 37417004726,
+        "security_workflow_run": 37417004694
       }
     },
     {
@@ -569,9 +585,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "1b9b4f2745eefa0c8a74b514871053b8f9549898",
+        "exact_head_workflow_run": 37417004726,
+        "security_workflow_run": 37417004694
       }
     },
     {
@@ -612,9 +628,9 @@
       },
       "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-        "exact_head_workflow_run": 37416442716,
-        "security_workflow_run": 37416442720
+        "main_sha": "1b9b4f2745eefa0c8a74b514871053b8f9549898",
+        "exact_head_workflow_run": 37417004726,
+        "security_workflow_run": 37417004694
       }
     },
     {
@@ -745,11 +761,11 @@
     }
   ],
   "authoritative_verification": {
-    "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
-    "exact_head_workflow_run": 37416442716,
+    "main_sha": "1b9b4f2745eefa0c8a74b514871053b8f9549898",
+    "exact_head_workflow_run": 37417004726,
     "exact_head_conclusion": "success",
-    "security_workflow_run": 37416442720,
+    "security_workflow_run": 37417004694,
     "security_conclusion": "success",
-    "note": "These runs verified the exact merged main commit. Individual capabilities are only credited for exact/security evidence when their implementation_state is merged_main."
+    "note": "Evidence refers to the exact current main commit at inventory publication time."
   }
 }
