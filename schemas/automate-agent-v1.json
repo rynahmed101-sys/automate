@@ -330,7 +330,8 @@
       "basis-of-span verification",
       "Moore-Penrose pseudoinverse and least-squares workstream",
       "complex scalar/vector/matrix semantics",
-      "change-of-basis semantics"
+      "change-of-basis semantics",
+      "orthogonal matrix semantics"
     ],
     "physics": [
       "Coulomb force for point charges",
@@ -1292,6 +1293,15 @@
     },
     {
       "rule_id": "matrix_unitary",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_orthogonal",
       "category": "linear_algebra",
       "domain": "mathematics",
       "implementation_backend": "linear_algebra",
