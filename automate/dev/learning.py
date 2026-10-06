@@ -25,7 +25,7 @@ from typing import Any, Iterable, Mapping
 
 from jsonschema import Draft202012Validator
 
-from automate.dev.verification_engine import deterministic_id, canonical_json
+from automate.dev.identifiers import deterministic_id, canonical_json
 
 ROOT = Path(__file__).resolve().parents[2]
 EXPERIENCE_SCHEMA = ROOT / "schemas" / "automate-learning-experience-v1.json"
