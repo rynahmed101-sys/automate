@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 INVENTORY_PATH = ROOT / "docs" / "CAPABILITY_INVENTORY.json"
 SCHEMA_PATH = ROOT / "schemas" / "automate-capability-inventory-v1.json"
 
-ACTIVE_STATES = {"delegated", "awaiting_reconciliation", "reconciled"}
+ACTIVE_STATES = {"active_development", "delegated", "awaiting_reconciliation", "reconciled"}
 TERMINAL_STATES = {"merged_main", "superseded", "abandoned"}
 
 
@@ -50,9 +50,10 @@ def validate_inventory(data: dict[str, Any]) -> list[str]:
         if state == "merged_main" and item["authority"]["kind"] not in {"main", "main_merge"}:
             errors.append(f"{cid}: merged_main must name main authority")
         if state in ACTIVE_STATES:
-            has_open = any(ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open") for ref in item["references"])
-            if not has_open:
-                errors.append(f"{cid}: active state requires an open PR reference")
+            has_open_pr = any(ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open") for ref in item["references"])
+            has_engine_ref = any(ref.get("type") == "branch" and ref.get("branch") == "engine" and ref.get("state") == "active_development" for ref in item["references"])
+            if not has_open_pr and not has_engine_ref:
+                errors.append(f"{cid}: active state requires an open PR or active engine reference")
         if item["safe_to_delete"] and not (state in {"superseded", "abandoned"} or item.get("preserved_in")):
             errors.append(f"{cid}: safe_to_delete requires a preservation record")
         if v.get("certified") and (
@@ -153,6 +154,13 @@ def next_action(data: dict[str, Any]) -> dict[str, Any]:
     ]
     active = [x for x in same_band if x["implementation_state"] in ACTIVE_STATES]
     if active:
+        engine_active = [x for x in active if x["implementation_state"] == "active_development"]
+        if engine_active:
+            return {
+                "action": "continue_development",
+                "reason": "An active engine capability exists; continue implementation and verification on the living engine trunk before release promotion.",
+                "capability_ids": [x["id"] for x in engine_active],
+            }
         return {
             "action": "reconcile",
             "reason": "Existing ready packets must be reconciled before opening or delegating further work.",
