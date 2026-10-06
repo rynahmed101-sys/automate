@@ -66,6 +66,8 @@ def test_scope_guard_allows_maintenance_branches():
 
     assert validate_branch_scope("fix/ftc-decorator", ["automate/backend/sympy_backend.py"]) == []
     assert validate_branch_scope("hotfix/security-regression", ["automate/backend/sympy_backend.py"]) == []
+    assert validate_branch_scope("docs/one-giant-truth", ["docs/ONE_GIANT_TRUTH.md"]) == []
+    assert validate_branch_scope("chore/control-plane", ["docs/CAPABILITY_INVENTORY.json"]) == []
 
 
 def test_scope_guard_rejects_unregistered_capability_branch():
