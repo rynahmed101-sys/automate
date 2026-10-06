@@ -240,14 +240,17 @@ class ODEEngine:
         # Canonical form is yp - RHS = 0. The coefficient of yp must be one.
         coeff = sp.expand(eq).coeff(yp)
         if coeff != 1:
-            coefficient_state = self._zero_state(coeff)
-            if coefficient_state is True:
+            # A symbolic coefficient is not assumed non-zero merely because
+            # SymPy cannot prove it is zero. Normalize only an explicitly
+            # non-zero numeric coefficient; otherwise fail closed.
+            if coeff.is_zero is True:
                 raise SafeParseError("Equation is not explicitly first-order in the dependent function.")
-            if coefficient_state is None:
+            if coeff.is_number and coeff.is_zero is False:
+                eq = sp.simplify(eq / coeff)
+            else:
                 raise _ODEStructuralUnverified(
-                    "UNVERIFIED: derivative coefficient could not be established as non-zero."
+                    "UNVERIFIED: derivative coefficient is symbolic and no explicit nonzero assumption was supplied."
                 )
-            eq = sp.simplify(eq / coeff)
         rhs = sp.simplify(-eq.subs(yp, 0))
         return eq, rhs, y
 
