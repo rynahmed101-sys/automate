@@ -70,7 +70,7 @@ def run_autonomous_cycle(
             result,
             repository_root=local_root,
         )
-    except (InventoryError, WorkerTransportError, Exception) as exc:
+    except Exception as exc:
         raise AutonomousCycleError(str(exc)) from exc
 
     output["commit"] = commit
