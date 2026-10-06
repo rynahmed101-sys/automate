@@ -498,9 +498,9 @@ class LinearAlgebraChecker(BaseChecker):
                 numeric = self._numeric_array(parsed_inputs[0])
                 if numeric is not None:
                     numpy_expected = np.linalg.pinv(numeric)
-                steps = [{"step": i + 1, "operation": "verify_moore_penrose_condition", "condition": label} for i, label in enumerate(labels)]
                 details["penrose_residuals"] = residual_details
                 details["candidate_shape"] = list(candidate.shape)
+                steps = [{"step": i + 1, "operation": "verify_moore_penrose_condition", "condition": label} for i, label in enumerate(labels)]
 
             elif rule == "linear_least_squares":
                 if len(parsed_inputs) != 2 or parsed_inputs[0].kind != "matrix" or parsed_inputs[1].kind != "vector" or output.kind != "vector":
@@ -534,13 +534,13 @@ class LinearAlgebraChecker(BaseChecker):
                 na, nb = self._numeric_array(parsed_inputs[0]), self._numeric_array(parsed_inputs[1])
                 if na is not None and nb is not None:
                     numpy_expected = np.linalg.pinv(na) @ nb.reshape(-1)
+                details["normal_residual"] = [str(v) for v in normal_residual]
+                details["minimum_norm_residual"] = [str(v) for v in minimum_norm_residuals]
                 steps = [
                     {"step": 1, "operation": "verify_normal_equations", "normal_residual": [str(v) for v in normal_residual]},
                     {"step": 2, "operation": "verify_minimum_norm_range_A_H", "nullspace_orthogonality": [str(v) for v in minimum_norm_residuals]},
                     {"step": 3, "operation": "report_residual", "residual": [str(v) for v in residual]},
                 ]
-                details["normal_residual"] = [str(v) for v in normal_residual]
-                details["minimum_norm_residual"] = [str(v) for v in minimum_norm_residuals]
 
             elif rule == "vector_change_of_basis":
                 source_basis, target_basis, source_coords = inputs
