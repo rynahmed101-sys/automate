@@ -35,6 +35,7 @@ from automate.ai import (
 from automate.theory.rules import RuleRegistry
 from automate.dev.inventory import summarize as capability_inventory_summary
 from automate.dev.cli import capability
+from automate.dev.learning_cli import learn
 
 
 @click.group()
@@ -624,6 +625,7 @@ def engine(as_json: bool):
 
 
 main.add_command(capability)
+main.add_command(learn)
 
 if __name__ == "__main__":
     main()

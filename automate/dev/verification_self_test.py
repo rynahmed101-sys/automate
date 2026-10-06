@@ -19,7 +19,7 @@ from automate.dev.verification_engine import (
 )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--repository",
@@ -29,7 +29,7 @@ def main() -> int:
         "--backlog",
         default="docs/VERIFICATION_BACKLOG.json",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     backlog = json.loads(Path(args.backlog).read_text(encoding="utf-8"))
     first = backlog["first_frontier"]

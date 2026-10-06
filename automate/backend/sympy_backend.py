@@ -1050,7 +1050,10 @@ class SymPyChecker(BaseChecker):
                 direction = "right" if endpoint == "lower" else "left"
                 eps = sp.symbols("epsilon", positive=True)
                 cutoff = singular + eps if direction == "right" else singular - eps
-                truncated = sp.integrate(integrand, (variable, cutoff, upper if endpoint == "lower" else lower))
+                if endpoint == "lower":
+                    truncated = sp.integrate(integrand, (variable, cutoff, upper))
+                else:
+                    truncated = sp.integrate(integrand, (variable, lower, cutoff))
                 if isinstance(truncated, sp.Integral) or truncated.has(sp.Integral):
                     return False, {"rule": "improper_integral", "mode": "endpoint", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: truncated integral remained unevaluated."
                 limit_value = sp.limit(truncated, eps, 0, dir="+")
@@ -1106,8 +1109,8 @@ class SymPyChecker(BaseChecker):
             if limit_value.has(sp.Limit) or limit_value is sp.nan:
                 return False, {"rule": "improper_integral", "_status_override": VerificationStatus.UNVERIFIED.value}, [], "UNVERIFIED: convergence limit is indeterminate or unevaluated."
             residual = sp.simplify(actual - limit_value)
-            # SymPy .equals(False) is not a proof of inequality. Only explicit
-            # zero/non-zero information is strong enough for a definitive result.
+            # SymPy .equals(False) is not proof of inequality. Use only explicit
+            # zero/non-zero information for definitive classification.
             if residual == 0 or getattr(residual, "is_zero", None) is True:
                 return True, {"rule": "improper_integral", "converges": True, "expected_result": str(limit_value), "actual_result": str(actual), "residual": str(residual)}, [{"step": 1, "operation": "convergence_limit", "result": str(limit_value)}, {"step": 2, "operation": "compare_claimed_value", "residual": str(residual)}], None
             if getattr(residual, "is_zero", None) is False:

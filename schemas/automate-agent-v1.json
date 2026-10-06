@@ -25,7 +25,12 @@
     "tensor": "automate-tensor-v1",
     "certificate": "automate.cert.v0.2",
     "agent": "automate.agent.v1",
-    "capability_inventory": "automate.capability_inventory.v1"
+    "capability_inventory": "automate.capability_inventory.v1",
+    "learning_experience": "automate.learning_experience.v1",
+    "learning_lesson": "automate.learning_lesson.v1",
+    "system_evolution_proposal": "automate.system_evolution_proposal.v1",
+    "discovery_triage": "automate.discovery_triage.v1",
+    "learning_loop_plan": "automate.learning_loop_plan.v1"
   },
   "command_protocol": {
     "input_convention": "CLI arguments plus UTF-8 JSON files where a command accepts structured artifacts.",
@@ -178,6 +183,74 @@
       "mode": "read_only",
       "purpose": "Inspect capability ownership, reconciliation, dependencies and verification state without conflating roadmap state with implementation state.",
       "returns_contract": "automate.capability_inventory.v1"
+    },
+    "learn": {
+      "command": "automate learn <record|candidate-lessons|recommend|snapshot|add-lesson|transition|evolution-admission|make-experience|make-evolution-proposal|evolution-plan> ...",
+      "mode": "control_plane",
+      "purpose": "Record experience, inspect learned strategy evidence, and manage lessons/evolution proposals without granting certification authority.",
+      "returns": "machine-readable learning artifact or decision"
+    },
+    "evolve": {
+      "command": "automate learn evolution-admission <proposal> <regressions> --verified-evidence-count <n>",
+      "mode": "read_only",
+      "purpose": "Evaluate whether a mutable system-evolution proposal is ready for independent verification; constitutional changes are always blocked from automatic promotion.",
+      "returns": [
+        "admit",
+        "status",
+        "reasons"
+      ]
+    },
+    "evolve-plan": {
+      "command": "automate learn evolution-plan <proposal> <changes> --base-revision <sha> --allowed-prefix <path> ...",
+      "mode": "proposal_only",
+      "purpose": "Turn an adopted mutable evolution proposal into an exact, bounded, reversible change plan.",
+      "returns": [
+        "plan_id",
+        "proposal_id",
+        "base_revision",
+        "changes",
+        "regression_requirements",
+        "rollback",
+        "apply_mode"
+      ]
+    },
+    "evolve-execute": {
+      "command": "automate learn evolution-execute <plan>",
+      "mode": "gated_pr_creation",
+      "purpose": "Materialize an adopted mutable evolution plan into one atomic maintenance commit and open a normal PR to main; never self-merge.",
+      "returns": [
+        "pull_request_number",
+        "pull_request_url",
+        "commit_sha",
+        "base_revision",
+        "self_merge",
+        "certified"
+      ]
+    },
+    "triage-discovery": {
+      "command": "automate learn triage-discovery <proposal>",
+      "mode": "read_only",
+      "purpose": "Classify an untrusted discovered capability against canonical prerequisites without mutating the ledger or inventory.",
+      "returns": [
+        "status",
+        "candidate_capability_id",
+        "dependencies",
+        "prerequisites",
+        "canonical_inventory_mutated"
+      ]
+    },
+    "learning-loop": {
+      "command": "automate learn loop --task-kind <kind> --task-target <target>",
+      "mode": "read_only",
+      "purpose": "Choose the next bounded learning action from recorded experience, candidate lessons, conflicts, and adopted improvements.",
+      "returns": [
+        "action",
+        "reason",
+        "candidate_lessons",
+        "conflicts",
+        "lessons",
+        "requires_external_verification"
+      ]
     }
   },
   "capability_catalog": {
@@ -1401,5 +1474,25 @@
     "Caller-supplied expected output is not independent evidence.",
     "Cross-engine claims must bind evidence to the same mathematical claim and record independence/provenance.",
     "Empirical or numerical evidence is not silently upgraded to a formal proof."
-  ]
+  ],
+  "self_improvement": {
+    "principle": "Future system decisions may use only explicitly adopted lessons and conservative strategy evidence derived from recorded experience.",
+    "lifecycle": [
+      "experience",
+      "candidate_lesson",
+      "reproduced",
+      "verified",
+      "adopted",
+      "superseded_or_rejected"
+    ],
+    "memory_classes": [
+      "experience",
+      "lesson",
+      "strategy_evidence",
+      "system_evolution_proposal"
+    ],
+    "authority_rule": "Learning artifacts are evidence. They do not mutate canonical capability authority, the phase ledger, certification state, or Git history by themselves.",
+    "constitutional_boundary": "Changes classified CONSTITUTIONAL are never auto-promotable.",
+    "future_behavior_rule": "Raw experience may influence telemetry and candidate generation, but autonomous strategy changes require an explicitly ADOPTED strategy lesson plus conservative historical evidence."
+  }
 }
