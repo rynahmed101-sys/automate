@@ -255,7 +255,14 @@
       "numerical eigenproblems",
       "FFT",
       "Monte Carlo estimation",
-      "parameter sweeps"
+      "parameter sweeps",
+      "nonlinear systems",
+      "numerical linear solves",
+      "conditioning diagnostics",
+      "local sensitivity",
+      "first-order uncertainty propagation",
+      "empirical convergence evidence",
+      "one-dimensional finite-difference numerical PDEs"
     ],
     "statistics": [
       "nonlinear/parametric model fitting",
@@ -1315,6 +1322,69 @@
     },
     {
       "rule_id": "parameter_sweep",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_nonlinear_system",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_linear_solve",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_conditioning",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_sensitivity",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_uncertainty_propagation",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_convergence_evidence",
+      "category": "numerics",
+      "domain": "numerics",
+      "implementation_backend": "numerical",
+      "allowed_checkers": [
+        "numerical"
+      ]
+    },
+    {
+      "rule_id": "numerical_pde_1d_dirichlet",
       "category": "numerics",
       "domain": "numerics",
       "implementation_backend": "numerical",
