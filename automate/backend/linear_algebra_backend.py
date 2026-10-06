@@ -34,6 +34,7 @@ class LinearAlgebraChecker(BaseChecker):
         "matrix_null_space", "matrix_row_space", "matrix_column_space",
         "vector_span_membership", "vector_linear_independence", "vector_basis_of_span", "vector_change_of_basis",
         "linear_transformation_apply", "matrix_representation", "matrix_svd", "matrix_pseudoinverse", "linear_least_squares",
+        "matrix_conjugate_transpose", "matrix_unitary",
         "matrix_positive_definite",
         "matrix_symmetric", "matrix_hermitian", "quadratic_form_evaluate",
     }
@@ -280,6 +281,45 @@ class LinearAlgebraChecker(BaseChecker):
                 "atol": 1e-10,
             }
 
+
+        if operation == "matrix_conjugate_transpose":
+            expected_np = np.asarray(expected)
+            try:
+                passed = bool(np.allclose(actual_np, expected_np, rtol=1e-9, atol=1e-10, equal_nan=False))
+                max_abs_error = float(np.max(np.abs(actual_np - expected_np)))
+            except (TypeError, ValueError):
+                passed = False
+                max_abs_error = None
+            return {
+                "available": True,
+                "independence_class": "DIFFERENT_ENGINE",
+                "engine": "numpy.conjugate.T",
+                "version": np.__version__,
+                "operation": operation,
+                "passed": passed,
+                "max_abs_error": max_abs_error,
+                "rtol": 1e-9,
+                "atol": 1e-10,
+            }
+
+        if operation == "matrix_unitary":
+            try:
+                expected_value = int(np.asarray(expected["value"]).reshape(()))
+                actual_value = int(np.asarray(actual_np).reshape(()))
+                passed = actual_value == expected_value
+            except (KeyError, TypeError, ValueError):
+                passed = False
+                expected_value = actual_value = None
+            return {
+                "available": True,
+                "independence_class": "DIFFERENT_ENGINE",
+                "engine": "numpy.conjugate.T@numpy",
+                "version": np.__version__,
+                "operation": operation,
+                "passed": passed,
+                "expected_indicator": expected_value,
+                "actual_indicator": actual_value,
+            }
 
         if operation == "matrix_eigenvalues":
             expected_np = np.asarray(expected).reshape(-1)
@@ -1425,6 +1465,40 @@ class LinearAlgebraChecker(BaseChecker):
                     {"step": 2, "operation": "verify_minimum_norm_range_A_H", "nullspace_orthogonality": [str(v) for v in minimum_norm_residuals]},
                     {"step": 3, "operation": "report_residual", "residual": [str(v) for v in residual]},
                 ]
+
+            elif rule == "matrix_conjugate_transpose":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "matrix":
+                    raise LinearAlgebraParseError("matrix_conjugate_transpose requires one matrix input and one matrix output.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                expected = ParsedLinearAlgebra("matrix", matrix.conjugate().T)
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    numpy_expected = np.conjugate(numeric).T
+                steps = [{"step":1,"operation":"conjugate_transpose","input_shape":list(matrix.shape),"result_shape":list(matrix.conjugate().T.shape)}]
+
+            elif rule == "matrix_unitary":
+                if len(parsed_inputs) != 1 or parsed_inputs[0].kind != "matrix" or output.kind != "scalar":
+                    raise LinearAlgebraParseError("matrix_unitary requires one square matrix input and one scalar indicator output.")
+                matrix = sp.Matrix(parsed_inputs[0].value)
+                if matrix.rows != matrix.cols:
+                    raise ValueError(f"Unitary verification requires a square matrix; received shape {matrix.shape}.")
+                residual = sp.simplify(matrix.conjugate().T * matrix - sp.eye(matrix.rows))
+                states = [sp.simplify(residual[i,j]) for i in range(matrix.rows) for j in range(matrix.cols)]
+                if all(v == 0 for v in states):
+                    expected_value = sp.Integer(1)
+                elif any(v.is_zero is False for v in states):
+                    expected_value = sp.Integer(0)
+                else:
+                    return self._unverified(edge, graph, start, details, "Unitarity cannot be decided for the supplied symbolic matrix without additional assumptions.")
+                expected = ParsedLinearAlgebra("scalar", expected_value)
+                numeric = self._numeric_array(parsed_inputs[0])
+                if numeric is not None:
+                    gram = numeric.conj().T @ numeric
+                    error = float(np.max(np.abs(gram - np.eye(matrix.rows))))
+                    scale = max(1.0, float(np.max(np.abs(numeric))))
+                    tolerance = 1e-9 + 1e-8 * scale
+                    numpy_expected = {"value": np.asarray(1 if error <= tolerance else 0)}
+                steps = [{"step":1,"operation":"unitarity","condition":"A^H A = I","residual":[[str(residual[i,j]) for j in range(matrix.cols)] for i in range(matrix.rows)]}]
 
             elif rule == "vector_change_of_basis":
                 if len(parsed_inputs) != 3 or any(x.kind != "matrix" for x in parsed_inputs[:2]) or parsed_inputs[2].kind != "vector" or output.kind != "vector":
