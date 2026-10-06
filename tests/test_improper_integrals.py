@@ -115,3 +115,26 @@ def test_upper_endpoint_singularity_converges():
     assert passed is True
     assert details["converges"] is True
     assert error is None
+
+
+def test_negative_infinite_lower_bound_converges():
+    passed, details, _, error = run(
+        {"variable": "x", "lower": "-oo", "upper": "0"},
+        "exp(x)",
+        "1",
+    )
+    assert passed is True
+    assert details["converges"] is True
+    assert error is None
+
+
+def test_negative_infinite_lower_bound_diverges():
+    passed, details, evidence, error = run(
+        {"variable": "x", "lower": "-oo", "upper": "0"},
+        "1/x",
+        "0",
+    )
+    assert passed is False
+    assert details["converges"] is False
+    assert evidence
+    assert "diverg" in error.lower()
