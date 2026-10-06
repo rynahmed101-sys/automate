@@ -31,7 +31,7 @@ def _zero_state(expr: sp.Expr) -> bool | None:
     if reduced.is_zero is False: return False
     try: result=reduced.equals(0)
     except Exception: result=None
-    return result if result in (True,False) else None
+    return True if result is True else None
 
 def _matrix_zero_state(m: sp.MatrixBase) -> bool | None:
     states=[_zero_state(v) for v in m]
