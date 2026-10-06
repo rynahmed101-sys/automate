@@ -1262,6 +1262,24 @@
       "allowed_checkers": [
         "linear_algebra"
       ]
+    },
+    {
+      "rule_id": "matrix_conjugate_transpose",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "matrix_unitary",
+      "category": "linear_algebra",
+      "domain": "mathematics",
+      "implementation_backend": "linear_algebra",
+      "allowed_checkers": [
+        "linear_algebra"
+      ]
     }
   ],
   "ai_workflow": {
