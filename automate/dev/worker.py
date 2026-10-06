@@ -14,6 +14,7 @@ from automate.dev.inventory import InventoryError, get_capability, load_inventor
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKER_SCHEMA_PATH = ROOT / "schemas" / "automate-worker-v1.json"
+WORKER_RESULT_SCHEMA_PATH = ROOT / "schemas" / "automate-worker-result-v1.json"
 
 _SECRET_PATTERNS = (
     re.compile(r"(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*[^\s,]+"),
@@ -122,10 +123,12 @@ def build_worker_packet(
 
 
 def validate_worker_result(result: dict[str, Any], packet: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
-
-    if result.get("schema_version") != "automate.worker_result.v1":
-        errors.append("invalid or missing worker result schema version")
+    errors: list[str] = [
+        error.message
+        for error in Draft202012Validator(
+            json.loads(WORKER_RESULT_SCHEMA_PATH.read_text(encoding="utf-8"))
+        ).iter_errors(result)
+    ]
 
     if result.get("request_id") != packet.get("request_id"):
         errors.append("request_id does not match worker packet")
