@@ -27,3 +27,11 @@ Basic diffraction is deliberately limited to the single-slit Fraunhofer intensit
 - Multi-element polarization optics.
 - Double/multi-slit and Fresnel diffraction.
 - PDE-level wave-equation solution families.
+
+### Completed foundation scope
+The reusable layer now covers 1-D harmonic waves, compatible superposition, a normalized interference observable, equal-amplitude standing waves, exact harmonic wave-equation residual checking, sampled dispersion relations with phase/group velocity evidence, Snell refraction, normal and oblique Fresnel reflectance (including explicit total-internal-reflection classification), Jones polarization with normalized Stokes parameters, and normalized Fraunhofer single-slit diffraction.
+
+Every bounded numerical observable reports explicit evidence status. Unsupported broader semantics remain fail-closed rather than inferred.
+
+### Deliberate boundaries
+This does not claim a general vector electromagnetic-wave solver, absorbing/anisotropic media, multilayer transfer matrices, polarization-element composition, full Fresnel transmission phase, near-field/Fresnel diffraction, multi-slit diffraction, or general PDE wave-equation solution families.
