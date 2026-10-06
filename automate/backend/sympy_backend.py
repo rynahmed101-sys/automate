@@ -196,6 +196,8 @@ class SymPyChecker(BaseChecker):
 
             if status_override is not None:
                 status = status_override
+            elif details.get("_status_override"):
+                status = VerificationStatus(details.pop("_status_override"))
             else:
                 status = VerificationStatus.SYMBOLIC_CHECKED if passed else VerificationStatus.FAILED
 
