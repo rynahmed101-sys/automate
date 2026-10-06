@@ -83,23 +83,28 @@
         "locally_tested": true,
         "development_ci_verified": true,
         "merged_main": true,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
+        "exact_head_workflow_run": 37416442716,
+        "security_workflow_run": 37416442720
+      }
     },
     {
       "id": "stage1a.change_of_basis",
       "order": 20,
       "stage": "1A",
       "name": "Change of basis",
-      "implementation_state": "awaiting_reconciliation",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "branch",
-        "ref": "PR93"
+        "kind": "main_merge",
+        "ref": "fcee67d780bb9c430a523d90bf79ca48e3307536"
       },
       "references": [
         {
@@ -107,7 +112,7 @@
           "number": 93,
           "branch": "feat/stage1a-isolated-change-of-basis",
           "head_sha": "e50324516a19a6a6323a12ef60cfc88966e7e0e0",
-          "state": "open"
+          "state": "closed_duplicate"
         },
         {
           "type": "pr",
@@ -130,15 +135,21 @@
       "verification": {
         "locally_tested": true,
         "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false,
-      "notes": "Historical PR62 was merged, while PR93 is the current isolated/hardening packet. Useful mathematical work is preserved, but this current packet is not authoritative until reconciled."
+      "safe_to_delete": true,
+      "notes": "PR93 was an isolated duplicate/hardening packet. Canonical change-of-basis verification already exists in main via PR62/backend acceptance tests.",
+      "preserved_in": "main",
+      "verification_evidence": {
+        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
+        "exact_head_workflow_run": 37416442716,
+        "security_workflow_run": 37416442720
+      }
     },
     {
       "id": "stage1a.pseudoinverse",
@@ -460,13 +471,18 @@
         "locally_tested": true,
         "development_ci_verified": true,
         "merged_main": true,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
+        "exact_head_workflow_run": 37416442716,
+        "security_workflow_run": 37416442720
+      }
     },
     {
       "id": "stage2b.pde_and_transforms",
@@ -545,13 +561,18 @@
         "locally_tested": true,
         "development_ci_verified": true,
         "merged_main": true,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
+        "exact_head_workflow_run": 37416442716,
+        "security_workflow_run": 37416442720
+      }
     },
     {
       "id": "stage2d.electromagnetism",
@@ -583,13 +604,18 @@
         "locally_tested": true,
         "development_ci_verified": true,
         "merged_main": true,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
+        "exact_head_workflow_run": 37416442716,
+        "security_workflow_run": 37416442720
+      }
     },
     {
       "id": "stage2e.statistical_and_optics",
@@ -717,5 +743,13 @@
       "safe_to_delete": false,
       "notes": "Preserve, but do not advance it ahead of unfinished Stage 1 work."
     }
-  ]
+  ],
+  "authoritative_verification": {
+    "main_sha": "e52ed749d65e9e965684b8b99678006b9a920fe0",
+    "exact_head_workflow_run": 37416442716,
+    "exact_head_conclusion": "success",
+    "security_workflow_run": 37416442720,
+    "security_conclusion": "success",
+    "note": "These runs verified the exact merged main commit. Individual capabilities are only credited for exact/security evidence when their implementation_state is merged_main."
+  }
 }
