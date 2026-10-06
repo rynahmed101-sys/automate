@@ -74,3 +74,40 @@ def test_scope_guard_rejects_unregistered_capability_branch():
     errors = validate_branch_scope("feat/unregistered-capability", ["tests/test_new.py"])
     assert errors
     assert "ownership record" in errors[0]
+
+
+def test_capability_next_does_not_leapfrog_blocked_dependency():
+    from automate.dev.inventory import next_action
+
+    data = {
+        "capabilities": [
+            {
+                "id": "a", "order": 10, "stage": "1A", "name": "A",
+                "implementation_state": "planned", "authority": {"kind": "roadmap", "ref": "ledger"},
+                "references": [], "depends_on": ["b"], "canonical_files": [],
+                "shared_integration_points": [], "verification": {"merged_main": False},
+                "safe_to_delete": False,
+            },
+            {
+                "id": "b", "order": 20, "stage": "1A", "name": "B",
+                "implementation_state": "awaiting_reconciliation", "authority": {"kind": "branch", "ref": "PR1"},
+                "references": [{"type": "pr", "number": 1, "state": "open", "branch": "feat/b"}],
+                "depends_on": [], "canonical_files": [],
+                "shared_integration_points": [], "verification": {"merged_main": False},
+                "safe_to_delete": False,
+            },
+        ]
+    }
+    payload = next_action(data)
+    assert payload["action"] == "blocked"
+    assert payload["capability_id"] == "a"
+    assert payload["blocked_by"] == ["b"]
+
+
+def test_capability_next_filters_active_packets_by_dependencies():
+    from automate.dev.inventory import next_action
+
+    data = load_inventory()
+    payload = next_action(data)
+    assert payload["action"] == "reconcile"
+    assert payload["capability_ids"] == ["stage2b.coordinate_and_pde"]
