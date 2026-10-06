@@ -1438,6 +1438,7 @@
       "system_evolution_proposal"
     ],
     "authority_rule": "Learning artifacts are evidence. They do not mutate canonical capability authority, the phase ledger, certification state, or Git history by themselves.",
-    "constitutional_boundary": "Changes classified CONSTITUTIONAL are never auto-promotable."
+    "constitutional_boundary": "Changes classified CONSTITUTIONAL are never auto-promotable.",
+    "future_behavior_rule": "Raw experience may influence telemetry and candidate generation, but autonomous strategy changes require an explicitly ADOPTED strategy lesson plus conservative historical evidence."
   }
 }
