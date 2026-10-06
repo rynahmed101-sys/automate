@@ -132,7 +132,7 @@ def build_worker_packet(
                 "name": item["name"],
                 "dependencies": list(item["depends_on"]),
             },
-            "task": dict(item["task"]),
+            "task": dict(item.get("task") or {\n                "source": "docs/PROJECT_PHASE_LEDGER.md",\n                "ref": item["id"],\n                "summary": item["name"],\n                "requirements": [\n                    "Implement the capability within its declared canonical file boundary.",\n                    "Add focused positive, negative, boundary, and adversarial verification.",\n                    "Preserve the repository control-plane and fail closed on unresolved semantics.",\n                ],\n            }),
             "constraints": {
                 "allowed_path_prefixes": allowed,
                 "forbidden_paths": sorted(forbidden),
