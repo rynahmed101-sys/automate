@@ -216,7 +216,12 @@
       "explicit quotient-rule differentiation",
       "implicit differentiation under a local nonzero-partial condition",
       "definite and indefinite symbolic integration",
-      "represented repeated and nested indefinite integration"
+      "represented repeated and nested indefinite integration",
+      "reusable ODE representation and solution verification",
+      "separable and linear first-order ODE verification",
+      "Bernoulli and exact ODE structural verification",
+      "higher-order homogeneous constant-coefficient ODE verification",
+      "initial-value, boundary-value, system, and phase-space ODE verification"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
@@ -287,7 +292,8 @@
       "OpenAI-compatible HTTP provider adapter",
       "bounded multi-step research loop",
       "machine-readable JSON CLI surface",
-      "development control-plane inventory discovery"
+      "development control-plane inventory discovery",
+      "Stage 1C ODE capability discovery"
     ],
     "provenance_and_certificates": [
       "runtime dependency provenance for external verification",
@@ -1307,6 +1313,87 @@
       "implementation_backend": "linear_algebra",
       "allowed_checkers": [
         "linear_algebra"
+      ]
+    },
+    {
+      "rule_id": "solve_separable_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_linear_first_order_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_bernoulli_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_exact_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "solve_constant_coefficient_ode",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_ivp",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_bvp",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "verify_ode_system",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
+      "rule_id": "ode_phase_space",
+      "category": "differential_equations",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
       ]
     }
   ],
