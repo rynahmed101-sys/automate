@@ -10,6 +10,8 @@ from typing import Any, Mapping
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from automate.dev.evolution import validate_evolution_plan
+
 FORBIDDEN_PATHS = {
     "docs/PROJECT_PHASE_LEDGER.md",
     "docs/CAPABILITY_INVENTORY.json",
