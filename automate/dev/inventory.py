@@ -12,7 +12,7 @@ INVENTORY_PATH = ROOT / "docs" / "CAPABILITY_INVENTORY.json"
 SCHEMA_PATH = ROOT / "schemas" / "automate-capability-inventory-v1.json"
 
 ACTIVE_STATES = {"delegated", "awaiting_reconciliation", "reconciled"}
-TERMINAL_STATES = {"merged_main", "superseded", "preserved_out_of_order", "abandoned"}
+TERMINAL_STATES = {"merged_main", "superseded", "abandoned"}
 
 
 class InventoryError(ValueError):
