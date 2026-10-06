@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 from typing import Any, Mapping
+from urllib.parse import quote
 
 from automate.dev.learning import (
     LearningError,
@@ -57,9 +58,9 @@ def read_learning_artifacts(
         raise WorkerTransportError("learning read limit must be between 1 and 100")
     query = [f"limit={int(limit)}"]
     if artifact_type:
-        query.append("artifactType=" + __import__("urllib.parse").parse.quote(artifact_type, safe=""))
+        query.append("artifactType=" + quote(artifact_type, safe=""))
     if source_repo:
-        query.append("sourceRepo=" + __import__("urllib.parse").parse.quote(source_repo, safe=""))
+        query.append("sourceRepo=" + quote(source_repo, safe=""))
     result = _request_json(
         learning_endpoint(endpoint) + "/learning?" + "&".join(query),
         token=learning_token(token),
