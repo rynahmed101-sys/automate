@@ -60,3 +60,38 @@ def test_learning_cli_transition_does_not_forge_independence_marker(tmp_path):
         ],
     )
     assert adopted.exit_code != 0
+
+
+def test_learning_cli_loop_and_triage_are_machine_readable(tmp_path):
+    from pathlib import Path
+    import json
+
+    proposal_path = tmp_path / "proposal.json"
+    proposal_path.write_text(json.dumps({
+        "schema_version": "mirror.research_proposal.v1",
+        "authority": "UNTRUSTED_RESEARCH_PROPOSAL",
+        "proposal_id": "proposal_" + "f" * 32,
+        "request_id": "research_12345678",
+        "capability_id": "stage.discovery",
+        "source_revision": "a" * 40,
+        "candidate_capability": {
+            "id": "candidate.cli.discovery",
+            "name": "CLI discovery",
+            "summary": "A candidate",
+            "prerequisites": ["stage1a.linear_algebra"],
+            "dependencies": ["stage1a.linear_algebra"],
+        },
+        "evidence_refs": ["run:1"],
+        "assumptions": [],
+        "risks": [],
+        "limitations": [],
+        "status": "CANDIDATE",
+    }), encoding="utf-8")
+
+    triage = CliRunner().invoke(
+        main,
+        ["learn", "triage-discovery", str(proposal_path)],
+    )
+    assert triage.exit_code == 0, triage.output
+    payload = json.loads(triage.output)
+    assert payload["canonical_inventory_mutated"] is False
