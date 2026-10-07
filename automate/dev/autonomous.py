@@ -45,6 +45,7 @@ def run_autonomous_cycle(
     execute_worker: bool = False,
     local_root: Path | None = None,
     mode: Literal["backlog", "research"] = "backlog",
+    auto_publish: bool | None = None,
 ) -> dict[str, Any]:
     decision = supervisor_snapshot(repository, live=True)
     learning_store = None
@@ -233,11 +234,11 @@ def run_autonomous_cycle(
                             )
             except LearningRuntimeError:
                 output["learning_persistence"] = "unavailable"
-        if (
-            commit.get("status") == "committed"
-            and local_root is not None
-            and os.getenv("AUTOMATE_AUTO_PUBLISH", "").strip().lower() in {"1", "true", "yes"}
-        ):
+        publish_enabled = (
+            os.getenv("AUTOMATE_AUTO_PUBLISH", "").strip().lower() in {"1", "true", "yes"}
+            if auto_publish is None else auto_publish
+        )
+        if commit.get("status") == "committed" and local_root is not None and publish_enabled:
             from automate.dev.publisher import publish_worker_commit
             try:
                 published = publish_worker_commit(
