@@ -439,6 +439,42 @@ def run_backlog_item(
         payload=mirror_request,
         parent_id=math_id,
     )
+
+    mirror_result = None
+    mirror_evidence_id = None
+    mirror_enabled = __import__("os").getenv(
+        "AUTOMATE_MIRROR_VERIFICATION_ENABLED", ""
+    ).strip().lower() in {"1", "true", "yes"}
+    if mirror_enabled:
+        try:
+            from automate.dev.mirror_verification_client import run_mirror_verification
+
+            mirror_result = run_mirror_verification(mirror_request)
+            mirror_state = (
+                EvidenceState.REPRODUCED
+                if mirror_result.get("status") == "REPRODUCED"
+                else EvidenceState.UNRESOLVED
+                if mirror_result.get("status") == "UNRESOLVED"
+                else EvidenceState.CONTRADICTED
+            )
+            mirror_evidence_id = graph.add(
+                kind="mirror_experimental_result",
+                state=mirror_state,
+                payload=mirror_result,
+                parent_id=mirror_id,
+            )
+        except Exception as exc:
+            mirror_result = {
+                "status": "UNRESOLVED",
+                "error": str(exc),
+                "authority": "UNTRUSTED_EXPERIMENTAL_OBSERVATION",
+            }
+            mirror_evidence_id = graph.add(
+                kind="mirror_experimental_result",
+                state=EvidenceState.BLOCKED,
+                payload=mirror_result,
+                parent_id=mirror_id,
+            )
     state = (
         EvidenceState.VERIFIED
         if math_ok and actions["exact_head_verified"] and actions["security_verified"]
@@ -447,15 +483,27 @@ def run_backlog_item(
     )
     packet = build_verifiable_packet(
         request=request,
-        graph_ids=[request_id, reconciliation_id, math_id, actions_id, mirror_id],
+        graph_ids=[
+            request_id,
+            reconciliation_id,
+            math_id,
+            actions_id,
+            mirror_id,
+            *([mirror_evidence_id] if mirror_evidence_id else []),
+        ],
         repository_state={**snap, "evidence_state": state.value},
         tests=["python -m pytest -q tests/test_improper_integrals.py"],
         ci_run_ids=actions["ci_run_ids"],
         security_run_ids=actions["security_run_ids"],
         math_evidence={"state": math_state.value, "cases_checked": len(math_results)},
         computational_evidence={
-            "state": EvidenceState.UNVERIFIED.value,
-            "alternate_route": "Mirror requested, result not fabricated",
+            "state": (
+                EvidenceState.REPRODUCED.value
+                if isinstance(mirror_result, dict) and mirror_result.get("status") == "REPRODUCED"
+                else EvidenceState.UNVERIFIED.value
+            ),
+            "alternate_route": "Mirror verification is untrusted experimental evidence; no certification is inferred.",
+            "mirror_experimental_evidence_id": mirror_evidence_id,
         },
         provenance_evidence={
             "source_revision": revision,
@@ -476,6 +524,8 @@ def run_backlog_item(
         "actions": actions,
         "math": math_results,
         "packet": packet,
+        "mirror_request": mirror_request,
+        "mirror_result": mirror_result,
         "evidence_state": state.value,
     }
 
