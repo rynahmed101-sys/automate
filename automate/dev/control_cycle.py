@@ -151,6 +151,7 @@ def run_control_cycle(
             }
 
         future_capability = None
+        future_capability_persistence = None
         if triage and triage[0]["status"] == "READY_FOR_INVESTIGATION":
             proposals = __import__("automate.dev.discovery", fromlist=["extract_candidate_proposals"]).extract_candidate_proposals(
                 result.get("result", result)
@@ -160,6 +161,21 @@ def run_control_cycle(
                     proposals[0],
                     triage[0],
                 )
+                if worker_url and worker_token:
+                    try:
+                        from automate.dev.future_capability_learning import persist_future_capability
+                        future_capability_persistence = persist_future_capability(
+                            future_capability,
+                            source_revision=None,
+                            correlation_id=grant["correlation_id"],
+                            url=worker_url,
+                            token=worker_token,
+                        )
+                    except Exception as exc:
+                        future_capability_persistence = {
+                            "status": "persistence_blocked",
+                            "error": str(exc),
+                        }
 
         return {
             **control,
@@ -169,6 +185,7 @@ def run_control_cycle(
             "discovery": result,
             "candidate_triage": triage,
             "future_capability": future_capability,
+            "future_capability_persistence": future_capability_persistence,
             "canonical_mutation_performed": False,
         }
     if control["mode"] != "BACKLOG":
