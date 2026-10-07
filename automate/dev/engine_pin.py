@@ -212,6 +212,7 @@ def ensure_engine_pin(
         }
 
     pin["engine_sha"] = engine_sha
+    pin["enabled"] = True
     pin["notes"] = (
         "Scheduler release pin updated only after engine reconciliation and exact-head "
         "Engine CI + Security Audit evidence."
