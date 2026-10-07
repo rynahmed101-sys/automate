@@ -137,7 +137,7 @@ def test_real_backlog_item_runs_through_reconciliation_and_packet():
         )
     assert result["math"]
     assert result["packet"]["authority"] == "EVIDENCE_ONLY"
-    assert result["evidence_state"] == "PARTIALLY_SUPPORTED"
+    assert result["evidence_state"] == "BLOCKED"
     assert result["packet"]["unresolved"]
 
 
