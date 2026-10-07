@@ -458,3 +458,87 @@ def inspect_capability_lifecycle(
         "state": "READY_TO_IMPLEMENT",
         "capability_id": capability_id,
     }
+
+
+
+def inspect_worker_result_lifecycle(
+    repository: str,
+    *,
+    capability_id: str,
+    packet: Mapping[str, Any],
+    worker_result: Mapping[str, Any],
+    current_main_sha: str,
+    require_review: bool = False,
+) -> dict[str, Any]:
+    """Bind a submitted PR to the exact worker packet before promotion inspection."""
+    status = str(worker_result.get("status") or "").lower()
+    if status not in {"submitted", "proposed"}:
+        return {
+            "state": "WORKER_NOT_SUBMITTED",
+            "capability_id": capability_id,
+            "worker_status": status or "missing",
+        }
+
+    pr_number = worker_result.get("pr_number")
+    branch = worker_result.get("branch")
+    if not isinstance(pr_number, int) or pr_number < 1:
+        raise PromotionError("worker result submitted without a valid PR number")
+    if not isinstance(branch, str) or not branch.startswith("feat/"):
+        raise PromotionError("worker result submitted without a canonical feature branch")
+
+    pr = _pr(repository, pr_number)
+    if pr.get("base", {}).get("ref") != "main":
+        raise PromotionError("worker-created capability PR does not target canonical main")
+    if pr.get("head", {}).get("ref") != branch:
+        raise PromotionError("worker result branch does not match live PR head branch")
+
+    expected_base = packet.get("repository", {}).get("base_sha_claim")
+    if not isinstance(expected_base, str) or len(expected_base) != 40:
+        raise PromotionError("worker packet lacks an exact base SHA claim")
+    if pr.get("base", {}).get("sha") != expected_base:
+        raise PromotionError("worker-created PR base SHA does not match the packet claim")
+
+    changed = _gh_json(repository, f"/pulls/{pr_number}/files?per_page=100")
+    if not isinstance(changed, list):
+        raise PromotionError("GitHub PR file listing returned a non-list payload")
+
+    allowed = [str(path).replace("\\", "/").rstrip("/") for path in packet.get("constraints", {}).get("allowed_path_prefixes", [])]
+    forbidden = {
+        str(path).replace("\\", "/").rstrip("/")
+        for path in packet.get("constraints", {}).get("forbidden_paths", [])
+    }
+
+    def allowed_path(path: str) -> bool:
+        normalized = path.replace("\\", "/").lstrip("./")
+        if normalized in forbidden:
+            return False
+        return any(normalized == prefix or normalized.startswith(prefix + "/") for prefix in allowed)
+
+    unexpected = [
+        str(item.get("filename"))
+        for item in changed
+        if not isinstance(item, dict) or not allowed_path(str(item.get("filename", "")))
+    ]
+    if unexpected:
+        raise PromotionError(
+            "worker-created PR touches files outside the assigned capability boundary: "
+            + ", ".join(unexpected[:10])
+        )
+
+    evaluation = inspect_promotion(
+        repository,
+        pr_number,
+        current_main_sha=current_main_sha,
+        require_review=require_review,
+    )
+    return {
+        "state": "IMPLEMENTATION_PR",
+        "capability_id": capability_id,
+        "pr": {
+            "number": pr_number,
+            "branch": branch,
+            "head_sha": pr.get("head", {}).get("sha"),
+            "base_sha": pr.get("base", {}).get("sha"),
+        },
+        "promotion": evaluation,
+    }
