@@ -1168,81 +1168,11 @@
   },
   "control_plane_references": [
     {
-      "number": 147,
-      "branch": "feat/operating-mode-contract-20261007",
-      "state": "closed_superseded",
-      "purpose": "closed-loop operating mode control plane",
-      "head_sha": "06bb14b14fcf54f9c0b04db67edb20d3ee897606"
-    },
-    {
-      "number": 148,
-      "branch": "feat/future-capability-admission-queue-20261007",
-      "state": "closed_superseded",
-      "purpose": "future capability admission staging control plane",
-      "head_sha": "b33968f93869da9f1034bec2bf5534b067cd5087"
-    },
-    {
-      "number": 168,
-      "branch": "chore/auto-engine-reconcile-scheduler-v2-20261007",
-      "state": "open",
-      "purpose": "automatic main-to-engine reconciliation and release pinning"
-    },
-    {
       "number": 169,
       "branch": "feat/autonomous-scheduler-20261007",
       "state": "open",
-      "purpose": "readiness-gated unattended autonomous control-cycle scheduler",
-      "head_sha": "e18ee4e3db183e9138648b43bb0323dd0ebee5fa"
+      "purpose": "readiness-gated unattended autonomous control-cycle scheduler"
     }
   ],
-  "integration_references": [
-    {
-      "number": 95,
-      "branch": "integrate/verification-bookkeeping",
-      "state": "merged",
-      "purpose": "authoritative verification bookkeeping"
-    },
-    {
-      "number": 113,
-      "branch": "integrate/control-plane-dependency-aware-queue",
-      "state": "merged",
-      "purpose": "dependency-aware queue hardening"
-    },
-    {
-      "number": 116,
-      "branch": "integrate/control-plane-stage1b-frontier",
-      "state": "merged",
-      "purpose": "Stage 1B frontier inventory and issue bookkeeping"
-    },
-    {
-      "number": 117,
-      "branch": "integrate/control-plane-final-bookkeeping",
-      "state": "merged",
-      "purpose": "final capability-control-plane verification bookkeeping"
-    },
-    {
-      "number": 118,
-      "branch": "integrate/control-plane-live-audit",
-      "state": "open",
-      "purpose": "live GitHub PR consistency and deterministic queue snapshot"
-    },
-    {
-      "number": 120,
-      "branch": "integrate/autonomous-worker-foundation",
-      "state": "open",
-      "purpose": "autonomous worker foundation integration"
-    },
-    {
-      "number": 133,
-      "branch": "integrate/clear-1a-3a",
-      "state": "closed_future_work",
-      "purpose": "Stage 1C current-main reconciliation preserved for later harvest"
-    },
-    {
-      "number": 140,
-      "branch": "integrate/reconcile-main-into-engine",
-      "state": "open",
-      "purpose": "reconcile current authoritative main into long-lived engine trunk"
-    }
-  ]
+  "integration_references": []
 }
