@@ -16,7 +16,7 @@ def test_create_worker_pr_rejects_non_worker_branch():
                 title="x",
                 base_sha="0" * 40,
                 test_result={"status": "passed", "command": ["python", "-m", "pytest"]},
-                worker_request_id="wrk_" + "a" * 32,
+                worker_worker_request_id="wrk_" + "a" * 32,
             )
         except WorkerExecutionError as exc:
             assert "non-worker branch" in str(exc)
@@ -40,7 +40,7 @@ def test_create_worker_pr_emits_deterministic_handoff_metadata_and_ready_state()
             test_result={"status": "passed", "command": ["python", "-m", "pytest", "-q", "tests/test_improper_integrals.py"]},
         )
     assert result["draft"] is False
-    assert result["worker_request_id"] == "wrk_" + "a" * 32
+    assert result["request_id"] == "wrk_" + "a" * 32
     command = run.call_args.args[0]
     assert "--draft" not in command
     assert "--base" in command
