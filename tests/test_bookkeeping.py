@@ -16,6 +16,7 @@ def test_bookkeeping_updates_only_target_stage():
                 "canonical_files": ["automate/backend/series.py"],
                 "shared_integration_points": [],
                 "verification": {},
+                "depends_on": [],
             },
             {
                 "id": "stage1b.partial_derivatives",
@@ -26,6 +27,7 @@ def test_bookkeeping_updates_only_target_stage():
                 "authority": {"kind": "roadmap", "ref": "ledger"},
                 "references": [],
                 "verification": {},
+                "depends_on": [],
             },
         ]
     }
@@ -75,6 +77,7 @@ def test_bookkeeping_fails_closed_for_missing_ledger_anchor():
             "authority": {"kind": "roadmap", "ref": "ledger"},
             "references": [],
             "verification": {},
+            "depends_on": [],
         }]
     }
     try:
