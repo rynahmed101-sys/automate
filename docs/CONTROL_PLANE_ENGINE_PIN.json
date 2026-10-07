@@ -1,0 +1,7 @@
+{
+  "schema_version": "automate.control_plane_pin.v1",
+  "enabled": false,
+  "engine_sha": null,
+  "auto_promote": false,
+  "notes": "The scheduler is inert until a verified engine commit is explicitly pinned and enabled on authoritative main."
+}
