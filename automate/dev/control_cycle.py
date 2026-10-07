@@ -29,6 +29,10 @@ from automate.dev.promotion import (
     inspect_bookkeeping_pr,
 )
 
+class VerificationError(RuntimeError):
+    """Raised when required scientific verification cannot be completed."""
+
+
 OperatingMode = Literal["BACKLOG", "DISCOVERY_READY", "STOPPED"]
 
 
@@ -317,6 +321,77 @@ def run_control_cycle(
         }
 
     if handoff is not None:
+        verification = None
+        require_verification = str(__import__("os").getenv("AUTOMATE_REQUIRE_VERIFICATION", "")).strip().lower() in {"1", "true", "yes"}
+        if require_verification:
+            head_sha = str(handoff.get("head_sha") or handoff.get("pr", {}).get("head_sha") or "")
+            branch_name = str(handoff.get("branch") or handoff.get("pr", {}).get("branch") or "")
+            try:
+                from automate.dev.verification_job import (
+                    build_verification_job,
+                    dispatch_verification_job,
+                    read_verification_result,
+                )
+                action_cycle_id = "ctrl_" + __import__("hashlib").sha256(
+                    (capability_id + "\0" + head_sha).encode("utf-8")
+                ).hexdigest()[:32]
+                envelope = build_verification_job(
+                    capability_id=capability_id,
+                    repository=repository,
+                    revision=head_sha,
+                    branch=branch_name,
+                    action_cycle_id=action_cycle_id,
+                    verifier_endpoint=__import__("os").getenv("VERIFICATION_ENGINE_ENDPOINT", ""),
+                    parent_ids=[str(handoff.get("request_id") or "")],
+                    workflow_kind="mirror_verification",
+                    payload={"purpose": "pre-promotion scientific verification"},
+                )
+                if not worker_url or not worker_token:
+                    raise VerificationError("worker transport credentials are required for verification")
+                dispatched = dispatch_verification_job(
+                    envelope,
+                    worker_url=worker_url,
+                    worker_token=worker_token,
+                    execute=True,
+                )
+                queued = dispatched.get("queued", {})
+                job_id = str(queued.get("jobId") or "")
+                if not job_id:
+                    raise VerificationError("verification dispatch returned no durable job ID")
+                verification = read_verification_result(
+                    job_id,
+                    worker_url=worker_url,
+                    worker_token=worker_token,
+                )
+                job = verification.get("job", {})
+                result = job.get("result")
+                verification["gate"] = {
+                    "required": True,
+                    "job_id": job_id,
+                    "state": job.get("state"),
+                    "accepted": (
+                        job.get("state") == "succeeded"
+                        and isinstance(result, dict)
+                        and result.get("authority") == "EVIDENCE_ONLY"
+                        and result.get("source_revision") == head_sha
+                        and result.get("evidence_state") in {"VERIFIED", "REPRODUCED"}
+                    ),
+                }
+            except Exception as exc:
+                verification = {
+                    "gate": {"required": True, "accepted": False},
+                    "error": str(exc),
+                }
+
+        if verification and not verification.get("gate", {}).get("accepted", False):
+            return {
+                **control,
+                "status": "verification_blocked",
+                "dispatch_allowed": False,
+                "verification": verification,
+                "lifecycle": handoff,
+            }
+
         try:
             packet = build_worker_packet(
                 capability_id,
