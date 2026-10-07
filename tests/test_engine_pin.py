@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
@@ -78,8 +79,45 @@ def test_engine_pin_reports_missing_release_evidence(tmp_path: Path):
     assert result["state"] == "ENGINE_UNVERIFIED"
 
 
-def test_pin_auto_merge_requires_exact_main_pr_checks():
+def test_pin_auto_merge_requires_all_real_main_pr_checks():
     from automate.dev import engine_pin
 
-    with patch.object(engine_pin, "_exact_main_pr_checks_verified", return_value=False):
+    runs = [
+        {"name": "Security Audit", "status": "completed", "conclusion": "success"},
+        *[
+            {
+                "name": f"Development / Python 3.12 / shard {index}",
+                "status": "completed",
+                "conclusion": "success",
+            }
+            for index in range(4)
+        ],
+    ]
+
+    def fake(root, args, check=False):
+        return CompletedProcess(args, 0, stdout=json.dumps({"workflow_runs": runs}), stderr="")
+
+    with patch.object(engine_pin, "_run", fake):
+        assert engine_pin._exact_main_pr_checks_verified(Path("."), "owner/repo", "a" * 40) is True
+
+
+def test_pin_auto_merge_fails_closed_when_one_main_pr_shard_is_missing():
+    from automate.dev import engine_pin
+
+    runs = [
+        {"name": "Security Audit", "status": "completed", "conclusion": "success"},
+        *[
+            {
+                "name": f"Development / Python 3.12 / shard {index}",
+                "status": "completed",
+                "conclusion": "success",
+            }
+            for index in range(3)
+        ],
+    ]
+
+    def fake(root, args, check=False):
+        return CompletedProcess(args, 0, stdout=json.dumps({"workflow_runs": runs}), stderr="")
+
+    with patch.object(engine_pin, "_run", fake):
         assert engine_pin._exact_main_pr_checks_verified(Path("."), "owner/repo", "a" * 40) is False
