@@ -25,6 +25,7 @@ REQUIRED_GATES = (
     "exact_head_authority_current",
     "end_to_end_dry_run_passed",
     "autonomous_foundation_merged_main",
+    "engine_trunk_verified",
 )
 
 
@@ -199,6 +200,19 @@ def collect_readiness_evidence(
         and _workflow_success(repository, "security.yml", main_sha)
     )
 
+    try:
+        engine_ref = _gh_json(repository, "/git/ref/heads/engine")
+        engine_sha = engine_ref.get("object", {}).get("sha")
+    except Exception as exc:
+        engine_sha = None
+        errors.append(f"unable to read engine SHA: {exc}")
+    evidence["engine_trunk_verified"] = bool(
+        isinstance(engine_sha, str)
+        and len(engine_sha) == 40
+        and _workflow_success(repository, "engine-ci.yml", engine_sha)
+        and _workflow_success(repository, "security.yml", engine_sha)
+    )
+
     evidence["autonomous_foundation_merged_main"] = bool(
         _foundation_present_on_main(repository)
     )
@@ -297,6 +311,7 @@ def collect_readiness_evidence(
     return {
         "schema_version": "automate.autonomy_readiness.v1",
         "main_sha_observed": main_sha,
+        "engine_sha_observed": engine_sha,
         "evidence": evidence,
         "errors": errors,
     }
