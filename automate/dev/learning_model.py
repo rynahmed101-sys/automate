@@ -114,32 +114,42 @@ def generate_candidate_lessons(
         if isinstance(exp, Mapping)
     ]
 
-    prompt = json.dumps(
-        {
-            "task": "Analyze the following execution experiences and propose reusable candidate lessons.",
-            "rules": [
-                "Do not infer causality from repetition alone.",
-                "Prefer lessons that can be reproduced or falsified.",
-                "State scope and preconditions explicitly.",
-                "Every lesson remains CANDIDATE and UNVERIFIED.",
-                "Use only supplied experience IDs as supporting references.",
-            ],
-            "experiences": bounded_experiences,
-            "output": {
-                "lessons": [
-                    {
-                        "lesson_type": "failure|success|strategy|constraint|scientific|hypothesis|system_improvement",
-                        "statement": "candidate lesson statement",
-                        "scope": {},
-                        "preconditions": [],
-                        "expected_effect": "what future behavior should improve",
-                        "supporting_experience_ids": ["exp_..."],
-                    }
-                ]
-            },
+    base_prompt = {
+        "task": "Analyze the following execution experiences and propose reusable candidate lessons.",
+        "rules": [
+            "Do not infer causality from repetition alone.",
+            "Prefer lessons that can be reproduced or falsified.",
+            "State scope and preconditions explicitly.",
+            "Every lesson remains CANDIDATE and UNVERIFIED.",
+            "Use only supplied experience IDs as supporting references.",
+        ],
+        "experiences": [],
+        "output": {
+            "lessons": [
+                {
+                    "lesson_type": "failure|success|strategy|constraint|scientific|hypothesis|system_improvement",
+                    "statement": "candidate lesson statement",
+                    "scope": {},
+                    "preconditions": [],
+                    "expected_effect": "what future behavior should improve",
+                    "supporting_experience_ids": ["exp_..."],
+                }
+            ]
         },
-        separators=(",", ":"),
-    )
+    }
+
+    # Bounded degradation: keep the newest experiences that fit the model
+    # budget instead of failing the entire learning cycle on oversized history.
+    selected: list[dict[str, Any]] = []
+    for experience in reversed(bounded_experiences):
+        trial = [experience, *selected]
+        base_prompt["experiences"] = trial
+        trial_prompt = json.dumps(base_prompt, separators=(",", ":"))
+        if len(trial_prompt.encode("utf-8")) > MAX_MODEL_PROMPT_BYTES:
+            break
+        selected = trial
+    base_prompt["experiences"] = selected
+    prompt = json.dumps(base_prompt, separators=(",", ":"))
     if len(prompt.encode("utf-8")) > MAX_MODEL_PROMPT_BYTES:
         raise LearningModelError("reasoning model prompt exceeds bounded prompt budget")
     decoded = _request_model(
