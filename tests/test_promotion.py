@@ -94,3 +94,23 @@ def test_post_merge_unlocks_bookkeeping_only_after_exact_main_success():
     )
     assert result["state"] == "BOOKKEEPING_READY"
     assert result["canonical_ledger_mutated"] is False
+
+
+def test_promotion_lifecycle_reports_ready_to_implement_without_open_or_merged_pr():
+    from unittest.mock import patch
+    from automate.dev.promotion import inspect_capability_lifecycle
+
+    inventory = {
+        "capabilities": [{
+            "id": "stage1b.series_expansions",
+            "implementation_state": "planned",
+            "references": [],
+        }]
+    }
+    with patch("automate.dev.promotion.load_inventory", return_value=inventory):
+        result = inspect_capability_lifecycle(
+            "owner/repo",
+            capability_id="stage1b.series_expansions",
+            current_main_sha="a" * 40,
+        )
+    assert result["state"] == "READY_TO_IMPLEMENT"
