@@ -17,6 +17,13 @@ from automate.dev.autonomous import run_autonomous_cycle
 from automate.dev.inventory import load_inventory, queue_snapshot
 from automate.dev.discovery_grant import build_discovery_grant
 from automate.dev.worker import build_worker_packet
+from automate.dev.promotion import (
+    PromotionError,
+    _gh_json,
+    find_worker_handoff,
+    inspect_worker_handoff_pr,
+    inspect_capability_lifecycle,
+)
 
 OperatingMode = Literal["BACKLOG", "DISCOVERY_READY", "STOPPED"]
 
