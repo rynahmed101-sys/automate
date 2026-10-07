@@ -575,13 +575,13 @@ def find_worker_handoff(
         capability = re.search(r"(?m)^- capability:\\s*([a-z0-9][a-z0-9_.-]*)\\s*$", body)
         request = re.search(r"(?m)^- worker_request_id:\\s*([A-Za-z0-9_.:-]{8,128})\\s*$", body)
         base = re.search(r"(?m)^- base_sha:\\s*([0-9a-f]{40})\\s*$", body)
-        expected_branch = "feat/" + capability_id
+        expected_prefix = "feat/" + capability_id + "-"
         if (
             capability
             and capability.group(1) == capability_id
             and request
             and base
-            and str(pr.get("head", {}).get("ref")) == expected_branch
+            and str(pr.get("head", {}).get("ref", "")).startswith(expected_prefix)
         ):
             matches.append({
                 **pr,
@@ -613,11 +613,11 @@ def find_worker_handoff_history(
     if not isinstance(payload, list):
         raise PromotionError("GitHub pull request history returned a non-list payload")
     matches: list[dict[str, Any]] = []
-    expected_branch = "feat/" + capability_id
+    expected_prefix = "feat/" + capability_id + "-"
     for pr in payload:
         if not isinstance(pr, dict):
             continue
-        if str(pr.get("head", {}).get("ref", "")) != expected_branch:
+        if not str(pr.get("head", {}).get("ref", "")).startswith(expected_prefix):
             continue
         body = str(pr.get("body") or "")
         capability = re.search(r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$", body)
