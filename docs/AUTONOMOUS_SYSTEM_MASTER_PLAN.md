@@ -683,3 +683,24 @@ The loop is continuous:
 7. re-read the frontier and continue with the next capability.
 
 This loop must not assume a final capability count. New capabilities discovered by research or laboratory work may become proposals for the ledger after independent evaluation. Novelty is a candidate outcome, never an automatic promotion. The system is therefore designed to keep developing as the mathematical/physical frontier expands rather than reaching a fixed “finished” state.
+
+
+## I10 — Self-improvement and self-evolution
+
+**Goal:** The system learns from its own history and can improve mutable strategies, capabilities, verification machinery, and scientific knowledge representations.
+
+Current implementation includes:
+
+- durable experience/lesson/evolution contracts;
+- candidate lesson synthesis from repeated outcomes;
+- adoption-gated strategy selection;
+- regression-obligation generation;
+- discovery candidate intake;
+- optional provider-neutral model-assisted learning;
+- exact revision-bound self-evolution plans;
+- proposal-only self-evolution execution that opens a normal PR and never self-merges.
+
+**Authority boundary:** raw model output, experiments, learned lessons, and evolution proposals remain untrusted until independently verified and promoted through the normal Automate lifecycle.
+
+**Current state:** FOUNDATION ON V3 BRANCH, NOT YET CERTIFIED ON MAIN.
+
