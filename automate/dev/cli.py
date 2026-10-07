@@ -247,6 +247,111 @@ def worker_status_command(job_id: str, worker_url: str | None, worker_token: str
     click.echo(json.dumps(payload, indent=2))
 
 
+@capability.command("control-cycle")
+@click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--worker-url", default=None, help="Chanfana worker API base URL.")
+@click.option("--worker-token", default=None, help="Chanfana worker API token.")
+@click.option("--execute-worker", is_flag=True, help="Submit and execute the worker job; otherwise queue only.")
+@click.option("--json", "as_json", is_flag=True)
+def control_cycle_command(
+    repository: str,
+    worker_url: str | None,
+    worker_token: str | None,
+    execute_worker: bool,
+    as_json: bool,
+) -> None:
+    """Run exactly one bounded backlog/discovery control cycle."""
+    from automate.dev.control_cycle import run_control_cycle
+    try:
+        payload = run_control_cycle(
+            repository,
+            worker_url=worker_url,
+            worker_token=worker_token,
+            execute_worker=execute_worker,
+        )
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2))
+    if payload.get("mode") == "STOPPED" or payload.get("status") == "awaiting_reconciliation_or_manual_repair":
+        raise click.exceptions.Exit(1)
+
+
+@capability.command("promotion-inspect")
+@click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--pr", "pr_number", type=int, required=True, help="Canonical capability PR number.")
+@click.option("--main-sha", default=None, help="Exact current main SHA. When omitted, read live GitHub state.")
+@click.option("--require-review", is_flag=True, help="Require an explicitly approved review.")
+@click.option("--json", "as_json", is_flag=True)
+def promotion_inspect_command(
+    repository: str,
+    pr_number: int,
+    main_sha: str | None,
+    require_review: bool,
+    as_json: bool,
+) -> None:
+    """Evaluate promotion gates without merging."""
+    from automate.dev.promotion import PromotionError, _gh_json, inspect_promotion
+    if main_sha is None:
+        try:
+            ref = _gh_json(repository, "/git/ref/heads/main")
+            main_sha = ref.get("object", {}).get("sha")
+        except PromotionError as exc:
+            raise click.ClickException(str(exc)) from exc
+    if not isinstance(main_sha, str) or len(main_sha) != 40:
+        raise click.ClickException("current main SHA is unavailable or malformed")
+    try:
+        payload = inspect_promotion(
+            repository,
+            pr_number,
+            current_main_sha=main_sha,
+            require_review=require_review,
+        )
+    except (PromotionError, InventoryError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2))
+    if payload["state"] != "READY_TO_MERGE":
+        raise click.exceptions.Exit(1)
+
+
+@capability.command("promotion-execute")
+@click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--pr", "pr_number", type=int, required=True, help="Canonical capability PR number.")
+@click.option("--main-sha", default=None, help="Exact current main SHA. When omitted, read live GitHub state.")
+@click.option("--execute", is_flag=True, help="Actually request the guarded GitHub merge.")
+@click.option("--require-review", is_flag=True, help="Require an explicitly approved review.")
+@click.option("--json", "as_json", is_flag=True)
+def promotion_execute_command(
+    repository: str,
+    pr_number: int,
+    main_sha: str | None,
+    execute: bool,
+    require_review: bool,
+    as_json: bool,
+) -> None:
+    """Run one evidence-gated promotion attempt; default is a dry run."""
+    from automate.dev.promotion import PromotionError, _gh_json, execute_promotion
+    if main_sha is None:
+        try:
+            ref = _gh_json(repository, "/git/ref/heads/main")
+            main_sha = ref.get("object", {}).get("sha")
+        except PromotionError as exc:
+            raise click.ClickException(str(exc)) from exc
+    if not isinstance(main_sha, str) or len(main_sha) != 40:
+        raise click.ClickException("current main SHA is unavailable or malformed")
+    try:
+        payload = execute_promotion(
+            repository,
+            pr_number,
+            current_main_sha=main_sha,
+            execute=execute,
+            require_review=require_review,
+        )
+    except (PromotionError, InventoryError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2))
+    if payload.get("execution") in {"not_ready", "blocked_by_governance"}:
+        raise click.exceptions.Exit(1)
+
 @capability.command("autonomous-cycle")
 @click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
 @click.option("--worker-url", default=None, help="Worker API base URL. Defaults to AUTOMATE_WORKER_URL.")
