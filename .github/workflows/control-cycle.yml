@@ -97,7 +97,7 @@ jobs:
         run: echo "Control-plane release alignment is pending; the next scheduled cycle will resume after the required PR lands."
 
       - name: Validate pinned engine release evidence
-        if: steps.pin.outputs.enabled == 'true'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -134,20 +134,20 @@ jobs:
         run: echo "Automate control cycle is disabled by authoritative main."
 
       - name: Checkout pinned engine control plane
-        if: steps.pin.outputs.enabled == 'true'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         uses: actions/checkout@v7
         with:
           ref: ${{ steps.pin.outputs.sha }}
           fetch-depth: 0
 
       - name: Set up Python
-        if: steps.pin.outputs.enabled == 'true'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Run exactly one bounded control cycle
-        if: steps.pin.outputs.enabled == 'true'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         env:
           GH_TOKEN: ${{ github.token }}
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
