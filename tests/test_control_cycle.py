@@ -65,3 +65,37 @@ def test_discovery_grant_rejects_nonterminal_queue():
     except DiscoveryGrantError:
         return
     raise AssertionError("discovery grant must not issue while backlog remains")
+
+
+def test_control_cycle_does_not_dispatch_when_worker_handoff_exists():
+    from unittest.mock import patch
+    from automate.dev.control_cycle import run_control_cycle
+
+    control = {
+        "schema_version": "automate.operating_mode.v1",
+        "mode": "BACKLOG",
+        "mirror_discovery_allowed": False,
+        "queue": {"next_action": {"action": "implement", "capability_id": "stage1b.series_expansions"}},
+    }
+    handoff = {
+        "number": 900,
+        "head": {"ref": "feat/stage1b.series_expansions", "sha": "b" * 40},
+        "base": {"ref": "main", "sha": "a" * 40},
+        "_worker_request_id": "wrk_" + "c" * 32,
+        "_worker_base_sha": "a" * 40,
+    }
+    lifecycle = {
+        "state": "IMPLEMENTATION_PR",
+        "promotion": {"state": "BLOCKED"},
+        "pr": {"number": 900},
+    }
+
+    with patch("automate.dev.control_cycle.resolve_operating_mode", return_value=control),          patch("automate.dev.control_cycle._gh_json", return_value={"object": {"sha": "a" * 40}}),          patch("automate.dev.control_cycle.find_worker_handoff", return_value=handoff),          patch("automate.dev.control_cycle.build_worker_packet", return_value={"packet": {
+             "repository": {"base_sha_claim": "a" * 40},
+             "capability": {"id": "stage1b.series_expansions"},
+         }}),          patch("automate.dev.control_cycle.inspect_worker_handoff_pr", return_value=lifecycle),          patch("automate.dev.control_cycle.run_autonomous_cycle") as dispatch:
+        result = run_control_cycle("owner/repo")
+
+    assert result["dispatch_allowed"] is False
+    assert result["lifecycle"] == lifecycle
+    dispatch.assert_not_called()
