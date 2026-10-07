@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 from typing import Any
@@ -23,7 +24,7 @@ def live_pull_requests(repository_full_name: str, *, limit: int = 100) -> list[d
         "--repo", repository_full_name,
         "--state", "open",
         "--limit", str(limit),
-        "--json", "number,headRefName,headRefOid,baseRefName,isDraft,url",
+        "--json", "number,headRefName,headRefOid,baseRefName,baseRefOid,isDraft,url,body",
     ]
     try:
         result = subprocess.run(command, check=True, capture_output=True, text=True, env=env)
@@ -113,7 +114,20 @@ def audit_live(
         if branch.startswith("feat/"):
             if target_base == "main":
                 if number not in inventory_refs:
-                    errors.append(f"Open capability PR #{number} ({branch}) has no capability ownership reference.")
+                    body = str(pr.get("body") or "")
+                    worker_request = re.search(r"(?m)^- worker_request_id:\\s*([A-Za-z0-9_.:-]{8,128})\\s*$", body)
+                    worker_base = re.search(r"(?m)^- base_sha:\\s*([0-9a-f]{40})\\s*$", body)
+                    capability = re.search(r"(?m)^- capability:\\s*([a-z0-9][a-z0-9_.-]*)\\s*$", body)
+                    pending_worker_handoff = bool(
+                        worker_request
+                        and worker_base
+                        and capability
+                        and worker_base.group(1) == str(pr.get("baseRefOid") or "")
+                    )
+                    if not pending_worker_handoff:
+                        errors.append(
+                            f"Open capability PR #{number} ({branch}) has no capability ownership reference."
+                        )
                 elif pr.get("baseRefName") not in (None, data["branch_policy"]["feature_base"]):
                     errors.append(
                         f"PR #{number} capability lane targets {pr.get('baseRefName')}, "
