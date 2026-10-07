@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from automate.dev.worker_client import WorkerTransportError, dispatch_worker, worker_base_url, worker_token
+from automate.dev.worker_client import WorkerTransportError, dispatch_worker, worker_api_url, worker_base_url, worker_token
 
 
 def test_worker_configuration_requires_endpoint_and_token(monkeypatch):
@@ -78,3 +78,8 @@ def test_dispatch_does_not_reexecute_active_or_terminal_duplicate():
         assert result["execution_requested"] is False
         assert result["deduplicated"] is True
         execute.assert_not_called()
+
+
+def test_worker_api_url_normalizes_chfanana_worker_surface():
+    assert worker_api_url("https://worker.example") == "https://worker.example/worker/v1"
+    assert worker_api_url("https://worker.example/worker/v1") == "https://worker.example/worker/v1"
