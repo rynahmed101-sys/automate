@@ -681,13 +681,23 @@ def gh_api(path: str, *, timeout: int = 30) -> Any:
 
     token = __import__("os").getenv("GH_TOKEN") or __import__("os").getenv("GITHUB_TOKEN")
     if token:
-        proc = subprocess.run(
-            ["gh", "api", path, "--method", "GET"],
-            capture_output=True, text=True, timeout=timeout, check=False,
-        )
-        if proc.returncode:
-            raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
-        raw = proc.stdout
+        raw = None
+        last_error = ""
+        for attempt in range(3):
+            proc = subprocess.run(
+                ["gh", "api", path, "--method", "GET"],
+                capture_output=True, text=True, timeout=timeout, check=False,
+            )
+            if proc.returncode == 0:
+                raw = proc.stdout
+                break
+            last_error = proc.stderr.strip()
+            if " 500 " not in last_error and "HTTP 500" not in last_error and "Internal Server Error" not in last_error:
+                break
+            if attempt < 2:
+                __import__("time").sleep(1.0 * (attempt + 1))
+        if raw is None:
+            raise RuntimeError(f"GitHub read failed after bounded retries: {last_error}")
     else:
         credential = subprocess.run(
             ["git", "config", "--get", "http.https://github.com/.extraheader"],
@@ -704,13 +714,23 @@ def gh_api(path: str, *, timeout: int = 30) -> Any:
         if credential:
             command.extend(["--header", credential])
         command.append("https://api.github.com" + path)
-        proc = subprocess.run(
-            command,
-            capture_output=True, text=True, timeout=timeout, check=False,
-        )
-        if proc.returncode:
-            raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
-        raw = proc.stdout
+        raw = None
+        last_error = ""
+        for attempt in range(3):
+            proc = subprocess.run(
+                command,
+                capture_output=True, text=True, timeout=timeout, check=False,
+            )
+            if proc.returncode == 0:
+                raw = proc.stdout
+                break
+            last_error = proc.stderr.strip()
+            if " 500 " not in last_error and "HTTP 500" not in last_error and "Internal Server Error" not in last_error:
+                break
+            if attempt < 2:
+                __import__("time").sleep(1.0 * (attempt + 1))
+        if raw is None:
+            raise RuntimeError(f"GitHub read failed after bounded retries: {last_error}")
 
     try:
         return json.loads(raw)

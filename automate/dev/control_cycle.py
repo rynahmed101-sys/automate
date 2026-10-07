@@ -540,6 +540,7 @@ def run_control_cycle(
         execute_worker=execute_worker,
         local_root=local_root,
         mode="backlog",
+        auto_publish=False,
     )
 
     lifecycle = None

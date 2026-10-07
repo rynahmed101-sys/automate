@@ -143,3 +143,49 @@ def test_merged_worker_waits_for_exact_main_verification_before_new_dispatch():
     # Contract-level regression: this state must stop the cycle rather than
     # reaching the fresh-worker dispatch path.
     assert merged["post_merge"]["state"] not in {"BLOCKED_STALE_MAIN", "BOOKKEEPING_READY"}
+
+
+def test_control_cycle_delegates_commit_only_to_autonomous_worker(monkeypatch):
+    captured = {}
+
+    def fake_run(*args, **kwargs):
+        captured["auto_publish"] = kwargs.get("auto_publish")
+        return {"decision": {}, "commit": {}, "status": "committed"}
+
+    monkeypatch.setattr("automate.dev.control_cycle.run_autonomous_cycle", fake_run)
+    monkeypatch.setattr(
+        "automate.dev.control_cycle.resolve_operating_mode",
+        lambda: {
+            "mode": "BACKLOG",
+            "queue": {
+                "next_action": {
+                    "action": "implement",
+                    "capability_id": "stage1b.series_expansions",
+                }
+            },
+        },
+    )
+    monkeypatch.setattr(
+        "automate.dev.control_cycle._gh_json",
+        lambda *args: {"object": {"sha": "a" * 40}},
+    )
+    monkeypatch.setattr(
+        "automate.dev.control_cycle.inspect_merged_worker_handoff",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "automate.dev.control_cycle.find_worker_handoff",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "automate.dev.control_cycle.inspect_capability_lifecycle",
+        lambda *args, **kwargs: {"state": "READY"},
+    )
+    result = __import__("automate.dev.control_cycle", fromlist=["run_control_cycle"]).run_control_cycle(
+        "owner/repo",
+        worker_url="https://worker",
+        worker_token="secret",
+        execute_worker=True,
+        local_root=None,
+    )
+    assert captured["auto_publish"] is False
