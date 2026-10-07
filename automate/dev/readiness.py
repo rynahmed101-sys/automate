@@ -27,9 +27,12 @@ REQUIRED_GATES = (
 
 def evaluate_readiness(evidence: dict[str, Any]) -> dict[str, Any]:
     failures = [gate for gate in REQUIRED_GATES if evidence.get(gate) is not True]
+    bootstrap_blockers = [gate for gate in failures if gate != "github_lifecycle_exercised"]
+    bootstrap_ready = not bootstrap_blockers and "github_lifecycle_exercised" in failures
     return {
         "schema_version": "automate.autonomy_readiness.v1",
         "ready": not failures,
+        "bootstrap_ready": bootstrap_ready,
         "gates": {gate: evidence.get(gate) is True for gate in REQUIRED_GATES},
         "blocking_gates": failures,
         "worker_mode": "enabled" if not failures else "off",
