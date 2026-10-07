@@ -619,11 +619,11 @@ def validate_packet_consistency(
         if not isinstance(packet.get(key), list):
             errors.append(f"packet {key} missing")
     state = str(packet.get("evidence_state", ""))
-    if state == EvidenceState.VERIFIED.value:
+    if state in {EvidenceState.VERIFIED.value, EvidenceState.IMPLEMENTATION_VERIFIED.value}:
         if repository_state.get("exact_head_verified") is not True:
-            errors.append("VERIFIED packet lacks exact-head verification")
+            errors.append(f"{state} packet lacks exact-head verification")
         if repository_state.get("security_verified") is not True:
-            errors.append("VERIFIED packet lacks security verification")
+            errors.append(f"{state} packet lacks security verification")
     if repository_state.get("requested_revision") and repository_state.get("requested_revision") != request.revision:
         errors.append("repository snapshot revision does not match request")
     return errors
