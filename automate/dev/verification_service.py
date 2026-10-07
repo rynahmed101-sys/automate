@@ -69,7 +69,7 @@ def verify_payload(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
             parent_ids=[str(x) for x in request_payload.get("parent_ids", [])],
             request_id=(str(payload["request_id"]) if is_envelope else None),
         )
-        snapshot = live_repository_snapshot(request.repository)
+        snapshot = live_repository_snapshot(request.repository, request.branch)
         snapshot["requested_revision"] = request.revision
         result = run_backlog_item(
             capability_id=request.capability_id,
