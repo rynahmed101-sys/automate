@@ -99,3 +99,27 @@ def test_control_cycle_does_not_dispatch_when_worker_handoff_exists():
     assert result["dispatch_allowed"] is False
     assert result["lifecycle"] == lifecycle
     dispatch.assert_not_called()
+
+
+def test_discovery_cycle_never_allows_more_than_one_candidate():
+    from automate.dev.discovery import extract_candidate_proposals
+
+    proposal = {
+        "authority": "UNTRUSTED_RESEARCH_PROPOSAL",
+        "status": "CANDIDATE",
+        "proposal_id": "proposal_test",
+        "candidate_capability": {
+            "id": "candidate.new",
+            "name": "Candidate",
+            "summary": "candidate",
+            "prerequisites": [],
+            "dependencies": [],
+        },
+    }
+    result = {
+        "trace": [
+            {"tool": "propose_new_capability", "result": {"proposal": proposal}},
+            {"tool": "propose_new_capability", "result": {"proposal": proposal}},
+        ]
+    }
+    assert len(extract_candidate_proposals(result)) == 2
