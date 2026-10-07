@@ -44,7 +44,6 @@ jobs:
           PY
 
       - name: Reconcile engine with authoritative main
-        if: steps.pin.outputs.enabled == 'true'
         id: reconcile
         env:
           GH_TOKEN: ${{ github.token }}
@@ -69,7 +68,7 @@ jobs:
               out.write(f"state={result['state']}\\n")
 
       - name: Update scheduler engine pin
-        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED'
+        if: steps.reconcile.outputs.state == 'ALIGNED'
         id: engine_pin
         env:
           GH_TOKEN: ${{ github.token }}
@@ -93,11 +92,11 @@ jobs:
               out.write(f"state={result['state']}\n")
 
       - name: Stop after reconciliation or pin action
-        if: steps.pin.outputs.enabled == 'true' && (steps.reconcile.outputs.state != 'ALIGNED' || steps.engine_pin.outputs.state != 'PIN_ALIGNED')
+        if: steps.reconcile.outputs.state != 'ALIGNED' || steps.engine_pin.outputs.state != 'PIN_ALIGNED'
         run: echo "Control-plane release alignment is pending; the next scheduled cycle will resume after the required PR lands."
 
       - name: Validate pinned engine release evidence
-        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
+        if: steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
