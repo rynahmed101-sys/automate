@@ -332,3 +332,54 @@ def test_live_audit_full_main_scope_ignores_engine_work():
         pull_requests=prs,
         base_branch="main",
     ) == []
+
+
+def test_live_audit_accepts_only_well_formed_transient_worker_handoff():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 205,
+        "headRefName": "feat/stage1b.series_expansions",
+        "headRefOid": "a" * 40,
+        "baseRefName": "main",
+        "baseRefOid": "b" * 40,
+        "isDraft": False,
+        "body": "\\n".join([
+            "Automated capability implementation generated through Automate's bounded worker pipeline.",
+            "- capability: stage1b.series_expansions",
+            "- worker_request_id: wrk_" + "c" * 32,
+            "- base_sha: " + "b" * 40,
+        ]),
+    }
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="main",
+        current_pr_number=205,
+    ) == []
+
+
+def test_live_audit_does_not_allow_spoofed_worker_handoff():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 206,
+        "headRefName": "feat/not_a_real_capability",
+        "headRefOid": "a" * 40,
+        "baseRefName": "main",
+        "baseRefOid": "b" * 40,
+        "isDraft": False,
+        "body": "\\n".join([
+            "Automated capability implementation generated through Automate's bounded worker pipeline.",
+            "- capability: not_a_real_capability",
+            "- worker_request_id: wrk_" + "c" * 32,
+            "- base_sha: " + "b" * 40,
+        ]),
+    }
+    errors = audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="main",
+        current_pr_number=206,
+    )
+    assert any("no capability ownership reference" in error for error in errors)
