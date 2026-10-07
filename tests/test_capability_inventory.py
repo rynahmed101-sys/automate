@@ -344,7 +344,7 @@ def test_live_audit_accepts_only_well_formed_transient_worker_handoff():
         "baseRefName": "main",
         "baseRefOid": "b" * 40,
         "isDraft": False,
-        "body": "\\n".join([
+        "body": "\n".join([
             "Automated capability implementation generated through Automate's bounded worker pipeline.",
             "- capability: stage1b.series_expansions",
             "- worker_request_id: wrk_" + "c" * 32,
