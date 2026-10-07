@@ -7,6 +7,8 @@ import json
 import re
 from typing import Any, Mapping
 
+from automate.dev.inventory import next_action
+
 
 class BookkeepingError(ValueError):
     """Raised when canonical promotion bookkeeping is ambiguous or unsafe."""
@@ -56,14 +58,26 @@ def _ledger_line_for_capability(ledger: str, *, stage: str, name: str) -> str:
     return candidates[0]
 
 def _next_capability(inventory: Mapping[str, Any], *, completed_id: str) -> Mapping[str, Any] | None:
-    records = [
-        item for item in inventory.get("capabilities", [])
-        if item.get("id") != completed_id
-        and item.get("implementation_state") not in TERMINAL_STATES
-        and item.get("stage") != "7"
-    ]
-    return min(records, key=lambda item: int(item["order"])) if records else None
+    projected = json.loads(json.dumps(inventory))
+    completed = next(
+        (item for item in projected.get("capabilities", []) if item.get("id") == completed_id),
+        None,
+    )
+    if completed is None:
+        raise BookkeepingError(f"unknown capability {completed_id}")
+    completed["implementation_state"] = "merged_main"
+    for ref in completed.get("references", []):
+        if ref.get("type") == "pr":
+            ref["state"] = "merged"
 
+    decision = next_action(projected)
+    candidate_id = decision.get("capability_id")
+    if decision.get("action") != "implement" or not candidate_id:
+        return None
+    return next(
+        (item for item in projected.get("capabilities", []) if item.get("id") == candidate_id),
+        None,
+    )
 
 def _replace_once(text: str, old: str, new: str, *, label: str) -> str:
     count = text.count(old)
