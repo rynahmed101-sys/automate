@@ -600,6 +600,117 @@ def find_worker_handoff(
 
 
 
+
+def find_bookkeeping_pr(
+    repository: str,
+    *,
+    capability_id: str,
+    merge_sha: str,
+) -> dict[str, Any] | None:
+    """Find the single canonical bookkeeping PR for an exact merged main head."""
+    payload = _gh_json(
+        repository,
+        "/pulls?state=open&base=main&per_page=100",
+    )
+    if not isinstance(payload, list):
+        raise PromotionError("GitHub pull request query returned a non-list payload")
+    expected_branch = f"integrate/canonical-bookkeeping-{capability_id}-{merge_sha[:12]}"
+    matches: list[dict[str, Any]] = []
+    for pr in payload:
+        if not isinstance(pr, dict):
+            continue
+        if pr.get("head", {}).get("ref") != expected_branch:
+            continue
+        body = str(pr.get("body") or "")
+        capability = re.search(r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$", body)
+        body_sha = re.search(r"(?m)^- merge_sha:\s*([0-9a-f]{40})\s*$", body)
+        role = "- automation_role: canonical_bookkeeping" in body
+        if (
+            capability
+            and capability.group(1) == capability_id
+            and body_sha
+            and body_sha.group(1) == merge_sha
+            and role
+        ):
+            matches.append(dict(pr))
+    if len(matches) > 1:
+        raise PromotionError(
+            f"{capability_id} has multiple open bookkeeping PRs for main {merge_sha}: "
+            + ", ".join(str(item.get("number")) for item in matches)
+        )
+    return matches[0] if matches else None
+
+
+def inspect_bookkeeping_pr(
+    repository: str,
+    *,
+    capability_id: str,
+    merge_sha: str,
+    require_review: bool = True,
+) -> dict[str, Any] | None:
+    """Evaluate a canonical bookkeeping PR for review and exact-head evidence."""
+    pr = find_bookkeeping_pr(
+        repository,
+        capability_id=capability_id,
+        merge_sha=merge_sha,
+    )
+    if pr is None:
+        return None
+    head_sha = str(pr.get("head", {}).get("sha") or "")
+    if str(pr.get("base", {}).get("sha") or "") != merge_sha:
+        return {
+            "state": "STALE_BOOKKEEPING_PR",
+            "capability_id": capability_id,
+            "pr": {"number": pr.get("number"), "head_sha": head_sha, "base_sha": pr.get("base", {}).get("sha")},
+            "reasons": ["bookkeeping PR is no longer based on the exact main head it records"],
+        }
+
+    changed = _gh_json(repository, f"/pulls/{pr.get('number')}/files?per_page=100")
+    if not isinstance(changed, list):
+        raise PromotionError("GitHub bookkeeping PR file listing returned a non-list payload")
+    allowed = {"docs/CAPABILITY_INVENTORY.json", "docs/PROJECT_PHASE_LEDGER.md"}
+    unexpected = [str(item.get("filename", "")) for item in changed if str(item.get("filename", "")) not in allowed]
+    if unexpected:
+        return {
+            "state": "BLOCKED_BOOKKEEPING_SCOPE",
+            "capability_id": capability_id,
+            "pr": {"number": pr.get("number"), "head_sha": head_sha},
+            "reasons": ["bookkeeping PR touches non-canonical files: " + ", ".join(unexpected)],
+        }
+
+    ci = _latest_completed_success(repository, WORKFLOW_CI, head_sha)
+    security = _latest_completed_success(repository, WORKFLOW_SECURITY, head_sha)
+    review = str(pr.get("review_decision") or "").upper()
+    review_ok = review == "APPROVED" if require_review else review not in {"CHANGES_REQUESTED", "REVIEW_REQUIRED"}
+
+    gates = {
+        "open": str(pr.get("state") or "").lower() == "open",
+        "not_draft": not bool(pr.get("draft")),
+        "targets_main": pr.get("base", {}).get("ref") == "main",
+        "base_matches_recorded_main": pr.get("base", {}).get("sha") == merge_sha,
+        "head_sha_valid": bool(re.fullmatch(r"[0-9a-f]{40}", head_sha)),
+        "development_ci_verified": bool(ci),
+        "security_audit_verified": bool(security),
+        "review_gate": review_ok,
+        "scope_clean": not unexpected,
+    }
+    reasons = [name for name, passed in gates.items() if not passed]
+    return {
+        "state": "READY_TO_MERGE" if all(gates.values()) else "BLOCKED",
+        "capability_id": capability_id,
+        "pr": {
+            "number": pr.get("number"),
+            "branch": pr.get("head", {}).get("ref"),
+            "head_sha": head_sha,
+            "base_sha": pr.get("base", {}).get("sha"),
+        },
+        "gates": gates,
+        "reasons": reasons,
+        "ci_run_id": ci.get("id") if ci else None,
+        "security_run_id": security.get("id") if security else None,
+        "authority_change": "CANONICAL_LEDGER_AND_INVENTORY",
+    }
+
 def find_worker_handoff_history(
     repository: str,
     *,
