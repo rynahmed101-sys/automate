@@ -169,6 +169,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
           AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
+          VERIFICATION_ENGINE_ENDPOINT: ${{ secrets.VERIFICATION_ENGINE_ENDPOINT }}
           AUTOMATE_LEARNING_ENABLED: "true"
           AUTOMATE_AUTO_PUBLISH: "1"
           AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE || '1' }}
