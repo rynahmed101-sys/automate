@@ -24,6 +24,7 @@ def create_worker_pr(
     capability_id: str,
     title: str,
     base_sha: str,
+    request_id: str,
     test_result: dict[str, Any],
 ) -> dict[str, Any]:
     if not repository or "/" not in repository:
@@ -32,6 +33,8 @@ def create_worker_pr(
         raise WorkerExecutionError("refusing to create a PR from a non-worker branch")
     if len(base_sha) != 40:
         raise WorkerExecutionError("worker PR requires an exact 40-character base sha")
+    if len(request_id) < 8 or len(request_id) > 128:
+        raise WorkerExecutionError("worker PR requires a bounded request id")
 
     body = "\\n".join(
         [
@@ -39,6 +42,7 @@ def create_worker_pr(
             "",
             f"- capability: {capability_id}",
             f"- base_sha: {base_sha}",
+            f"- worker_request_id: {request_id}",
             f"- authoritative_tests: {json.dumps(test_result.get('command', []))}",
             f"- authoritative_test_status: {test_result.get('status')}",
             "",
@@ -60,7 +64,6 @@ def create_worker_pr(
         title,
         "--body",
         body,
-        "--draft",
     ]
     try:
         result = subprocess.run(
@@ -85,6 +88,8 @@ def create_worker_pr(
         "branch": branch,
         "capability_id": capability_id,
         "url": url,
-        "draft": True,
+        "draft": False,
         "base_sha": base_sha,
+        "request_id": request_id,
+        "pr_number": int(url.rstrip("/").split("/")[-1]) if url.rstrip("/").split("/")[-1].isdigit() else None,
     }
