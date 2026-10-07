@@ -187,7 +187,10 @@ def execute_evolution_plan(
     for change in changes:
         if not isinstance(change, Mapping):
             raise EvolutionExecutionError("evolution change is not an object")
-        path = str(change.get("path", "")).replace("\\", "/").lstrip("/")
+        raw_path = str(change.get("path", ""))
+        path = raw_path.replace("\\", "/").lstrip("/")
+        if raw_path.startswith("/") or any(part in {".", ".."} for part in path.split("/")):
+            raise EvolutionExecutionError(f"evolution path is not a safe relative path: {raw_path!r}")
         operation = change.get("operation")
         if path in FORBIDDEN_PATHS:
             raise EvolutionExecutionError(f"evolution executor refuses authority path: {path}")
