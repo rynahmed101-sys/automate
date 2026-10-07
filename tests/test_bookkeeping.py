@@ -12,6 +12,9 @@ def test_bookkeeping_updates_only_target_stage():
                 "implementation_state": "planned",
                 "authority": {"kind": "roadmap", "ref": "ledger"},
                 "references": [{"type": "pr", "number": 1, "state": "open"}],
+                "depends_on": [],
+                "canonical_files": ["automate/backend/series.py"],
+                "shared_integration_points": [],
                 "verification": {},
             },
             {
