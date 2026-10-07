@@ -34,3 +34,34 @@ def test_empty_ledger_exposes_discovery_ready_mode():
     result = resolve_operating_mode(payload)
     assert result["mode"] == "DISCOVERY_READY"
     assert result["mirror_discovery_allowed"] is True
+
+
+def test_empty_ledger_issues_bounded_discovery_grant():
+    from automate.dev.discovery_grant import build_discovery_grant
+
+    control = {
+        "schema_version": "automate.operating_mode.v1",
+        "mode": "DISCOVERY_READY",
+        "mirror_discovery_allowed": True,
+        "queue": {"next_action": {"action": "none"}},
+    }
+    grant = build_discovery_grant(control, correlation_id="ctrl_test1234")
+    assert grant["max_candidates"] == 1
+    assert grant["canonical_mutation_allowed"] is False
+    assert "mutate_phase_ledger" in grant["forbidden_actions"]
+
+
+def test_discovery_grant_rejects_nonterminal_queue():
+    from automate.dev.discovery_grant import DiscoveryGrantError, build_discovery_grant
+
+    control = {
+        "schema_version": "automate.operating_mode.v1",
+        "mode": "DISCOVERY_READY",
+        "mirror_discovery_allowed": True,
+        "queue": {"next_action": {"action": "implement"}},
+    }
+    try:
+        build_discovery_grant(control, correlation_id="ctrl_test1234")
+    except DiscoveryGrantError:
+        return
+    raise AssertionError("discovery grant must not issue while backlog remains")
