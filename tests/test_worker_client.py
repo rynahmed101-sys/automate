@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from automate.dev.worker_client import WorkerTransportError, dispatch_worker, worker_base_url, worker_token
+from automate.dev.worker_client import WorkerTransportError, dispatch_worker, worker_api_url, worker_base_url, worker_token
 
 
 def test_worker_configuration_requires_endpoint_and_token(monkeypatch):
@@ -58,3 +58,8 @@ def test_dispatch_execution_calls_worker_once():
         token="secret",
         timeout=30.0,
     )
+
+
+def test_worker_api_url_normalizes_chanfana_surface():
+    assert worker_api_url("https://worker.example") == "https://worker.example/worker/v1"
+    assert worker_api_url("https://worker.example/worker/v1") == "https://worker.example/worker/v1"
