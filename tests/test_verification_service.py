@@ -36,7 +36,7 @@ def test_verify_payload_accepts_verification_job_envelope(monkeypatch, tmp_path)
     monkeypatch.setattr(
         verification_service,
         "live_repository_snapshot",
-        lambda repository, branch: {
+        lambda repository, branch="engine": {
             "repository": repository,
             "main_sha": "1" * 40,
             "engine_sha": "2" * 40,
