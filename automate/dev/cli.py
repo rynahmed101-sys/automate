@@ -158,12 +158,18 @@ def queue_command(as_json: bool) -> None:
 
 @capability.command("audit-live")
 @click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--base-branch", default="main", show_default=True, help="Live PR target lane being audited.")
+@click.option("--current-pr", type=int, default=None, help="Audit only this PR; used by PR CI to avoid cross-branch temporal coupling.")
 @click.option("--json", "as_json", is_flag=True)
-def audit_live_command(repository: str, as_json: bool) -> None:
-    """Cross-check inventory references against live open GitHub PRs."""
+def audit_live_command(repository: str, base_branch: str, current_pr: int | None, as_json: bool) -> None:
+    """Cross-check the selected live PR lane against authoritative bookkeeping."""
     from automate.dev.live import LiveAuditError, summarize_live
     try:
-        payload = summarize_live(repository)
+        payload = summarize_live(
+            repository,
+            current_pr_number=current_pr,
+            base_branch=base_branch,
+        )
     except LiveAuditError as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(json.dumps(payload, indent=2) if as_json else ("VALID" if payload["valid"] else "\n".join(payload["errors"])))
