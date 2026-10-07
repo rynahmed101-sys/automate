@@ -178,3 +178,89 @@ def test_recovery_worker_request_identity_changes_with_attempt(monkeypatch):
     )
     assert first["packet"]["request_id"] != repair["packet"]["request_id"]
     assert "AUTONOMOUS_RECOVERY_ATTEMPT: 2" in repair["packet"]["context"]["notes"]
+
+
+def _backlog_control():
+    return {
+        "mode": "BACKLOG",
+        "queue": {"next_action": {"action": "implement", "capability_id": "stage1b.series_expansions"}},
+        "mirror_discovery_allowed": False,
+    }
+
+
+def test_control_cycle_requests_retry_for_one_failed_exact_head(monkeypatch):
+    import automate.dev.control_cycle as cycle
+
+    monkeypatch.setenv("GH_TOKEN", "secret")
+    monkeypatch.setattr(cycle, "resolve_operating_mode", lambda: _backlog_control())
+    monkeypatch.setattr(
+        cycle,
+        "_gh_json",
+        lambda *_: {"object": {"sha": "a" * 40}},
+    )
+    monkeypatch.setattr(
+        cycle,
+        "inspect_merged_worker_handoff",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        cycle,
+        "find_worker_handoff",
+        lambda *args, **kwargs: {
+            "number": 77,
+            "head_sha": "b" * 40,
+            "request_id": "wrk_test",
+        },
+    )
+    monkeypatch.setattr(
+        "automate.dev.failure_recovery.exact_head_recovery_state",
+        lambda *_: {
+            "state": "retryable_failure",
+            "retryable": [{"run_id": 101, "attempt": 1, "workflow": "ci.yml"}],
+            "failures": [{"run_id": 101, "attempt": 1, "workflow": "ci.yml"}],
+        },
+    )
+    monkeypatch.setattr(
+        "automate.dev.failure_recovery.rerun_failed_workflows",
+        lambda *_args: {"requested": [101], "errors": []},
+    )
+    result = cycle.run_control_cycle("owner/repo")
+    assert result["status"] == "worker_verification_retry_requested"
+    assert result["retry"]["requested"] == [101]
+
+
+def test_control_cycle_quarantines_repeated_worker_failure_without_transport(monkeypatch):
+    import automate.dev.control_cycle as cycle
+
+    monkeypatch.setenv("GH_TOKEN", "secret")
+    monkeypatch.setattr(cycle, "resolve_operating_mode", lambda: _backlog_control())
+    monkeypatch.setattr(cycle, "_gh_json", lambda *_: {"object": {"sha": "a" * 40}})
+    monkeypatch.setattr(cycle, "inspect_merged_worker_handoff", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        cycle,
+        "find_worker_handoff",
+        lambda *args, **kwargs: {
+            "number": 77,
+            "head_sha": "b" * 40,
+            "request_id": "wrk_test",
+        },
+    )
+    monkeypatch.setattr(
+        "automate.dev.failure_recovery.exact_head_recovery_state",
+        lambda *_: {
+            "state": "repeated_failure",
+            "failures": [{"run_id": 101, "attempt": 2, "workflow": "ci.yml"}],
+        },
+    )
+    monkeypatch.setattr(
+        "automate.dev.failure_recovery.diagnose_worker_failure",
+        lambda *_: {"state": "diagnosed", "changed_paths": ["automate/backend/x.py"], "failure_classes": ["test"], "notes": ["fix test"]},
+    )
+    monkeypatch.setattr(
+        "automate.dev.failure_recovery.quarantine_worker_pr",
+        lambda *_: {"state": "quarantined", "pr_number": 77},
+    )
+    result = cycle.run_control_cycle("owner/repo")
+    assert result["status"] == "worker_quarantined_repair_ready"
+    assert result["quarantine"]["state"] == "quarantined"
+    assert "AUTONOMOUS_RECOVERY" in result["repair_context"][0]
