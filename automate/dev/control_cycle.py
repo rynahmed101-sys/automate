@@ -58,6 +58,7 @@ def run_control_cycle(
     worker_url: str | None = None,
     worker_token: str | None = None,
     execute_worker: bool = False,
+    execute_discovery: bool = False,
     local_root=None,
 ) -> dict[str, Any]:
     control = resolve_operating_mode()
@@ -68,7 +69,38 @@ def run_control_cycle(
                 json.dumps(control["queue"], sort_keys=True, separators=(",", ":")).encode("utf-8")
             ).hexdigest()[:24],
         )
-        return {**control, "discovery_grant": grant, "dispatch_allowed": False}
+        if not execute_discovery:
+            return {**control, "discovery_grant": grant, "dispatch_allowed": False}
+        import os
+        enabled = os.getenv("AUTOMATE_MIRROR_DISCOVERY_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+        if not enabled:
+            return {
+                **control,
+                "discovery_grant": grant,
+                "dispatch_allowed": False,
+                "status": "mirror_discovery_disabled_by_governance",
+            }
+        from automate.dev.mirror_discovery_client import dispatch_mirror_discovery, MirrorDiscoveryError
+        try:
+            result = dispatch_mirror_discovery(
+                grant,
+                max_tool_steps=6,
+            )
+        except MirrorDiscoveryError as exc:
+            return {
+                **control,
+                "discovery_grant": grant,
+                "dispatch_allowed": False,
+                "status": "mirror_discovery_dispatch_blocked",
+                "error": str(exc),
+            }
+        return {
+            **control,
+            "discovery_grant": grant,
+            "dispatch_allowed": True,
+            "status": "mirror_discovery_dispatched",
+            "discovery": result,
+        }
     if control["mode"] != "BACKLOG":
         return control
 
