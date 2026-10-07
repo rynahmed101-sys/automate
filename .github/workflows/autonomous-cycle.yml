@@ -13,7 +13,7 @@ permissions:
 # The readiness gate is the brake; this scheduler never bypasses it.
 concurrency:
   group: automate-autonomous-cycle
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   control-cycle:
