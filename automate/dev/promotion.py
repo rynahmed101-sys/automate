@@ -572,9 +572,9 @@ def find_worker_handoff(
         if not str(pr.get("head", {}).get("ref", "")).startswith("feat/"):
             continue
         body = str(pr.get("body") or "")
-        capability = re.search(r"(?m)^- capability:\\s*([a-z0-9][a-z0-9_.-]*)\\s*$", body)
-        request = re.search(r"(?m)^- worker_request_id:\\s*([A-Za-z0-9_.:-]{8,128})\\s*$", body)
-        base = re.search(r"(?m)^- base_sha:\\s*([0-9a-f]{40})\\s*$", body)
+        capability = re.search(r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$", body)
+        request = re.search(r"(?m)^- worker_request_id:\s*([A-Za-z0-9_.:-]{8,128})\s*$", body)
+        base = re.search(r"(?m)^- base_sha:\s*([0-9a-f]{40})\s*$", body)
         expected_prefix = "feat/" + capability_id + "-"
         if (
             capability
