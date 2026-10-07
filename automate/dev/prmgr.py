@@ -25,6 +25,7 @@ def create_worker_pr(
     title: str,
     base_sha: str,
     test_result: dict[str, Any],
+    draft: bool = False,
 ) -> dict[str, Any]:
     if not repository or "/" not in repository:
         raise WorkerExecutionError("repository must be in owner/name form")
@@ -60,8 +61,9 @@ def create_worker_pr(
         title,
         "--body",
         body,
-        "--draft",
     ]
+    if draft:
+        command.append("--draft")
     try:
         result = subprocess.run(
             command,
@@ -85,6 +87,6 @@ def create_worker_pr(
         "branch": branch,
         "capability_id": capability_id,
         "url": url,
-        "draft": True,
+        "draft": draft,
         "base_sha": base_sha,
     }
