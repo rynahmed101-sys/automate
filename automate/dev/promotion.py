@@ -110,6 +110,7 @@ def evaluate_promotion(
     current_main_sha: str,
     ci_run: Mapping[str, Any] | None,
     security_run: Mapping[str, Any] | None,
+    verification_result: Mapping[str, Any] | None = None,
     require_review: bool = False,
 ) -> dict[str, Any]:
     """Evaluate only the pre-merge gates for an ordinary capability PR."""
@@ -166,6 +167,20 @@ def evaluate_promotion(
     if not gates["security_audit_verified"]:
         reasons.append("Security Audit has not completed successfully on the exact PR head.")
 
+    verification_state = str((verification_result or {}).get("evidence_state") or "")
+    gates["verification_evidence"] = bool(
+        gates["head_sha_valid"]
+        and isinstance(verification_result, Mapping)
+        and verification_result.get("authority") == "EVIDENCE_ONLY"
+        and verification_result.get("capability_id") == capability_id
+        and verification_result.get("source_revision") == head_sha
+        and verification_state in {"VERIFIED", "REPRODUCED", "IMPLEMENTATION_VERIFIED"}
+    )
+    if not gates["verification_evidence"]:
+        reasons.append(
+            "Exact-head evidence from the Verification Engine is required before capability promotion."
+        )
+
     review_decision = str(pr.get("review_decision") or "").upper()
     if require_review:
         gates["review_gate"] = review_decision == "APPROVED"
@@ -199,6 +214,7 @@ def inspect_promotion(
     pr_number: int,
     *,
     current_main_sha: str,
+    verification_result: Mapping[str, Any] | None = None,
     require_review: bool = False,
 ) -> dict[str, Any]:
     data = load_inventory()
@@ -213,6 +229,7 @@ def inspect_promotion(
         current_main_sha=current_main_sha,
         ci_run=ci,
         security_run=security,
+        verification_result=verification_result,
         require_review=require_review,
     )
     result["observed"] = {
@@ -228,6 +245,7 @@ def execute_promotion(
     *,
     current_main_sha: str,
     execute: bool = False,
+    verification_result: Mapping[str, Any] | None = None,
     require_review: bool = False,
 ) -> dict[str, Any]:
     """Merge only when every pre-merge gate passes and execution is explicitly enabled."""
@@ -235,6 +253,7 @@ def execute_promotion(
         repository,
         pr_number,
         current_main_sha=current_main_sha,
+        verification_result=verification_result,
         require_review=require_review,
     )
     if result["state"] != "READY_TO_MERGE":
@@ -920,6 +939,7 @@ def inspect_worker_handoff_pr(
     packet: Mapping[str, Any],
     handoff: Mapping[str, Any],
     current_main_sha: str,
+    verification_result: Mapping[str, Any] | None = None,
     require_review: bool = False,
 ) -> dict[str, Any]:
     """Validate a worker-created PR directly from its signed handoff metadata."""
@@ -984,6 +1004,7 @@ def inspect_worker_handoff_pr(
         current_main_sha=current_main_sha,
         ci_run=ci,
         security_run=security,
+        verification_result=verification_result,
         require_review=require_review,
     )
 
