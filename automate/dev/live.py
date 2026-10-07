@@ -46,11 +46,19 @@ def audit_live(
 ) -> list[str]:
     data = load_inventory()
     target_base = base_branch or os.getenv("GITHUB_BASE_REF") or os.getenv("GITHUB_REF_NAME") or "main"
+    effective_pr_number = current_pr_number
+    if effective_pr_number is None and os.getenv("GITHUB_EVENT_NAME") == "pull_request":
+        event_path = os.getenv("GITHUB_EVENT_PATH")
+        try:
+            event = json.loads(Path(event_path).read_text(encoding="utf-8")) if event_path else {}
+            effective_pr_number = int(event["pull_request"]["number"])
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            raise LiveAuditError("Unable to determine the current pull-request number from GitHub event context.") from exc
     prs = live_pull_requests(repository_full_name) if pull_requests is None else pull_requests
     scoped_prs = [
         pr for pr in prs
         if pr.get("baseRefName") in (None, target_base)
-        and (current_pr_number is None or int(pr.get("number", -1)) == current_pr_number)
+        and (effective_pr_number is None or int(pr.get("number", -1)) == effective_pr_number)
     ]
     by_number = {int(pr["number"]): pr for pr in scoped_prs if "number" in pr}
 
