@@ -147,7 +147,7 @@ This stage contains the mathematical basics that later physics must be able to r
 - [ ] Repeated/nested integration where represented
 - [ ] Substitution, integration by parts, partial fractions, trigonometric and other general integration techniques where tractable
 - [x] Fundamental theorem of calculus
-- [ ] Improper integrals and convergence-aware handling
+- [x] Improper integrals and convergence-aware handling
 - [ ] Taylor / Maclaurin series and higher-order expansions
 - [ ] Partial derivatives and total differentials
 - [ ] Higher-order partial derivatives
@@ -158,7 +158,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 **Depth rule:** “derivative” means a general differentiation capability, not a permanently hard-coded first-derivative feature. The same principle applies to integrals, series order, and multivariable operations.
 
-**Control-plane frontier:** the next claimable Stage 1B capability is **Improper integrals and convergence-aware handling** (GitHub issue #115). Stage 1C ODE implementation is preserved as later work and must not leapfrog the unchecked 1B ladder.
+**Control-plane frontier:** the next claimable Stage 1B capability is **Taylor / Maclaurin series and higher-order expansions** (GitHub issue #141). Improper integrals are merged into authoritative main; their exact-head/security verification record is being reconciled on the current main line. Stage 1C ODE implementation is preserved as later work and must not leapfrog the remaining 1B ladder.
 
 ## 1C. General ODEs
 
@@ -179,7 +179,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Stage 1A linear algebra and the implemented Stage 1B calculus stack, including the Fundamental Theorem of Calculus, are authoritatively verified on merged main. The current main HEAD is `1b6abfa199679597cc5ad6221eb15cc634fb055c`, and its Exact-head verification and Security Audit both pass. The controlling next capability is Stage 1B improper integrals and convergence-aware handling (Issue #115). Stage 1C ODE work is preserved out of order and cannot leapfrog the remaining Stage 1B ladder.
+**Current status:** [~] Active. Stage 1A and the implemented Stage 1B calculus stack are merged into main. Improper integrals (Issue #115) are now merged, while the latest exact-head run exposed stale frontier assertions that are being corrected by the current reconciliation PR. The next claimable capability is Series expansions (Issue #141). Stage 1C ODE work remains preserved out of order.
 
 ---
 
