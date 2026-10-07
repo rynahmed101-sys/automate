@@ -1,0 +1,114 @@
+name: Automate Control Cycle
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: automate-control-cycle
+  cancel-in-progress: false
+
+jobs:
+  control-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout authoritative main scheduler
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Read authoritative control-plane pin
+        id: pin
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          pin = json.loads(Path("docs/CONTROL_PLANE_ENGINE_PIN.json").read_text())
+          assert pin["schema_version"] == "automate.control_plane_pin.v1"
+          enabled = pin["enabled"] is True
+          sha = pin["engine_sha"]
+          if enabled and (not isinstance(sha, str) or len(sha) != 40 or any(c not in "0123456789abcdef" for c in sha)):
+              raise SystemExit("enabled scheduler requires an exact lowercase 40-character engine SHA")
+          print(f"enabled={enabled}")
+          print(f"sha={sha or ''}")
+          with open("${GITHUB_OUTPUT}", "a", encoding="utf-8") as out:
+              out.write(f"enabled={'true' if enabled else 'false'}\n")
+              out.write(f"sha={sha or ''}\n")
+          PY
+
+      - name: Validate pinned engine release evidence
+        if: steps.pin.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          live_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/engine" --jq '.object.sha')"
+          test "$live_sha" = "${{ steps.pin.outputs.sha }}" || {
+            echo "Pinned engine SHA is not the live engine tip: pinned=${{ steps.pin.outputs.sha }} live=$live_sha" >&2
+            exit 1
+          }
+          main_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
+          gh api "repos/${{ github.repository }}/compare/${{ steps.pin.outputs.sha }}...$main_sha" --jq '.status' | grep -Eq 'behind|identical' || {
+            echo "Pinned engine release does not contain the current authoritative main history." >&2
+            exit 1
+          }
+          runs="$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=${{ steps.pin.outputs.sha }}&per_page=100")"
+          RUNS_JSON="$runs" python - <<'PY'
+          import json, os
+          payload = json.loads(os.environ["RUNS_JSON"])
+          required = {"Automate Engine CI", "Security Audit"}
+          successful = {
+              run.get("name")
+              for run in payload.get("workflow_runs", [])
+              if run.get("status") == "completed" and run.get("conclusion") == "success"
+          }
+          missing = sorted(required - successful)
+          if missing:
+              raise SystemExit("Pinned engine release lacks successful exact-head evidence: " + ", ".join(missing))
+          PY
+
+      - name: Stop cleanly while scheduler is disabled
+        if: steps.pin.outputs.enabled != 'true'
+        run: echo "Automate control cycle is disabled by authoritative main."
+
+      - name: Checkout pinned engine control plane
+        if: steps.pin.outputs.enabled == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.pin.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        if: steps.pin.outputs.enabled == 'true'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Run exactly one bounded control cycle
+        if: steps.pin.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
+          AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
+          AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE }}
+          AUTOMATE_AUTO_BOOKKEEP: ${{ vars.AUTOMATE_AUTO_BOOKKEEP }}
+          AUTOMATE_MIRROR_DISCOVERY_ENABLED: ${{ vars.AUTOMATE_MIRROR_DISCOVERY_ENABLED }}
+          MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT: ${{ secrets.MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT }}
+          MIRROR_AUTONOMOUS_DISCOVERY_TOKEN: ${{ secrets.MIRROR_AUTONOMOUS_DISCOVERY_TOKEN }}
+        run: |
+          python -m pip install -e .
+          automate capability control-cycle \
+            --repo "${{ github.repository }}" \
+            --worker-url "${{ env.AUTOMATE_WORKER_URL }}" \
+            --worker-token "${{ env.AUTOMATE_WORKER_TOKEN }}" \
+            --local-root "${{ github.workspace }}" \
+            --execute-worker \
+            --execute-discovery \
+            --json
