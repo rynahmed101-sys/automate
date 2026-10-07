@@ -133,15 +133,14 @@ def build_worker_packet(
                 "Do not treat symmetric principal values as ordinary convergence.",
             ]
             if capability_id == "stage1b.improper_integrals"
-            else (
-                [
-                    "Support Taylor and Maclaurin expansions through an explicit requested order.",
-                    "Do not impose an arbitrary permanent low-order ceiling.",
-                    "Preserve expansion-point assumptions and fail closed when domain/analyticity conditions are unresolved.",
-                    "Test exact coefficients, truncation order, remainder/boundary behavior where represented, and negative cases.",
-                ]
-                if capability_id == "stage1b.series_expansions"
-                else [
+            else [
+                "Support Taylor and Maclaurin expansions through an explicit requested order.",
+                "Do not impose an arbitrary permanent low-order ceiling.",
+                "Preserve expansion-point assumptions and fail closed when domain/analyticity conditions are unresolved.",
+                "Test exact coefficients, truncation order, remainder/boundary behavior where represented, and negative cases.",
+            ]
+            if capability_id == "stage1b.series_expansions"
+            else [
                 "Implement the capability within the declared canonical files.",
                 "Preserve the existing verification and authority boundaries.",
             ]
