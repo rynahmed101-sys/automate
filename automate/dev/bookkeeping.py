@@ -28,13 +28,19 @@ def _significant_tokens(value: str) -> set[str]:
     return {token for token in normalized.split() if len(token) >= 3 and token not in stop}
 
 
-def _ledger_line_for_capability(ledger: str, *, stage: str, name: str) -> str:
-    heading = re.compile(rf"^## {re.escape(stage)}\.", re.MULTILINE)
+def _stage_section_bounds(ledger: str, stage: str) -> tuple[int, int]:
+    heading = re.compile(rf"^## {re.escape(stage)}\\.", re.MULTILINE)
     match = heading.search(ledger)
     if not match:
         raise BookkeepingError(f"ledger section for stage {stage} is missing")
     next_heading = re.search(r"^## ", ledger[match.end():], re.MULTILINE)
-    section = ledger[match.end(): match.end() + next_heading.start()] if next_heading else ledger[match.end():]
+    end = match.end() + next_heading.start() if next_heading else len(ledger)
+    return match.end(), end
+
+
+def _ledger_line_for_capability(ledger: str, *, stage: str, name: str) -> str:
+    start, end = _stage_section_bounds(ledger, stage)
+    section = ledger[start:end]
     wanted = _significant_tokens(name)
     candidates = []
     for line in section.splitlines():
@@ -48,7 +54,6 @@ def _ledger_line_for_capability(ledger: str, *, stage: str, name: str) -> str:
             f"ledger anchor is ambiguous for {name!r}: matched {len(candidates)} unchecked items"
         )
     return candidates[0]
-
 
 def _next_capability(inventory: Mapping[str, Any], *, completed_id: str) -> Mapping[str, Any] | None:
     records = [
@@ -105,8 +110,10 @@ def build_bookkeeping_plan(
         else "no unresolved pre-discovery capability"
     )
 
-    next_ledger = _replace_once(
-        ledger,
+    ledger_start, ledger_end = _stage_section_bounds(ledger, str(item["stage"]))
+    section = ledger[ledger_start:ledger_end]
+    section = _replace_once(
+        section,
         ledger_line,
         ledger_line.replace("- [ ] ", "- [x] ", 1),
         label="capability ledger checkbox",
@@ -116,36 +123,39 @@ def build_bookkeeping_plan(
         r"^\*\*Control-plane frontier:\*\*.*$",
         re.MULTILINE,
     )
-    frontier_matches = frontier_pattern.findall(next_ledger)
-    if len(frontier_matches) == 1:
+    frontier_matches = frontier_pattern.findall(section)
+    if frontier_matches:
+        if len(frontier_matches) != 1:
+            raise BookkeepingError("stage control-plane frontier anchor is ambiguous")
         next_frontier = (
             f"**Control-plane frontier:** the next claimable capability is **{next_name}**."
         )
-        next_ledger = _replace_once(
-            next_ledger,
+        section = _replace_once(
+            section,
             frontier_matches[0],
             next_frontier,
-            label="control-plane frontier",
+            label="stage control-plane frontier",
         )
 
     status_pattern = re.compile(r"^\*\*Current status:\*\*.*$", re.MULTILINE)
-    status_matches = status_pattern.findall(next_ledger)
+    status_matches = status_pattern.findall(section)
     if status_matches:
         if len(status_matches) != 1:
-            raise BookkeepingError("ledger current-status anchors are ambiguous")
+            raise BookkeepingError("stage current-status anchor is ambiguous")
         status_line = (
             f"**Current status:** [~] Active. Canonical capability promotion "
             f"requires exact-main verification and Security Audit evidence. "
             f"The next claimable capability is **{next_name}**. "
             f"Out-of-order preserved work cannot bypass the strict ladder."
         )
-        next_ledger = _replace_once(
-            next_ledger,
+        section = _replace_once(
+            section,
             status_matches[0],
             status_line,
-            label="current status",
+            label="stage current status",
         )
 
+    next_ledger = ledger[:ledger_start] + section + ledger[ledger_end:]
     next_inventory = json.loads(json.dumps(inventory))
     target = next(x for x in next_inventory["capabilities"] if x["id"] == capability_id)
     target["implementation_state"] = "merged_main"
