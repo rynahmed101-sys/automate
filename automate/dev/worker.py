@@ -45,6 +45,7 @@ def build_worker_packet(
     development_branch: str = "main",
     context_files: list[dict[str, str]] | None = None,
     context_notes: list[str] | None = None,
+    recovery_attempt: int | None = None,
 ) -> dict[str, Any]:
     data = load_inventory()
     item = get_capability(capability_id)
@@ -104,6 +105,10 @@ def build_worker_packet(
 
     generated_context_files: list[dict[str, str]] = []
     context_notes = list(context_notes or [])
+    if recovery_attempt is not None:
+        if recovery_attempt < 2:
+            raise InventoryError("recovery attempt must be >= 2")
+        context_notes.append(f"AUTONOMOUS_RECOVERY_ATTEMPT: {recovery_attempt}")
     for relative_path in context_paths:
         context_path = ROOT / relative_path
         if not context_path.is_file():
@@ -158,6 +163,7 @@ def build_worker_packet(
                         "base_sha": base_sha_claim,
                         "capability_id": capability_id,
                         "development_branch": development_branch,
+                        "recovery_attempt": recovery_attempt,
                     },
                     sort_keys=True,
                     separators=(",", ":"),
