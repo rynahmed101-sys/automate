@@ -49,7 +49,7 @@ def test_engine_pin_never_updates_without_explicit_auto_update(tmp_path: Path):
     with patch("automate.dev.engine_pin._run", fake):
         result = ensure_engine_pin(tmp_path, "rynahmed101-sys/automate", auto_update=False)
 
-    assert result["state"] == "PIN_UPDATE_REQUIRED"
+    assert result["state"] == "PIN_UPDATE_REQUIRED"  # evidence mock is served by gh api
     assert json_path(tmp_path).get("engine_sha") is None
 
 
