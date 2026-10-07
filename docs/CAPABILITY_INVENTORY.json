@@ -1169,7 +1169,7 @@
       "branch": "feat/operating-mode-contract-20261007",
       "state": "open",
       "purpose": "closed-loop operating mode control plane",
-      "head_sha": "06bb14b14fcf54c0b04db67edb20d3ee897606"
+      "head_sha": "06bb14b14fcf54f9c0b04db67edb20d3ee897606"
     },
     {
       "number": 148,
