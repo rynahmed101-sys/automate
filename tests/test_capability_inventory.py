@@ -185,7 +185,7 @@ def test_live_audit_rejects_unrecorded_capability_pr():
             "url": "https://github.com/rynahmed101-sys/automate/pull/999",
         }
     ]
-    errors = audit_live("rynahmed101-sys/automate", pull_requests=with_errors)
+    errors = audit_live("rynahmed101-sys/automate", pull_requests=with_errors, base_branch="main")
     assert any("no capability ownership reference" in error for error in errors)
 
 
