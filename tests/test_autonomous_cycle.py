@@ -114,10 +114,14 @@ def test_backlog_cycle_publishes_when_auto_publish_is_enabled(monkeypatch):
     ), patch(
         "automate.dev.autonomous.build_worker_commit",
         return_value={"status": "committed", "branch": "feat/stage1b.improper_integrals"},
-    ), patch(
-        "automate.dev.publisher.publish_worker_commit",
-        return_value={"status": "submitted", "pr_number": 171},
-    ) as publish:
+    ):
+        import automate.dev.publisher as publisher
+        with patch.object(
+            publisher,
+            "publish_worker_commit",
+            create=True,
+            return_value={"status": "submitted", "pr_number": 171},
+        ) as publish:
         result = run_autonomous_cycle(
             "x",
             worker_url="https://worker",
