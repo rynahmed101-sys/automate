@@ -30,6 +30,7 @@ class EvidenceState(str, Enum):
     UNVERIFIED = "UNVERIFIED"
     IN_PROGRESS = "IN_PROGRESS"
     VERIFIED = "VERIFIED"
+    IMPLEMENTATION_VERIFIED = "IMPLEMENTATION_VERIFIED"
     PARTIALLY_SUPPORTED = "PARTIALLY_SUPPORTED"
     REPRODUCED = "REPRODUCED"
     CONTRADICTED = "CONTRADICTED"
@@ -42,6 +43,7 @@ EVIDENCE_TRANSITIONS = {
     EvidenceState.UNVERIFIED: {EvidenceState.IN_PROGRESS, EvidenceState.BLOCKED, EvidenceState.QUARANTINED, EvidenceState.CONTRADICTED, EvidenceState.FALSE},
     EvidenceState.IN_PROGRESS: {EvidenceState.VERIFIED, EvidenceState.PARTIALLY_SUPPORTED, EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.UNRESOLVED, EvidenceState.BLOCKED, EvidenceState.QUARANTINED},
     EvidenceState.VERIFIED: {EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.QUARANTINED},
+    EvidenceState.IMPLEMENTATION_VERIFIED: {EvidenceState.VERIFIED, EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.QUARANTINED},
     EvidenceState.PARTIALLY_SUPPORTED: {EvidenceState.VERIFIED, EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.UNRESOLVED, EvidenceState.QUARANTINED},
     EvidenceState.REPRODUCED: {EvidenceState.VERIFIED, EvidenceState.CONTRADICTED, EvidenceState.QUARANTINED},
     EvidenceState.CONTRADICTED: {EvidenceState.UNRESOLVED, EvidenceState.QUARANTINED},
@@ -408,93 +410,120 @@ def run_backlog_item(
         payload=reconciliation,
         parent_id=request_id,
     )
-    math_results = (
-        verify_improper_integral_cases()
-        if capability_id == "stage1b.improper_integrals"
-        else []
-    )
-    math_ok = bool(math_results) and all(
+    capability_specific_math = capability_id == "stage1b.improper_integrals"
+    math_results = verify_improper_integral_cases() if capability_specific_math else []
+    math_ok = capability_specific_math and bool(math_results) and all(
         row["passed"] is row["expected"] for row in math_results
     )
-    math_state = EvidenceState.VERIFIED if math_ok else EvidenceState.CONTRADICTED
+    math_state = (
+        EvidenceState.VERIFIED
+        if capability_specific_math and math_ok
+        else EvidenceState.CONTRADICTED
+        if capability_specific_math
+        else EvidenceState.UNVERIFIED
+    )
     math_id = graph.add(
         kind="mathematical_check",
         state=math_state,
-        payload={"cases": math_results},
+        payload={
+            "cases": math_results,
+            "capability_specific_adapter": capability_specific_math,
+        },
         parent_id=reconciliation_id,
     )
+
     actions = action_evidence(snap, revision)
     actions_id = graph.add(
         kind="ci_security",
-        state=EvidenceState.VERIFIED
-        if actions["exact_head_verified"] and actions["security_verified"]
-        else EvidenceState.BLOCKED,
+        state=(
+            EvidenceState.VERIFIED
+            if actions["exact_head_verified"] and actions["security_verified"]
+            else EvidenceState.BLOCKED
+        ),
         payload=actions,
         parent_id=math_id,
     )
-    mirror_request = mirror_verification_request(
-        request=request,
-        hypothesis="independent convergence/stability check for the first real Stage 1B frontier",
-        inputs={"integrand": "1/(1+x**2)", "lower": "-oo", "upper": "oo"},
-        assumptions=(),
-        experiment_budget={
-            "max_precision": 80,
-            "max_truncation": 8,
-            "max_runtime_ms": 30000,
-        },
-    )
-    mirror_id = graph.add(
-        kind="mirror_request",
-        state=EvidenceState.IN_PROGRESS,
-        payload=mirror_request,
-        parent_id=math_id,
-    )
 
+    mirror_request = None
+    mirror_id = None
     mirror_result = None
     mirror_evidence_id = None
-    mirror_enabled = __import__("os").getenv(
-        "AUTOMATE_MIRROR_VERIFICATION_ENABLED", ""
-    ).strip().lower() in {"1", "true", "yes"}
-    if mirror_enabled:
-        try:
-            from automate.dev.mirror_verification_client import run_mirror_verification
+    mirror_required = capability_specific_math
+    mirror_enabled = (
+        mirror_required
+        and __import__("os").getenv("AUTOMATE_MIRROR_VERIFICATION_ENABLED", "").strip().lower()
+        in {"1", "true", "yes"}
+    )
 
-            mirror_result = run_mirror_verification(mirror_request)
-            mirror_state = (
-                EvidenceState.REPRODUCED
-                if mirror_result.get("status") == "REPRODUCED"
-                else EvidenceState.UNRESOLVED
-                if mirror_result.get("status") == "UNRESOLVED"
-                else EvidenceState.CONTRADICTED
-            )
-            mirror_evidence_id = graph.add(
-                kind="mirror_experimental_result",
-                state=mirror_state,
-                payload=mirror_result,
-                parent_id=mirror_id,
-            )
-        except Exception as exc:
-            mirror_result = {
-                "status": "UNRESOLVED",
-                "error": str(exc),
-                "authority": "UNTRUSTED_EXPERIMENTAL_OBSERVATION",
-            }
-            mirror_evidence_id = graph.add(
-                kind="mirror_experimental_result",
-                state=EvidenceState.BLOCKED,
-                payload=mirror_result,
-                parent_id=mirror_id,
-            )
+    if mirror_required:
+        mirror_request = mirror_verification_request(
+            request=request,
+            hypothesis=(
+                "independent convergence/stability check for improper-integral behavior"
+            ),
+            inputs={"integrand": "1/(1+x**2)", "lower": "-oo", "upper": "oo"},
+            assumptions=(),
+            experiment_budget={
+                "max_precision": 80,
+                "max_truncation": 8,
+                "max_runtime_ms": 30000,
+            },
+        )
+        mirror_id = graph.add(
+            kind="mirror_request",
+            state=EvidenceState.IN_PROGRESS,
+            payload=mirror_request,
+            parent_id=math_id,
+        )
+
+        if mirror_enabled:
+            try:
+                from automate.dev.mirror_verification_client import run_mirror_verification
+
+                mirror_result = run_mirror_verification(mirror_request)
+                mirror_state = (
+                    EvidenceState.REPRODUCED
+                    if mirror_result.get("status") == "REPRODUCED"
+                    else EvidenceState.UNRESOLVED
+                    if mirror_result.get("status") == "UNRESOLVED"
+                    else EvidenceState.CONTRADICTED
+                )
+                mirror_evidence_id = graph.add(
+                    kind="mirror_experimental_result",
+                    state=mirror_state,
+                    payload=mirror_result,
+                    parent_id=mirror_id,
+                )
+            except Exception as exc:
+                mirror_result = {
+                    "status": "UNRESOLVED",
+                    "error": str(exc),
+                    "authority": "UNTRUSTED_EXPERIMENTAL_OBSERVATION",
+                }
+                mirror_evidence_id = graph.add(
+                    kind="mirror_experimental_result",
+                    state=EvidenceState.BLOCKED,
+                    payload=mirror_result,
+                    parent_id=mirror_id,
+                )
+
     mirror_ok = (
         not mirror_enabled
         or (isinstance(mirror_result, dict) and mirror_result.get("status") == "REPRODUCED")
     )
-    state = (
-        EvidenceState.VERIFIED
-        if math_ok and actions["exact_head_verified"] and actions["security_verified"] and mirror_ok
-        else EvidenceState.PARTIALLY_SUPPORTED if math_ok
-        else EvidenceState.CONTRADICTED
-    )
+    no_reconciliation_findings = not reconciliation["findings"]
+
+    if not no_reconciliation_findings or not actions["exact_head_verified"] or not actions["security_verified"]:
+        state = EvidenceState.BLOCKED
+    elif capability_specific_math and not math_ok:
+        state = EvidenceState.CONTRADICTED
+    elif mirror_required and not mirror_ok:
+        state = EvidenceState.UNRESOLVED
+    elif capability_specific_math:
+        state = EvidenceState.VERIFIED
+    else:
+        state = EvidenceState.IMPLEMENTATION_VERIFIED
+
     packet = build_verifiable_packet(
         request=request,
         graph_ids=[
@@ -523,12 +552,30 @@ def run_backlog_item(
             "source_revision": revision,
             "reconciliation_evidence_id": reconciliation_id,
         },
-        mirror_experiment_ids=[],
-        unresolved=[f["detail"] for f in reconciliation["findings"]],
+        mirror_experiment_ids=(
+            [str(mirror_result.get("experiment_id"))]
+            if isinstance(mirror_result, dict) and mirror_result.get("experiment_id")
+            else []
+        ),
+        unresolved=[
+            *[f["detail"] for f in reconciliation["findings"]],
+            *(
+                ["capability-specific mathematical verifier failed"]
+                if capability_specific_math and math_state == EvidenceState.CONTRADICTED
+                else []
+            ),
+            *(
+                ["Mirror independent verification is unresolved"]
+                if mirror_required and mirror_enabled and not mirror_ok
+                else []
+            ),
+        ],
         limitations=(
             ["The verifier cannot certify or promote."]
+            + ([] if capability_specific_math else ["No capability-specific mathematical adapter is registered; implementation evidence is reported separately."])
             + ([] if actions["exact_head_verified"] else ["Exact-head CI evidence is missing."])
             + ([] if actions["security_verified"] else ["Security Audit evidence is missing."])
+            + (["Mirror verification is disabled for this cycle."] if mirror_required and not mirror_enabled else [])
         ),
     )
     graph.close()
