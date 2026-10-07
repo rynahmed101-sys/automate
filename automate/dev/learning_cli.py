@@ -9,6 +9,11 @@ import click
 from automate.dev.discovery import DiscoveryIntakeError, triage_candidate
 from automate.dev.evolution import build_evolution_plan
 from automate.dev.learning_loop import plan_next_learning_action
+from automate.dev.learning_events import (
+    record_ci_result,
+    record_reconciliation_result,
+    record_verification_result,
+)
 from automate.dev.evolution_executor import EvolutionExecutionError, execute_evolution_plan
 from automate.dev.learning import (
     LearningError,
@@ -341,5 +346,127 @@ def loop(task_kind: str, task_target: str, db: str) -> None:
             ),
             indent=2,
         ))
+    finally:
+        store.close()
+
+
+@learn.command("record-ci")
+@click.option("--cycle", required=True)
+@click.option("--target", required=True)
+@click.option("--strategy-id", required=True)
+@click.option("--conclusion", required=True)
+@click.option("--run-id", required=True)
+@click.option("--revision", default=None)
+@click.option("--repository", default="rynahmed101-sys/automate", show_default=True)
+@click.option("--details", default="")
+@click.option("--db", default="data/learning.db", show_default=True)
+def record_ci(
+    cycle: str,
+    target: str,
+    strategy_id: str,
+    conclusion: str,
+    run_id: str,
+    revision: str | None,
+    repository: str,
+    details: str,
+    db: str,
+) -> None:
+    """Normalize a CI outcome into the learning ledger."""
+    store = _store(db)
+    try:
+        experience_id = record_ci_result(
+            store,
+            action_cycle_id=cycle,
+            task_target=target,
+            strategy_id=strategy_id,
+            conclusion=conclusion,
+            run_id=run_id,
+            revision=revision,
+            repository=repository,
+            details=details,
+        )
+        click.echo(json.dumps({"status": "RECORDED", "experience_id": experience_id}, indent=2))
+    finally:
+        store.close()
+
+
+@learn.command("record-verification")
+@click.option("--cycle", required=True)
+@click.option("--target", required=True)
+@click.option("--strategy-id", required=True)
+@click.option("--state", "evidence_state", required=True)
+@click.option("--revision", default=None)
+@click.option("--repository", default="rynahmed101-sys/automate", show_default=True)
+@click.option("--evidence-id", multiple=True)
+@click.option("--details", default="")
+@click.option("--db", default="data/learning.db", show_default=True)
+def record_verification(
+    cycle: str,
+    target: str,
+    strategy_id: str,
+    evidence_state: str,
+    revision: str | None,
+    repository: str,
+    evidence_id: tuple[str, ...],
+    details: str,
+    db: str,
+) -> None:
+    """Normalize a verification outcome into the learning ledger."""
+    store = _store(db)
+    try:
+        experience_id = record_verification_result(
+            store,
+            action_cycle_id=cycle,
+            task_target=target,
+            strategy_id=strategy_id,
+            evidence_state=evidence_state,
+            revision=revision,
+            repository=repository,
+            evidence_refs=[{"id": x, "kind": "verification"} for x in evidence_id],
+            details=details,
+        )
+        click.echo(json.dumps({"status": "RECORDED", "experience_id": experience_id}, indent=2))
+    finally:
+        store.close()
+
+
+@learn.command("record-reconciliation")
+@click.argument("findings_file", type=click.Path(exists=True))
+@click.option("--cycle", required=True)
+@click.option("--target", required=True)
+@click.option("--strategy-id", required=True)
+@click.option("--ready", is_flag=True)
+@click.option("--revision", default=None)
+@click.option("--repository", default="rynahmed101-sys/automate", show_default=True)
+@click.option("--db", default="data/learning.db", show_default=True)
+def record_reconciliation(
+    findings_file: str,
+    cycle: str,
+    target: str,
+    strategy_id: str,
+    ready: bool,
+    revision: str | None,
+    repository: str,
+    db: str,
+) -> None:
+    """Normalize reconciliation findings into the learning ledger."""
+    store = _store(db)
+    try:
+        findings = json.loads(Path(findings_file).read_text(encoding="utf-8"))
+        if not isinstance(findings, list):
+            raise LearningError("findings file must contain a JSON array")
+        experience_id = record_reconciliation_result(
+            store,
+            action_cycle_id=cycle,
+            task_target=target,
+            strategy_id=strategy_id,
+            findings=findings,
+            ready=ready,
+            revision=revision,
+            repository=repository,
+        )
+        click.echo(json.dumps({"status": "RECORDED", "experience_id": experience_id}, indent=2))
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(str(exc)) from exc
     finally:
         store.close()
