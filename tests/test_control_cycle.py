@@ -123,3 +123,39 @@ def test_discovery_cycle_never_allows_more_than_one_candidate():
         ]
     }
     assert len(extract_candidate_proposals(result)) == 2
+
+
+def test_backlog_capability_always_requires_verification_before_promotion():
+    from automate.dev.control_cycle import run_control_cycle
+
+    control = {
+        "schema_version": "automate.operating_mode.v1",
+        "mode": "BACKLOG",
+        "mirror_discovery_allowed": False,
+        "queue": {
+            "next_action": {
+                "action": "implement",
+                "capability_id": "stage1b.series_expansions",
+            }
+        },
+    }
+    handoff = {
+        "number": 901,
+        "head_sha": "b" * 40,
+        "branch": "feat/stage1b.series_expansions-" + "c" * 12,
+    }
+    lifecycle = {
+        "state": "IMPLEMENTATION_PR",
+        "promotion": {"state": "READY_TO_MERGE"},
+        "pr": {"number": 901},
+    }
+    with patch("automate.dev.control_cycle.resolve_operating_mode", return_value=control),          patch("automate.dev.control_cycle._gh_json", return_value={"object": {"sha": "a" * 40}}),          patch("automate.dev.control_cycle.inspect_merged_worker_handoff", return_value=None),          patch("automate.dev.control_cycle.find_worker_handoff", return_value=handoff),          patch("automate.dev.control_cycle.inspect_worker_handoff_pr", return_value=lifecycle),          patch("automate.dev.control_cycle.execute_promotion") as promote,          patch("automate.dev.control_cycle.dispatch_verification_job") as dispatch_verification:
+        result = run_control_cycle(
+            "rynahmed101-sys/automate",
+            worker_url="https://worker",
+            worker_token="secret",
+            execute_worker=False,
+        )
+    assert result["status"] == "verification_blocked"
+    promote.assert_not_called()
+    dispatch_verification.assert_called_once()
