@@ -76,9 +76,13 @@ def isolated_worker_worktree(
         )
 
 
-def worker_branch_name(capability_id: str) -> str:
+def worker_branch_name(capability_id: str, base_sha: str | None = None) -> str:
     if not capability_id or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789_.-" for ch in capability_id):
         raise WorkerExecutionError("capability id is not safe for a worker branch")
+    if base_sha is not None:
+        if not len(base_sha) == 40 or any(ch not in "0123456789abcdef" for ch in base_sha):
+            raise WorkerExecutionError("worker branch base sha must be a 40-character lowercase hex SHA")
+        return "feat/" + capability_id + "-" + base_sha[:12]
     return "feat/" + capability_id
 
 
@@ -97,7 +101,7 @@ def build_worker_commit(
     if not isinstance(capability_id, str):
         raise WorkerExecutionError("worker packet has no capability id")
 
-    branch_name = worker_branch_name(capability_id)
+    branch_name = worker_branch_name(capability_id, base_sha)
     message = commit_message or (
         "feat: implement " + str(packet["capability"]["name"])
     )
