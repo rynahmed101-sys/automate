@@ -689,15 +689,27 @@ def gh_api(path: str, *, timeout: int = 30) -> Any:
             raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
         raw = proc.stdout
     else:
+        credential = subprocess.run(
+            ["git", "config", "--get", "http.https://github.com/.extraheader"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        ).stdout.strip()
+        command = [
+            "curl", "--fail", "--silent", "--show-error",
+            "--header", "Accept: application/vnd.github+json",
+            "--header", "X-GitHub-Api-Version: 2022-11-28",
+        ]
+        if credential:
+            command.extend(["--header", credential])
+        command.append("https://api.github.com" + path)
         proc = subprocess.run(
-            ["curl", "--fail", "--silent", "--show-error",
-             "--header", "Accept: application/vnd.github+json",
-             "--header", "X-GitHub-Api-Version: 2022-11-28",
-             "https://api.github.com" + path],
+            command,
             capture_output=True, text=True, timeout=timeout, check=False,
         )
         if proc.returncode:
-            raise RuntimeError(f"GitHub public read failed: {proc.stderr.strip()}")
+            raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
         raw = proc.stdout
 
     try:
