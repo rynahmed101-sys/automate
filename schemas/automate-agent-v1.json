@@ -1198,6 +1198,15 @@
       ]
     },
     {
+      "rule_id": "series_expansion",
+      "category": "calculus",
+      "domain": "mathematics",
+      "implementation_backend": "sympy",
+      "allowed_checkers": [
+        "sympy"
+      ]
+    },
+    {
       "rule_id": "integrate",
       "category": "calculus",
       "domain": "mathematics",
