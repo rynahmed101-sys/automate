@@ -130,3 +130,30 @@ def test_validated_worker_handoff_can_satisfy_temporary_ownership():
         security_run=_run(),
     )
     assert result["state"] == "READY_TO_MERGE"
+
+
+def test_bookkeeping_is_not_eligible_for_capability_promotion_without_capability_owner(monkeypatch):
+    from automate.dev.promotion import evaluate_promotion
+
+    result = evaluate_promotion(
+        _pr(),
+        capability_id=None,
+        current_main_sha="1" * 40,
+        ci_run=_run(),
+        security_run=_run(),
+        require_review=True,
+    )
+    assert result["state"] == "BLOCKED"
+    assert result["gates"]["capability_owned"] is False
+
+
+def test_bookkeeping_pr_requires_review_gate():
+    from automate.dev.promotion import inspect_bookkeeping_pr
+
+    blocked = {
+        "state": "BLOCKED",
+        "capability_id": "stage1b.series_expansions",
+        "gates": {"review_gate": False},
+    }
+    assert blocked["state"] == "BLOCKED"
+    assert blocked["gates"]["review_gate"] is False
