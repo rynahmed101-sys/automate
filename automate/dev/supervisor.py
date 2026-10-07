@@ -8,6 +8,7 @@ import os
 import re
 from typing import Any
 
+from automate.dev.bookkeeping import find_merged_worker
 from automate.dev.inventory import (
     InventoryError,
     load_inventory,
@@ -71,6 +72,20 @@ def _pending_worker_pr(repository: str, capability_id: str, main_sha: str) -> di
             and str(pr.get("baseRefName") or "main") == "main"
             and re.search(r"(?m)^- capability:\s*" + re.escape(capability_id) + r"\s*$", body)
             and str(pr.get("baseRefOid") or "") == main_sha
+        ):
+            return pr
+    return None
+
+def _pending_bookkeeping_pr(repository: str, capability_id: str, merge_sha: str) -> dict[str, Any] | None:
+    expected_branch = "integrate/auto-bookkeep-" + merge_sha[:12]
+    for pr in _github_open_worker_prs(repository):
+        branch = str(pr.get("headRefName") or "")
+        body = str(pr.get("body") or "")
+        if (
+            branch == expected_branch
+            and "- automation_role: canonical_bookkeeping" in body
+            and re.search(r"(?m)^- capability:\s*" + re.escape(capability_id) + r"\s*$", body)
+            and re.search(r"(?m)^- merge_sha:\s*" + re.escape(merge_sha) + r"\s*$", body)
         ):
             return pr
     return None
@@ -146,6 +161,35 @@ def supervisor_snapshot(
                     "pr_number": int(pending["number"]),
                     "head_sha": str(pending["headRefOid"]),
                     "worker_pr": pending,
+                }
+
+            merged = find_merged_worker(repository, capability_id)
+            if merged:
+                bookkeeping = _pending_bookkeeping_pr(repository, capability_id, str(merged["merge_sha"]))
+                if bookkeeping:
+                    return {
+                        "schema_version": "automate.supervisor.v1",
+                        "action": "promote_bookkeeping_pr",
+                        "reason": "The worker merge is already authoritative; finish the deterministic bookkeeping transition before dispatching the next capability.",
+                        "errors": [],
+                        "queue": queue,
+                        "live": live_state,
+                        "can_dispatch": False,
+                        "capability_id": capability_id,
+                        "pr_number": int(bookkeeping["number"]),
+                        "head_sha": str(bookkeeping["headRefOid"]),
+                        "bookkeeping_pr": bookkeeping,
+                    }
+                return {
+                    "schema_version": "automate.supervisor.v1",
+                    "action": "create_bookkeeping",
+                    "reason": "A worker-generated capability has merged; canonical inventory and ledger bookkeeping is the next bounded transition.",
+                    "errors": [],
+                    "queue": queue,
+                    "live": live_state,
+                    "can_dispatch": False,
+                    "capability_id": capability_id,
+                    "worker_pr": merged,
                 }
 
     if action["action"] != "implement":
