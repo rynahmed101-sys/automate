@@ -50,13 +50,9 @@ def _exact_main_pr_checks_verified(root: Path, repository: str, head_sha: str) -
         and run.get("status") == "completed"
         and run.get("conclusion") == "success"
     }
-    # A pull request targeting `main` exercises the fast Development matrix,
-    # not the post-merge Exact-head workflow named `Automate CI`.
-    required = {
-        "Security Audit",
-        *(f"Development / Python 3.12 / shard {index}" for index in range(4)),
-    }
-    return required <= successful
+    # The Actions runs API reports workflow-level names. The main-targeted
+    # `Automate CI` workflow contains the four Development matrix shards.
+    return {"Automate CI", "Security Audit"} <= successful
 
 
 def _successful_release_evidence(root: Path, repository: str, engine_sha: str) -> dict[str, Any]:
