@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EXPERIENCE_SCHEMA = ROOT / "schemas" / "automate-learning-experience-v1.json"
 LESSON_SCHEMA = ROOT / "schemas" / "automate-learning-lesson-v1.json"
 EVOLUTION_SCHEMA = ROOT / "schemas" / "automate-system-evolution-proposal-v1.json"
+DISCOVERY_SCHEMA = ROOT / "schemas" / "automate-research-proposal-v1.json"
 
 OUTCOMES = {"success", "failure", "unknown", "contradiction"}
 LESSON_STATUSES = {
