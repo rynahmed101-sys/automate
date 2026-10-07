@@ -165,6 +165,7 @@ def test_capability_merge_is_blocked_if_main_moves_after_gate(monkeypatch):
     base = "1" * 40
     pr = _pr()
     with monkeypatch.context() as m:
+        m.setenv("AUTOMATE_AUTO_PROMOTE", "1")
         m.setattr(promotion, "inspect_promotion", lambda *args, **kwargs: {
             "state": "READY_TO_MERGE",
             "head_sha": "2" * 40,
@@ -189,6 +190,7 @@ def test_capability_merge_is_blocked_if_pr_head_moves_after_gate(monkeypatch):
         {"object": {"sha": base}},
         {**_pr(), "head": {"sha": "9" * 40}},
     ])
+    monkeypatch.setenv("AUTOMATE_AUTO_PROMOTE", "1")
     monkeypatch.setattr(promotion, "_gh_json", lambda *args, **kwargs: next(calls))
     monkeypatch.setattr(
         promotion,
