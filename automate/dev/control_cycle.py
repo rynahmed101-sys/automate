@@ -280,43 +280,53 @@ def run_control_cycle(
     lifecycle = None
     decision = result.get("decision", {})
     packet = decision.get("worker_packet", {}).get("packet", {})
-    persisted_job = result.get("persisted_job", {}).get("job", {})
-    worker_result = persisted_job.get("result")
+    commit = result.get("commit", {})
     base_sha = packet.get("repository", {}).get("base_sha_claim")
 
-    if isinstance(worker_result, dict) and isinstance(base_sha, str):
-        from automate.dev.promotion import inspect_worker_result_lifecycle, execute_promotion
+    if (
+        isinstance(commit, dict)
+        and commit.get("status") == "committed"
+        and isinstance(base_sha, str)
+        and local_root is not None
+    ):
+        from automate.dev.prmgr import create_worker_pr
+        from automate.dev.publisher import push_worker_branch
 
         try:
-            lifecycle = inspect_worker_result_lifecycle(
+            push_worker_branch(Path(local_root), branch_name=str(commit["branch"]))
+            handoff = create_worker_pr(
                 repository,
+                branch=str(commit["branch"]),
                 capability_id=capability_id,
-                packet=packet,
-                worker_result=worker_result,
-                current_main_sha=base_sha,
+                title=f"feat: implement {packet['capability']['name']}",
+                base_sha=base_sha,
+                test_result=commit.get("tests") or {},
+                worker_request_id=str(packet["request_id"]),
             )
-            promotion = lifecycle.get("promotion", {})
-            if promotion.get("state") == "READY_TO_MERGE":
-                import os
-                should_execute = os.getenv("AUTOMATE_AUTO_PROMOTE", "").strip().lower() in {"1", "true", "yes"}
-                lifecycle["promotion_execution"] = execute_promotion(
-                    repository,
-                    int(lifecycle["pr"]["number"]),
-                    current_main_sha=base_sha,
-                    execute=should_execute,
-                )
+            lifecycle = {
+                "state": "IMPLEMENTATION_PR",
+                "capability_id": capability_id,
+                "pr": handoff,
+                "worker_commit_sha": commit.get("commit_sha"),
+            }
         except Exception as exc:
             lifecycle = {
-                "state": "PROMOTION_BLOCKED",
+                "state": "WORKER_HANDOFF_BLOCKED",
                 "capability_id": capability_id,
                 "error": str(exc),
             }
+    elif commit.get("status") == "committed":
+        lifecycle = {
+            "state": "WORKER_COMMITTED_REQUIRES_PUBLISH",
+            "capability_id": capability_id,
+            "worker_commit_sha": commit.get("commit_sha"),
+        }
 
     return {
         **control,
         "status": (
-            "promotion_ready"
-            if isinstance(lifecycle, dict) and lifecycle.get("promotion", {}).get("state") == "READY_TO_MERGE"
+            "worker_handoff_open"
+            if isinstance(lifecycle, dict) and lifecycle.get("state") == "IMPLEMENTATION_PR"
             else "backlog_cycle_completed"
         ),
         "dispatch_allowed": True,
