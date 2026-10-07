@@ -97,7 +97,8 @@ def test_control_cycle_does_not_dispatch_when_worker_handoff_exists():
         result = run_control_cycle("owner/repo")
 
     assert result["dispatch_allowed"] is False
-    assert result["lifecycle"] == lifecycle
+    assert result["status"] == "verification_blocked"
+    assert result["lifecycle"] == handoff
     dispatch.assert_not_called()
 
 
