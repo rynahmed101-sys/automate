@@ -8,20 +8,20 @@ from automate.dev.worker import build_worker_packet, validate_worker_result
 
 
 def test_worker_packet_for_current_frontier_is_bounded():
-    packet = build_worker_packet("stage1b.improper_integrals")
+    packet = build_worker_packet("stage1b.series_expansions")
     body = packet["packet"]
     assert packet["schema_version"] == "automate.worker.v1"
     assert body["task"]["source"] == "github_issue"
-    assert body["task"]["ref"] == "115"
-    assert "Fail closed when symbolic convergence cannot be established." in body["task"]["requirements"]
-    assert body["capability"]["id"] == "stage1b.improper_integrals"
+    assert body["task"]["ref"] == "141"
+    assert "Support Taylor and Maclaurin expansions through an explicit requested order." in body["task"]["requirements"]
+    assert body["capability"]["id"] == "stage1b.series_expansions"
     assert body["repository"]["base_branch"] == "main"
     assert body["constraints"]["allow_delete"] is False
     assert "docs/PROJECT_PHASE_LEDGER.md" in body["constraints"]["forbidden_paths"]
-    assert body["verification"]["test_targets"] == ["tests/test_improper_integrals.py"]
+    assert body["verification"]["test_targets"] == ["tests/test_series_expansions.py"]
     assert body["constraints"]["allowed_path_prefixes"] == [
         "automate/backend/sympy_backend.py",
-        "tests/test_improper_integrals.py",
+        "tests/test_series_expansions.py",
     ]
 
 
@@ -36,7 +36,7 @@ def test_worker_packet_rejects_capability_without_canonical_scope():
 
 
 def test_worker_result_rejects_out_of_scope_change():
-    packet = build_worker_packet("stage1b.improper_integrals")["packet"]
+    packet = build_worker_packet("stage1b.series_expansions")["packet"]
     result = {
         "schema_version": "automate.worker_result.v1",
         "request_id": packet["request_id"],
@@ -50,7 +50,7 @@ def test_worker_result_rejects_out_of_scope_change():
 
 
 def test_worker_result_rejects_forbidden_control_plane_path():
-    packet = build_worker_packet("stage1b.improper_integrals")["packet"]
+    packet = build_worker_packet("stage1b.series_expansions")["packet"]
     result = {
         "schema_version": "automate.worker_result.v1",
         "request_id": packet["request_id"],
@@ -64,7 +64,7 @@ def test_worker_result_rejects_forbidden_control_plane_path():
 
 
 def test_worker_result_rejects_self_certification():
-    packet = build_worker_packet("stage1b.improper_integrals")["packet"]
+    packet = build_worker_packet("stage1b.series_expansions")["packet"]
     result = {
         "schema_version": "automate.worker_result.v1",
         "request_id": packet["request_id"],
@@ -79,7 +79,7 @@ def test_worker_result_rejects_self_certification():
 
 
 def test_worker_result_rejects_invalid_status():
-    packet = build_worker_packet("stage1b.improper_integrals")["packet"]
+    packet = build_worker_packet("stage1b.series_expansions")["packet"]
     result = {
         "schema_version": "automate.worker_result.v1",
         "request_id": packet["request_id"],
@@ -130,13 +130,13 @@ def test_worker_packet_preserves_explicit_context():
     from automate.dev.worker import build_worker_packet
 
     packet = build_worker_packet(
-        "stage1b.improper_integrals",
+        "stage1b.series_expansions",
         context_files=[{
-            "path": "tests/test_improper_integrals.py",
+            "path": "tests/test_series_expansions.py",
             "sha": "0" * 40,
             "content": "explicit context",
         }],
     )
     paths = [item["path"] for item in packet["packet"]["context"]["files"]]
-    assert "tests/test_improper_integrals.py" in paths
+    assert "tests/test_series_expansions.py" in paths
     assert packet["packet"]["context"]["files"][0]["content"] == "explicit context"
