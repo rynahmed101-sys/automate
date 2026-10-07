@@ -87,6 +87,7 @@ def test_cycle_validates_worker_result_before_local_apply():
 
 
 
+
 def test_backlog_cycle_publishes_when_auto_publish_is_enabled(monkeypatch):
     monkeypatch.setenv("AUTOMATE_AUTO_PUBLISH", "1")
     with patch(
@@ -122,12 +123,12 @@ def test_backlog_cycle_publishes_when_auto_publish_is_enabled(monkeypatch):
             create=True,
             return_value={"status": "submitted", "pr_number": 171},
         ) as publish:
-        result = run_autonomous_cycle(
-            "x",
-            worker_url="https://worker",
-            worker_token="secret",
-            execute_worker=True,
-            local_root=Path("."),
-        )
+            result = run_autonomous_cycle(
+                "x",
+                worker_url="https://worker",
+                worker_token="secret",
+                execute_worker=True,
+                local_root=Path("."),
+            )
     assert result["status"] == "submitted"
     publish.assert_called_once()
