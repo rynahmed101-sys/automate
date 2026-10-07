@@ -105,10 +105,13 @@ class VerificationRequest:
 
 def build_request(*, capability_id: str, repository: str, revision: str,
                   branch: str, scope: Iterable[str],
-                  action_cycle_id: str, parent_ids: Iterable[str] = ()) -> VerificationRequest:
+                  action_cycle_id: str, parent_ids: Iterable[str] = (),
+                  request_id: str | None = None) -> VerificationRequest:
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("verification request requires an exact 40-character commit SHA")
-    rid = deterministic_id("ver", capability_id, repository, revision, list(scope))
+    rid = request_id or deterministic_id("ver", capability_id, repository, revision, list(scope))
+    if not re.fullmatch(r"ver_[0-9a-f]{32}", rid):
+        raise ValueError("verification request requires a deterministic ver_ identity")
     req = VerificationRequest(action_cycle_id, rid, capability_id, repository, revision,
                               branch, tuple(scope), tuple(parent_ids))
     errors = validate_schema(req.to_dict(), REQUEST_SCHEMA)
@@ -377,7 +380,8 @@ def apply_bounded_repair(*, root: str | Path, plan: RepairPlan) -> list[dict[str
 
 def run_backlog_item(
     *, capability_id: str, repository: str, revision: str, branch: str,
-    action_cycle_id: str, snapshot: Mapping[str, Any], evidence_db: str | Path
+    action_cycle_id: str, snapshot: Mapping[str, Any], evidence_db: str | Path,
+    request_id: str | None = None
 ) -> dict[str, Any]:
     request = build_request(
         capability_id=capability_id,
@@ -386,6 +390,7 @@ def run_backlog_item(
         branch=branch,
         scope=["inventory", "diagnosis", "mathematical", "computational", "ci", "security", "provenance"],
         action_cycle_id=action_cycle_id,
+        request_id=request_id,
     )
     graph = EvidenceGraph(evidence_db)
     request_id = graph.add(
