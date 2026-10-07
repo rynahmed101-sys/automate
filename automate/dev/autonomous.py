@@ -20,6 +20,7 @@ from automate.dev.worker import validate_worker_result
 from automate.dev.worker_client import (
     WorkerTransportError,
     dispatch_worker,
+    read_worker_job,
     wait_worker_job,
 )
 
