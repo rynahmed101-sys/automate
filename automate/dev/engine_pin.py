@@ -35,6 +35,24 @@ def _run(root: Path, args: list[str], *, check: bool = False) -> subprocess.Comp
     return result
 
 
+def _exact_main_pr_checks_verified(root: Path, repository: str, head_sha: str) -> bool:
+    raw = _run(
+        root,
+        ["gh", "api", f"repos/{repository}/actions/runs?head_sha={head_sha}&per_page=100"],
+        check=True,
+    )
+    payload = json.loads(raw.stdout or "{}")
+    runs = payload.get("workflow_runs", []) if isinstance(payload, dict) else []
+    successful = {
+        str(run.get("name"))
+        for run in runs
+        if run.get("head_sha") == head_sha
+        and run.get("status") == "completed"
+        and run.get("conclusion") == "success"
+    }
+    return {"Automate CI", "Security Audit"} <= successful
+
+
 def _successful_release_evidence(root: Path, repository: str, engine_sha: str) -> dict[str, Any]:
     raw = _run(
         root,
@@ -151,6 +169,18 @@ def ensure_engine_pin(
     if rows:
         pr = rows[0]
         if auto_merge:
+            head_sha = str(pr.get("headRefOid") or "")
+            if not re.fullmatch(r"[0-9a-f]{40}", head_sha) or not _exact_main_pr_checks_verified(checkout, repository, head_sha):
+                return {
+                    "schema_version": "automate.engine_pin.v1",
+                    "state": "PIN_PR_OPEN",
+                    "main_sha": main_sha,
+                    "engine_sha": engine_sha,
+                    "branch": branch,
+                    "pr": pr,
+                    "evidence": evidence,
+                    "action": "awaiting_exact_head_main_ci_and_security",
+                }
             merge = _run(
                 checkout,
                 [
@@ -159,6 +189,7 @@ def ensure_engine_pin(
                     "--auto",
                     "--merge",
                     "--delete-branch=false",
+                    "--match-head-commit", head_sha,
                 ],
             )
             return {
@@ -240,16 +271,22 @@ def ensure_engine_pin(
         )
         listed_rows = json.loads(listed.stdout or "[]")
         if listed_rows:
-            merge = _run(
-                checkout,
-                [
-                    "gh", "pr", "merge", str(listed_rows[0]["number"]),
-                    "--repo", repository,
-                    "--auto",
-                    "--merge",
-                    "--delete-branch=false",
-                ],
-            )
+            head_sha = str(listed_rows[0].get("headRefOid") or "")
+            if re.fullmatch(r"[0-9a-f]{40}", head_sha) and _exact_main_pr_checks_verified(checkout, repository, head_sha):
+                merge = _run(
+                    checkout,
+                    [
+                        "gh", "pr", "merge", str(listed_rows[0]["number"]),
+                        "--repo", repository,
+                        "--auto",
+                        "--merge",
+                        "--delete-branch=false",
+                        "--match-head-commit", head_sha,
+                    ],
+                )
+            else:
+                merge = subprocess.CompletedProcess(["gh", "pr", "merge"], 1, "", "exact-head main CI/security evidence missing")
+            
             return {
                 "schema_version": "automate.engine_pin.v1",
                 "state": "PIN_PR_AUTO_MERGE_REQUESTED" if merge.returncode == 0 else "PIN_PR_OPEN",
