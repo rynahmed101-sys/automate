@@ -164,7 +164,7 @@ jobs:
         run: echo "Autonomous execution held by readiness gates; no worker dispatch performed."
 
       - name: Run exactly one bounded control cycle
-        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED' && steps.readiness.outputs.eligible == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
