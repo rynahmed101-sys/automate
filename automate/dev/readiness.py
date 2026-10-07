@@ -11,11 +11,13 @@ from pathlib import Path
 from typing import Any
 
 from automate.dev.live import summarize_live
+from automate.dev.worker_client import WorkerTransportError, _request_json, worker_base_url, worker_token
 
 
 REQUIRED_GATES = (
     "worker_contract_tested",
     "worker_api_authenticated_bounded",
+    "worker_transport_live",
     "worker_output_independently_validated",
     "github_lifecycle_exercised",
     "live_control_plane_clean",
@@ -195,6 +197,28 @@ def collect_readiness_evidence(
         except (OSError, subprocess.SubprocessError) as exc:
             evidence[gate] = False
             errors.append(f"{gate} evidence could not be collected: {exc}")
+
+    evidence["worker_transport_live"] = False
+    worker_url = os.getenv("AUTOMATE_WORKER_URL", "").strip()
+    worker_token_value = os.getenv("AUTOMATE_WORKER_TOKEN", "").strip()
+    if worker_url and worker_token_value:
+        try:
+            health = _request_json(
+                worker_base_url(worker_url) + "/worker/v1/health",
+                token=worker_token(worker_token_value),
+                timeout=15.0,
+            )
+            evidence["worker_transport_live"] = (
+                health.get("success") is True
+                and health.get("protocol") == "automate.worker.v1"
+                and health.get("execution") == "contract_only"
+            )
+            if not evidence["worker_transport_live"]:
+                errors.append("worker health endpoint returned an unexpected protocol")
+        except (WorkerTransportError, Exception) as exc:
+            errors.append(f"live worker health check failed: {exc}")
+    else:
+        errors.append("AUTOMATE_WORKER_URL and AUTOMATE_WORKER_TOKEN are required for live worker health evidence")
 
     evidence["worker_api_authenticated_bounded"] = False
     evidence["github_lifecycle_exercised"] = False
