@@ -587,14 +587,15 @@ def run_control_cycle(
             "worker_commit_sha": commit.get("commit_sha"),
         }
 
+    handoff_open = isinstance(lifecycle, dict) and lifecycle.get("state") == "IMPLEMENTATION_PR"
     return {
         **control,
         "status": (
             "worker_handoff_open"
-            if isinstance(lifecycle, dict) and lifecycle.get("state") == "IMPLEMENTATION_PR"
+            if handoff_open
             else "backlog_cycle_completed"
         ),
-        "dispatch_allowed": True,
+        "dispatch_allowed": not handoff_open,
         "cycle": result,
         "lifecycle": lifecycle,
     }
