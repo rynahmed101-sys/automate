@@ -71,6 +71,54 @@ def run_control_cycle(
             "dispatch_allowed": False,
         }
 
+    from automate.dev.promotion import PromotionError, inspect_capability_lifecycle
+
+    capability_id = action["capability_id"]
+    try:
+        ref_payload = __import__("subprocess").run(
+            ["git", "rev-parse", "origin/main"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        current_main_sha = ref_payload.stdout.strip()
+    except Exception as exc:
+        return {**control, "status": "main_sha_unavailable", "error": str(exc), "dispatch_allowed": False}
+
+    if len(current_main_sha) != 40:
+        return {**control, "status": "main_sha_unavailable", "dispatch_allowed": False}
+
+    try:
+        lifecycle = inspect_capability_lifecycle(
+            repository,
+            capability_id=capability_id,
+            current_main_sha=current_main_sha,
+        )
+    except PromotionError as exc:
+        return {
+            **control,
+            "status": "promotion_lifecycle_error",
+            "error": str(exc),
+            "dispatch_allowed": False,
+        }
+
+    if lifecycle["state"] == "IMPLEMENTATION_PR":
+        evaluation = lifecycle["promotion"]
+        return {
+            **control,
+            "status": "promotion_ready" if evaluation["state"] == "READY_TO_MERGE" else "promotion_blocked",
+            "dispatch_allowed": False,
+            "lifecycle": lifecycle,
+        }
+
+    if lifecycle["state"] == "POST_MERGE":
+        return {
+            **control,
+            "status": "post_merge_verification",
+            "dispatch_allowed": False,
+            "lifecycle": lifecycle,
+        }
+
     result = run_autonomous_cycle(
         repository,
         worker_url=worker_url,
