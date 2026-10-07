@@ -1211,8 +1211,8 @@
       "purpose": "reconcile current authoritative main into long-lived engine trunk"
     },
     {
-      "number": 146,
-      "branch": "integrate/latest-main-into-engine-20261007",
+      "number": 154,
+      "branch": "integrate/reconcile-main-into-engine-v2-20261007",
       "state": "open",
       "purpose": "reconcile post-PR-140 authoritative main changes into long-lived engine trunk"
     }
