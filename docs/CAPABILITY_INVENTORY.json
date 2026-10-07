@@ -1215,6 +1215,12 @@
       "branch": "integrate/reconcile-main-into-engine-v2-20261007",
       "state": "open",
       "purpose": "reconcile post-PR-140 authoritative main changes into long-lived engine trunk"
+    },
+    {
+      "number": 155,
+      "branch": "integrate/control-plane-machinery-20261007",
+      "state": "open",
+      "purpose": "consolidated autonomous control-plane machinery"
     }
   ]
 }
