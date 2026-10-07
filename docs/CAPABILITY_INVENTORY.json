@@ -1161,7 +1161,68 @@
     "security_workflow_run": 37544252443,
     "note": "Current main SHA is pending fresh exact-head and Security Audit verification."
   },
-  "integration_references": [],
+  "integration_references": [
+    {
+      "number": 95,
+      "branch": "integrate/verification-bookkeeping",
+      "state": "merged",
+      "purpose": "authoritative verification bookkeeping"
+    },
+    {
+      "number": 113,
+      "branch": "integrate/control-plane-dependency-aware-queue",
+      "state": "merged",
+      "purpose": "dependency-aware queue hardening"
+    },
+    {
+      "number": 116,
+      "branch": "integrate/control-plane-stage1b-frontier",
+      "state": "merged",
+      "purpose": "Stage 1B frontier inventory and issue bookkeeping"
+    },
+    {
+      "number": 117,
+      "branch": "integrate/control-plane-final-bookkeeping",
+      "state": "merged",
+      "purpose": "final capability-control-plane verification bookkeeping"
+    },
+    {
+      "number": 118,
+      "branch": "integrate/control-plane-live-audit",
+      "state": "open",
+      "purpose": "live GitHub PR consistency and deterministic queue snapshot"
+    },
+    {
+      "number": 120,
+      "branch": "integrate/autonomous-worker-foundation",
+      "state": "open",
+      "purpose": "autonomous worker foundation integration"
+    },
+    {
+      "number": 133,
+      "branch": "integrate/clear-1a-3a",
+      "state": "closed_future_work",
+      "purpose": "Stage 1C current-main reconciliation preserved for later harvest"
+    },
+    {
+      "number": 140,
+      "branch": "integrate/reconcile-main-into-engine",
+      "state": "open",
+      "purpose": "reconcile current authoritative main into long-lived engine trunk"
+    },
+    {
+      "number": 154,
+      "branch": "integrate/reconcile-main-into-engine-v2-20261007",
+      "state": "open",
+      "purpose": "reconcile post-PR-140 authoritative main changes into long-lived engine trunk"
+    },
+    {
+      "number": 159,
+      "branch": "integrate/control-plane-machinery-v2-20261007",
+      "state": "open",
+      "purpose": "consolidated autonomous control-plane machinery (clean verification replacement)"
+    }
+  ],
   "control_plane_references": [
     {
       "number": 170,
