@@ -82,5 +82,5 @@ def test_worker_api_paths_are_consistent(monkeypatch):
     assert seen == [
         "https://worker.example/worker/v1/jobs",
         "https://worker.example/worker/v1/jobs/j1/execute",
-        "https://worker.example/worker/v1/jobs/j1?includeResult=true",
+        "https://worker.example/worker/v1/jobs/j1",
     ]
