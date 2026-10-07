@@ -252,12 +252,14 @@ def worker_status_command(job_id: str, worker_url: str | None, worker_token: str
 @click.option("--worker-url", default=None, help="Chanfana worker API base URL.")
 @click.option("--worker-token", default=None, help="Chanfana worker API token.")
 @click.option("--execute-worker", is_flag=True, help="Submit and execute the worker job; otherwise queue only.")
+@click.option("--local-root", type=click.Path(path_type=Path, exists=True, file_okay=False), default=None, help="Canonical checkout used to publish validated worker commits.")
 @click.option("--json", "as_json", is_flag=True)
 def control_cycle_command(
     repository: str,
     worker_url: str | None,
     worker_token: str | None,
     execute_worker: bool,
+    local_root: Path | None,
     as_json: bool,
 ) -> None:
     """Run exactly one bounded backlog/discovery control cycle."""
@@ -268,6 +270,7 @@ def control_cycle_command(
             worker_url=worker_url,
             worker_token=worker_token,
             execute_worker=execute_worker,
+            local_root=local_root,
         )
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
