@@ -71,7 +71,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          automate capability audit-live --repo "${{ github.repository }}" --json
+          automate capability audit-live --repo "${{ github.repository }}" --base-branch "${{ github.event.pull_request.base.ref || 'main' }}" --current-pr "${{ github.event.pull_request.number || '' }}" --json
 
 
       - name: Enforce capability branch scope
