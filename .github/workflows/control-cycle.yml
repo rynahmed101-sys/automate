@@ -55,9 +55,7 @@ jobs:
             exit 1
           }
           main_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')"
-          status="$(gh api "repos/${{ github.repository }}/compare/$main_sha...${{ steps.pin.outputs.sha }}" --jq '.status')"
-          echo "main->engine history status: $status"
-          echo "$status" | grep -Eq 'ahead|identical' || {
+          gh api "repos/${{ github.repository }}/compare/${{ steps.pin.outputs.sha }}...$main_sha" --jq '.status' | grep -Eq 'behind|identical' || {
             echo "Pinned engine release does not contain the current authoritative main history." >&2
             exit 1
           }
