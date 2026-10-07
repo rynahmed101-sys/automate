@@ -48,7 +48,7 @@ def audit_live(
     data = load_inventory()
     target_base = base_branch or os.getenv("GITHUB_BASE_REF") or os.getenv("GITHUB_REF_NAME") or "main"
     effective_pr_number = current_pr_number
-    if effective_pr_number is None and os.getenv("GITHUB_EVENT_NAME") == "pull_request":
+    if effective_pr_number is None and pull_requests is None and os.getenv("GITHUB_EVENT_NAME") == "pull_request":
         event_path = os.getenv("GITHUB_EVENT_PATH")
         try:
             event = json.loads(Path(event_path).read_text(encoding="utf-8")) if event_path else {}
@@ -124,7 +124,7 @@ def audit_live(
                     f"PR #{number} control-plane lane targets {pr.get('baseRefName')}, "
                     f"not {data['branch_policy'].get('control_plane_base', 'engine')}."
                 )
-        if branch.startswith("integrate/") and base_branch == "main":
+        if branch.startswith("integrate/") and target_base == "main":
             if number not in integration_refs:
                 errors.append(f"Open reconciliation PR #{number} ({branch}) has no integration ownership reference.")
             elif pr.get("baseRefName") not in (None, data["branch_policy"]["feature_base"]):
