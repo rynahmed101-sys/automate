@@ -446,7 +446,6 @@ def run_control_cycle(
             ) + 1
             context_notes = [
                 "AUTONOMOUS_RECOVERY: prior worker proposal was quarantined after repeated exact-head failures.",
-                f"AUTONOMOUS_RECOVERY_ATTEMPT: {recovery_attempt}",
                 *diagnosis["notes"],
             ]
             if not worker_url or not worker_token:
@@ -467,6 +466,7 @@ def run_control_cycle(
                     base_sha_claim=current_main_sha,
                     development_branch="main",
                     context_notes=context_notes,
+                    recovery_attempt=recovery_attempt,
                 )
                 dispatch = __import__("automate.dev.worker_client", fromlist=["dispatch_worker"]).dispatch_worker(
                     repair_packet,
