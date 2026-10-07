@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://automate.physics/schemas/automate-learning-loop-plan-v1.json",
+  "title":"Automate Learning Loop Plan (v1)",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","action","reason","task_kind","task_target","requires_external_verification"],
+  "properties":{
+    "schema_version":{"const":"automate.learning_loop_plan.v1"},
+    "action":{"enum":["ACT","REPRODUCE_FAILURE_PATTERN","REPLAY_STRATEGY","VERIFY_CONFLICT","PROPOSE_SYSTEM_EVOLUTION"]},
+    "reason":{"type":"string","minLength":1,"maxLength":10000},
+    "task_kind":{"type":"string","minLength":1},
+    "task_target":{"type":"string","minLength":1},
+    "requires_external_verification":{"type":"boolean"},
+    "candidate_lessons":{"type":"array","items":{"type":"object"},"maxItems":50},
+    "conflicts":{"type":"array","items":{"type":"object"},"maxItems":50},
+    "lessons":{"type":"array","items":{"type":"object"},"maxItems":50}
+  }
+}
