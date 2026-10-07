@@ -39,3 +39,16 @@ def test_existing_id_is_not_silently_replaced():
     result = triage_candidate(_proposal(candidate_id="stage1a.linear_algebra"))
     assert result["status"] == "COLLIDES_WITH_CANONICAL_CAPABILITY"
     assert result["canonical_inventory_mutated"] is False
+
+
+def test_extract_candidate_proposals_only_accepts_explicit_tool_output():
+    from automate.dev.discovery import extract_candidate_proposals
+
+    proposal = _proposal()
+    result = extract_candidate_proposals({
+        "trace": [
+            {"tool": "research_world", "result": {"proposal": proposal}},
+            {"tool": "propose_new_capability", "result": {"proposal": proposal}},
+        ]
+    })
+    assert result == [proposal]
