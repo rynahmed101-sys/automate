@@ -122,6 +122,7 @@ def run_control_cycle(
         inspect_worker_handoff_pr,
         inspect_capability_lifecycle,
         execute_promotion,
+        execute_bookkeeping_promotion,
         inspect_bookkeeping_pr,
     )
 
@@ -182,9 +183,8 @@ def run_control_cycle(
                 bookkeeping_pr["promotion_execution"] = execute_promotion(
                     repository,
                     int(bookkeeping_pr["pr"]["number"]),
-                    current_main_sha=merge_sha,
+                    current_main_sha=current_main_sha,
                     execute=should_execute,
-                    require_review=True,
                 )
                 return {
                     **control,
