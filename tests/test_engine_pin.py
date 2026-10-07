@@ -76,3 +76,10 @@ def test_engine_pin_reports_missing_release_evidence(tmp_path: Path):
         result = ensure_engine_pin(tmp_path, "rynahmed101-sys/automate")
 
     assert result["state"] == "ENGINE_UNVERIFIED"
+
+
+def test_pin_auto_merge_requires_exact_main_pr_checks():
+    from automate.dev import engine_pin
+
+    with patch.object(engine_pin, "_exact_main_pr_checks_verified", return_value=False):
+        assert engine_pin._exact_main_pr_checks_verified(Path("."), "owner/repo", "a" * 40) is False
