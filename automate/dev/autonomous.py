@@ -10,6 +10,7 @@ import uuid
 
 from automate.dev.inventory import InventoryError
 from automate.dev.learning import LearningError, LearningStore, build_experience
+from automate.dev.learning_loop import plan_next_learning_action
 from automate.dev.publisher import build_worker_commit
 from automate.dev.research import build_mirror_research_job
 from automate.dev.supervisor import supervisor_snapshot
@@ -107,6 +108,23 @@ def run_autonomous_cycle(
         "name": capability["name"],
         "task": packet["packet"].get("task", {}),
     }
+    learning_action = (
+        plan_next_learning_action(
+            learning_store,
+            task_kind="capability_implementation",
+            task_target=capability_item["id"],
+        )
+        if learning_store is not None
+        else {
+            "schema_version": "automate.learning_loop_plan.v1",
+            "action": "ACT",
+            "reason": "learning store not configured",
+            "task_kind": "capability_implementation",
+            "task_target": capability_item["id"],
+            "requires_external_verification": False,
+        }
+    )
+
     selected_strategy = (
         learning_store.select_strategy(
             task_kind="capability_implementation",
@@ -120,6 +138,19 @@ def run_autonomous_cycle(
             "reason": "learning store not configured",
         }
     )
+    packet["packet"].setdefault("context", {"files": [], "notes": []})
+    packet["packet"]["context"].setdefault("notes", [])
+    packet["packet"]["context"]["notes"].append(
+        "LEARNING LOOP ACTION: " + str(learning_action["action"])
+    )
+    packet["packet"]["context"]["notes"].append(
+        "LEARNING LOOP REASON: " + str(learning_action["reason"])
+    )
+    for candidate in learning_action.get("candidate_lessons", [])[:5]:
+        packet["packet"]["context"]["notes"].append(
+            "CANDIDATE LEARNING LESSON: " + str(candidate.get("lesson_id", "unknown"))
+        )
+
     if selected_strategy.get("adopted_lessons"):
         packet["packet"].setdefault("context", {"files": [], "notes": []})
         packet["packet"]["context"].setdefault("notes", [])
@@ -188,135 +219,3 @@ def run_autonomous_cycle(
                     token=worker_token,
                     timeout=300.0,
                 )
-            except WorkerTransportError as exc:
-                return {
-                    "status": "research_queued",
-                    "decision": decision,
-                    "research": research_dispatch,
-                    "next_step": "poll the durable research job again",
-                    "error": str(exc),
-                }
-            research_result = completed.get("job", {}).get("result")
-            research_dispatch["execution"] = {**research_execution, "polled": completed}
-
-        if not isinstance(research_result, dict):
-            raise AutonomousCycleError("Mirror research execution returned no persisted result")
-
-        packet["packet"].setdefault("context", {"files": [], "notes": []})
-        packet["packet"]["context"].setdefault("notes", []).append(
-            "Untrusted Mirror research receipt is available through durable job "
-            + str(research_job_id or "unknown")
-        )
-
-    try:
-        dispatch = dispatch_worker(
-            packet,
-            url=worker_url,
-            token=worker_token,
-            execute=True,
-        )
-    except WorkerTransportError as exc:
-        remember(
-            "failure",
-            task_kind="capability_implementation",
-            task_target=capability_item["id"],
-            strategy_id=selected_strategy["strategy_id"],
-            observation="worker dispatch failed: " + str(exc),
-            failure_class="integration_defect",
-        )
-        if learning_store is not None:
-            learning_store.close()
-        raise AutonomousCycleError(str(exc)) from exc
-
-    output: dict[str, Any] = {
-        "status": "dispatched" if not execute_worker else "worker_completed",
-        "decision": decision,
-        "research": research_dispatch,
-        "dispatch": dispatch,
-    }
-
-    if not execute_worker:
-        experience_id = remember(
-            "unknown",
-            task_kind="capability_implementation",
-            task_target=capability_item["id"],
-            strategy_id=selected_strategy["strategy_id"],
-            observation="worker was queued but execution was intentionally deferred",
-            evidence_refs=[{"id": str(dispatch.get("queued", {}).get("jobId") or "worker-dispatch"), "kind": "worker_job"}],
-        )
-        if learning_store is not None:
-            learning_store.close()
-        output["learning_strategy"] = selected_strategy
-        output["experience_id"] = experience_id
-        return output
-
-    execution = dispatch.get("execution", {})
-    result = execution.get("result")
-    if not isinstance(result, dict):
-        remember(
-            "failure",
-            task_kind="capability_implementation",
-            task_target=capability_item["id"],
-            strategy_id=selected_strategy["strategy_id"],
-            observation="worker execution returned no persisted worker result",
-            failure_class="integration_defect",
-        )
-        if learning_store is not None:
-            learning_store.close()
-        raise AutonomousCycleError("worker execution returned no worker result")
-
-    errors = validate_worker_result(result, packet["packet"])
-    if errors:
-        remember(
-            "failure",
-            task_kind="capability_implementation",
-            task_target=capability_item["id"],
-            strategy_id=selected_strategy["strategy_id"],
-            observation="worker result failed trust-boundary validation: " + "; ".join(errors),
-            failure_class="contract_schema_defect",
-            evidence_refs=[{"id": str(job_id if "job_id" in locals() else "worker-result"), "kind": "worker_result"}],
-        )
-        if learning_store is not None:
-            learning_store.close()
-        raise AutonomousCycleError("; ".join(errors))
-
-    if local_root is None:
-        experience_id = remember(
-            "success",
-            task_kind="capability_implementation",
-            task_target=capability_item["id"],
-            strategy_id=selected_strategy["strategy_id"],
-            observation="worker result passed Automate validation and produced a bounded proposal",
-            evidence_refs=[{"id": str(job_id if "job_id" in locals() else "worker-result"), "kind": "worker_result"}],
-        )
-        if learning_store is not None:
-            learning_store.close()
-        output["status"] = "validated_proposal"
-        output["learning_strategy"] = selected_strategy
-        output["experience_id"] = experience_id
-        return output
-
-    try:
-        commit = build_worker_commit(
-            packet["packet"],
-            result,
-            repository_root=local_root,
-        )
-    except Exception as exc:
-        raise AutonomousCycleError(str(exc)) from exc
-
-    experience_id = remember(
-        "success",
-        task_kind="capability_implementation",
-        task_target=capability_item["id"],
-        strategy_id=selected_strategy["strategy_id"],
-        observation="validated worker result was converted into a bounded local commit proposal",
-        evidence_refs=[{"id": str(job_id if "job_id" in locals() else "worker-result"), "kind": "worker_result"}],
-    )
-    if learning_store is not None:
-        learning_store.close()
-    output["commit"] = commit
-    output["status"] = commit["status"]
-    output["learning_strategy"] = selected_strategy
-    output["experience_id"] = experience_id
-    return output
