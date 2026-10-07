@@ -632,20 +632,36 @@ def gh_api(path: str, *, timeout: int = 30) -> Any:
     except json.JSONDecodeError as exc:
         raise RuntimeError("GitHub returned non-JSON verification data") from exc
 
-def live_repository_snapshot(repository: str) -> dict[str, Any]:
+def live_repository_snapshot(repository: str, requested_branch: str = "main") -> dict[str, Any]:
+    if not re.fullmatch(r"[A-Za-z0-9._/-]{1,255}", requested_branch):
+        raise ValueError("requested branch contains unsafe characters")
+    if requested_branch.startswith("/") or ".." in requested_branch.split("/"):
+        raise ValueError("requested branch contains unsafe path segments")
+
     main = gh_api(f"/repos/{repository}/git/ref/heads/main")
     engine = gh_api(f"/repos/{repository}/git/ref/heads/engine")
-    main_sha = main["object"]["sha"]
-    engine_sha = engine["object"]["sha"]
+    target = gh_api(f"/repos/{repository}/git/ref/heads/{requested_branch}")
+    main_sha = str(main["object"]["sha"])
+    engine_sha = str(engine["object"]["sha"])
+    target_sha = str(target["object"]["sha"])
     runs_main = gh_api(f"/repos/{repository}/actions/runs?branch=main&per_page=100")
     runs_engine = gh_api(f"/repos/{repository}/actions/runs?branch=engine&per_page=100")
-    status = gh_api(f"/repos/{repository}/commits/{main_sha}/status")
+    runs_target = gh_api(
+        f"/repos/{repository}/actions/runs?branch={requested_branch}&per_page=100"
+    )
+    status = gh_api(f"/repos/{repository}/commits/{target_sha}/status")
     prs = gh_api(f"/repos/{repository}/pulls?state=all&per_page=100")
     compare = gh_api(f"/repos/{repository}/compare/main...engine")
     return {
-        "repository": repository, "main_sha": main_sha, "engine_sha": engine_sha,
+        "repository": repository,
+        "main_sha": main_sha,
+        "engine_sha": engine_sha,
+        "requested_branch": requested_branch,
+        "requested_revision": target_sha,
+        "target_sha": target_sha,
         "workflow_runs_main": runs_main.get("workflow_runs", []),
         "workflow_runs_engine": runs_engine.get("workflow_runs", []),
+        "workflow_runs_target": runs_target.get("workflow_runs", []),
         "combined_status": status,
         "pull_requests": prs,
         "compare": compare,
