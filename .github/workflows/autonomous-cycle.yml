@@ -38,6 +38,8 @@ jobs:
         id: readiness
         env:
           GH_TOKEN: ${{ github.token }}
+          AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
+          AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
         run: |
           set -euo pipefail
           python -m automate.cli capability autonomous-readiness --auto --json > readiness.json
