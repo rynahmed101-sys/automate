@@ -14,6 +14,7 @@ from typing import Any
 from automate.dev.verification_engine import (
     build_request,
     live_repository_snapshot,
+    mirror_verification_request,
     run_backlog_item,
     validate_packet_consistency,
 )
@@ -81,6 +82,34 @@ def verify_payload(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
             snapshot=snapshot,
             evidence_db="data/verification-evidence.db",
         )
+
+        mirror_escalation = {"requested": False, "enabled": False, "executed": False}
+        mirror_observation = None
+        if is_envelope and str(payload.get("workflow_kind") or "") == "mirror_verification":
+            mirror_escalation["requested"] = True
+            enabled = os.getenv("VERIFICATION_MIRROR_ESCALATION_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+            mirror_escalation["enabled"] = enabled
+            if enabled:
+                from automate.dev.mirror_verification_client import run_mirror_verification, MirrorVerificationError
+                mirror_request = mirror_verification_request(
+                    request=request,
+                    hypothesis=str((payload.get("payload") or {}).get("hypothesis") or "independent mathematical or physical verification"),
+                    inputs=(payload.get("payload") or {}).get("inputs") or {},
+                    assumptions=(payload.get("payload") or {}).get("assumptions") or [],
+                    experiment_budget={
+                        "max_precision": min(80, max(8, int((payload.get("payload") or {}).get("max_precision") or 80))),
+                        "max_runtime_ms": min(30_000, int((payload.get("limits") or {}).get("deadline_ms") or 30_000)),
+                    },
+                )
+                try:
+                    mirror_observation = run_mirror_verification(mirror_request)
+                    mirror_escalation["executed"] = True
+                    mirror_escalation["status"] = mirror_observation.get("status")
+                    mirror_escalation["experiment_id"] = mirror_observation.get("experiment_id")
+                except MirrorVerificationError as exc:
+                    mirror_escalation["error"] = str(exc)
+                    if os.getenv("VERIFICATION_MIRROR_REQUIRED", "").strip().lower() in {"1", "true", "yes"}:
+                        raise
         consistency = validate_packet_consistency(
             result["packet"],
             request=request,
@@ -98,6 +127,8 @@ def verify_payload(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
             "packet_consistency_findings": consistency,
             "reconciliation": result["reconciliation"],
             "math": result["math"],
+            "mirror_escalation": mirror_escalation,
+            "mirror_observation": mirror_observation,
         }
         encoded = json.dumps(response, separators=(",", ":"), default=str).encode("utf-8")
         if len(encoded) > MAX_RESPONSE_BYTES:
