@@ -97,12 +97,40 @@ def run_control_cycle(
                 "status": "mirror_discovery_dispatch_blocked",
                 "error": str(exc),
             }
+        from automate.dev.discovery import triage_mirror_autopilot_result
+        from automate.dev.future_capability import build_future_capability_proposal
+
+        triage = triage_mirror_autopilot_result(result.get("result", result))
+        if len(triage) > 1:
+            return {
+                **control,
+                "discovery_grant": grant,
+                "dispatch_allowed": False,
+                "status": "mirror_discovery_protocol_violation",
+                "discovery": result,
+                "error": "Mirror returned more than one candidate in a one-candidate discovery cycle.",
+            }
+
+        future_capability = None
+        if triage and triage[0]["status"] == "READY_FOR_INVESTIGATION":
+            proposals = __import__("automate.dev.discovery", fromlist=["extract_candidate_proposals"]).extract_candidate_proposals(
+                result.get("result", result)
+            )
+            if proposals:
+                future_capability = build_future_capability_proposal(
+                    proposals[0],
+                    triage[0],
+                )
+
         return {
             **control,
             "discovery_grant": grant,
             "dispatch_allowed": True,
             "status": "mirror_discovery_dispatched",
             "discovery": result,
+            "candidate_triage": triage,
+            "future_capability": future_capability,
+            "canonical_mutation_performed": False,
         }
     if control["mode"] != "BACKLOG":
         return control
