@@ -134,16 +134,18 @@ def _github_lifecycle_exercised(repository: str) -> bool:
         expected_branch_prefix = "feat/" + capability_id + "-" + base_sha[:12]
         if head_branch != expected_branch_prefix:
             continue
-        try:
-            from automate.dev.worker import build_worker_packet
-            expected_request_id = build_worker_packet(
-                capability_id,
-                repository=repository,
-                base_sha_claim=base_sha,
-                development_branch="main",
-            )["packet"]["request_id"]
-        except Exception:
-            continue
+        expected_request_id = "wrk_" + __import__("hashlib").sha256(
+            json.dumps(
+                {
+                    "repository": repository,
+                    "base_sha": base_sha,
+                    "capability_id": capability_id,
+                    "development_branch": "main",
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()[:32]
         if worker_request.group(1) != expected_request_id:
             continue
         merge_sha = str(pr.get("merge_commit_sha") or "")
