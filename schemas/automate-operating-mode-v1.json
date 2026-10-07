@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://automate.physics/schemas/automate-operating-mode-v1.json",
+  "title": "Automate Operating Mode Contract (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mode",
+    "reason",
+    "mirror_discovery_allowed",
+    "queue"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "automate.operating_mode.v1"
+    },
+    "mode": {
+      "enum": [
+        "BACKLOG",
+        "DISCOVERY_READY",
+        "STOPPED"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "mirror_discovery_allowed": {
+      "type": "boolean"
+    },
+    "queue": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
