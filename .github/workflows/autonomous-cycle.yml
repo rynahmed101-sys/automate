@@ -53,6 +53,7 @@ jobs:
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
           AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
           AUTOMATE_LEARNING_ENABLED: "true"
+          AUTOMATE_AUTO_PUBLISH: "1"
           AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE || '1' }}
           AUTOMATE_AUTO_BOOKKEEP: ${{ vars.AUTOMATE_AUTO_BOOKKEEP || '1' }}
         run: |
@@ -76,6 +77,7 @@ jobs:
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
           AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
           AUTOMATE_LEARNING_ENABLED: "true"
+          AUTOMATE_AUTO_PUBLISH: "1"
           AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE || '1' }}
           AUTOMATE_AUTO_BOOKKEEP: ${{ vars.AUTOMATE_AUTO_BOOKKEEP || '1' }}
         run: |
