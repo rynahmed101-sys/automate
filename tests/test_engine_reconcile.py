@@ -70,3 +70,20 @@ def test_reconcile_never_force_pushes(tmp_path: Path):
         reconcile_engine(tmp_path, "rynahmed101-sys/automate")
 
     assert not any("--force" in arg or "--force-with-lease" in arg for args in seen for arg in args)
+
+
+def test_reconcile_rejects_malformed_main_sha(tmp_path):
+    def fake(root, args, check=False):
+        if args[:3] == ["git", "rev-parse", "refs/remotes/origin/main"]:
+            return CompletedProcess(args, 0, stdout="not-a-sha\n", stderr="")
+        if args[:3] == ["git", "rev-parse", "refs/remotes/origin/engine"]:
+            return CompletedProcess(args, 0, stdout="b" * 40 + "\n", stderr="")
+        return CompletedProcess(args, 0, stdout="", stderr="")
+
+    with patch("automate.dev.engine_reconcile._run", fake):
+        try:
+            reconcile_engine(tmp_path, "rynahmed101-sys/automate")
+        except Exception as exc:
+            assert "malformed" in str(exc)
+        else:
+            raise AssertionError("malformed main SHA must be rejected")
