@@ -23,6 +23,8 @@ def test_supervisor_reports_current_frontier_without_dispatching(monkeypatch):
         "rynahmed101-sys/automate",
         base_sha="0000000000000000000000000000000000000000",
     )
-    assert result["action"] == "continue_development"
-    assert result["can_dispatch"] is False
-    assert result["queue"]["next_action"]["capability_ids"] == ["stage1b.improper_integrals"]
+    assert result["action"] == "dispatch"
+    assert result["can_dispatch"] is True
+    assert result["capability_id"] == "stage1b.series_expansions"
+    assert result["worker_packet"]["packet"]["task"]["source"] == "github_issue"
+    assert result["worker_packet"]["packet"]["task"]["ref"] == "141"
