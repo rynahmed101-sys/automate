@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Iterator
 
 from automate.dev.executor import WorkerExecutionError, execute_worker_proposal, git_commit
+from automate.dev.prmgr import create_worker_pr
 
 
 @contextmanager
@@ -135,6 +136,9 @@ def build_worker_commit(
         "commit_sha": commit_sha,
         "changed_files": execution["changed_files"],
         "tests": execution["tests"],
+        "request_id": packet.get("request_id"),
+        "capability_id": capability_id,
+        "base_sha": base_sha,
     }
 
 
@@ -156,3 +160,42 @@ def push_worker_branch(
     if result.returncode != 0:
         raise WorkerExecutionError(f"git push failed: {result.stderr.strip()}")
     return branch_name
+
+
+
+def publish_worker_commit(
+    repository: str,
+    repository_root: Path,
+    *,
+    packet: dict[str, Any],
+    commit: dict[str, Any],
+) -> dict[str, Any]:
+    """Push a validated worker branch and open its promotion-ready PR."""
+    if commit.get("status") != "committed":
+        raise WorkerExecutionError("only committed worker results can be published")
+    branch_name = commit.get("branch")
+    if not isinstance(branch_name, str):
+        raise WorkerExecutionError("committed worker result has no branch")
+    request_id = packet.get("request_id")
+    capability_id = packet.get("capability", {}).get("id")
+    base_sha = packet.get("repository", {}).get("base_sha_claim")
+    if not all(isinstance(value, str) for value in (request_id, capability_id, base_sha)):
+        raise WorkerExecutionError("worker packet is missing publication identity")
+
+    push_worker_branch(repository_root, branch_name=branch_name)
+    pr = create_worker_pr(
+        repository,
+        branch=branch_name,
+        capability_id=capability_id,
+        title="feat: implement " + str(packet["capability"]["name"]),
+        base_sha=base_sha,
+        request_id=request_id,
+        test_result=commit.get("tests") or {},
+    )
+    return {
+        **commit,
+        "status": "submitted",
+        "pr_number": pr.get("pr_number"),
+        "pr_url": pr.get("url"),
+        "pr": pr,
+    }
