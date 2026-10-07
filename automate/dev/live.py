@@ -118,11 +118,25 @@ def audit_live(
                     worker_request = re.search(r"(?m)^- worker_request_id:\\s*([A-Za-z0-9_.:-]{8,128})\\s*$", body)
                     worker_base = re.search(r"(?m)^- base_sha:\\s*([0-9a-f]{40})\\s*$", body)
                     capability = re.search(r"(?m)^- capability:\\s*([a-z0-9][a-z0-9_.-]*)\\s*$", body)
-                    pending_worker_handoff = bool(
+                    capability_id = capability.group(1) if capability else ""
+                    known_capability = any(
+                        item.get("id") == capability_id
+                        and item.get("implementation_state") not in {"merged_main", "superseded", "abandoned"}
+                        for item in data.get("capabilities", [])
+                    )
+                    expected_branch = "feat/" + capability_id if capability_id else ""
+                    request_valid = bool(
                         worker_request
+                        and re.fullmatch(r"wrk_[0-9a-f]{32}", worker_request.group(1))
+                    )
+                    pending_worker_handoff = bool(
+                        known_capability
+                        and request_valid
                         and worker_base
-                        and capability
                         and worker_base.group(1) == str(pr.get("baseRefOid") or "")
+                        and capability_id == capability_id
+                        and branch == expected_branch
+                        and "Automated capability implementation generated through Automate's bounded worker pipeline." in body
                     )
                     if not pending_worker_handoff:
                         errors.append(
