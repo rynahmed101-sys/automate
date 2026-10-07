@@ -68,6 +68,20 @@ def run_autonomous_cycle(
             "research": None,
             "operating_mode": "BACKLOG",
         }
+        queued = dispatch.get("queued", {})
+        job_id = queued.get("jobId")
+        job_state = str(queued.get("state") or "").lower()
+        if isinstance(job_id, str) and job_state in {"succeeded", "failed", "cancelled"}:
+            try:
+                persisted = read_worker_job(
+                    job_id,
+                    url=worker_url,
+                    token=worker_token,
+                    include_result=True,
+                )
+                output["persisted_job"] = persisted
+            except WorkerTransportError as exc:
+                output["persisted_job_read_error"] = str(exc)
         if not execute_worker:
             return output
         execution = dispatch.get("execution", {})
