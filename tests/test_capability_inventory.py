@@ -215,7 +215,7 @@ def test_live_audit_accepts_matching_integration_pr():
     assert audit_live("rynahmed101-sys/automate", pull_requests=[pr]) == []
 
 
-def test_live_audit_rejects_feature_pr_targeting_non_main():
+def test_live_audit_main_scope_ignores_non_main_prs():
     from automate.dev.live import audit_live
 
     pr = {
@@ -225,8 +225,11 @@ def test_live_audit_rejects_feature_pr_targeting_non_main():
         "baseRefName": "feature/old-base",
         "isDraft": False,
     }
-    errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
-    assert any("no capability ownership reference" in error for error in errors)
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="main",
+    ) == []
 
 
 def test_live_audit_allows_registered_control_plane_pr_on_engine():
@@ -242,18 +245,27 @@ def test_live_audit_allows_registered_control_plane_pr_on_engine():
     assert audit_live("rynahmed101-sys/automate", pull_requests=[pr]) == []
 
 
-def test_live_audit_rejects_capability_pr_on_engine():
+def test_live_audit_engine_scope_is_distinct_from_main_scope():
     from automate.dev.live import audit_live
 
     pr = {
         "number": 999,
-        "headRefName": "feat/registered-capability",
+        "headRefName": "feat/engine-control-plane",
         "headRefOid": "0" * 40,
         "baseRefName": "engine",
         "isDraft": False,
     }
-    errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
-    assert any("no capability or control-plane ownership reference" in error for error in errors)
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="main",
+    ) == []
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="engine",
+        current_pr_number=999,
+    ) == []
 
 
 def test_live_audit_current_pr_ignores_unrelated_later_prs():
