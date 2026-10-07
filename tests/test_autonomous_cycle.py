@@ -84,3 +84,31 @@ def test_cycle_validates_worker_result_before_local_apply():
         )
     assert outcome["status"] == "validated_proposal"
     commit.assert_not_called()
+
+
+def test_backlog_mode_never_commissions_mirror_research():
+    with patch.dict(
+        "os.environ",
+        {"AUTOMATE_EXTERNAL_RESEARCH_ENABLED": "true"},
+        clear=False,
+    ), patch(
+        "automate.dev.autonomous.supervisor_snapshot",
+        return_value=decision(),
+    ), patch(
+        "automate.dev.autonomous.dispatch_worker",
+        return_value={
+            "queued": {"success": True, "jobId": "worker-1"},
+            "execution_requested": False,
+        },
+    ) as dispatch:
+        result = run_autonomous_cycle(
+            "x",
+            worker_url="https://worker",
+            worker_token="secret",
+            mode="backlog",
+        )
+    assert result["operating_mode"] == "BACKLOG"
+    assert result["research"] is None
+    assert result["status"] == "worker_dispatched"
+    dispatch.assert_called_once()
+    assert dispatch.call_args.args[0]["schema_version"] == "automate.worker.v1"
