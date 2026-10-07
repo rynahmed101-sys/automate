@@ -87,3 +87,52 @@ def test_bookkeeping_fails_closed_for_missing_ledger_anchor():
         assert "ambiguous" in str(exc)
     else:
         raise AssertionError("missing ledger anchor must block promotion")
+
+
+def test_bookkeeping_does_not_promote_preserved_out_of_order_work_to_frontier():
+    from automate.dev.inventory import next_action
+
+    inventory = {
+        "capabilities": [
+            {
+                "id": "stage1b.series_expansions",
+                "order": 10,
+                "stage": "1B",
+                "name": "Taylor series",
+                "implementation_state": "planned",
+                "authority": {"kind": "roadmap", "ref": "ledger"},
+                "references": [],
+                "depends_on": [],
+                "canonical_files": ["automate/backend/series.py"],
+                "shared_integration_points": [],
+                "verification": {},
+            },
+            {
+                "id": "stage1c.ode",
+                "order": 20,
+                "stage": "1C",
+                "name": "General ODEs",
+                "implementation_state": "preserved_out_of_order",
+                "authority": {"kind": "branch", "ref": "historical"},
+                "references": [],
+                "depends_on": [],
+                "canonical_files": ["automate/backend/ode.py"],
+                "shared_integration_points": [],
+                "verification": {},
+            },
+            {
+                "id": "stage1b.partial_derivatives",
+                "order": 30,
+                "stage": "1B",
+                "name": "Partial derivatives",
+                "implementation_state": "planned",
+                "authority": {"kind": "roadmap", "ref": "ledger"},
+                "references": [],
+                "depends_on": [],
+                "canonical_files": ["automate/backend/partials.py"],
+                "shared_integration_points": [],
+                "verification": {},
+            },
+        ]
+    }
+    assert next_action(inventory)["capability_id"] == "stage1b.series_expansions"
