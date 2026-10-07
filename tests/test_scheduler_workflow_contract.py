@@ -5,8 +5,8 @@ def test_canonical_scheduler_requires_readiness_before_execution():
     workflow = Path(".github/workflows/control-cycle.yml").read_text(encoding="utf-8")
     execution_marker = "Run exactly one bounded control cycle"
     start = workflow.index(execution_marker)
-    tail = workflow[start:]
-    assert "steps.readiness.outputs.eligible == 'true'" in tail
+    block = workflow[start:].split("      - name:", 1)[0]
+    assert "steps.readiness.outputs.eligible == 'true'" in block
     assert "fetch-depth: 0" in workflow.split("Checkout authoritative main scheduler", 1)[1].split("id: pin", 1)[0]
 
 
