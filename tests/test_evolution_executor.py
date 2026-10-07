@@ -45,3 +45,27 @@ def test_executor_refuses_stale_plan_before_changes(monkeypatch):
     )
     with pytest.raises(EvolutionExecutionError, match="stale"):
         execute_evolution_plan(_plan(), token="secret")
+
+
+def test_executor_rejects_path_traversal_at_execution_boundary(monkeypatch):
+    monkeypatch.setenv("AUTOMATE_SELF_EVOLUTION_ENABLED", "1")
+    monkeypatch.setattr(
+        "automate.dev.evolution_executor._remote_main_sha",
+        lambda *_args, **_kwargs: "a" * 40,
+    )
+    plan = _plan()
+    plan["changes"][0]["path"] = "automate/dev/../secrets.py"
+    with pytest.raises(EvolutionExecutionError, match="safe relative path"):
+        execute_evolution_plan(plan, token="secret")
+
+
+def test_executor_rejects_absolute_evolution_path(monkeypatch):
+    monkeypatch.setenv("AUTOMATE_SELF_EVOLUTION_ENABLED", "1")
+    monkeypatch.setattr(
+        "automate.dev.evolution_executor._remote_main_sha",
+        lambda *_args, **_kwargs: "a" * 40,
+    )
+    plan = _plan()
+    plan["changes"][0]["path"] = "/automate/dev/example.py"
+    with pytest.raises(EvolutionExecutionError, match="safe relative path"):
+        execute_evolution_plan(plan, token="secret")
