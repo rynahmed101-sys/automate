@@ -252,6 +252,7 @@ def worker_status_command(job_id: str, worker_url: str | None, worker_token: str
 @click.option("--worker-url", default=None, help="Chanfana worker API base URL.")
 @click.option("--worker-token", default=None, help="Chanfana worker API token.")
 @click.option("--execute-worker", is_flag=True, help="Submit and execute the worker job; otherwise queue only.")
+@click.option("--execute-discovery", is_flag=True, help="Dispatch a bounded idle-discovery grant to Mirror; separately governance-gated.")
 @click.option("--local-root", type=click.Path(path_type=Path, exists=True, file_okay=False), default=None, help="Canonical checkout used to publish validated worker commits.")
 @click.option("--json", "as_json", is_flag=True)
 def control_cycle_command(
@@ -259,6 +260,7 @@ def control_cycle_command(
     worker_url: str | None,
     worker_token: str | None,
     execute_worker: bool,
+    execute_discovery: bool,
     local_root: Path | None,
     as_json: bool,
 ) -> None:
@@ -270,6 +272,7 @@ def control_cycle_command(
             worker_url=worker_url,
             worker_token=worker_token,
             execute_worker=execute_worker,
+            execute_discovery=execute_discovery,
             local_root=local_root,
         )
     except Exception as exc:
