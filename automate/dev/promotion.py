@@ -594,6 +594,86 @@ def find_worker_handoff(
     return matches[0] if matches else None
 
 
+
+def find_worker_handoff_history(
+    repository: str,
+    *,
+    capability_id: str,
+) -> list[dict[str, Any]]:
+    """Find historical worker-generated capability PRs for one capability."""
+    payload = _gh_json(
+        repository,
+        "/pulls?state=closed&base=main&per_page=100&sort=updated&direction=desc",
+    )
+    if not isinstance(payload, list):
+        raise PromotionError("GitHub pull request history returned a non-list payload")
+    matches: list[dict[str, Any]] = []
+    expected_branch = "feat/" + capability_id
+    for pr in payload:
+        if not isinstance(pr, dict):
+            continue
+        if str(pr.get("head", {}).get("ref", "")) != expected_branch:
+            continue
+        body = str(pr.get("body") or "")
+        capability = re.search(r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$", body)
+        request = re.search(r"(?m)^- worker_request_id:\s*([A-Za-z0-9_.:-]{8,128})\s*$", body)
+        base = re.search(r"(?m)^- base_sha:\s*([0-9a-f]{40})\s*$", body)
+        if capability and capability.group(1) == capability_id and request and base:
+            matches.append({
+                **pr,
+                "_worker_capability_id": capability.group(1),
+                "_worker_request_id": request.group(1),
+                "_worker_base_sha": base.group(1),
+            })
+    return matches
+
+
+def inspect_merged_worker_handoff(
+    repository: str,
+    *,
+    capability_id: str,
+    current_main_sha: str,
+) -> dict[str, Any] | None:
+    """Inspect the newest merged worker handoff, without requiring inventory bookkeeping first."""
+    history = find_worker_handoff_history(repository, capability_id=capability_id)
+    merged = [
+        pr for pr in history
+        if pr.get("merged_at")
+        and pr.get("merge_commit_sha")
+        and pr.get("base", {}).get("ref") == "main"
+    ]
+    if not merged:
+        return None
+    merged.sort(key=lambda pr: str(pr.get("merged_at") or ""), reverse=True)
+    pr = merged[0]
+    merge_sha = str(pr.get("merge_commit_sha") or "")
+    head_sha = str(pr.get("head", {}).get("sha") or "")
+    post = inspect_post_merge(
+        repository,
+        capability_id=capability_id,
+        merged_main_sha=merge_sha,
+    )
+    post["current_main_sha"] = current_main_sha
+    post["pr_number"] = pr.get("number")
+    post["pr_head_sha"] = head_sha
+    if merge_sha != current_main_sha and post["state"] == "BOOKKEEPING_READY":
+        post["state"] = "BLOCKED_STALE_MAIN"
+        post["reasons"] = [
+            "merged worker capability is not the current main head; reconcile before canonical bookkeeping"
+        ]
+    return {
+        "state": "POST_MERGE",
+        "capability_id": capability_id,
+        "merged_main_sha": merge_sha,
+        "pr_number": pr.get("number"),
+        "pr": {
+            "number": pr.get("number"),
+            "head_sha": head_sha,
+            "base_sha": pr.get("base", {}).get("sha"),
+        },
+        "post_merge": post,
+    }
+
 def inspect_worker_handoff_pr(
     repository: str,
     *,
