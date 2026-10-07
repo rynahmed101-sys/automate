@@ -39,6 +39,24 @@ def _run(root: Path, args: list[str], *, check: bool = False) -> subprocess.Comp
     return result
 
 
+def _exact_pr_checks_verified(root: Path, repository: str, head_sha: str) -> bool:
+    raw = _run(
+        root,
+        ["gh", "api", f"repos/{repository}/actions/runs?head_sha={head_sha}&per_page=100"],
+        check=True,
+    )
+    payload = json.loads(raw.stdout or "{}")
+    runs = payload.get("workflow_runs", []) if isinstance(payload, dict) else []
+    successful = {
+        str(run.get("name"))
+        for run in runs
+        if run.get("head_sha") == head_sha
+        and run.get("status") == "completed"
+        and run.get("conclusion") == "success"
+    }
+    return {"Automate Engine CI", "Security Audit"} <= successful
+
+
 def reconcile_engine(
     root: str | Path,
     repository: str,
@@ -122,6 +140,27 @@ def reconcile_engine(
     if rows:
         pr = rows[0]
         if auto_merge:
+            head_sha = str(pr.get("headRefOid") or "")
+            if not re.fullmatch(r"[0-9a-f]{40}", head_sha):
+                return {
+                    "schema_version": "automate.engine_reconcile.v1",
+                    "state": "PR_OPEN",
+                    "main_sha": main_sha,
+                    "engine_sha": engine_sha,
+                    "branch": branch,
+                    "pr": pr,
+                    "action": "awaiting_valid_pr_head",
+                }
+            if not _exact_pr_checks_verified(checkout, repository, head_sha):
+                return {
+                    "schema_version": "automate.engine_reconcile.v1",
+                    "state": "PR_OPEN",
+                    "main_sha": main_sha,
+                    "engine_sha": engine_sha,
+                    "branch": branch,
+                    "pr": pr,
+                    "action": "awaiting_exact_head_engine_ci_and_security",
+                }
             merge = _run(
                 checkout,
                 [
@@ -130,6 +169,7 @@ def reconcile_engine(
                     "--auto",
                     "--merge",
                     "--delete-branch=false",
+                    "--match-head-commit", head_sha,
                 ],
             )
             if merge.returncode != 0:
@@ -222,16 +262,22 @@ def reconcile_engine(
         )
         listed_rows = json.loads(listed.stdout or "[]")
         if listed_rows:
-            merge = _run(
-                checkout,
-                [
-                    "gh", "pr", "merge", str(listed_rows[0]["number"]),
-                    "--repo", repository,
-                    "--auto",
-                    "--merge",
-                    "--delete-branch=false",
-                ],
-            )
+            head_sha = str(listed_rows[0].get("headRefOid") or "")
+            if re.fullmatch(r"[0-9a-f]{40}", head_sha) and _exact_pr_checks_verified(checkout, repository, head_sha):
+                merge = _run(
+                    checkout,
+                    [
+                        "gh", "pr", "merge", str(listed_rows[0]["number"]),
+                        "--repo", repository,
+                        "--auto",
+                        "--merge",
+                        "--delete-branch=false",
+                        "--match-head-commit", head_sha,
+                    ],
+                )
+            else:
+                merge = subprocess.CompletedProcess(["gh", "pr", "merge"], 1, "", "exact-head engine CI/security evidence missing")
+            
             if merge.returncode == 0:
                 return {
                     "schema_version": "automate.engine_reconcile.v1",
