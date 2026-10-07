@@ -71,6 +71,12 @@ def test_promotion_can_be_ready_without_required_review():
         current_main_sha="1" * 40,
         ci_run=_run(),
         security_run=_run(),
+        verification_result={
+            "authority": "EVIDENCE_ONLY",
+            "capability_id": "stage1b.series_expansions",
+            "source_revision": "2" * 40,
+            "evidence_state": "IMPLEMENTATION_VERIFIED",
+        },
     )
     assert result["state"] == "READY_TO_MERGE"
 
