@@ -1142,3 +1142,5 @@ Canonical queue exhausted
 → next canonical frontier.
 
 This is a controlled expansion loop, not an unconstrained self-rewriting loop.
+
+<!-- Control-plane release audit marker: 2026-10-07. No behavioral change. -->
