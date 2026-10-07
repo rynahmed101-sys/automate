@@ -116,3 +116,31 @@ def triage_candidate(proposal: Mapping[str, Any]) -> dict[str, Any]:
     if errors:
         raise DiscoveryIntakeError("triage payload violates machine contract: " + "; ".join(errors))
     return result
+
+
+def extract_candidate_proposals(autopilot_result: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Extract only explicit capability-proposal tool results from Mirror output."""
+    candidates: list[dict[str, Any]] = []
+    trace = autopilot_result.get("trace", [])
+    if not isinstance(trace, list):
+        return candidates
+    for step in trace:
+        if not isinstance(step, Mapping) or step.get("tool") != "propose_new_capability":
+            continue
+        result = step.get("result")
+        if not isinstance(result, Mapping):
+            continue
+        proposal = result.get("proposal")
+        if isinstance(proposal, Mapping):
+            candidates.append(dict(proposal))
+    return candidates
+
+
+def triage_mirror_autopilot_result(
+    autopilot_result: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Triage each explicit Mirror candidate without changing canonical inventory."""
+    results: list[dict[str, Any]] = []
+    for proposal in extract_candidate_proposals(autopilot_result):
+        results.append(triage_candidate(proposal))
+    return results
