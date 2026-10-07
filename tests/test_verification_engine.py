@@ -256,6 +256,8 @@ def test_generic_capability_does_not_become_contradicted_without_math_adapter():
                 },
             ],
             "workflow_runs_engine": [],
+            "exact_head_verified": True,
+            "security_verified": True,
         }
         result = run_backlog_item(
             capability_id="stage1b.series_expansions",
