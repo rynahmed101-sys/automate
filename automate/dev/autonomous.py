@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from automate.dev.inventory import InventoryError
 from automate.dev.verification_engine import deterministic_id
@@ -35,6 +35,7 @@ def run_autonomous_cycle(
     worker_token: str | None = None,
     execute_worker: bool = False,
     local_root: Path | None = None,
+    mode: Literal["backlog", "research"] = "backlog",
 ) -> dict[str, Any]:
     decision = supervisor_snapshot(repository, live=True)
     if not decision["can_dispatch"]:
@@ -48,9 +49,13 @@ def run_autonomous_cycle(
         "task": packet["packet"].get("task", {}),
     }
 
-    # External world research stays disabled by governance until the current
-    # 1A-3A reconciliation/verification frontier is cleared.
-    if os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "").strip().lower() not in {"1", "true", "yes"}:
+    # Backlog mode intentionally does not commission open-ended research.
+    # Research mode remains separately gated so the canonical capability
+    # curriculum can run without depending on the external research loop.
+    research_enabled = os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+    if mode == "backlog":
+        research_enabled = False
+    if mode == "research" and not research_enabled:
         return {
             "status": "research_disabled_by_governance",
             "decision": decision,
