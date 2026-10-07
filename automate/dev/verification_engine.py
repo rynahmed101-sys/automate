@@ -475,9 +475,13 @@ def run_backlog_item(
                 payload=mirror_result,
                 parent_id=mirror_id,
             )
+    mirror_ok = (
+        not mirror_enabled
+        or (isinstance(mirror_result, dict) and mirror_result.get("status") == "REPRODUCED")
+    )
     state = (
         EvidenceState.VERIFIED
-        if math_ok and actions["exact_head_verified"] and actions["security_verified"]
+        if math_ok and actions["exact_head_verified"] and actions["security_verified"] and mirror_ok
         else EvidenceState.PARTIALLY_SUPPORTED if math_ok
         else EvidenceState.CONTRADICTED
     )
