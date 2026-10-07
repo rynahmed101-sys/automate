@@ -254,6 +254,15 @@ def run_control_cycle(
                 "dispatch_allowed": False,
                 "lifecycle": merged_handoff,
             }
+        if post.get("state") not in {"BLOCKED_STALE_MAIN", "BOOKKEEPING_READY"}:
+            return {
+                **control,
+                "status": "post_merge_exact_head_verification_pending",
+                "dispatch_allowed": False,
+                "lifecycle": merged_handoff,
+                "verification": post,
+            }
+
         if post.get("state") == "BOOKKEEPING_READY":
             bookkeeping_pr = inspect_bookkeeping_pr(
                 repository,
