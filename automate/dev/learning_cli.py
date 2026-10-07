@@ -9,6 +9,7 @@ import click
 from automate.dev.discovery import DiscoveryIntakeError, triage_candidate
 from automate.dev.evolution import build_evolution_plan
 from automate.dev.learning_loop import plan_next_learning_action
+from automate.dev.github_learning import GitHubLearningSyncError, sync_github_actions
 from automate.dev.learning_events import (
     record_ci_result,
     record_reconciliation_result,
@@ -467,6 +468,28 @@ def record_reconciliation(
         )
         click.echo(json.dumps({"status": "RECORDED", "experience_id": experience_id}, indent=2))
     except json.JSONDecodeError as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        store.close()
+
+
+@learn.command("sync-github-actions")
+@click.option("--repository", default="rynahmed101-sys/automate", show_default=True)
+@click.option("--branch", default="main", show_default=True)
+@click.option("--limit", default=20, type=click.IntRange(min=1, max=100), show_default=True)
+@click.option("--db", default="data/learning.db", show_default=True)
+def sync_github_actions_command(repository: str, branch: str, limit: int, db: str) -> None:
+    """Ingest completed GitHub Actions outcomes into durable learning memory."""
+    store = _store(db)
+    try:
+        result = sync_github_actions(
+            store,
+            repository=repository,
+            branch=branch,
+            limit=limit,
+        )
+        click.echo(json.dumps(result, indent=2))
+    except GitHubLearningSyncError as exc:
         raise click.ClickException(str(exc)) from exc
     finally:
         store.close()
