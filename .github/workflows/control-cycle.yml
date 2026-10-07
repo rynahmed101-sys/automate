@@ -43,6 +43,35 @@ jobs:
               out.write(f"sha={sha or ''}\n")
           PY
 
+      - name: Reconcile engine with authoritative main
+        if: steps.pin.outputs.enabled == 'true'
+        id: reconcile
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATE_AUTO_RECONCILE: ${{ vars.AUTOMATE_AUTO_RECONCILE }}
+        run: |
+          set -euo pipefail
+          python -m pip install -e .
+          python - <<'PY'
+          import json
+          import os
+          from automate.dev.engine_reconcile import reconcile_engine
+
+          result = reconcile_engine(
+              "${{ github.workspace }}",
+              "${{ github.repository }}",
+              auto_merge=os.getenv("AUTOMATE_AUTO_RECONCILE", "").strip().lower() in {"1", "true", "yes"},
+          )
+          print(json.dumps(result, indent=2))
+          if result["state"] == "CONFLICT":
+              raise SystemExit("automatic engine reconciliation hit a merge conflict")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"state={result['state']}\\n")
+
+      - name: Stop after reconciliation action
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state != 'ALIGNED'
+        run: echo "Engine reconciliation is pending; the control cycle will resume after engine catches up."
+
       - name: Validate pinned engine release evidence
         if: steps.pin.outputs.enabled == 'true'
         env:
