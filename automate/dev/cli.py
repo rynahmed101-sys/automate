@@ -158,7 +158,7 @@ def queue_command(as_json: bool) -> None:
 
 @capability.command("audit-live")
 @click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
-@click.option("--base-branch", default="main", show_default=True, help="Live PR target lane being audited.")
+@click.option("--base-branch", default=None, help="Live PR target lane. Defaults to GitHub CI context, then main.")
 @click.option("--current-pr", type=int, default=None, help="Audit only this PR; used by PR CI to avoid cross-branch temporal coupling.")
 @click.option("--json", "as_json", is_flag=True)
 def audit_live_command(repository: str, base_branch: str, current_pr: int | None, as_json: bool) -> None:
