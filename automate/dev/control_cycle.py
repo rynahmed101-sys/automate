@@ -221,6 +221,50 @@ def run_control_cycle(
                     "next_step": "provide the canonical checkout root to publish the bookkeeping PR",
                 }
             try:
+                from automate.dev.bookkeeping import build_bookkeeping_plan
+                from automate.dev.bookkeeping_pr import create_bookkeeping_pr
+
+                root = Path(local_root)
+                inventory_text = __import__("subprocess").run(
+                    ["git", "show", f"{current_main_sha}:docs/CAPABILITY_INVENTORY.json"],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout
+                ledger_text = __import__("subprocess").run(
+                    ["git", "show", f"{current_main_sha}:docs/PROJECT_PHASE_LEDGER.md"],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout
+                plan = build_bookkeeping_plan(
+                    json.loads(inventory_text),
+                    ledger_text,
+                    capability_id=capability_id,
+                    merge_sha=current_main_sha,
+                    exact_head_ci_run=int(post.get("ci_run_id") or 0),
+                    security_run=int(post.get("security_run_id") or 0),
+                    merged_pr_number=int(merged_handoff["pr_number"]),
+                )
+                bookkeeping = create_bookkeeping_pr(
+                    root,
+                    repository,
+                    capability_id=capability_id,
+                    merge_sha=current_main_sha,
+                    merged_pr_number=int(merged_handoff["pr_number"]),
+                    exact_head_ci_run=int(post.get("ci_run_id") or 0),
+                    security_run=int(post.get("security_run_id") or 0),
+                    plan=plan,
+                )
+                return {
+                    **control,
+                    "status": "bookkeeping_pr_open",
+                    "dispatch_allowed": False,
+                    "lifecycle": merged_handoff,
+                    "bookkeeping": bookkeeping,
+                }
             except Exception as exc:
                 return {
                     **control,
