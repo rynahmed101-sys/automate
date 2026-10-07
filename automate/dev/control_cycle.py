@@ -441,8 +441,12 @@ def run_control_cycle(
                     "diagnosis": diagnosis,
                     "quarantine": quarantine,
                 }
+            recovery_attempt = max(
+                [int(failure.get("attempt") or 1) for failure in failures] or [1]
+            ) + 1
             context_notes = [
                 "AUTONOMOUS_RECOVERY: prior worker proposal was quarantined after repeated exact-head failures.",
+                f"AUTONOMOUS_RECOVERY_ATTEMPT: {recovery_attempt}",
                 *diagnosis["notes"],
             ]
             if not worker_url or not worker_token:
