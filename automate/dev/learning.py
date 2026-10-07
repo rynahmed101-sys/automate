@@ -1,22 +1,3 @@
-"""Evidence-driven self-improvement primitives for Automate.
-
-This module deliberately separates memory, learning, and authority.
-
-Experiences are observations.
-Lessons are hypotheses extracted from experience.
-Adopted lessons may influence future strategy selection.
-System-evolution proposals can request changes to capabilities, verifiers, or
-strategies, but constitutional/authority changes are never auto-promotable.
-
-The module is deterministic and dependency-free beyond Automate's existing
-JSON-schema machinery. LLMs, Mirror, and external research providers may feed
-it later, but none are required to operate the core learning ledger.
-"""
-from __future__ import annotations
-
-import hashlib
-import json
-import math
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
