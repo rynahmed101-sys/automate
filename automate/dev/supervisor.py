@@ -65,11 +65,18 @@ def _github_open_worker_prs(repository: str) -> list[dict[str, Any]]:
 
 def _pending_worker_pr(repository: str, capability_id: str, main_sha: str) -> dict[str, Any] | None:
     expected_prefix = "feat/" + capability_id + "-" + main_sha[:12]
+    repair_prefix = expected_prefix + "-repair"
     for pr in _github_open_worker_prs(repository):
         branch = str(pr.get("headRefName") or "")
         body = str(pr.get("body") or "")
+        role = re.search(r"(?m)^- automation_role:\s*([a-z0-9_.-]+)\s*$", body)
+        is_capability_role = bool(role and role.group(1) == "capability_implementation")
+        is_worker_branch = branch == expected_prefix or bool(
+            re.fullmatch(re.escape(repair_prefix) + r"\d+", branch)
+        )
         if (
-            branch == expected_prefix
+            is_worker_branch
+            and is_capability_role
             and str(pr.get("baseRefName") or "main") == "main"
             and re.search(r"(?m)^- capability:\s*" + re.escape(capability_id) + r"\s*$", body)
             and str(pr.get("baseRefOid") or "") == main_sha
