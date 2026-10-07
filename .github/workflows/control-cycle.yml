@@ -61,6 +61,9 @@ jobs:
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
           AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
           AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE }}
+          AUTOMATE_MIRROR_DISCOVERY_ENABLED: ${{ vars.AUTOMATE_MIRROR_DISCOVERY_ENABLED }}
+          MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT: ${{ secrets.MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT }}
+          MIRROR_AUTONOMOUS_DISCOVERY_TOKEN: ${{ secrets.MIRROR_AUTONOMOUS_DISCOVERY_TOKEN }}
         run: |
           python -m pip install -e .
           automate capability control-cycle             --repo "${{ github.repository }}"             --worker-url "${{ env.AUTOMATE_WORKER_URL }}"             --worker-token "${{ env.AUTOMATE_WORKER_TOKEN }}"             --execute-worker             --json
