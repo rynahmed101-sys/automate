@@ -59,8 +59,8 @@ def test_malformed_variable_fails_closed():
     assert "valid identifier" in error
 
 
-def test_unresolved_symbolic_coefficient_fails_closed():
-    passed, details, _, error = run({"variable": "x", "center": "a", "order": 3}, "log(x)", "(x-a) - (x-a)**2/2 + (x-a)**3/3")
+def test_nonanalytic_center_fails_closed():
+    passed, details, _, error = run({"variable": "x", "center": "0", "order": 3}, "log(x)", "1 + x + x**2/2 + x**3/3")
     assert passed is False
     assert details.get("_status_override") == VerificationStatus.UNVERIFIED.value
     assert "UNVERIFIED" in error
