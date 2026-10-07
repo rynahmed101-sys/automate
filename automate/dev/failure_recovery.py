@@ -87,11 +87,8 @@ def quarantine_worker_pr(repository: str, pr_number: int, failures: list[dict[st
     body = (
         "AUTONOMOUS RECOVERY: this worker proposal failed exact-head verification twice. "
         "The proposal is quarantined and will not be promoted. A fresh repair attempt must "
-        "be generated from authoritative main with this failure evidence.
-
-"
-        "Failure evidence:
-" + evidence
+        "be generated from authoritative main with this failure evidence.\n\n"
+        "Failure evidence:\n" + evidence
     )
     result = _run([
         "gh", "pr", "close", str(pr_number), "--repo", repository,
