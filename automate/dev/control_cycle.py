@@ -250,6 +250,16 @@ def run_control_cycle(
                 handoff=handoff,
                 current_main_sha=current_main_sha,
             )
+            promotion = lifecycle.get("promotion", {})
+            if promotion.get("state") == "READY_TO_MERGE":
+                import os
+                should_execute = os.getenv("AUTOMATE_AUTO_PROMOTE", "").strip().lower() in {"1", "true", "yes"}
+                lifecycle["promotion_execution"] = execute_promotion(
+                    repository,
+                    int(lifecycle["pr"]["number"]),
+                    current_main_sha=current_main_sha,
+                    execute=should_execute,
+                )
         except PromotionError as exc:
             return {
                 **control,
@@ -263,6 +273,8 @@ def run_control_cycle(
             "status": (
                 "promotion_ready"
                 if lifecycle.get("promotion", {}).get("state") == "READY_TO_MERGE"
+                else lifecycle.get("promotion_execution", {}).get("execution", lifecycle.get("state", "worker_handoff_active")).lower()
+                if isinstance(lifecycle.get("promotion_execution"), dict)
                 else lifecycle.get("state", "worker_handoff_active").lower()
             ),
             "dispatch_allowed": False,
