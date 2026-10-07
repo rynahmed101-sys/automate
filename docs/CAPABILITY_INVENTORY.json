@@ -1203,6 +1203,12 @@
       "branch": "integrate/clear-1a-3a",
       "state": "closed_future_work",
       "purpose": "Stage 1C current-main reconciliation preserved for later harvest"
+    },
+    {
+      "number": 140,
+      "branch": "integrate/reconcile-main-into-engine",
+      "state": "open",
+      "purpose": "reconcile current authoritative main into long-lived engine trunk"
     }
   ]
 }
