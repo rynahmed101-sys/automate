@@ -123,7 +123,28 @@ def _github_lifecycle_exercised(repository: str) -> bool:
         if not isinstance(head, dict) or not str(head.get("ref", "")).startswith("feat/"):
             continue
         body = str(pr.get("body") or "")
-        if "worker_request_id:" not in body or "capability:" not in body:
+        capability_match = re.search(r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$", body)
+        worker_request = re.search(r"(?m)^- worker_request_id:\s*([A-Za-z0-9_.:-]{8,128})\s*$", body)
+        base_match = re.search(r"(?m)^- base_sha:\s*([0-9a-f]{40})\s*$", body)
+        if not capability_match or not worker_request or not base_match:
+            continue
+        capability_id = capability_match.group(1)
+        base_sha = base_match.group(1)
+        head_branch = str(pr.get("head", {}).get("ref") or "")
+        expected_branch_prefix = "feat/" + capability_id + "-" + base_sha[:12]
+        if head_branch != expected_branch_prefix:
+            continue
+        try:
+            from automate.dev.worker import build_worker_packet
+            expected_request_id = build_worker_packet(
+                capability_id,
+                repository=repository,
+                base_sha_claim=base_sha,
+                development_branch="main",
+            )["packet"]["request_id"]
+        except Exception:
+            continue
+        if worker_request.group(1) != expected_request_id:
             continue
         merge_sha = str(pr.get("merge_commit_sha") or "")
         if len(merge_sha) != 40:
