@@ -85,12 +85,7 @@ def _pr(repository: str, pr_number: int) -> dict[str, Any]:
 def _capability_owner(data: Mapping[str, Any], pr_number: int) -> str | None:
     owners: list[str] = []
     for item in data.get("capabilities", []):
-        if item.get("implementation_state") not in {
-            "active_development",
-            "delegated",
-            "awaiting_reconciliation",
-            "reconciled",
-        }:
+        if item.get("implementation_state") in {"merged_main", "superseded", "abandoned"}:
             continue
         for ref in item.get("references", []):
             if (
@@ -145,14 +140,27 @@ def evaluate_promotion(
     if mergeable is not True:
         reasons.append("GitHub does not currently report the PR as mergeable.")
 
+    head_sha = pr.get("head", {}).get("sha")
+    gates["head_sha_valid"] = isinstance(head_sha, str) and len(head_sha) == 40
+    if not gates["head_sha_valid"]:
+        reasons.append("PR head SHA is missing or malformed.")
+
     gates["development_ci_verified"] = bool(
-        ci_run and ci_run.get("status") == "completed" and ci_run.get("conclusion") == "success"
+        gates["head_sha_valid"]
+        and ci_run
+        and ci_run.get("status") == "completed"
+        and ci_run.get("conclusion") == "success"
+        and ci_run.get("head_sha") == head_sha
     )
     if not gates["development_ci_verified"]:
         reasons.append("Development CI has not completed successfully on the exact PR head.")
 
     gates["security_audit_verified"] = bool(
-        security_run and security_run.get("status") == "completed" and security_run.get("conclusion") == "success"
+        gates["head_sha_valid"]
+        and security_run
+        and security_run.get("status") == "completed"
+        and security_run.get("conclusion") == "success"
+        and security_run.get("head_sha") == head_sha
     )
     if not gates["security_audit_verified"]:
         reasons.append("Security Audit has not completed successfully on the exact PR head.")
