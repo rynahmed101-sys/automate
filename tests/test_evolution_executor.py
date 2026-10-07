@@ -55,7 +55,7 @@ def test_executor_rejects_path_traversal_at_execution_boundary(monkeypatch):
     )
     plan = _plan()
     plan["changes"][0]["path"] = "automate/dev/../secrets.py"
-    with pytest.raises(EvolutionExecutionError, match="safe relative path"):
+    with pytest.raises(EvolutionExecutionError, match="path traversal segment"):
         execute_evolution_plan(plan, token="secret")
 
 
