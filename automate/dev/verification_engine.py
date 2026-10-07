@@ -531,7 +531,7 @@ def run_backlog_item(
             reconciliation_id,
             math_id,
             actions_id,
-            mirror_id,
+            *([mirror_id] if mirror_id else []),
             *([mirror_evidence_id] if mirror_evidence_id else []),
         ],
         repository_state={**snap, "evidence_state": state.value},
