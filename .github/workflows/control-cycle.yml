@@ -43,8 +43,60 @@ jobs:
               out.write(f"sha={sha or ''}\n")
           PY
 
+      - name: Reconcile engine with authoritative main
+        id: reconcile
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATE_AUTO_RECONCILE: ${{ vars.AUTOMATE_AUTO_RECONCILE }}
+        run: |
+          set -euo pipefail
+          python -m pip install -e .
+          python - <<'PY'
+          import json
+          import os
+          from automate.dev.engine_reconcile import reconcile_engine
+
+          result = reconcile_engine(
+              "${{ github.workspace }}",
+              "${{ github.repository }}",
+              auto_merge=os.getenv("AUTOMATE_AUTO_RECONCILE", "").strip().lower() in {"1", "true", "yes"},
+          )
+          print(json.dumps(result, indent=2))
+          if result["state"] == "CONFLICT":
+              raise SystemExit("automatic engine reconciliation hit a merge conflict")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"state={result['state']}\\n")
+
+      - name: Update scheduler engine pin
+        if: steps.reconcile.outputs.state == 'ALIGNED'
+        id: engine_pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATE_AUTO_PIN_ENGINE: ${{ vars.AUTOMATE_AUTO_PIN_ENGINE }}
+        run: |
+          set -euo pipefail
+          python -m pip install -e .
+          python - <<'PY'
+          import json
+          import os
+          from automate.dev.engine_pin import ensure_engine_pin
+
+          result = ensure_engine_pin(
+              "${{ github.workspace }}",
+              "${{ github.repository }}",
+              auto_update=os.getenv("AUTOMATE_AUTO_PIN_ENGINE", "").strip().lower() in {"1", "true", "yes"},
+              auto_merge=os.getenv("AUTOMATE_AUTO_PIN_ENGINE", "").strip().lower() in {"1", "true", "yes"},
+          )
+          print(json.dumps(result, indent=2))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"state={result['state']}\n")
+
+      - name: Stop after reconciliation or pin action
+        if: steps.reconcile.outputs.state != 'ALIGNED' || steps.engine_pin.outputs.state != 'PIN_ALIGNED'
+        run: echo "Control-plane release alignment is pending; the next scheduled cycle will resume after the required PR lands."
+
       - name: Validate pinned engine release evidence
-        if: steps.pin.outputs.enabled == 'true'
+        if: steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -81,20 +133,20 @@ jobs:
         run: echo "Automate control cycle is disabled by authoritative main."
 
       - name: Checkout pinned engine control plane
-        if: steps.pin.outputs.enabled == 'true'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         uses: actions/checkout@v7
         with:
           ref: ${{ steps.pin.outputs.sha }}
           fetch-depth: 0
 
       - name: Set up Python
-        if: steps.pin.outputs.enabled == 'true'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Run exactly one bounded control cycle
-        if: steps.pin.outputs.enabled == 'true'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         env:
           GH_TOKEN: ${{ github.token }}
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}

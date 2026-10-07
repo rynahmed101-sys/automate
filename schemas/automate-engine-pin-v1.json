@@ -1,0 +1,20 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://automate.physics/schemas/automate-engine-pin-v1.json",
+  "title":"Automate Engine Release Pin Result (v1)",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","state","main_sha","engine_sha","action"],
+  "properties":{
+    "schema_version":{"const":"automate.engine_pin.v1"},
+    "state":{"enum":["ENGINE_NOT_ALIGNED","ENGINE_UNVERIFIED","PIN_ALIGNED","PIN_UPDATE_REQUIRED","PIN_PR_OPEN","PIN_PR_CREATED","PIN_PR_AUTO_MERGE_REQUESTED"]},
+    "main_sha":{"type":"string","pattern":"^[0-9a-f]{40}$"},
+    "engine_sha":{"type":"string","pattern":"^[0-9a-f]{40}$"},
+    "previous_pin":{"type":["string","null"],"pattern":"^[0-9a-f]{40}$"},
+    "branch":{"type":"string"},
+    "pin_commit_sha":{"type":"string","pattern":"^[0-9a-f]{40}$"},
+    "pr_url":{"type":"string"},
+    "action":{"type":"string"},
+    "evidence":{"type":"object"}
+  }
+}
