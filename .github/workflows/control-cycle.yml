@@ -132,15 +132,8 @@ jobs:
         if: steps.pin.outputs.enabled != 'true'
         run: echo "Automate control cycle is disabled by authoritative main."
 
-      - name: Checkout pinned engine control plane
-        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED' && steps.readiness.outputs.eligible == 'true'
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.pin.outputs.sha }}
-          fetch-depth: 0
-
-      - name: Set up Python
-        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED' && steps.readiness.outputs.eligible == 'true'
+      - name: Set up Python for readiness
+        if: ${{ steps.pin.outputs.enabled }} == 'true' && ${{ steps.reconcile.outputs.state }} == 'ALIGNED' && ${{ steps.engine_pin.outputs.state }} == 'PIN_ALIGNED'
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -162,6 +155,13 @@ jobs:
       - name: Record autonomous readiness hold
         if: steps.readiness.outputs.eligible != 'true'
         run: echo "Autonomous execution held by readiness gates; no worker dispatch performed."
+
+      - name: Checkout pinned engine control plane
+        if: ${{ steps.pin.outputs.enabled }} == 'true' && ${{ steps.reconcile.outputs.state }} == 'ALIGNED' && ${{ steps.engine_pin.outputs.state }} == 'PIN_ALIGNED' && ${{ steps.readiness.outputs.eligible }} == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.pin.outputs.sha }}
+          fetch-depth: 0
 
       - name: Run exactly one bounded control cycle
         if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED' && steps.readiness.outputs.eligible == 'true'
