@@ -282,7 +282,8 @@ def reconcile_snapshot(*, requested_revision: str, snapshot: Mapping[str, Any],
     observed_main = snapshot.get("main_sha")
     observed_engine = snapshot.get("engine_sha")
     findings: list[dict[str, Any]] = []
-    target_key = "main_sha" if snapshot.get("requested_branch") in {None, "main"} else "engine_sha"
+    target_branch = snapshot.get("requested_branch") or "main"
+    target_key = "main_sha" if target_branch == "main" else "engine_sha" if target_branch == "engine" else "target_sha"
     observed_target = snapshot.get(target_key)
     if observed_target and requested_revision != observed_target:
         findings.append({"kind":"stale_revision","state":EvidenceState.BLOCKED.value,
@@ -310,7 +311,11 @@ def reconcile_snapshot(*, requested_revision: str, snapshot: Mapping[str, Any],
 
 
 def action_evidence(snapshot: Mapping[str, Any], revision: str) -> dict[str, Any]:
-    runs = list(snapshot.get("workflow_runs_main", [])) + list(snapshot.get("workflow_runs_engine", []))
+    runs = (
+        list(snapshot.get("workflow_runs_main", []))
+        + list(snapshot.get("workflow_runs_engine", []))
+        + list(snapshot.get("workflow_runs_target", []))
+    )
     exact = [
         r for r in runs
         if r.get("head_sha") == revision
