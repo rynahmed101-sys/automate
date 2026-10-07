@@ -79,19 +79,12 @@ def test_engine_pin_reports_missing_release_evidence(tmp_path: Path):
     assert result["state"] == "ENGINE_UNVERIFIED"
 
 
-def test_pin_auto_merge_requires_all_real_main_pr_checks():
+def test_pin_auto_merge_requires_workflow_level_main_pr_checks():
     from automate.dev import engine_pin
 
     runs = [
+        {"name": "Automate CI", "status": "completed", "conclusion": "success"},
         {"name": "Security Audit", "status": "completed", "conclusion": "success"},
-        *[
-            {
-                "name": f"Development / Python 3.12 / shard {index}",
-                "status": "completed",
-                "conclusion": "success",
-            }
-            for index in range(4)
-        ],
     ]
 
     def fake(root, args, check=False):
@@ -101,19 +94,11 @@ def test_pin_auto_merge_requires_all_real_main_pr_checks():
         assert engine_pin._exact_main_pr_checks_verified(Path("."), "owner/repo", "a" * 40) is True
 
 
-def test_pin_auto_merge_fails_closed_when_one_main_pr_shard_is_missing():
+def test_pin_auto_merge_fails_closed_when_main_pr_workflow_is_missing():
     from automate.dev import engine_pin
 
     runs = [
         {"name": "Security Audit", "status": "completed", "conclusion": "success"},
-        *[
-            {
-                "name": f"Development / Python 3.12 / shard {index}",
-                "status": "completed",
-                "conclusion": "success",
-            }
-            for index in range(3)
-        ],
     ]
 
     def fake(root, args, check=False):
@@ -156,12 +141,8 @@ def test_pin_creation_auto_merge_uses_created_commit_sha(tmp_path: Path):
             return CompletedProcess(
                 args, 0,
                 stdout=json.dumps({"workflow_runs": [
+                    {"name": "Automate CI", "status": "completed", "conclusion": "success"},
                     {"name": "Security Audit", "status": "completed", "conclusion": "success"},
-                    *[
-                        {"name": f"Development / Python 3.12 / shard {index}",
-                         "status": "completed", "conclusion": "success"}
-                        for index in range(4)
-                    ],
                 ]}),
                 stderr="",
             )
