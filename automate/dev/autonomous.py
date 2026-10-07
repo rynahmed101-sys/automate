@@ -14,11 +14,12 @@ import os
 import subprocess
 
 from automate.dev.bookkeeping import create_bookkeeping_pr
+from automate.dev.failure_recovery import failure_notes, quarantine_worker_pr, rerun_failed_workflows
 from automate.dev.inventory import InventoryError
 from automate.dev.prmgr import create_worker_pr
 from automate.dev.publisher import build_worker_commit, push_worker_branch
 from automate.dev.research import build_mirror_research_job
-from automate.dev.supervisor import supervisor_snapshot
+from automate.dev.supervisor import observed_main_sha, supervisor_snapshot
 from automate.dev.worker import validate_worker_result
 from automate.dev.worker_client import WorkerTransportError, dispatch_worker, wait_worker_job
 
@@ -118,6 +119,109 @@ def run_autonomous_cycle(
     local_root: Path | None = None,
 ) -> dict[str, Any]:
     decision = supervisor_snapshot(repository, live=True)
+
+    if decision.get("action") == "retry_worker_verification":
+        recovery = decision.get("recovery", {})
+        result = rerun_failed_workflows(repository, list(recovery.get("retryable", [])))
+        return {"status": "verification_retry_requested", "decision": decision, "recovery": result}
+
+    if decision.get("action") == "quarantine_worker_pr":
+        recovery = decision.get("recovery", {})
+        failures = list(recovery.get("failures", []))
+        quarantine = quarantine_worker_pr(repository, int(decision["pr_number"]), failures)
+        if quarantine.get("status") != "quarantined":
+            return {"status": "quarantine_failed", "decision": decision, "recovery": quarantine}
+        packet = build_worker_packet(
+            str(decision["capability_id"]),
+            repository=repository,
+            base_sha_claim=str(decision["live"].get("main_sha") or observed_main_sha()),
+            context_notes=[
+                *failure_notes(failures),
+                "AUTONOMOUS_RECOVERY_ATTEMPT: " + str(max(int(f.get("attempt") or 0) for f in failures) + 1),
+            ],
+        )
+        try:
+            dispatch = dispatch_worker(
+                packet,
+                url=worker_url,
+                token=worker_token,
+                execute=execute_worker,
+            )
+        except WorkerTransportError as exc:
+            return {
+                "status": "repair_queued_failed",
+                "decision": decision,
+                "recovery": quarantine,
+                "error": str(exc),
+            }
+        if not execute_worker:
+            return {
+                "status": "repair_queued",
+                "decision": decision,
+                "recovery": quarantine,
+                "dispatch": dispatch,
+            }
+
+        execution = dispatch.get("execution", {})
+        result = execution.get("result")
+        if not isinstance(result, dict):
+            return {
+                "status": "repair_queued",
+                "decision": decision,
+                "recovery": quarantine,
+                "dispatch": dispatch,
+            }
+
+        errors = validate_worker_result(result, packet["packet"])
+        if errors:
+            return {
+                "status": "repair_result_rejected",
+                "decision": decision,
+                "recovery": quarantine,
+                "errors": errors,
+            }
+        if local_root is None:
+            return {
+                "status": "repair_validated_proposal",
+                "decision": decision,
+                "recovery": quarantine,
+                "dispatch": dispatch,
+            }
+
+        try:
+            commit = build_worker_commit(packet["packet"], result, repository_root=local_root)
+            if commit["status"] != "committed":
+                return {
+                    "status": "repair_" + str(commit["status"]),
+                    "decision": decision,
+                    "recovery": quarantine,
+                    "commit": commit,
+                }
+            push_worker_branch(local_root, branch_name=str(commit["branch"]))
+            pr = create_worker_pr(
+                repository,
+                branch=str(commit["branch"]),
+                capability_id=str(decision["capability_id"]),
+                title="fix: repair " + str(packet["packet"]["capability"]["name"]),
+                base_sha=str(packet["packet"]["repository"]["base_sha_claim"]),
+                test_result=commit["tests"],
+                draft=False,
+            )
+        except Exception as exc:
+            return {
+                "status": "repair_publication_failed",
+                "decision": decision,
+                "recovery": quarantine,
+                "error": str(exc),
+            }
+        return {
+            "status": "repair_submitted",
+            "decision": decision,
+            "recovery": quarantine,
+            "dispatch": dispatch,
+            "commit": commit,
+            "publication": pr,
+        }
 
     if decision.get("action") == "promote_bookkeeping_pr":
         if os.getenv("AUTOMATE_AUTO_BOOKKEEP", "1").strip().lower() not in {"1", "true", "yes"}:

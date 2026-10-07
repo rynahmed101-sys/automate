@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import tempfile
 from contextlib import contextmanager
@@ -76,13 +77,18 @@ def isolated_worker_worktree(
         )
 
 
-def worker_branch_name(capability_id: str, base_sha: str | None = None) -> str:
+def worker_branch_name(capability_id: str, base_sha: str | None = None, recovery_attempt: int | None = None) -> str:
     if not capability_id or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789_.-" for ch in capability_id):
         raise WorkerExecutionError("capability id is not safe for a worker branch")
     if base_sha is not None:
         if not len(base_sha) == 40 or any(ch not in "0123456789abcdef" for ch in base_sha):
             raise WorkerExecutionError("worker branch base sha must be a 40-character lowercase hex SHA")
-        return "feat/" + capability_id + "-" + base_sha[:12]
+        suffix = "-" + base_sha[:12]
+        if recovery_attempt is not None:
+            if recovery_attempt < 2:
+                raise WorkerExecutionError("recovery attempt must be >= 2")
+            suffix += "-repair" + str(recovery_attempt)
+        return "feat/" + capability_id + suffix
     return "feat/" + capability_id
 
 
@@ -101,7 +107,12 @@ def build_worker_commit(
     if not isinstance(capability_id, str):
         raise WorkerExecutionError("worker packet has no capability id")
 
-    branch_name = worker_branch_name(capability_id, base_sha)
+    recovery_attempt = None
+    for note in packet.get("context", {}).get("notes", []):
+        match = re.fullmatch(r"AUTONOMOUS_RECOVERY_ATTEMPT:\s*(\d+)", str(note).strip())
+        if match:
+            recovery_attempt = int(match.group(1))
+    branch_name = worker_branch_name(capability_id, base_sha, recovery_attempt)
     message = commit_message or (
         "feat: implement " + str(packet["capability"]["name"])
     )

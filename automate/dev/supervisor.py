@@ -9,6 +9,7 @@ import re
 from typing import Any
 
 from automate.dev.bookkeeping import find_merged_worker
+from automate.dev.failure_recovery import exact_head_recovery_state
 from automate.dev.inventory import (
     InventoryError,
     load_inventory,
@@ -149,10 +150,56 @@ def supervisor_snapshot(
         if capability_id:
             pending = _pending_worker_pr(repository, capability_id, live_main_sha)
             if pending:
+                recovery = exact_head_recovery_state(repository, str(pending["headRefOid"]))
+                if recovery["state"] == "retryable_failure":
+                    return {
+                        "schema_version": "automate.supervisor.v1",
+                        "action": "retry_worker_verification",
+                        "reason": "The worker head failed one verification attempt; rerun only the failed exact-head jobs before judging the proposal.",
+                        "errors": [],
+                        "queue": queue,
+                        "live": live_state,
+                        "can_dispatch": False,
+                        "capability_id": capability_id,
+                        "pr_number": int(pending["number"]),
+                        "head_sha": str(pending["headRefOid"]),
+                        "worker_pr": pending,
+                        "recovery": recovery,
+                    }
+                if recovery["state"] == "repeated_failure":
+                    return {
+                        "schema_version": "automate.supervisor.v1",
+                        "action": "quarantine_worker_pr",
+                        "reason": "The worker head failed exact verification repeatedly; quarantine it and create a fresh repair attempt from authoritative main.",
+                        "errors": [],
+                        "queue": queue,
+                        "live": live_state,
+                        "can_dispatch": False,
+                        "capability_id": capability_id,
+                        "pr_number": int(pending["number"]),
+                        "head_sha": str(pending["headRefOid"]),
+                        "worker_pr": pending,
+                        "recovery": recovery,
+                    }
+                if recovery["state"] != "success":
+                    return {
+                        "schema_version": "automate.supervisor.v1",
+                        "action": "wait_worker_verification",
+                        "reason": "Worker proposal is waiting for exact-head verification evidence.",
+                        "errors": [],
+                        "queue": queue,
+                        "live": live_state,
+                        "can_dispatch": False,
+                        "capability_id": capability_id,
+                        "pr_number": int(pending["number"]),
+                        "head_sha": str(pending["headRefOid"]),
+                        "worker_pr": pending,
+                        "recovery": recovery,
+                    }
                 return {
                     "schema_version": "automate.supervisor.v1",
                     "action": "promote_worker_pr",
-                    "reason": "A worker has already published the earliest capability from this exact main base; do not dispatch duplicate work.",
+                    "reason": "A worker has published the earliest capability and exact-head Automate CI + Security Audit evidence is successful.",
                     "errors": [],
                     "queue": queue,
                     "live": live_state,
@@ -161,6 +208,7 @@ def supervisor_snapshot(
                     "pr_number": int(pending["number"]),
                     "head_sha": str(pending["headRefOid"]),
                     "worker_pr": pending,
+                    "recovery": recovery,
                 }
 
             merged = find_merged_worker(repository, capability_id)

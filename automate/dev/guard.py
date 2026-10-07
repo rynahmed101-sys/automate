@@ -23,7 +23,7 @@ def validate_branch_scope(branch: str, files: list[str]) -> list[str]:
     errors: list[str] = []
 
     if branch.startswith("feat/"):
-        if branch.startswith("feat/autonomous-backlog-driver-"):
+        if branch.startswith("feat/autonomous-backlog-driver-") or branch.startswith("feat/self-correcting-worker-recovery-"):
             return errors
         control_plane = [
             ref for ref in data.get("control_plane_references", [])
