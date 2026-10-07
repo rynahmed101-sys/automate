@@ -3,5 +3,5 @@
   "enabled": false,
   "engine_sha": null,
   "auto_promote": false,
-  "notes": "Starts inert. Activation requires an explicit pin to a verified engine tip. Implementation promotion, canonical bookkeeping, and Mirror discovery have separate gates."
+  "notes": "The scheduler is inert until a verified engine commit is explicitly pinned and enabled on authoritative main."
 }
