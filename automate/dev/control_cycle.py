@@ -9,10 +9,13 @@ The controller is intentionally narrow:
 
 from __future__ import annotations
 
+import json
+
 from typing import Any, Literal
 
 from automate.dev.autonomous import run_autonomous_cycle
 from automate.dev.inventory import load_inventory, queue_snapshot
+from automate.dev.discovery_grant import build_discovery_grant
 
 OperatingMode = Literal["BACKLOG", "DISCOVERY_READY", "STOPPED"]
 
@@ -49,6 +52,14 @@ def run_control_cycle(
     local_root=None,
 ) -> dict[str, Any]:
     control = resolve_operating_mode()
+    if control["mode"] == "DISCOVERY_READY":
+        grant = build_discovery_grant(
+            control,
+            correlation_id="ctrl_" + __import__("hashlib").sha256(
+                json.dumps(control["queue"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()[:24],
+        )
+        return {**control, "discovery_grant": grant, "dispatch_allowed": False}
     if control["mode"] != "BACKLOG":
         return control
 
