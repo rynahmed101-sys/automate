@@ -199,17 +199,6 @@ def run_control_cycle(
             "dispatch_allowed": False,
         }
 
-    from automate.dev.promotion import (
-        PromotionError,
-        _gh_json,
-        find_worker_handoff,
-        inspect_worker_handoff_pr,
-        inspect_capability_lifecycle,
-        execute_promotion,
-        execute_bookkeeping_promotion,
-        inspect_bookkeeping_pr,
-    )
-
     capability_id = action["capability_id"]
 
     try:
