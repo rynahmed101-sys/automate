@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from typing import Any, Mapping
 
@@ -541,4 +542,126 @@ def inspect_worker_result_lifecycle(
             "base_sha": pr.get("base", {}).get("sha"),
         },
         "promotion": evaluation,
+    }
+
+
+
+def find_worker_handoff(
+    repository: str,
+    *,
+    capability_id: str,
+    current_main_sha: str,
+) -> dict[str, Any] | None:
+    """Find an open worker-created PR for the next capability without trusting its content."""
+    payload = _gh_json(
+        repository,
+        "/pulls?state=open&base=main&per_page=100",
+    )
+    if not isinstance(payload, list):
+        raise PromotionError("GitHub pull request query returned a non-list payload")
+
+    matches: list[dict[str, Any]] = []
+    for pr in payload:
+        if not isinstance(pr, dict):
+            continue
+        if not str(pr.get("head", {}).get("ref", "")).startswith("feat/"):
+            continue
+        body = str(pr.get("body") or "")
+        capability = re.search(r"(?m)^- capability:\\s*([a-z0-9][a-z0-9_.-]*)\\s*$", body)
+        request = re.search(r"(?m)^- worker_request_id:\\s*([A-Za-z0-9_.:-]{8,128})\\s*$", body)
+        base = re.search(r"(?m)^- base_sha:\\s*([0-9a-f]{40})\\s*$", body)
+        if capability and capability.group(1) == capability_id and request and base:
+            matches.append({
+                **pr,
+                "_worker_capability_id": capability.group(1),
+                "_worker_request_id": request.group(1),
+                "_worker_base_sha": base.group(1),
+                "_worker_base_is_current": base.group(1) == current_main_sha,
+            })
+
+    if len(matches) > 1:
+        raise PromotionError(
+            f"{capability_id} has multiple open worker handoffs: "
+            + ", ".join(str(item.get("number")) for item in matches)
+        )
+    return matches[0] if matches else None
+
+
+def inspect_worker_handoff_pr(
+    repository: str,
+    *,
+    capability_id: str,
+    packet: Mapping[str, Any],
+    handoff: Mapping[str, Any],
+    current_main_sha: str,
+    require_review: bool = False,
+) -> dict[str, Any]:
+    """Validate a worker-created PR directly from its signed handoff metadata."""
+    expected_request = packet.get("request_id")
+    expected_base = packet.get("repository", {}).get("base_sha_claim")
+    handoff_request = handoff.get("_worker_request_id")
+    handoff_base = handoff.get("_worker_base_sha")
+    if handoff_request != expected_request:
+        raise PromotionError("worker handoff request id does not match deterministic packet identity")
+    if handoff_base != expected_base:
+        raise PromotionError("worker handoff base SHA does not match deterministic packet identity")
+
+    pr_number = handoff.get("number")
+    if not isinstance(pr_number, int):
+        raise PromotionError("worker handoff has no valid PR number")
+
+    live_pr = _pr(repository, pr_number)
+    if live_pr.get("head", {}).get("sha") != handoff.get("head", {}).get("sha"):
+        raise PromotionError("worker handoff PR head changed after handoff discovery")
+    if live_pr.get("base", {}).get("sha") != current_main_sha:
+        return {
+            "state": "STALE_WORKER_HANDOFF",
+            "capability_id": capability_id,
+            "pr": {
+                "number": pr_number,
+                "head_sha": live_pr.get("head", {}).get("sha"),
+                "base_sha": live_pr.get("base", {}).get("sha"),
+            },
+            "reasons": ["worker PR base is no longer the current canonical main SHA; rebase/reconciliation is required"],
+        }
+
+    allowed = [
+        str(path).replace("\\", "/").rstrip("/")
+        for path in packet.get("constraints", {}).get("allowed_path_prefixes", [])
+    ]
+    forbidden = {
+        str(path).replace("\\", "/").rstrip("/")
+        for path in packet.get("constraints", {}).get("forbidden_paths", [])
+    }
+    changed = _gh_json(repository, f"/pulls/{pr_number}/files?per_page=100")
+    if not isinstance(changed, list):
+        raise PromotionError("GitHub PR file listing returned a non-list payload")
+    unexpected = []
+    for item in changed:
+        filename = str(item.get("filename", "")).replace("\\", "/").lstrip("./")
+        if filename in forbidden or not any(filename == prefix or filename.startswith(prefix + "/") for prefix in allowed):
+            unexpected.append(filename)
+    if unexpected:
+        return {
+            "state": "BLOCKED_FILE_BOUNDARY",
+            "capability_id": capability_id,
+            "pr": {"number": pr_number, "head_sha": live_pr.get("head", {}).get("sha")},
+            "reasons": ["worker PR touches files outside assigned capability boundary: " + ", ".join(unexpected[:10])],
+        }
+
+    return {
+        "state": "IMPLEMENTATION_PR",
+        "capability_id": capability_id,
+        "pr": {
+            "number": pr_number,
+            "branch": live_pr.get("head", {}).get("ref"),
+            "head_sha": live_pr.get("head", {}).get("sha"),
+            "base_sha": live_pr.get("base", {}).get("sha"),
+        },
+        "promotion": inspect_promotion(
+            repository,
+            pr_number,
+            current_main_sha=current_main_sha,
+            require_review=require_review,
+        ),
     }
