@@ -274,6 +274,21 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="series_expansion",
+            name="Taylor and Maclaurin Series Expansion",
+            category="calculus",
+            description="Verifies a finite Taylor/Maclaurin polynomial of explicit non-negative order using derivative coefficients and an independent symbolic series cross-check.",
+            domain="mathematics",
+            inputs=["Scalar Expression"],
+            outputs=["Taylor/Maclaurin Polynomial"],
+            required_assumptions=["explicit_expansion_variable", "explicit_expansion_order"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Taylor's theorem / Maclaurin series",
+        ))
+
+        self.register(RuleDefinition(
             rule_id="integrate",
             name="Definite and Indefinite Integration",
             category="calculus",
