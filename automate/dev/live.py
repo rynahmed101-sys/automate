@@ -124,7 +124,7 @@ def audit_live(
                         and item.get("implementation_state") not in {"merged_main", "superseded", "abandoned"}
                         for item in data.get("capabilities", [])
                     )
-                    expected_branch = "feat/" + capability_id if capability_id else ""
+                    expected_prefix = "feat/" + capability_id + "-" if capability_id else ""
                     request_valid = bool(
                         worker_request
                         and re.fullmatch(r"wrk_[0-9a-f]{32}", worker_request.group(1))
@@ -134,7 +134,8 @@ def audit_live(
                         and request_valid
                         and worker_base
                         and worker_base.group(1) == str(pr.get("baseRefOid") or "")
-                        and branch == expected_branch
+                        and expected_prefix
+                        and branch.startswith(expected_prefix)
                         and "Automated capability implementation generated through Automate's bounded worker pipeline." in body
                     )
                     if not pending_worker_handoff:
