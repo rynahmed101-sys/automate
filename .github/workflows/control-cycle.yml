@@ -47,7 +47,7 @@ jobs:
         id: reconcile
         env:
           GH_TOKEN: ${{ github.token }}
-          AUTOMATE_AUTO_RECONCILE: ${{ vars.AUTOMATE_AUTO_RECONCILE }}
+          AUTOMATE_AUTO_RECONCILE: ${{ vars.AUTOMATE_AUTO_RECONCILE || '1' }}
         run: |
           set -euo pipefail
           python -m pip install -e .
@@ -72,7 +72,7 @@ jobs:
         id: engine_pin
         env:
           GH_TOKEN: ${{ github.token }}
-          AUTOMATE_AUTO_PIN_ENGINE: ${{ vars.AUTOMATE_AUTO_PIN_ENGINE }}
+          AUTOMATE_AUTO_PIN_ENGINE: ${{ vars.AUTOMATE_AUTO_PIN_ENGINE || '1' }}
         run: |
           set -euo pipefail
           python -m pip install -e .
@@ -133,7 +133,7 @@ jobs:
         run: echo "Automate control cycle is disabled by authoritative main."
 
       - name: Checkout pinned engine control plane
-        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED' && steps.readiness.outputs.eligible == 'true'
         uses: actions/checkout@v7
         with:
           ref: ${{ steps.pin.outputs.sha }}
@@ -145,14 +145,34 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Pre-cycle autonomous readiness
+        id: readiness
+        if: steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED' && steps.pin.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
+          AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
+        run: |
+          set -euo pipefail
+          python -m pip install -e .
+          python -m automate.cli capability autonomous-readiness --auto --json > readiness.json
+          cat readiness.json
+          python -c 'import json, os; d=json.load(open("readiness.json")); ok=bool(d.get("ready") or d.get("bootstrap_ready")); out=open(os.environ["GITHUB_OUTPUT"],"a"); out.write("eligible=" + ("true" if ok else "false") + "\n"); out.close()'
+
+      - name: Record autonomous readiness hold
+        if: steps.readiness.outputs.eligible != 'true'
+        run: echo "Autonomous execution held by readiness gates; no worker dispatch performed."
+
       - name: Run exactly one bounded control cycle
         if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         env:
           GH_TOKEN: ${{ github.token }}
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
           AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
-          AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE }}
-          AUTOMATE_AUTO_BOOKKEEP: ${{ vars.AUTOMATE_AUTO_BOOKKEEP }}
+          AUTOMATE_LEARNING_ENABLED: "true"
+          AUTOMATE_AUTO_PUBLISH: "1"
+          AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE || '1' }}
+          AUTOMATE_AUTO_BOOKKEEP: ${{ vars.AUTOMATE_AUTO_BOOKKEEP || '1' }}
           AUTOMATE_MIRROR_DISCOVERY_ENABLED: ${{ vars.AUTOMATE_MIRROR_DISCOVERY_ENABLED }}
           MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT: ${{ secrets.MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT }}
           MIRROR_AUTONOMOUS_DISCOVERY_TOKEN: ${{ secrets.MIRROR_AUTONOMOUS_DISCOVERY_TOKEN }}
