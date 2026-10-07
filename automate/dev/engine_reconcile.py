@@ -268,8 +268,7 @@ def reconcile_engine(
                     [
                         "gh", "pr", "merge", str(listed_rows[0]["number"]),
                         "--repo", repository,
-                        "--auto",
-                        "--merge",
+                            "--merge",
                         "--delete-branch=false",
                         "--match-head-commit", head_sha,
                     ],
