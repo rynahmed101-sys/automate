@@ -254,3 +254,69 @@ def test_live_audit_rejects_capability_pr_on_engine():
     }
     errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
     assert any("no capability or control-plane ownership reference" in error for error in errors)
+
+
+def test_live_audit_current_pr_ignores_unrelated_later_prs():
+    from automate.dev.live import audit_live
+
+    prs = [
+        {
+            "number": 201,
+            "headRefName": "feat/registered-capability",
+            "headRefOid": "1" * 40,
+            "baseRefName": "main",
+            "isDraft": False,
+        },
+        {
+            "number": 202,
+            "headRefName": "feat/unrelated-control-plane",
+            "headRefOid": "2" * 40,
+            "baseRefName": "main",
+            "isDraft": False,
+        },
+    ]
+    errors = audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=prs,
+        current_pr_number=202,
+        base_branch="main",
+    )
+    assert any("PR #202" in error for error in errors)
+    assert not any("PR #201" in error for error in errors)
+
+
+def test_live_audit_engine_lane_is_not_mistaken_for_canonical_capability_lane():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 203,
+        "headRefName": "feat/engine-control-plane",
+        "headRefOid": "3" * 40,
+        "baseRefName": "engine",
+        "isDraft": False,
+    }
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        current_pr_number=203,
+        base_branch="engine",
+    ) == []
+
+
+def test_live_audit_full_main_scope_ignores_engine_work():
+    from automate.dev.live import audit_live
+
+    prs = [
+        {
+            "number": 204,
+            "headRefName": "feat/engine-control-plane",
+            "headRefOid": "4" * 40,
+            "baseRefName": "engine",
+            "isDraft": False,
+        }
+    ]
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=prs,
+        base_branch="main",
+    ) == []
