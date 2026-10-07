@@ -106,7 +106,7 @@ def read_worker_job(
     timeout: float = 30.0,
 ) -> dict[str, Any]:
     return _request_json(
-        worker_base_url(url) + f"/jobs/{job_id}",
+        worker_api_url(url) + f"/jobs/{job_id}",
         token=worker_token(token),
         timeout=timeout,
     )
