@@ -127,9 +127,50 @@ def run_control_cycle(
         local_root=local_root,
         mode="backlog",
     )
+
+    lifecycle = None
+    decision = result.get("decision", {})
+    packet = decision.get("worker_packet", {}).get("packet", {})
+    persisted_job = result.get("persisted_job", {}).get("job", {})
+    worker_result = persisted_job.get("result")
+    base_sha = packet.get("repository", {}).get("base_sha_claim")
+
+    if isinstance(worker_result, dict) and isinstance(base_sha, str):
+        from automate.dev.promotion import inspect_worker_result_lifecycle, execute_promotion
+
+        try:
+            lifecycle = inspect_worker_result_lifecycle(
+                repository,
+                capability_id=capability_id,
+                packet=packet,
+                worker_result=worker_result,
+                current_main_sha=base_sha,
+            )
+            promotion = lifecycle.get("promotion", {})
+            if promotion.get("state") == "READY_TO_MERGE":
+                import os
+                should_execute = os.getenv("AUTOMATE_AUTO_PROMOTE", "").strip().lower() in {"1", "true", "yes"}
+                lifecycle["promotion_execution"] = execute_promotion(
+                    repository,
+                    int(lifecycle["pr"]["number"]),
+                    current_main_sha=base_sha,
+                    execute=should_execute,
+                )
+        except Exception as exc:
+            lifecycle = {
+                "state": "PROMOTION_BLOCKED",
+                "capability_id": capability_id,
+                "error": str(exc),
+            }
+
     return {
         **control,
-        "status": "backlog_cycle_completed",
+        "status": (
+            "promotion_ready"
+            if isinstance(lifecycle, dict) and lifecycle.get("promotion", {}).get("state") == "READY_TO_MERGE"
+            else "backlog_cycle_completed"
+        ),
         "dispatch_allowed": True,
         "cycle": result,
+        "lifecycle": lifecycle,
     }
