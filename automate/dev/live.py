@@ -37,10 +37,21 @@ def live_pull_requests(repository_full_name: str, *, limit: int = 100) -> list[d
     return [dict(item) for item in payload if isinstance(item, dict)]
 
 
-def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]] | None = None) -> list[str]:
+def audit_live(
+    repository_full_name: str,
+    *,
+    pull_requests: list[dict[str, Any]] | None = None,
+    current_pr_number: int | None = None,
+    base_branch: str = "main",
+) -> list[str]:
     data = load_inventory()
     prs = live_pull_requests(repository_full_name) if pull_requests is None else pull_requests
-    by_number = {int(pr["number"]): pr for pr in prs if "number" in pr}
+    scoped_prs = [
+        pr for pr in prs
+        if pr.get("baseRefName") in (None, base_branch)
+        and (current_pr_number is None or int(pr.get("number", -1)) == current_pr_number)
+    ]
+    by_number = {int(pr["number"]): pr for pr in scoped_prs if "number" in pr}
 
     errors: list[str] = []
     inventory_refs: dict[int, list[tuple[str, dict[str, Any]]]] = {}
@@ -90,48 +101,46 @@ def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]]
     for number, pr in by_number.items():
         branch = pr.get("headRefName", "")
         if branch.startswith("feat/"):
-            if number in inventory_refs:
-                if pr.get("baseRefName") not in (None, data["branch_policy"]["feature_base"]):
+            if base_branch == "main":
+                if number not in inventory_refs:
+                    errors.append(f"Open capability PR #{number} ({branch}) has no capability ownership reference.")
+                elif pr.get("baseRefName") not in (None, data["branch_policy"]["feature_base"]):
                     errors.append(
                         f"PR #{number} capability lane targets {pr.get('baseRefName')}, "
                         f"not {data['branch_policy']['feature_base']}."
                     )
-            elif number in control_plane_refs:
-                control_base = data["branch_policy"].get("control_plane_base", "engine")
-                if pr.get("baseRefName") not in (None, control_base):
-                    errors.append(
-                        f"PR #{number} control-plane lane targets {pr.get('baseRefName')}, "
-                        f"not {control_base}."
-                    )
-                recorded_branch = control_plane_refs[number].get("branch")
-                if recorded_branch and recorded_branch != branch:
-                    errors.append(
-                        f"PR #{number} control-plane branch mismatch: "
-                        f"inventory={recorded_branch}, live={branch}."
-                    )
-            else:
-                errors.append(f"Open capability PR #{number} ({branch}) has no capability or control-plane ownership reference.")
-        if branch.startswith("integrate/"):
+            elif pr.get("baseRefName") not in (None, data["branch_policy"].get("control_plane_base", "engine")):
+                errors.append(
+                    f"PR #{number} control-plane lane targets {pr.get('baseRefName')}, "
+                    f"not {data['branch_policy'].get('control_plane_base', 'engine')}."
+                )
+        if branch.startswith("integrate/") and base_branch == "main":
             if number not in integration_refs:
                 errors.append(f"Open reconciliation PR #{number} ({branch}) has no integration ownership reference.")
+            elif pr.get("baseRefName") not in (None, data["branch_policy"]["feature_base"]):
+                errors.append(
+                    f"PR #{number} reconciliation lane targets {pr.get('baseRefName')}, "
+                    f"not {data['branch_policy']['feature_base']}."
+                )
             else:
-                reconciliation_bases = data["branch_policy"].get("reconciliation_bases", ["main", "engine"])
-                if pr.get("baseRefName") not in (None, *reconciliation_bases):
-                    errors.append(
-                        f"PR #{number} reconciliation lane targets {pr.get('baseRefName')}, "
-                        f"not one of {reconciliation_bases}."
-                    )
                 recorded_branch = integration_refs[number].get("branch")
                 if recorded_branch and recorded_branch != branch:
-                    errors.append(
-                        f"PR #{number} integration branch mismatch: inventory={recorded_branch}, live={branch}."
-                    )
+                    errors.append(f"PR #{number} integration branch mismatch: inventory={recorded_branch}, live={branch}.")
 
     return errors
 
 
-def summarize_live(repository_full_name: str) -> dict[str, Any]:
-    errors = audit_live(repository_full_name)
+def summarize_live(
+    repository_full_name: str,
+    *,
+    current_pr_number: int | None = None,
+    base_branch: str = "main",
+) -> dict[str, Any]:
+    errors = audit_live(
+        repository_full_name,
+        current_pr_number=current_pr_number,
+        base_branch=base_branch,
+    )
     return {
         "repository": repository_full_name,
         "valid": not errors,
