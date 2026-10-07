@@ -1,0 +1,66 @@
+name: Automate Control Cycle
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: automate-control-cycle
+  cancel-in-progress: false
+
+jobs:
+  control-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read authoritative control-plane pin
+        id: pin
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          pin = json.loads(Path("docs/CONTROL_PLANE_ENGINE_PIN.json").read_text())
+          assert pin["schema_version"] == "automate.control_plane_pin.v1"
+          enabled = pin["enabled"] is True
+          sha = pin["engine_sha"]
+          if enabled and (not isinstance(sha, str) or len(sha) != 40 or any(c not in "0123456789abcdef" for c in sha)):
+              raise SystemExit("enabled scheduler requires an exact lowercase 40-character engine SHA")
+          print(f"enabled={enabled}")
+          print(f"sha={sha or ''}")
+          with open("${GITHUB_OUTPUT}", "a", encoding="utf-8") as out:
+              out.write(f"enabled={'true' if enabled else 'false'}\n")
+              out.write(f"sha={sha or ''}\n")
+          PY
+
+      - name: Stop cleanly while scheduler is disabled
+        if: steps.pin.outputs.enabled != 'true'
+        run: echo "Automate control cycle is disabled by authoritative main."
+
+      - name: Checkout pinned engine control plane
+        if: steps.pin.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pin.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        if: steps.pin.outputs.enabled == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run exactly one bounded control cycle
+        if: steps.pin.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
+          AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
+          AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE }}
+        run: |
+          python -m pip install -e .
+          automate capability control-cycle             --repo "${{ github.repository }}"             --worker-url "${{ env.AUTOMATE_WORKER_URL }}"             --worker-token "${{ env.AUTOMATE_WORKER_TOKEN }}"             --execute-worker             --json
