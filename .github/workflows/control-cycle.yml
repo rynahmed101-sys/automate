@@ -98,4 +98,11 @@ jobs:
           MIRROR_AUTONOMOUS_DISCOVERY_TOKEN: ${{ secrets.MIRROR_AUTONOMOUS_DISCOVERY_TOKEN }}
         run: |
           python -m pip install -e .
-          automate capability control-cycle             --repo "${{ github.repository }}"             --worker-url "${{ env.AUTOMATE_WORKER_URL }}"             --worker-token "${{ env.AUTOMATE_WORKER_TOKEN }}"             --execute-worker             --json
+          automate capability control-cycle \
+            --repo "${{ github.repository }}" \
+            --worker-url "${{ env.AUTOMATE_WORKER_URL }}" \
+            --worker-token "${{ env.AUTOMATE_WORKER_TOKEN }}" \
+            --local-root "${{ github.workspace }}" \
+            --execute-worker \
+            --execute-discovery \
+            --json
