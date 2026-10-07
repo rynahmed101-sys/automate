@@ -24,6 +24,7 @@ from automate.dev.promotion import (
     find_worker_handoff,
     inspect_worker_handoff_pr,
     inspect_capability_lifecycle,
+    inspect_merged_worker_handoff,
     execute_promotion,
     find_bookkeeping_pr,
     inspect_bookkeeping_pr,
