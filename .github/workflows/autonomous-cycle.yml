@@ -42,7 +42,30 @@ jobs:
           set -euo pipefail
           python -m automate.cli capability autonomous-readiness --auto --json > readiness.json
           cat readiness.json
-          python -c 'import json, os; data=json.load(open("readiness.json")); open(os.environ["GITHUB_OUTPUT"], "a").write("ready=" + ("true" if data.get("ready") is True else "false") + "\n")'
+          python -c 'import json, os; data=json.load(open("readiness.json")); out=open(os.environ["GITHUB_OUTPUT"], "a"); out.write("ready=" + ("true" if data.get("ready") is True else "false") + "\n"); out.write("bootstrap=" + ("true" if data.get("bootstrap_ready") is True else "false") + "\n"); out.close()'
+
+      - name: Run one bounded autonomous bootstrap cycle
+        if: steps.readiness.outputs.ready != 'true' && steps.readiness.outputs.bootstrap == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
+          AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
+          AUTOMATE_LEARNING_ENABLED: "true"
+          AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE || '1' }}
+          AUTOMATE_AUTO_BOOKKEEP: ${{ vars.AUTOMATE_AUTO_BOOKKEEP || '1' }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${AUTOMATE_WORKER_URL:-}" || -z "${AUTOMATE_WORKER_TOKEN:-}" ]]; then
+            echo "Bootstrap held because Chanfana worker credentials are not configured."
+            exit 0
+          fi
+          python -m automate.cli capability control-cycle \
+            --repo rynahmed101-sys/automate \
+            --worker-url "${AUTOMATE_WORKER_URL}" \
+            --worker-token "${AUTOMATE_WORKER_TOKEN}" \
+            --execute-worker \
+            --local-root . \
+            --json
 
       - name: Run one bounded autonomous backlog cycle
         if: steps.readiness.outputs.ready == 'true'
@@ -51,8 +74,8 @@ jobs:
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
           AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
           AUTOMATE_LEARNING_ENABLED: "true"
-          AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE }}
-          AUTOMATE_AUTO_BOOKKEEP: ${{ vars.AUTOMATE_AUTO_BOOKKEEP }}
+          AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE || '1' }}
+          AUTOMATE_AUTO_BOOKKEEP: ${{ vars.AUTOMATE_AUTO_BOOKKEEP || '1' }}
         run: |
           set -euo pipefail
           python -m automate.cli capability control-cycle \
