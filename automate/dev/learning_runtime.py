@@ -1,6 +1,6 @@
 """Runtime bridge between bounded development cycles and the local learning ledger.
 
-Learning is telemetry first, policy second. This bridge records every cycle outcome,
+Learning is telemetry first, policy second. Candidate memory never becomes authority by itself. This bridge records every cycle outcome,
 derives candidate lessons from repeated observations, and exposes only explicitly
 ADOPTED strategy lessons to future worker packets.
 """
