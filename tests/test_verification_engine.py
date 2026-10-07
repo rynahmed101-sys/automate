@@ -308,3 +308,26 @@ def test_implementation_verified_packet_still_requires_exact_ci_and_security():
     )
     assert any("IMPLEMENTATION_VERIFIED packet lacks exact-head" in e for e in errors)
     assert any("IMPLEMENTATION_VERIFIED packet lacks security" in e for e in errors)
+
+
+def test_gh_api_retries_transient_500(monkeypatch):
+    from automate.dev import verification_engine as module
+
+    calls = []
+
+    class FakeResult:
+        def __init__(self, code, stdout="", stderr=""):
+            self.returncode = code
+            self.stdout = stdout
+            self.stderr = stderr
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if len(calls) < 3:
+            return FakeResult(1, stderr="gh: HTTP 500 Internal Server Error")
+        return FakeResult(0, stdout='{"ok": true}')
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    result = module.gh_api("/repos/owner/repo")
+    assert result == {"ok": True}
+    assert len(calls) == 3
