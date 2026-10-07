@@ -180,7 +180,7 @@ def run_control_cycle(
             if bookkeeping_pr and bookkeeping_pr.get("state") == "READY_TO_MERGE":
                 import os
                 should_execute = os.getenv("AUTOMATE_AUTO_BOOKKEEP", "").strip().lower() in {"1", "true", "yes"}
-                bookkeeping_pr["promotion_execution"] = execute_promotion(
+                bookkeeping_pr["promotion_execution"] = execute_bookkeeping_promotion(
                     repository,
                     int(bookkeeping_pr["pr"]["number"]),
                     current_main_sha=current_main_sha,
@@ -198,6 +198,15 @@ def run_control_cycle(
                 return {
                     **control,
                     "status": "bookkeeping_reconciliation_required",
+                    "dispatch_allowed": False,
+                    "lifecycle": merged_handoff,
+                    "bookkeeping": bookkeeping_pr,
+                }
+
+            if bookkeeping_pr and bookkeeping_pr.get("state") in {"BLOCKED", "BLOCKED_BOOKKEEPING_SCOPE"}:
+                return {
+                    **control,
+                    "status": "bookkeeping_blocked",
                     "dispatch_allowed": False,
                     "lifecycle": merged_handoff,
                     "bookkeeping": bookkeeping_pr,
