@@ -140,3 +140,35 @@ def test_worker_packet_preserves_explicit_context():
     paths = [item["path"] for item in packet["packet"]["context"]["files"]]
     assert "tests/test_series_expansions.py" in paths
     assert packet["packet"]["context"]["files"][0]["content"] == "explicit context"
+
+
+def test_worker_packet_request_id_is_deterministic_for_same_revision():
+    from automate.dev.worker import build_worker_packet
+
+    first = build_worker_packet(
+        "stage1b.series_expansions",
+        base_sha_claim="a" * 40,
+        development_branch="main",
+    )
+    second = build_worker_packet(
+        "stage1b.series_expansions",
+        base_sha_claim="a" * 40,
+        development_branch="main",
+    )
+    assert first["packet"]["request_id"] == second["packet"]["request_id"]
+
+
+def test_worker_packet_request_id_changes_with_revision():
+    from automate.dev.worker import build_worker_packet
+
+    first = build_worker_packet(
+        "stage1b.series_expansions",
+        base_sha_claim="a" * 40,
+        development_branch="main",
+    )
+    second = build_worker_packet(
+        "stage1b.series_expansions",
+        base_sha_claim="b" * 40,
+        development_branch="main",
+    )
+    assert first["packet"]["request_id"] != second["packet"]["request_id"]
