@@ -325,12 +325,17 @@ def inspect_post_merge(
 ) -> dict[str, Any]:
     ci = _latest_completed_success(repository, WORKFLOW_CI, merged_main_sha)
     security = _latest_completed_success(repository, WORKFLOW_SECURITY, merged_main_sha)
-    return evaluate_post_merge(
+    result = evaluate_post_merge(
         capability_id=capability_id,
         merged_main_sha=merged_main_sha,
         exact_head_ci_run=ci,
         exact_head_security_run=security,
     )
+    result["ci_run_id"] = ci.get("id") if ci else None
+    result["security_run_id"] = security.get("id") if security else None
+    result["ci_head_sha"] = ci.get("head_sha") if ci else None
+    result["security_head_sha"] = security.get("head_sha") if security else None
+    return result
 
 
 
