@@ -330,3 +330,131 @@ def inspect_post_merge(
         exact_head_ci_run=ci,
         exact_head_security_run=security,
     )
+
+
+
+def open_capability_prs(repository: str, capability_id: str) -> list[dict[str, Any]]:
+    """Return currently open PRs in the canonical capability lane for one capability."""
+    payload = _gh_json(
+        repository,
+        "/pulls?state=open&base=main&per_page=100",
+    )
+    if not isinstance(payload, list):
+        raise PromotionError("GitHub pull request query returned a non-list payload")
+    data = load_inventory()
+    owners: set[int] = set()
+    for item in data.get("capabilities", []):
+        if item.get("id") != capability_id:
+            continue
+        for ref in item.get("references", []):
+            if (
+                ref.get("type") == "pr"
+                and str(ref.get("state", "")).startswith("open")
+                and isinstance(ref.get("number"), int)
+            ):
+                owners.add(int(ref["number"]))
+
+    matches = []
+    for pr in payload:
+        if not isinstance(pr, dict):
+            continue
+        if pr.get("number") in owners or (
+            pr.get("base", {}).get("ref") == "main"
+            and str(pr.get("head", {}).get("ref", "")).startswith("feat/")
+            and capability_id in str(pr.get("title", "")).lower().replace(" ", "_")
+        ):
+            matches.append(pr)
+    return matches
+
+
+def inspect_capability_lifecycle(
+    repository: str,
+    *,
+    capability_id: str,
+    current_main_sha: str,
+    require_review: bool = False,
+) -> dict[str, Any]:
+    """Select the one capability lifecycle state without dispatching duplicate work."""
+    data = load_inventory()
+    capability = next(
+        (item for item in data.get("capabilities", []) if item.get("id") == capability_id),
+        None,
+    )
+    if capability is None:
+        raise PromotionError(f"unknown capability {capability_id}")
+
+    owned_numbers = [
+        ref["number"]
+        for ref in capability.get("references", [])
+        if ref.get("type") == "pr"
+        and isinstance(ref.get("number"), int)
+        and ref.get("role") != "integration_batch"
+    ]
+
+    observed: list[dict[str, Any]] = []
+    for number in owned_numbers:
+        observed.append(_pr(repository, int(number)))
+
+    open_prs = [pr for pr in observed if str(pr.get("state", "")).lower() == "open"]
+    if len(open_prs) > 1:
+        raise PromotionError(
+            f"{capability_id} has multiple open canonical capability PRs: "
+            + ", ".join(str(pr.get("number")) for pr in open_prs)
+        )
+    if open_prs:
+        pr = open_prs[0]
+        evaluation = evaluate_promotion(
+            pr,
+            capability_id=capability_id,
+            current_main_sha=current_main_sha,
+            ci_run=_latest_completed_success(repository, WORKFLOW_CI, str(pr.get("head", {}).get("sha") or "")),
+            security_run=_latest_completed_success(repository, WORKFLOW_SECURITY, str(pr.get("head", {}).get("sha") or "")),
+            require_review=require_review,
+        )
+        return {
+            "state": "IMPLEMENTATION_PR",
+            "capability_id": capability_id,
+            "pr": {
+                "number": pr.get("number"),
+                "head_sha": pr.get("head", {}).get("sha"),
+                "base_sha": pr.get("base", {}).get("sha"),
+            },
+            "promotion": evaluation,
+        }
+
+    merged_prs = [
+        pr for pr in observed
+        if str(pr.get("state", "")).lower() == "closed" and pr.get("merged_at")
+    ]
+    if merged_prs:
+        merged_pr = max(
+            merged_prs,
+            key=lambda pr: str(pr.get("merged_at") or ""),
+        )
+        merge_sha = str(merged_pr.get("merge_commit_sha") or "")
+        if not merge_sha:
+            raise PromotionError(f"{capability_id} has a merged PR without a merge commit SHA")
+        post = inspect_post_merge(
+            repository,
+            capability_id=capability_id,
+            merged_main_sha=merge_sha,
+        )
+        post["pr_number"] = merged_pr.get("number")
+        post["current_main_sha"] = current_main_sha
+        if post["state"] == "BOOKKEEPING_READY" and merge_sha != current_main_sha:
+            post["state"] = "BLOCKED_STALE_MAIN"
+            post["reasons"] = [
+                "merged capability commit is no longer the current main head; reconcile before canonical bookkeeping"
+            ]
+        return {
+            "state": "POST_MERGE",
+            "capability_id": capability_id,
+            "merged_pr_number": merged_pr.get("number"),
+            "merged_main_sha": merge_sha,
+            "post_merge": post,
+        }
+
+    return {
+        "state": "READY_TO_IMPLEMENT",
+        "capability_id": capability_id,
+    }
