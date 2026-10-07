@@ -15,10 +15,7 @@ class BookkeepingError(RuntimeError):
 
 
 def _env() -> dict[str, str]:
-    env = os.environ.copy()
-    if not env.get("GH_TOKEN") and not env.get("GITHUB_TOKEN"):
-        raise BookkeepingError("GH_TOKEN or GITHUB_TOKEN is required")
-    return env
+    return os.environ.copy()
 
 
 def _run(root: Path, args: list[str], *, check: bool = False) -> subprocess.CompletedProcess[str]:
