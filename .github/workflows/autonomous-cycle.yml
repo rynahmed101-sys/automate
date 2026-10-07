@@ -1,0 +1,68 @@
+name: Autonomous Control Cycle
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+
+concurrency:
+  group: automate-autonomous-cycle
+  cancel-in-progress: false
+
+jobs:
+  control-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout living engine trunk
+        uses: actions/checkout@v4
+        with:
+          ref: engine
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install engine
+        run: python -m pip install -e ".[dev]"
+
+      - name: Inspect autonomous readiness
+        id: readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python -m automate.cli capability autonomous-readiness --auto --json > readiness.json
+          cat readiness.json
+          python -c 'import json, os; data=json.load(open("readiness.json")); open(os.environ["GITHUB_OUTPUT"], "a").write("ready=" + ("true" if data.get("ready") is True else "false") + "\n")'
+
+      - name: Run one bounded autonomous backlog cycle
+        if: steps.readiness.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
+          AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
+          AUTOMATE_LEARNING_ENABLED: "true"
+          AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE }}
+          AUTOMATE_AUTO_BOOKKEEP: ${{ vars.AUTOMATE_AUTO_BOOKKEEP }}
+        run: |
+          set -euo pipefail
+          python -m automate.cli capability control-cycle \
+            --repo rynahmed101-sys/automate \
+            --worker-url "${AUTOMATE_WORKER_URL}" \
+            --worker-token "${AUTOMATE_WORKER_TOKEN}" \
+            --execute-worker \
+            --local-root . \
+            --json
+
+      - name: Record readiness hold
+        if: steps.readiness.outputs.ready != 'true'
+        run: |
+          echo "Autonomous cycle held by readiness gates. No worker dispatch performed."
