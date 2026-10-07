@@ -54,9 +54,18 @@ def worker_token(token: str | None = None) -> str:
     return value
 
 
+def worker_api_url(url: str | None = None) -> str:
+    """Normalize a Chanfana deployment URL to its /worker/v1 API surface."""
+    base = worker_base_url(url)
+    suffix = "/worker/v1"
+    if base.endswith(suffix):
+        return base
+    return base + suffix
+
+
 def submit_worker_packet(packet: dict[str, Any], *, url: str | None = None,
                          token: str | None = None, timeout: float = 30.0) -> dict[str, Any]:
-    return _request_json(worker_base_url(url) + "/jobs", token=worker_token(token),
+    return _request_json(worker_api_url(url) + "/jobs", token=worker_token(token),
                          method="POST", body=packet, timeout=timeout)
 
 
