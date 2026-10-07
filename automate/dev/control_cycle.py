@@ -269,6 +269,7 @@ def run_control_cycle(
                     int(bookkeeping_pr["pr"]["number"]),
                     current_main_sha=current_main_sha,
                     execute=should_execute,
+                    verification_result=result,
                 )
                 return {
                     **control,
@@ -436,7 +437,7 @@ def run_control_cycle(
                         and isinstance(result, dict)
                         and result.get("authority") == "EVIDENCE_ONLY"
                         and result.get("source_revision") == head_sha
-                        and result.get("evidence_state") in {"VERIFIED", "REPRODUCED"}
+                        and result.get("evidence_state") in {"VERIFIED", "REPRODUCED", "IMPLEMENTATION_VERIFIED"}
                     ),
                 }
             except Exception as exc:
@@ -467,6 +468,7 @@ def run_control_cycle(
                 packet=packet,
                 handoff=handoff,
                 current_main_sha=current_main_sha,
+                verification_result=result,
             )
             promotion = lifecycle.get("promotion", {})
             if promotion.get("state") == "READY_TO_MERGE":
