@@ -1,0 +1,7 @@
+{
+  "schema_version": "automate.control_plane_pin.v1",
+  "enabled": false,
+  "engine_sha": null,
+  "auto_promote": false,
+  "notes": "Starts inert. Activation requires an explicit pin to a verified engine tip. Implementation promotion, canonical bookkeeping, and Mirror discovery have separate gates."
+}

@@ -33,6 +33,7 @@ jobs:
     if: github.event_name == 'pull_request'
     name: Development / Python 3.12 / shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

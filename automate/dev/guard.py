@@ -23,6 +23,13 @@ def validate_branch_scope(branch: str, files: list[str]) -> list[str]:
     errors: list[str] = []
 
     if branch.startswith("feat/"):
+        control_plane = [
+            ref for ref in data.get("control_plane_references", [])
+            if ref.get("branch") == branch
+            and str(ref.get("state", "")).startswith("open")
+        ]
+        if control_plane:
+            return errors
         touched = sorted(shared.intersection(files))
         if touched:
             errors.append(

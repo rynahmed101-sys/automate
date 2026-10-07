@@ -158,7 +158,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 **Depth rule:** “derivative” means a general differentiation capability, not a permanently hard-coded first-derivative feature. The same principle applies to integrals, series order, and multivariable operations.
 
-**Control-plane frontier:** the next claimable Stage 1B capability is **Taylor / Maclaurin series and higher-order expansions** (GitHub issue #141). Improper integrals are already merged into authoritative main, but their historical exact-head/security evidence is incomplete, so their certification remains conservative. Stage 1C ODE implementation is preserved as later work and must not leapfrog the remaining 1B ladder.
+**Control-plane frontier:** the next claimable Stage 1B capability is **Taylor / Maclaurin series and higher-order expansions** (GitHub issue #141). Improper integrals are merged into authoritative main; their exact-head/security verification record is being reconciled on the current main line. Stage 1C ODE implementation is preserved as later work and must not leapfrog the remaining 1B ladder.
 
 ## 1C. General ODEs
 
@@ -179,7 +179,7 @@ This stage contains the mathematical basics that later physics must be able to r
 
 Stage 1 is complete only when its mathematical machinery is sufficiently general to serve later physics without repeatedly returning for missing elementary operators.
 
-**Current status:** [~] Active. Stage 1A and the implemented Stage 1B calculus stack are merged into main. Improper integrals (Issue #115) are merged but not yet fully certified because the historical exact-head/security receipt is incomplete. The next claimable capability is Series expansions (Issue #141). Stage 1C ODE work remains preserved out of order.
+**Current status:** [~] Active. Stage 1A and the implemented Stage 1B calculus stack are merged into main. Improper integrals (Issue #115) are now merged, while the latest exact-head run exposed stale frontier assertions that are being corrected by the current reconciliation PR. The next claimable capability is Series expansions (Issue #141). Stage 1C ODE work remains preserved out of order.
 
 ---
 
@@ -615,7 +615,7 @@ When entering a new chat:
 
 **Active development stage:** Stage 1 — Complete Core Mathematical Engine.
 
-**Current priority:** actively develop the Stage 1B frontier beginning with **Taylor / Maclaurin series and higher-order expansions**, followed by multivariable and assumption-aware extensions. Improper integrals are already merged; certification bookkeeping may remain conservative until historical exact-head/security evidence is recoverable. The Fundamental Theorem of Calculus is already implemented on the authoritative baseline; development may proceed on the living `engine` trunk without waiting for `main` promotion.
+**Current priority:** actively develop the Stage 1B convergence frontier, beginning with improper integrals and then series, multivariable, and assumption-aware extensions. The Fundamental Theorem of Calculus is already implemented on the authoritative baseline; development may proceed on the living `engine` trunk without waiting for `main` promotion.
 
 **Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
 
@@ -632,7 +632,7 @@ The primary agent owns repository ground work, reconciliation, defect repair, ce
 - PR #83 — Stage 2D completion: merged to main; differential Maxwell equations, Lorentz force, and Poynting-vector/energy-balance verification are now `[x]` after exact-head/security verification of current main.
 - Existing Stage 2B/Stage 2C/Stage 2D branches that predate the current main may be stale; do not blindly merge them.
 
-These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The active Stage 1B frontier is `stage1b.series_expansions`. Improper integrals are historical merged work; Series Expansions is the next capability that the control plane may claim and dispatch.
+These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The active Stage 1B frontier is `stage1b.improper_integrals`. It is developed on the living `engine` trunk and advances through evidence gates before promotion to `main`.
 
 ---
 
