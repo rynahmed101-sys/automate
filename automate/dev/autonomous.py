@@ -14,7 +14,8 @@ from typing import Any, Literal
 from automate.dev.inventory import InventoryError
 from automate.dev.verification_engine import deterministic_id
 from automate.dev.publisher import build_worker_commit
-from automate.dev.research import build_mirror_research_job
+from automate.dev.research import build_mirror_research_job, build_mirror_frontier_job
+from automate.dev.frontier_result import apply_frontier_diff, FrontierProposalError
 from automate.dev.supervisor import supervisor_snapshot
 from automate.dev.worker import validate_worker_result
 from automate.dev.worker_client import (
@@ -99,6 +100,71 @@ def run_autonomous_cycle(
                 )
         except LearningRuntimeError as exc:
             learning_sync = {"status": "selection_unavailable", "error": str(exc)}
+
+    # When explicitly enabled, the frontier worker becomes the implementation actor.
+    # Chanfana remains transport and Mirror remains an untrusted proposal generator.
+    frontier_enabled = os.getenv("AUTOMATE_FRONTIER_WORKER_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+    if mode == "backlog" and frontier_enabled:
+        mirror_endpoint = os.getenv("MIRROR_FRONTIER_ENDPOINT", "").strip()
+        if not mirror_endpoint:
+            raise AutonomousCycleError("MIRROR_FRONTIER_ENDPOINT is required when frontier worker is enabled")
+        base_sha = str(packet["packet"]["repository"].get("base_sha_claim") or "")
+        frontier_job = build_mirror_frontier_job(
+            capability=capability_item,
+            mirror_endpoint=mirror_endpoint,
+            request_id=deterministic_id("frontier", capability_item["id"], base_sha, packet["packet"]["request_id"]),
+            action_cycle_id=packet["packet"]["request_id"],
+            correlation_id=packet["packet"]["request_id"],
+            current_backlog=[capability_item["id"]],
+            ledger_frontier=[capability_item["id"]],
+            automate_requests=[],
+            repair_required=False,
+            discovery_allowed=False,
+            ledger_hash=None,
+            required_action="implement",
+        )
+        try:
+            frontier_dispatch = dispatch_worker(
+                frontier_job, url=worker_url, token=worker_token, execute=execute_worker
+            )
+        except WorkerTransportError as exc:
+            raise AutonomousCycleError("frontier worker commission failed: " + str(exc)) from exc
+        output: dict[str, Any] = {
+            "status": "frontier_worker_dispatched",
+            "decision": decision,
+            "dispatch": frontier_dispatch,
+            "operating_mode": "MIRROR_FRONTIER",
+        }
+        if not execute_worker:
+            return output
+        execution = frontier_dispatch.get("execution", {})
+        result = execution.get("result")
+        job_id = execution.get("jobId") or frontier_dispatch.get("queued", {}).get("jobId")
+        if not isinstance(result, dict) and isinstance(job_id, str):
+            try:
+                completed = wait_worker_job(job_id, url=worker_url, token=worker_token, timeout=900.0)
+            except WorkerTransportError as exc:
+                return {**output, "status": "frontier_worker_queued", "error": str(exc)}
+            result = completed.get("job", {}).get("result")
+            output["dispatch"] = {**frontier_dispatch, "execution": {**execution, "polled": completed}}
+        if not isinstance(result, dict):
+            raise AutonomousCycleError("frontier worker returned no persisted proposal")
+        if local_root is None:
+            output["status"] = "untrusted_frontier_proposal"
+            output["proposal"] = result
+            return output
+        try:
+            applied = apply_frontier_diff(
+                result,
+                capability_id=capability_item["id"],
+                base_sha=base_sha,
+                repository_root=local_root,
+            )
+        except FrontierProposalError as exc:
+            raise AutonomousCycleError(str(exc)) from exc
+        output["proposal_application"] = applied
+        output["status"] = applied["status"]
+        return output
 
     # BACKLOG mode is strictly implementation-first. It must never commission
     # open-ended Mirror research merely because the worker is being automated.
