@@ -32,8 +32,9 @@ def _github_env() -> dict[str, str]:
 
 
 def _gh_json(repository: str, *args: str) -> Any:
-    command = ["gh", "api", "repos/" + repository]
-    command.extend(args)
+    endpoint = "repos/" + repository
+    endpoint += "".join(args)
+    command = ["gh", "api", endpoint]
     result = subprocess.run(
         command,
         capture_output=True,
