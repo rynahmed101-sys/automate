@@ -108,6 +108,31 @@ def _github_content_exists(repository: str, path: str, ref: str) -> bool:
         return False
 
 
+def _github_lifecycle_exercised(repository: str) -> bool:
+    """Return true only after a real worker-created capability reached verified main."""
+    try:
+        prs = _gh_json(repository, "/pulls?state=closed&base=main&per_page=100")
+    except Exception:
+        return False
+    if not isinstance(prs, list):
+        return False
+    for pr in prs:
+        if not isinstance(pr, dict) or not pr.get("merged_at"):
+            continue
+        head = pr.get("head", {})
+        if not isinstance(head, dict) or not str(head.get("ref", "")).startswith("feat/"):
+            continue
+        body = str(pr.get("body") or "")
+        if "worker_request_id:" not in body or "capability:" not in body:
+            continue
+        merge_sha = str(pr.get("merge_commit_sha") or "")
+        if len(merge_sha) != 40:
+            continue
+        if _workflow_success(repository, "ci.yml", merge_sha) and _workflow_success(repository, "security.yml", merge_sha):
+            return True
+    return False
+
+
 def _foundation_present_on_main(repository: str) -> bool:
     """Require the autonomous foundation to actually exist on live main.
 
@@ -241,7 +266,7 @@ def collect_readiness_evidence(
         evidence["worker_api_authenticated_bounded"] = present and worker_ci
         # Worker repository health is not proof that Automate exercised its own
         # worker -> proposal -> branch -> PR lifecycle.
-        evidence["github_lifecycle_exercised"] = False
+        evidence["github_lifecycle_exercised"] = _github_lifecycle_exercised(repository)
     except Exception as exc:
         errors.append(f"worker substrate inspection failed: {exc}")
 
