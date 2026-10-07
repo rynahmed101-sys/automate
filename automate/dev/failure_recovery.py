@@ -99,6 +99,55 @@ def quarantine_worker_pr(repository: str, pr_number: int, failures: list[dict[st
     return {"status": "quarantined", "pr_number": pr_number, "failures": failures}
 
 
+def diagnose_worker_failure(repository: str, pr_number: int, failures: list[dict[str, Any]]) -> dict[str, Any]:
+    """Collect failed logs and the quarantined PR diff for a bounded repair packet."""
+    diff = _run(["gh", "pr", "diff", str(pr_number), "--repo", repository])
+    changed_paths = []
+    for line in diff.stdout.splitlines():
+        if line.startswith("diff --git a/"):
+            parts = line.split()
+            if len(parts) >= 4:
+                changed_paths.append(parts[3][2:])
+    notes = [
+        "AUTONOMOUS_DIAGNOSIS: repair an existing capability; do not reproduce the failed patch unchanged.",
+        "AUTONOMOUS_DIAGNOSIS: inspect changed paths and failed logs before editing.",
+        "AUTONOMOUS_REPAIR_DIRECTIVE: identify root cause, repair capability code or focused tests, and add a regression test when appropriate.",
+    ]
+    classes = set()
+    for failure in failures[:4]:
+        run_id = failure.get("run_id")
+        if not isinstance(run_id, int):
+            continue
+        log = _run(["gh", "run", "view", str(run_id), "--repo", repository, "--log-failed"])
+        text = log.stdout[-3200:] if log.stdout else ""
+        if "SyntaxError" in text or "IndentationError" in text:
+            classes.add("syntax")
+        elif "ModuleNotFoundError" in text or "ImportError" in text:
+            classes.add("import")
+        elif "TypeError" in text:
+            classes.add("type")
+        elif "AssertionError" in text or "FAILED" in text:
+            classes.add("test_or_assertion")
+        elif "timed out" in text.lower() or "timeout" in text.lower():
+            classes.add("timeout")
+        elif text:
+            classes.add("unknown")
+        if text:
+            notes.append(
+                "AUTONOMOUS_FAILURE_DIAGNOSIS: workflow="
+                + str(failure.get("workflow"))
+                + " run_id=" + str(run_id)
+                + " classes=" + ",".join(sorted(classes))
+                + "\n" + text
+            )
+    return {
+        "status": "diagnosed" if classes else "evidence_limited",
+        "changed_paths": changed_paths[:30],
+        "failure_classes": sorted(classes or {"unknown"}),
+        "notes": notes,
+    }
+
+
 def failure_notes(failures: list[dict[str, Any]]) -> list[str]:
     notes = [
         "AUTONOMOUS_RECOVERY: prior worker proposal failed exact-head verification.",
