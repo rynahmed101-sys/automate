@@ -115,9 +115,9 @@ def audit_live(
             if target_base == "main":
                 if number not in inventory_refs:
                     body = str(pr.get("body") or "")
-                    worker_request = re.search(r"(?m)^- worker_request_id:\\s*([A-Za-z0-9_.:-]{8,128})\\s*$", body)
-                    worker_base = re.search(r"(?m)^- base_sha:\\s*([0-9a-f]{40})\\s*$", body)
-                    capability = re.search(r"(?m)^- capability:\\s*([a-z0-9][a-z0-9_.-]*)\\s*$", body)
+                    worker_request = re.search(r"(?m)^- worker_request_id:\s*([A-Za-z0-9_.:-]{8,128})\s*$", body)
+                    worker_base = re.search(r"(?m)^- base_sha:\s*([0-9a-f]{40})\s*$", body)
+                    capability = re.search(r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$", body)
                     capability_id = capability.group(1) if capability else ""
                     known_capability = any(
                         item.get("id") == capability_id
