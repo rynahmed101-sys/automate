@@ -315,5 +315,5 @@ def autonomous_readiness_command(
             "end_to_end_dry_run_passed": end_to_end_dry_run_passed,
         })
     click.echo(json.dumps(payload, indent=2))
-    if not payload["ready"]:
+    if not payload["ready"] and not automatic:
         raise click.exceptions.Exit(1)
