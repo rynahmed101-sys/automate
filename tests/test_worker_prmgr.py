@@ -23,7 +23,7 @@ def test_create_worker_pr_rejects_non_worker_branch():
             raise AssertionError("unsafe branch was accepted")
 
 
-def test_create_worker_pr_uses_draft_mode():
+def test_create_worker_pr_defaults_to_ready_for_governed_promotion():
     with patch.dict("os.environ", {"GH_TOKEN": "secret"}), patch(
         "automate.dev.prmgr.subprocess.run"
     ) as run:
@@ -38,8 +38,8 @@ def test_create_worker_pr_uses_draft_mode():
             base_sha="0" * 40,
             test_result={"status": "passed", "command": ["python", "-m", "pytest", "-q", "tests/test_improper_integrals.py"]},
         )
-    assert result["draft"] is True
+    assert result["draft"] is False
     command = run.call_args.args[0]
-    assert "--draft" in command
+    assert "--draft" not in command
     assert "--base" in command
     assert "main" in command
