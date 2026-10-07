@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-import uuid
+import hashlib
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -151,7 +151,18 @@ def build_worker_packet(
         "schema_version": "automate.worker.v1",
         "packet": {
             "kind": "capability_implementation",
-            "request_id": f"wrk_{uuid.uuid4().hex}",
+            "request_id": "wrk_" + hashlib.sha256(
+                json.dumps(
+                    {
+                        "repository": repository,
+                        "base_sha": base_sha_claim,
+                        "capability_id": capability_id,
+                        "development_branch": development_branch,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()[:32],
             "repository": {
                 "full_name": repository,
                 "base_branch": development_branch,
