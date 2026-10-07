@@ -157,3 +157,53 @@ def test_bookkeeping_pr_requires_review_gate():
     }
     assert blocked["state"] == "BLOCKED"
     assert blocked["gates"]["review_gate"] is False
+
+
+def test_capability_merge_is_blocked_if_main_moves_after_gate(monkeypatch):
+    from automate.dev import promotion
+
+    base = "1" * 40
+    pr = _pr()
+    with monkeypatch.context() as m:
+        m.setattr(promotion, "inspect_promotion", lambda *args, **kwargs: {
+            "state": "READY_TO_MERGE",
+            "head_sha": "2" * 40,
+            "gates": {},
+            "reasons": [],
+        })
+        m.setattr(promotion, "_gh_json", lambda *args, **kwargs: {"object": {"sha": "3" * 40}})
+        result = promotion.execute_promotion(
+            "owner/repo",
+            7,
+            current_main_sha=base,
+            execute=True,
+        )
+    assert result["execution"] == "blocked_by_race"
+
+
+def test_capability_merge_is_blocked_if_pr_head_moves_after_gate(monkeypatch):
+    from automate.dev import promotion
+
+    base = "1" * 40
+    calls = iter([
+        {"object": {"sha": base}},
+        {**_pr(), "head": {"sha": "9" * 40}},
+    ])
+    monkeypatch.setattr(promotion, "_gh_json", lambda *args, **kwargs: next(calls))
+    monkeypatch.setattr(
+        promotion,
+        "inspect_promotion",
+        lambda *args, **kwargs: {
+            "state": "READY_TO_MERGE",
+            "head_sha": "2" * 40,
+            "gates": {},
+            "reasons": [],
+        },
+    )
+    result = promotion.execute_promotion(
+        "owner/repo",
+        7,
+        current_main_sha=base,
+        execute=True,
+    )
+    assert result["execution"] == "blocked_by_race"
