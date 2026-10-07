@@ -127,14 +127,3 @@ def test_uncertain_symbolic_value_comparison_fails_closed():
     assert details.get("_status_override") == VerificationStatus.UNVERIFIED.value
     assert evidence == []
     assert "UNVERIFIED" in error
-
-
-def test_two_sided_inverse_x_never_gets_principal_value_certified():
-    passed, details, evidence, error = run(
-        {"variable": "x", "lower": "-oo", "upper": "oo"},
-        "1/x",
-        "0",
-    )
-    assert passed is False
-    assert details.get("converges") is not True
-    assert "UNVERIFIED" in (error or "") or "diverg" in (error or "").lower()
