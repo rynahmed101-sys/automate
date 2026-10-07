@@ -71,22 +71,80 @@ def run_control_cycle(
             "dispatch_allowed": False,
         }
 
-    from automate.dev.promotion import PromotionError, inspect_capability_lifecycle
+    from automate.dev.promotion import (
+        PromotionError,
+        _gh_json,
+        find_worker_handoff,
+        inspect_worker_handoff_pr,
+        inspect_capability_lifecycle,
+    )
 
     capability_id = action["capability_id"]
+
     try:
-        ref_payload = __import__("subprocess").run(
-            ["git", "rev-parse", "origin/main"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        current_main_sha = ref_payload.stdout.strip()
-    except Exception as exc:
-        return {**control, "status": "main_sha_unavailable", "error": str(exc), "dispatch_allowed": False}
+        ref_payload = _gh_json(repository, "/git/ref/heads/main")
+        current_main_sha = str(ref_payload.get("object", {}).get("sha") or "")
+    except PromotionError as exc:
+        return {
+            **control,
+            "status": "main_sha_unavailable",
+            "error": str(exc),
+            "dispatch_allowed": False,
+        }
 
     if len(current_main_sha) != 40:
         return {**control, "status": "main_sha_unavailable", "dispatch_allowed": False}
+
+    # First-class handoff check: an existing worker PR is durable work.
+    # Never dispatch a second job for the same canonical capability while that
+    # handoff exists, even if inventory bookkeeping has not caught up yet.
+    try:
+        handoff = find_worker_handoff(
+            repository,
+            capability_id=capability_id,
+            current_main_sha=current_main_sha,
+        )
+    except PromotionError as exc:
+        return {
+            **control,
+            "status": "worker_handoff_error",
+            "error": str(exc),
+            "dispatch_allowed": False,
+        }
+
+    if handoff is not None:
+        try:
+            packet = build_worker_packet(
+                capability_id,
+                repository=repository,
+                base_sha_claim=current_main_sha,
+                development_branch="main",
+            )["packet"]
+            lifecycle = inspect_worker_handoff_pr(
+                repository,
+                capability_id=capability_id,
+                packet=packet,
+                handoff=handoff,
+                current_main_sha=current_main_sha,
+            )
+        except PromotionError as exc:
+            return {
+                **control,
+                "status": "worker_handoff_blocked",
+                "error": str(exc),
+                "dispatch_allowed": False,
+            }
+
+        return {
+            **control,
+            "status": (
+                "promotion_ready"
+                if lifecycle.get("promotion", {}).get("state") == "READY_TO_MERGE"
+                else lifecycle.get("state", "worker_handoff_active").lower()
+            ),
+            "dispatch_allowed": False,
+            "lifecycle": lifecycle,
+        }
 
     try:
         lifecycle = inspect_capability_lifecycle(
