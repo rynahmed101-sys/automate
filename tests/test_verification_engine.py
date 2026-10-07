@@ -202,3 +202,33 @@ def test_packet_consistency_rejects_fake_authority_and_packet_identity():
     errors = validate_packet_consistency(packet, request=request, repository_state={})
     assert any("authority" in e for e in errors)
     assert any("packet_id" in e for e in errors)
+
+
+def test_enabled_mirror_failure_prevents_verified_backlog_state(monkeypatch):
+    monkeypatch.setenv("AUTOMATE_MIRROR_VERIFICATION_ENABLED", "true")
+    with TemporaryDirectory() as d:
+        snapshot = {
+            "main_sha": "1b0bb0b6707d76ff403c46bb93e353a97d16e26",
+            "engine_sha": "ee7556b9ab5078c89052eecfb83490355dbeb497",
+            "workflow_runs_main": [
+                {"id": 1, "head_sha": "ee7556b9ab5078c89052eecfb83490355dbeb497", "status": "completed", "conclusion": "success", "name": "Automate CI"},
+                {"id": 2, "head_sha": "ee7556b9ab5078c89052eecfb83490355dbeb497", "status": "completed", "conclusion": "success", "name": "Security Audit"},
+            ],
+            "workflow_runs_engine": [],
+        }
+        from unittest.mock import patch
+        with patch(
+            "automate.dev.mirror_verification_client.run_mirror_verification",
+            side_effect=RuntimeError("mirror unavailable"),
+        ):
+            result = run_backlog_item(
+                capability_id="stage1b.improper_integrals",
+                repository="rynahmed101-sys/automate",
+                revision=snapshot["engine_sha"],
+                branch="engine",
+                action_cycle_id="cycle_mirror_12345678",
+                snapshot=snapshot,
+                evidence_db=Path(d) / "run.db",
+            )
+    assert result["evidence_state"] != EvidenceState.VERIFIED.value
+    assert result["mirror_result"]["status"] == "UNRESOLVED"
