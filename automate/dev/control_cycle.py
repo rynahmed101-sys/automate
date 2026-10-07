@@ -232,7 +232,7 @@ def run_control_cycle(
     # Detect a previously merged worker handoff even if canonical inventory
     # bookkeeping has not yet caught up.
     try:
-        merged_handoff = __import__("automate.dev.promotion", fromlist=["inspect_merged_worker_handoff"]).inspect_merged_worker_handoff(
+        merged_handoff = inspect_merged_worker_handoff(
             repository,
             capability_id=capability_id,
             current_main_sha=current_main_sha,
