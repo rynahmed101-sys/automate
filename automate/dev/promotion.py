@@ -641,6 +641,67 @@ def find_bookkeeping_pr(
     return matches[0] if matches else None
 
 
+
+def execute_bookkeeping_promotion(
+    repository: str,
+    pr_number: int,
+    *,
+    current_main_sha: str,
+    execute: bool = False,
+) -> dict[str, Any]:
+    """Merge only an evidence-clean, explicitly reviewed canonical bookkeeping PR."""
+    evaluation = inspect_bookkeeping_pr(
+        repository,
+        capability_id=_bookkeeping_capability_from_pr(repository, pr_number),
+        merge_sha=current_main_sha,
+        require_review=True,
+    )
+    if evaluation is None:
+        raise PromotionError("bookkeeping PR was not found")
+    if evaluation["state"] != "READY_TO_MERGE":
+        return {**evaluation, "execution": "not_ready"}
+    if not execute:
+        return {**evaluation, "execution": "dry_run_ready"}
+    if os.getenv("AUTOMATE_AUTO_BOOKKEEP", "").strip().lower() not in {"1", "true", "yes"}:
+        return {
+            **evaluation,
+            "execution": "blocked_by_governance",
+            "reasons": [*evaluation.get("reasons", []), "AUTOMATE_AUTO_BOOKKEEP is not enabled."],
+        }
+
+    head_sha = evaluation["pr"]["head_sha"]
+    command = [
+        "gh", "pr", "merge", str(pr_number),
+        "--repo", repository,
+        "--merge",
+        "--delete-branch=false",
+        "--match-head-commit", head_sha,
+    ]
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_github_env(),
+    )
+    if completed.returncode != 0:
+        raise PromotionError(completed.stderr.strip() or "GitHub refused canonical bookkeeping merge")
+    return {
+        **evaluation,
+        "execution": "merged_pending_exact_main_verification",
+        "expected_head_sha": head_sha,
+        "merge_output": completed.stdout.strip(),
+    }
+
+
+def _bookkeeping_capability_from_pr(repository: str, pr_number: int) -> str:
+    pr = _pr(repository, pr_number)
+    body = str(pr.get("body") or "")
+    match = re.search(r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$", body)
+    if not match:
+        raise PromotionError(f"bookkeeping PR #{pr_number} has no canonical capability marker")
+    return match.group(1)
+
 def inspect_bookkeeping_pr(
     repository: str,
     *,
