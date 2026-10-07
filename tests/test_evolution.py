@@ -169,3 +169,18 @@ def test_adopted_system_improvement_lesson_generates_mutable_evolution_candidate
         assert candidates[0]["auto_promotable"] is True
     finally:
         store.close()
+
+def test_evolution_plan_rejects_unapproved_root():
+    proposal = _proposal()
+    with pytest.raises(Exception, match="approved repository roots"):
+        build_evolution_plan(
+            proposal,
+            base_revision="a" * 40,
+            allowed_path_prefixes=["."],
+            changes=[{
+                "path": "pyproject.toml",
+                "operation": "update",
+                "expected_sha": "b" * 40,
+                "content": "[project]\n",
+            }],
+        )
