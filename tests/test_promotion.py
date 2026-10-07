@@ -114,3 +114,19 @@ def test_promotion_lifecycle_reports_ready_to_implement_without_open_or_merged_p
             current_main_sha="a" * 40,
         )
     assert result["state"] == "READY_TO_IMPLEMENT"
+
+
+def test_validated_worker_handoff_can_satisfy_temporary_ownership():
+    from automate.dev.promotion import evaluate_promotion
+
+    pr = _pr(
+        head={"ref": "feat/stage1b.series_expansions-aaaaaaaaaaaa", "sha": "2" * 40},
+    )
+    result = evaluate_promotion(
+        pr,
+        capability_id="stage1b.series_expansions",
+        current_main_sha="1" * 40,
+        ci_run=_run(),
+        security_run=_run(),
+    )
+    assert result["state"] == "READY_TO_MERGE"
