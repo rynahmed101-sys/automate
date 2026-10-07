@@ -678,14 +678,30 @@ def gh_api(path: str, *, timeout: int = 30) -> Any:
     """Bounded live GitHub reader used by the verification engine."""
     if not path.startswith("/"):
         raise ValueError("GitHub API paths must be absolute")
-    proc = subprocess.run(
-        ["gh", "api", path, "--method", "GET"],
-        capture_output=True, text=True, timeout=timeout, check=False,
-    )
-    if proc.returncode:
-        raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
+
+    token = __import__("os").getenv("GH_TOKEN") or __import__("os").getenv("GITHUB_TOKEN")
+    if token:
+        proc = subprocess.run(
+            ["gh", "api", path, "--method", "GET"],
+            capture_output=True, text=True, timeout=timeout, check=False,
+        )
+        if proc.returncode:
+            raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
+        raw = proc.stdout
+    else:
+        proc = subprocess.run(
+            ["curl", "--fail", "--silent", "--show-error",
+             "--header", "Accept: application/vnd.github+json",
+             "--header", "X-GitHub-Api-Version: 2022-11-28",
+             "https://api.github.com" + path],
+            capture_output=True, text=True, timeout=timeout, check=False,
+        )
+        if proc.returncode:
+            raise RuntimeError(f"GitHub public read failed: {proc.stderr.strip()}")
+        raw = proc.stdout
+
     try:
-        return json.loads(proc.stdout)
+        return json.loads(raw)
     except json.JSONDecodeError as exc:
         raise RuntimeError("GitHub returned non-JSON verification data") from exc
 
