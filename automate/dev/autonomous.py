@@ -23,6 +23,14 @@ from automate.dev.worker_client import (
     read_worker_job,
     wait_worker_job,
 )
+from automate.dev.learning_runtime import (
+    LearningRuntimeError,
+    open_learning_store,
+    persist_learning_artifact,
+    record_cycle_experience,
+    select_learning_strategy,
+    sync_remote_learning,
+)
 
 
 class AutonomousCycleError(RuntimeError):
@@ -39,8 +47,30 @@ def run_autonomous_cycle(
     mode: Literal["backlog", "research"] = "backlog",
 ) -> dict[str, Any]:
     decision = supervisor_snapshot(repository, live=True)
+    learning_store = None
+    learning_sync: dict[str, Any] | None = None
+    selected_strategy: dict[str, Any] = {
+        "strategy_id": "frontier-default",
+        "source": "default",
+        "confidence": "none",
+        "reason": "learning disabled",
+    }
+    if os.getenv("AUTOMATE_LEARNING_ENABLED", "").strip().lower() in {"1", "true", "yes"}:
+        try:
+            learning_store = open_learning_store(os.getenv("AUTOMATE_LEARNING_DB", "data/learning.db"))
+            if worker_url and worker_token:
+                learning_sync = sync_remote_learning(
+                    learning_store,
+                    url=worker_url,
+                    token=worker_token,
+                    limit=100,
+                )
+        except Exception as exc:
+            learning_sync = {"status": "unavailable", "error": str(exc)}
+            learning_store = None
+
     if not decision["can_dispatch"]:
-        return {"status": "stopped", "decision": decision}
+        return {"status": "stopped", "decision": decision, "learning_sync": learning_sync}
 
     packet = decision["worker_packet"]
     capability = packet["packet"]["capability"]
@@ -49,6 +79,25 @@ def run_autonomous_cycle(
         "name": capability["name"],
         "task": packet["packet"].get("task", {}),
     }
+
+    if learning_store is not None:
+        try:
+            selected_strategy = select_learning_strategy(
+                learning_store,
+                task_kind="capability_implementation",
+                task_target=capability_item["id"],
+            )
+            packet["packet"].setdefault("context", {"files": [], "notes": []})
+            packet["packet"]["context"].setdefault("notes", []).extend([
+                "LEARNING STRATEGY: " + str(selected_strategy["strategy_id"]),
+                "LEARNING SOURCE: " + str(selected_strategy.get("source", "unknown")),
+            ])
+            for lesson in selected_strategy.get("adopted_lessons", [])[:5]:
+                packet["packet"]["context"]["notes"].append(
+                    "ADOPTED LESSON: " + str(lesson.get("statement", ""))
+                )
+        except LearningRuntimeError as exc:
+            learning_sync = {"status": "selection_unavailable", "error": str(exc)}
 
     # BACKLOG mode is strictly implementation-first. It must never commission
     # open-ended Mirror research merely because the worker is being automated.
@@ -109,6 +158,34 @@ def run_autonomous_cycle(
             raise AutonomousCycleError("worker execution returned no persisted worker result")
         errors = validate_worker_result(result, packet["packet"])
         if errors:
+            if learning_store is not None:
+                try:
+                    learning = record_cycle_experience(
+                        learning_store,
+                        action_cycle_id=packet["packet"]["request_id"],
+                        task_kind="capability_implementation",
+                        task_target=capability_item["id"],
+                        strategy_id=selected_strategy["strategy_id"],
+                        outcome="failure",
+                        observation="worker result failed Automate validation: " + "; ".join(errors),
+                        revision=packet["packet"]["repository"]["base_sha_claim"],
+                        evidence_refs=[{"id": str(job_id or "worker-result"), "kind": "worker_result"}],
+                        failure_class="contract_schema_defect",
+                        repository=repository,
+                    )
+                    output["learning"] = learning
+                    if worker_url and worker_token:
+                        persist_learning_artifact(
+                            learning["experience"],
+                            artifact_type="learning_experience",
+                            request_id="learning_" + learning["experience_id"].removeprefix("exp_"),
+                            correlation_id=packet["packet"]["request_id"],
+                            source_revision=packet["packet"]["repository"]["base_sha_claim"],
+                            url=worker_url,
+                            token=worker_token,
+                        )
+                except LearningRuntimeError:
+                    output["learning_persistence"] = "unavailable"
             raise AutonomousCycleError("; ".join(errors))
         if local_root is None:
             output["status"] = "validated_proposal"
@@ -118,6 +195,44 @@ def run_autonomous_cycle(
         except Exception as exc:
             raise AutonomousCycleError(str(exc)) from exc
         output["commit"] = commit
+        if learning_store is not None:
+            try:
+                learning = record_cycle_experience(
+                    learning_store,
+                    action_cycle_id=packet["packet"]["request_id"],
+                    task_kind="capability_implementation",
+                    task_target=capability_item["id"],
+                    strategy_id=selected_strategy["strategy_id"],
+                    outcome="success",
+                    observation="worker result passed validation and produced a bounded commit proposal",
+                    revision=packet["packet"]["repository"]["base_sha_claim"],
+                    evidence_refs=[{"id": str(job_id or "worker-result"), "kind": "worker_result"}],
+                    repository=repository,
+                )
+                output["learning"] = learning
+                if worker_url and worker_token:
+                    persist_learning_artifact(
+                        learning["experience"],
+                        artifact_type="learning_experience",
+                        request_id="learning_" + learning["experience_id"].removeprefix("exp_"),
+                        correlation_id=packet["packet"]["request_id"],
+                        source_revision=packet["packet"]["repository"]["base_sha_claim"],
+                        url=worker_url,
+                        token=worker_token,
+                    )
+                    for lesson in learning.get("candidate_lessons", []):
+                        if isinstance(lesson, dict):
+                            persist_learning_artifact(
+                                lesson,
+                                artifact_type="learning_lesson",
+                                request_id="lesson_" + lesson["lesson_id"].removeprefix("les_"),
+                                correlation_id=packet["packet"]["request_id"],
+                                source_revision=packet["packet"]["repository"]["base_sha_claim"],
+                                url=worker_url,
+                                token=worker_token,
+                            )
+            except LearningRuntimeError:
+                output["learning_persistence"] = "unavailable"
         if (
             commit.get("status") == "committed"
             and local_root is not None

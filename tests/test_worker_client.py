@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from automate.dev.worker_client import WorkerTransportError, dispatch_worker, worker_base_url, worker_token
+from automate.dev.worker_client import WorkerTransportError, dispatch_worker, worker_api_url, worker_base_url, worker_token
 
 
 def test_worker_configuration_requires_endpoint_and_token(monkeypatch):
@@ -78,3 +78,29 @@ def test_dispatch_does_not_reexecute_active_or_terminal_duplicate():
         assert result["execution_requested"] is False
         assert result["deduplicated"] is True
         execute.assert_not_called()
+
+
+def test_worker_api_url_normalizes_chfanana_worker_surface():
+    assert worker_api_url("https://worker.example") == "https://worker.example/worker/v1"
+    assert worker_api_url("https://worker.example/worker/v1") == "https://worker.example/worker/v1"
+
+
+def test_worker_api_paths_are_consistent(monkeypatch):
+    seen = []
+
+    def fake_request(url, **kwargs):
+        seen.append(url)
+        return {"success": True, "jobId": "j1", "state": "running"}
+
+    monkeypatch.setattr("automate.dev.worker_client._request_json", fake_request)
+    from automate.dev.worker_client import submit_worker_packet, start_worker_job, read_worker_job
+
+    submit_worker_packet({"packet": {}}, url="https://worker.example", token="secret")
+    start_worker_job("j1", url="https://worker.example", token="secret")
+    read_worker_job("j1", url="https://worker.example", token="secret")
+
+    assert seen == [
+        "https://worker.example/worker/v1/jobs",
+        "https://worker.example/worker/v1/jobs/j1/execute",
+        "https://worker.example/worker/v1/jobs/j1?includeResult=true",
+    ]

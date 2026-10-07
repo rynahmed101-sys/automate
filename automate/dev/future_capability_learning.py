@@ -6,7 +6,7 @@ import hashlib
 import json
 from typing import Any, Mapping
 
-from automate.dev.worker_client import WorkerTransportError, _request_json, worker_base_url, worker_token
+from automate.dev.worker_client import WorkerTransportError, _request_json, worker_api_url, worker_token
 
 
 def build_future_capability_handoff(
@@ -63,7 +63,7 @@ def persist_future_capability(
         correlation_id=correlation_id,
     )
     return _request_json(
-        worker_base_url(url) + "/learning",
+        worker_api_url(url) + "/learning",
         token=worker_token(token),
         method="POST",
         body=envelope,

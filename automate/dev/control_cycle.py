@@ -253,11 +253,13 @@ def run_control_cycle(
             }
 
         if post.get("state") == "BOOKKEEPING_READY":
+            import os
+            auto_bookkeep = os.getenv("AUTOMATE_AUTO_BOOKKEEP", "").strip().lower() in {"1", "true", "yes"}
             bookkeeping_pr = inspect_bookkeeping_pr(
                 repository,
                 capability_id=capability_id,
                 merge_sha=current_main_sha,
-                require_review=True,
+                require_review=not auto_bookkeep,
             )
             if bookkeeping_pr and bookkeeping_pr.get("state") == "READY_TO_MERGE":
                 import os
@@ -585,14 +587,15 @@ def run_control_cycle(
             "worker_commit_sha": commit.get("commit_sha"),
         }
 
+    handoff_open = isinstance(lifecycle, dict) and lifecycle.get("state") == "IMPLEMENTATION_PR"
     return {
         **control,
         "status": (
             "worker_handoff_open"
-            if isinstance(lifecycle, dict) and lifecycle.get("state") == "IMPLEMENTATION_PR"
+            if handoff_open
             else "backlog_cycle_completed"
         ),
-        "dispatch_allowed": True,
+        "dispatch_allowed": not handoff_open,
         "cycle": result,
         "lifecycle": lifecycle,
     }
