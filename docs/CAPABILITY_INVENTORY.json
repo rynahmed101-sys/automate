@@ -31,6 +31,11 @@
     "reconciliation_branch_prefix": "integrate/",
     "reconciliation_owner": "primary-integrator",
     "feature_base": "main",
+    "control_plane_base": "engine",
+    "reconciliation_bases": [
+      "main",
+      "engine"
+    ],
     "shared_integration_files": [
       "automate/theory/rules.py",
       "schemas/automate-agent-v1.json",
@@ -1161,6 +1166,14 @@
     "security_workflow_run": 37544252443,
     "note": "Current main SHA is pending fresh exact-head and Security Audit verification."
   },
+  "control_plane_references": [
+    {
+      "number": 169,
+      "branch": "feat/autonomous-scheduler-20261007",
+      "state": "open",
+      "purpose": "readiness-gated unattended autonomous control-cycle scheduler"
+    }
+  ],
   "integration_references": [
     {
       "number": 95,
@@ -1221,14 +1234,6 @@
       "branch": "integrate/control-plane-machinery-v2-20261007",
       "state": "open",
       "purpose": "consolidated autonomous control-plane machinery (clean verification replacement)"
-    }
-  ],
-  "control_plane_references": [
-    {
-      "number": 170,
-      "branch": "feat/self-learning-substrate-20261007",
-      "state": "open",
-      "purpose": "evidence-driven learning and bounded strategy adaptation"
     }
   ]
 }

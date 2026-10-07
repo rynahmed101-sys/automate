@@ -185,7 +185,7 @@ def test_live_audit_rejects_unrecorded_capability_pr():
             "url": "https://github.com/rynahmed101-sys/automate/pull/999",
         }
     ]
-    errors = audit_live("rynahmed101-sys/automate", pull_requests=with_errors)
+    errors = audit_live("rynahmed101-sys/automate", pull_requests=with_errors, base_branch="main")
     assert any("no capability ownership reference" in error for error in errors)
 
 
@@ -215,7 +215,7 @@ def test_live_audit_accepts_matching_integration_pr():
     assert audit_live("rynahmed101-sys/automate", pull_requests=[pr]) == []
 
 
-def test_live_audit_rejects_feature_pr_targeting_non_main():
+def test_live_audit_main_scope_ignores_non_main_prs():
     from automate.dev.live import audit_live
 
     pr = {
@@ -225,5 +225,161 @@ def test_live_audit_rejects_feature_pr_targeting_non_main():
         "baseRefName": "feature/old-base",
         "isDraft": False,
     }
-    errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="main",
+    ) == []
+
+
+def test_live_audit_allows_registered_control_plane_pr_on_engine():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 147,
+        "headRefName": "feat/operating-mode-contract-20261007",
+        "headRefOid": "06bb14b14fcf54c0b04db67edb20d3ee897606",
+        "baseRefName": "engine",
+        "isDraft": False,
+    }
+    assert audit_live("rynahmed101-sys/automate", pull_requests=[pr]) == []
+
+
+def test_live_audit_engine_scope_is_distinct_from_main_scope():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 999,
+        "headRefName": "feat/engine-control-plane",
+        "headRefOid": "0" * 40,
+        "baseRefName": "engine",
+        "isDraft": False,
+    }
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="main",
+    ) == []
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="engine",
+        current_pr_number=999,
+    ) == []
+
+
+def test_live_audit_current_pr_ignores_unrelated_later_prs():
+    from automate.dev.live import audit_live
+
+    prs = [
+        {
+            "number": 201,
+            "headRefName": "feat/registered-capability",
+            "headRefOid": "1" * 40,
+            "baseRefName": "main",
+            "isDraft": False,
+        },
+        {
+            "number": 202,
+            "headRefName": "feat/unrelated-control-plane",
+            "headRefOid": "2" * 40,
+            "baseRefName": "main",
+            "isDraft": False,
+        },
+    ]
+    errors = audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=prs,
+        current_pr_number=202,
+        base_branch="main",
+    )
+    assert any("PR #202" in error for error in errors)
+    assert not any("PR #201" in error for error in errors)
+
+
+def test_live_audit_engine_lane_is_not_mistaken_for_canonical_capability_lane():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 203,
+        "headRefName": "feat/engine-control-plane",
+        "headRefOid": "3" * 40,
+        "baseRefName": "engine",
+        "isDraft": False,
+    }
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        current_pr_number=203,
+        base_branch="engine",
+    ) == []
+
+
+def test_live_audit_full_main_scope_ignores_engine_work():
+    from automate.dev.live import audit_live
+
+    prs = [
+        {
+            "number": 204,
+            "headRefName": "feat/engine-control-plane",
+            "headRefOid": "4" * 40,
+            "baseRefName": "engine",
+            "isDraft": False,
+        }
+    ]
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=prs,
+        base_branch="main",
+    ) == []
+
+
+def test_live_audit_accepts_only_well_formed_transient_worker_handoff():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 205,
+        "headRefName": "feat/stage1b.series_expansions-" + "a" * 12,
+        "headRefOid": "a" * 40,
+        "baseRefName": "main",
+        "baseRefOid": "b" * 40,
+        "isDraft": False,
+        "body": "\n".join([
+            "Automated capability implementation generated through Automate's bounded worker pipeline.",
+            "- capability: stage1b.series_expansions",
+            "- worker_request_id: wrk_" + "c" * 32,
+            "- base_sha: " + "b" * 40,
+        ]),
+    }
+    assert audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="main",
+        current_pr_number=205,
+    ) == []
+
+
+def test_live_audit_does_not_allow_spoofed_worker_handoff():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 206,
+        "headRefName": "feat/not_a_real_capability",
+        "headRefOid": "a" * 40,
+        "baseRefName": "main",
+        "baseRefOid": "b" * 40,
+        "isDraft": False,
+        "body": "\\n".join([
+            "Automated capability implementation generated through Automate's bounded worker pipeline.",
+            "- capability: not_a_real_capability",
+            "- worker_request_id: wrk_" + "c" * 32,
+            "- base_sha: " + "b" * 40,
+        ]),
+    }
+    errors = audit_live(
+        "rynahmed101-sys/automate",
+        pull_requests=[pr],
+        base_branch="main",
+        current_pr_number=206,
+    )
     assert any("no capability ownership reference" in error for error in errors)
