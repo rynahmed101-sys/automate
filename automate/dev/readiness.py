@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from automate.dev.live import summarize_live
-from automate.dev.worker_client import WorkerTransportError, _request_json, worker_base_url, worker_token
+from automate.dev.worker_client import WorkerTransportError, _request_json, worker_api_url, worker_token
 
 
 REQUIRED_GATES = (
@@ -204,7 +204,7 @@ def collect_readiness_evidence(
     if worker_url and worker_token_value:
         try:
             health = _request_json(
-                worker_base_url(worker_url) + "/worker/v1/health",
+                worker_api_url(worker_url) + "/health",
                 token=worker_token(worker_token_value),
                 timeout=15.0,
             )
