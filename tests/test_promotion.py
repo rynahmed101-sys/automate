@@ -209,3 +209,34 @@ def test_capability_merge_is_blocked_if_pr_head_moves_after_gate(monkeypatch):
         execute=True,
     )
     assert result["execution"] == "blocked_by_race"
+
+
+def test_capability_promotion_blocks_without_verification_evidence():
+    result = evaluate_promotion(
+        _pr(),
+        capability_id="stage1b.series_expansions",
+        current_main_sha="1" * 40,
+        ci_run=_run(),
+        security_run=_run(),
+        verification_result=None,
+    )
+    assert result["state"] == "BLOCKED"
+    assert result["gates"]["verification_evidence"] is False
+
+
+def test_capability_promotion_accepts_exact_implementation_verification():
+    result = evaluate_promotion(
+        _pr(),
+        capability_id="stage1b.series_expansions",
+        current_main_sha="1" * 40,
+        ci_run=_run(),
+        security_run=_run(),
+        verification_result={
+            "authority": "EVIDENCE_ONLY",
+            "capability_id": "stage1b.series_expansions",
+            "source_revision": "2" * 40,
+            "evidence_state": "IMPLEMENTATION_VERIFIED",
+        },
+    )
+    assert result["state"] == "BLOCKED"
+    assert result["gates"]["verification_evidence"] is False
