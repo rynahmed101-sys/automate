@@ -94,6 +94,7 @@ def build_bookkeeping_plan(
     merge_sha: str,
     exact_head_ci_run: int,
     security_run: int,
+    merged_pr_number: int | None = None,
 ) -> dict[str, Any]:
     if not re.fullmatch(r"[0-9a-f]{40}", merge_sha):
         raise BookkeepingError("merge SHA must be an exact lowercase 40-character commit")
@@ -110,6 +111,10 @@ def build_bookkeeping_plan(
         raise BookkeepingError(f"{capability_id} is already terminal")
     if item.get("stage") == "7":
         raise BookkeepingError("discovery-stage candidates require the separate future-capability admission path")
+    if merged_pr_number is not None and (
+        not isinstance(merged_pr_number, int) or merged_pr_number < 1
+    ):
+        raise BookkeepingError("merged_pr_number must be a positive integer when provided")
 
     ledger_line = _ledger_line_for_capability(
         ledger,
@@ -178,6 +183,17 @@ def build_bookkeeping_plan(
         if ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open"):
             ref["state"] = "merged"
             ref["merge_sha"] = merge_sha
+    if merged_pr_number is not None:
+        references = list(target.get("references", []))
+        if not any(ref.get("type") == "pr" and ref.get("number") == merged_pr_number for ref in references):
+            references.append({
+                "type": "pr",
+                "number": merged_pr_number,
+                "state": "merged",
+                "role": "implementation",
+            })
+        target["references"] = references
+
     verification = dict(target.get("verification", {}))
     verification.update({
         "merged_main": True,
@@ -197,6 +213,7 @@ def build_bookkeeping_plan(
         "promotion_source_merge_sha": merge_sha,
         "exact_head_ci_run": exact_head_ci_run,
         "security_run": security_run,
+        "merged_pr_number": merged_pr_number,
         "next_action": next_item["id"] if next_item else None,
         "authority_change": "BOOKKEEPING_PR_ONLY",
         "canonical_mutation_performed": False,
