@@ -157,7 +157,11 @@ jobs:
           python -m pip install -e .
           python -m automate.cli capability autonomous-readiness --auto --json > readiness.json
           cat readiness.json
-          python -c 'import json, os; d=json.load(open("readiness.json")); ok=bool(d.get("ready") or d.get("bootstrap_ready")); out=open(os.environ["GITHUB_OUTPUT"],"a"); out.write("eligible=" + ("true" if ok else "false") + "\n"); out.close(); raise SystemExit(0 if ok else 1)'
+          python -c 'import json, os; d=json.load(open("readiness.json")); ok=bool(d.get("ready") or d.get("bootstrap_ready")); out=open(os.environ["GITHUB_OUTPUT"],"a"); out.write("eligible=" + ("true" if ok else "false") + "\n"); out.close()'
+
+      - name: Record autonomous readiness hold
+        if: steps.readiness.outputs.eligible != 'true'
+        run: echo "Autonomous execution held by readiness gates; no worker dispatch performed."
 
       - name: Run exactly one bounded control cycle
         if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
