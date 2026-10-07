@@ -29,7 +29,7 @@ def _significant_tokens(value: str) -> set[str]:
 
 
 def _stage_section_bounds(ledger: str, stage: str) -> tuple[int, int]:
-    heading = re.compile(rf"^## {re.escape(stage)}\\.", re.MULTILINE)
+    heading = re.compile(rf"^## {re.escape(stage)}\.", re.MULTILINE)
     match = heading.search(ledger)
     if not match:
         raise BookkeepingError(f"ledger section for stage {stage} is missing")
