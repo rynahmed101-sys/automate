@@ -520,11 +520,21 @@
         "kind": "roadmap",
         "ref": "docs/PROJECT_PHASE_LEDGER.md"
       },
-      "references": [],
+      "references": [
+        {
+          "type": "issue",
+          "number": 141,
+          "state": "open",
+          "role": "tracking"
+        }
+      ],
       "depends_on": [
         "stage1b.calculus"
       ],
-      "canonical_files": [],
+      "canonical_files": [
+        "automate/backend/sympy_backend.py",
+        "tests/test_series_expansions.py"
+      ],
       "shared_integration_points": [
         "automate/theory/rules.py",
         "schemas/automate-agent-v1.json"
@@ -539,7 +549,8 @@
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "notes": "Next claimable Stage 1B capability. Canonical worker boundary is SymPy backend implementation plus focused series-expansion tests."
     },
     {
       "id": "stage1b.partial_derivatives",
