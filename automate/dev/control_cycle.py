@@ -357,7 +357,7 @@ def run_control_cycle(
 
     if handoff is not None:
         verification = None
-        require_verification = str(__import__("os").getenv("AUTOMATE_REQUIRE_VERIFICATION", "")).strip().lower() in {"1", "true", "yes"}
+        require_verification = True
         if require_verification:
             head_sha = str(
                 handoff.get("head_sha")
