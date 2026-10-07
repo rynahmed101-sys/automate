@@ -134,7 +134,6 @@ def audit_live(
                         and request_valid
                         and worker_base
                         and worker_base.group(1) == str(pr.get("baseRefOid") or "")
-                        and capability_id == capability_id
                         and branch == expected_branch
                         and "Automated capability implementation generated through Automate's bounded worker pipeline." in body
                     )
@@ -154,7 +153,22 @@ def audit_live(
                 )
         if branch.startswith("integrate/") and target_base == "main":
             if number not in integration_refs:
-                errors.append(f"Open reconciliation PR #{number} ({branch}) has no integration ownership reference.")
+                body = str(pr.get("body") or "")
+                bookkeeping_capability = re.search(r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$", body)
+                merge_sha = re.search(r"(?m)^- merge_sha:\s*([0-9a-f]{40})\s*$", body)
+                bookkeeping_role = "- automation_role: canonical_bookkeeping" in body
+                pending_bookkeeping = bool(
+                    bookkeeping_capability
+                    and merge_sha
+                    and bookkeeping_role
+                    and merge_sha.group(1) == str(pr.get("baseRefOid") or "")
+                    and any(
+                        item.get("id") == bookkeeping_capability.group(1)
+                        for item in data.get("capabilities", [])
+                    )
+                )
+                if not pending_bookkeeping:
+                    errors.append(f"Open reconciliation PR #{number} ({branch}) has no integration ownership reference.")
             elif pr.get("baseRefName") not in (None, data["branch_policy"]["feature_base"]):
                 errors.append(
                     f"PR #{number} reconciliation lane targets {pr.get('baseRefName')}, "
