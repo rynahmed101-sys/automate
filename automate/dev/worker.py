@@ -119,8 +119,12 @@ def build_worker_packet(
         generated_context_files.append({"path": relative_path, "sha": sha, "content": content})
 
     task = item.get("task") or {
-        "source": "github_issue" if capability_id == "stage1b.improper_integrals" else "docs/PROJECT_PHASE_LEDGER.md",
-        "ref": "115" if capability_id == "stage1b.improper_integrals" else capability_id,
+        "source": "github_issue" if capability_id in {"stage1b.improper_integrals", "stage1b.series_expansions"} else "docs/PROJECT_PHASE_LEDGER.md",
+        "ref": (
+            "115" if capability_id == "stage1b.improper_integrals"
+            else "141" if capability_id == "stage1b.series_expansions"
+            else capability_id
+        ),
         "summary": item["name"],
         "requirements": (
             [
@@ -129,6 +133,13 @@ def build_worker_packet(
                 "Do not treat symmetric principal values as ordinary convergence.",
             ]
             if capability_id == "stage1b.improper_integrals"
+            else [
+                "Support Taylor and Maclaurin expansions through an explicit requested order.",
+                "Do not impose an arbitrary permanent low-order ceiling.",
+                "Preserve expansion-point assumptions and fail closed when domain/analyticity conditions are unresolved.",
+                "Test exact coefficients, truncation order, remainder/boundary behavior where represented, and negative cases.",
+            ]
+            if capability_id == "stage1b.series_expansions"
             else [
                 "Implement the capability within the declared canonical files.",
                 "Preserve the existing verification and authority boundaries.",
