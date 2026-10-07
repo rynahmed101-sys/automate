@@ -63,3 +63,12 @@ def test_bootstrap_not_ready_when_another_gate_is_missing():
     evidence["worker_transport_live"] = False
     result = evaluate_readiness(evidence)
     assert result["bootstrap_ready"] is False
+
+
+def test_readiness_requires_verification_engine_configuration():
+    evidence = {gate: True for gate in REQUIRED_GATES}
+    evidence["verification_engine_configured"] = False
+    result = evaluate_readiness(evidence)
+    assert result["ready"] is False
+    assert result["worker_mode"] == "off"
+    assert result["blocking_gates"] == ["verification_engine_configured"]
