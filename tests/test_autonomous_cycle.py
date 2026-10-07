@@ -84,3 +84,11 @@ def test_cycle_validates_worker_result_before_local_apply():
         )
     assert outcome["status"] == "validated_proposal"
     commit.assert_not_called()
+
+
+
+def test_scheduler_enables_verified_worker_publication():
+    workflow = Path(".github/workflows/autonomous-cycle.yml").read_text(encoding="utf-8")
+    assert 'AUTOMATE_AUTO_PUBLISH: "1"' in workflow
+    assert "--execute-worker" in workflow
+    assert "--local-root ." in workflow

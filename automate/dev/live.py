@@ -113,7 +113,19 @@ def audit_live(
         branch = pr.get("headRefName", "")
         if branch.startswith("feat/"):
             if target_base == "main":
-                if number not in inventory_refs:
+                if number in control_plane_refs:
+                    recorded = control_plane_refs[number]
+                    if recorded.get("branch") and recorded.get("branch") != branch:
+                        errors.append(
+                            f"PR #{number} control-plane branch mismatch: "
+                            f"inventory={recorded.get('branch')}, live={branch}."
+                        )
+                    if pr.get("baseRefName") not in (None, data["branch_policy"].get("feature_base", "main")):
+                        errors.append(
+                            f"PR #{number} control-plane lane targets {pr.get('baseRefName')}, "
+                            f"not {data['branch_policy'].get('feature_base', 'main')}."
+                        )
+                elif number not in inventory_refs:
                     body = str(pr.get("body") or "")
                     worker_request = re.search(r"(?m)^- worker_request_id:\s*([A-Za-z0-9_.:-]{8,128})\s*$", body)
                     worker_base = re.search(r"(?m)^- base_sha:\s*([0-9a-f]{40})\s*$", body)

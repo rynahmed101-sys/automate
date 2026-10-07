@@ -1168,24 +1168,10 @@
   },
   "control_plane_references": [
     {
-      "number": 147,
-      "branch": "feat/operating-mode-contract-20261007",
-      "state": "closed_superseded",
-      "purpose": "closed-loop operating mode control plane",
-      "head_sha": "06bb14b14fcf54f9c0b04db67edb20d3ee897606"
-    },
-    {
-      "number": 148,
-      "branch": "feat/future-capability-admission-queue-20261007",
-      "state": "closed_superseded",
-      "purpose": "future capability admission staging control plane",
-      "head_sha": "b33968f93869da9f1034bec2bf5534b067cd5087"
-    },
-    {
-      "number": 168,
-      "branch": "chore/auto-engine-reconcile-scheduler-v2-20261007",
+      "number": 169,
+      "branch": "feat/autonomous-scheduler-20261007",
       "state": "open",
-      "purpose": "automatic main-to-engine reconciliation and release pinning"
+      "purpose": "readiness-gated unattended autonomous control-cycle scheduler"
     }
   ],
   "integration_references": [
@@ -1236,6 +1222,18 @@
       "branch": "integrate/reconcile-main-into-engine",
       "state": "open",
       "purpose": "reconcile current authoritative main into long-lived engine trunk"
+    },
+    {
+      "number": 154,
+      "branch": "integrate/reconcile-main-into-engine-v2-20261007",
+      "state": "open",
+      "purpose": "reconcile post-PR-140 authoritative main changes into long-lived engine trunk"
+    },
+    {
+      "number": 159,
+      "branch": "integrate/control-plane-machinery-v2-20261007",
+      "state": "open",
+      "purpose": "consolidated autonomous control-plane machinery (clean verification replacement)"
     }
   ]
 }
