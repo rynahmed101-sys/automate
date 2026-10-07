@@ -125,7 +125,7 @@ def submit_learning_artifact(
         artifact=artifact,
     )
     return _request_json(
-        learning_endpoint(endpoint) + "/learning",
+        learning_endpoint(endpoint) + "/jobs",
         token=learning_token(token),
         method="POST",
         body=handoff,
