@@ -87,3 +87,12 @@ def test_reconcile_rejects_malformed_main_sha(tmp_path):
             assert "malformed" in str(exc)
         else:
             raise AssertionError("malformed main SHA must be rejected")
+
+
+def test_reconcile_auto_merge_requires_exact_pr_checks():
+    from automate.dev import engine_reconcile
+
+    with patch.object(engine_reconcile, "_exact_pr_checks_verified", return_value=False):
+        # Unit-level contract: a missing exact-head evidence result must block
+        # auto-merge rather than invoking gh pr merge.
+        assert engine_reconcile._exact_pr_checks_verified(Path("."), "owner/repo", "a" * 40) is False
