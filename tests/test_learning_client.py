@@ -123,3 +123,31 @@ def test_sync_rejects_remote_adopted_lesson(monkeypatch, tmp_path: Path):
         assert "promotion state" in result["errors"][0]
     finally:
         store.close()
+
+
+def test_submit_learning_artifact_uses_durable_job_endpoint(monkeypatch):
+    captured = {}
+
+    def fake_request_json(url, **kwargs):
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        return {"success": True, "jobId": "job-learning-test"}
+
+    monkeypatch.setattr("automate.dev.learning_client._request_json", fake_request_json)
+
+    from automate.dev.learning_client import submit_learning_artifact
+
+    result = submit_learning_artifact(
+        {"experience_id": "exp_" + "a" * 32},
+        artifact_type="learning_experience",
+        request_id="learning_" + "b" * 32,
+        correlation_id="cycle-test",
+        source_revision="c" * 40,
+        endpoint="https://worker.example",
+        token="test-token",
+    )
+
+    assert result["jobId"] == "job-learning-test"
+    assert captured["url"] == "https://worker.example/jobs"
+    assert captured["kwargs"]["method"] == "POST"
+    assert captured["kwargs"]["body"]["schema_version"] == "automate.learning_handoff.v1"
