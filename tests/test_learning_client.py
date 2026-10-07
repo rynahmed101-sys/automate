@@ -125,7 +125,7 @@ def test_sync_rejects_remote_adopted_lesson(monkeypatch, tmp_path: Path):
         store.close()
 
 
-def test_submit_learning_artifact_uses_durable_job_endpoint(monkeypatch):
+def test_submit_learning_artifact_uses_learning_endpoint(monkeypatch):
     captured = {}
 
     def fake_request_json(url, **kwargs):
@@ -148,6 +148,6 @@ def test_submit_learning_artifact_uses_durable_job_endpoint(monkeypatch):
     )
 
     assert result["jobId"] == "job-learning-test"
-    assert captured["url"] == "https://worker.example/jobs"
+    assert captured["url"] == "https://worker.example/learning"
     assert captured["kwargs"]["method"] == "POST"
     assert captured["kwargs"]["body"]["schema_version"] == "automate.learning_handoff.v1"
