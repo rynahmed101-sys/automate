@@ -227,3 +227,30 @@ def test_live_audit_rejects_feature_pr_targeting_non_main():
     }
     errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
     assert any("no capability ownership reference" in error for error in errors)
+
+
+def test_live_audit_allows_registered_control_plane_pr_on_engine():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 147,
+        "headRefName": "feat/operating-mode-contract-20261007",
+        "headRefOid": "06bb14b14fcf54c0b04db67edb20d3ee897606",
+        "baseRefName": "engine",
+        "isDraft": False,
+    }
+    assert audit_live("rynahmed101-sys/automate", pull_requests=[pr]) == []
+
+
+def test_live_audit_rejects_capability_pr_on_engine():
+    from automate.dev.live import audit_live
+
+    pr = {
+        "number": 999,
+        "headRefName": "feat/registered-capability",
+        "headRefOid": "0" * 40,
+        "baseRefName": "engine",
+        "isDraft": False,
+    }
+    errors = audit_live("rynahmed101-sys/automate", pull_requests=[pr])
+    assert any("no capability or control-plane ownership reference" in error for error in errors)
