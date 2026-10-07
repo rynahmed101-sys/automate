@@ -76,6 +76,7 @@
         "IMPLEMENTED",
         "LOCALLY_TESTED",
         "DEV_CI_VERIFIED",
+        "IMPLEMENTATION_VERIFIED",
         "MERGED_MAIN",
         "EXACT_HEAD_VERIFIED",
         "SECURITY_VERIFIED",

@@ -137,7 +137,7 @@ def test_real_backlog_item_runs_through_reconciliation_and_packet():
         )
     assert result["math"]
     assert result["packet"]["authority"] == "EVIDENCE_ONLY"
-    assert result["evidence_state"] == "PARTIALLY_SUPPORTED"
+    assert result["evidence_state"] == "BLOCKED"
     assert result["packet"]["unresolved"]
 
 
@@ -202,3 +202,109 @@ def test_packet_consistency_rejects_fake_authority_and_packet_identity():
     errors = validate_packet_consistency(packet, request=request, repository_state={})
     assert any("authority" in e for e in errors)
     assert any("packet_id" in e for e in errors)
+
+
+def test_enabled_mirror_failure_prevents_verified_backlog_state(monkeypatch):
+    monkeypatch.setenv("AUTOMATE_MIRROR_VERIFICATION_ENABLED", "true")
+    with TemporaryDirectory() as d:
+        snapshot = {
+            "main_sha": "1b0bb0b6707d76ff403c46bb93e353a97d16e26",
+            "engine_sha": "ee7556b9ab5078c89052eecfb83490355dbeb497",
+            "workflow_runs_main": [
+                {"id": 1, "head_sha": "ee7556b9ab5078c89052eecfb83490355dbeb497", "status": "completed", "conclusion": "success", "name": "Automate CI"},
+                {"id": 2, "head_sha": "ee7556b9ab5078c89052eecfb83490355dbeb497", "status": "completed", "conclusion": "success", "name": "Security Audit"},
+            ],
+            "workflow_runs_engine": [],
+        }
+        from unittest.mock import patch
+        with patch(
+            "automate.dev.mirror_verification_client.run_mirror_verification",
+            side_effect=RuntimeError("mirror unavailable"),
+        ):
+            result = run_backlog_item(
+                capability_id="stage1b.improper_integrals",
+                repository="rynahmed101-sys/automate",
+                revision=snapshot["engine_sha"],
+                branch="engine",
+                action_cycle_id="cycle_mirror_12345678",
+                snapshot=snapshot,
+                evidence_db=Path(d) / "run.db",
+            )
+    assert result["evidence_state"] != EvidenceState.VERIFIED.value
+    assert result["mirror_result"]["status"] == "UNRESOLVED"
+
+
+def test_generic_capability_does_not_become_contradicted_without_math_adapter():
+    with TemporaryDirectory() as d:
+        snapshot = {
+            "main_sha": "1" * 40,
+            "engine_sha": "2" * 40,
+            "workflow_runs_main": [
+                {
+                    "id": 11,
+                    "head_sha": "2" * 40,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "name": "Automate CI",
+                },
+                {
+                    "id": 12,
+                    "head_sha": "2" * 40,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "name": "Security Audit",
+                },
+            ],
+            "workflow_runs_engine": [],
+            "exact_head_verified": True,
+            "security_verified": True,
+        }
+        result = run_backlog_item(
+            capability_id="stage1b.series_expansions",
+            repository="rynahmed101-sys/automate",
+            revision="2" * 40,
+            branch="engine",
+            action_cycle_id="cycle_series_12345678",
+            snapshot=snapshot,
+            evidence_db=Path(d) / "run.db",
+        )
+    assert result["evidence_state"] == EvidenceState.IMPLEMENTATION_VERIFIED.value
+    assert result["math"] == []
+    assert result["packet"]["mathematical_evidence"]["state"] == EvidenceState.UNVERIFIED.value
+
+
+def test_implementation_verified_packet_still_requires_exact_ci_and_security():
+    request = build_request(
+        capability_id="stage1b.series_expansions",
+        repository="rynahmed101-sys/automate",
+        revision="a" * 40,
+        branch="engine",
+        scope=["implementation"],
+        action_cycle_id="cycle_implementation_12345678",
+    )
+    packet = build_verifiable_packet(
+        request=request,
+        graph_ids=["evi_impl"],
+        repository_state={
+            "evidence_state": EvidenceState.IMPLEMENTATION_VERIFIED.value,
+            "exact_head_verified": False,
+            "security_verified": False,
+        },
+        tests=[],
+        ci_run_ids=[],
+        security_run_ids=[],
+        math_evidence={},
+        computational_evidence={},
+        provenance_evidence={},
+    )
+    errors = validate_packet_consistency(
+        packet,
+        request=request,
+        repository_state={
+            "requested_revision": request.revision,
+            "exact_head_verified": False,
+            "security_verified": False,
+        },
+    )
+    assert any("IMPLEMENTATION_VERIFIED packet lacks exact-head" in e for e in errors)
+    assert any("IMPLEMENTATION_VERIFIED packet lacks security" in e for e in errors)

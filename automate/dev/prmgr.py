@@ -24,20 +24,24 @@ def create_worker_pr(
     capability_id: str,
     title: str,
     base_sha: str,
+    worker_request_id: str,
     test_result: dict[str, Any],
 ) -> dict[str, Any]:
     if not repository or "/" not in repository:
         raise WorkerExecutionError("repository must be in owner/name form")
     if not branch.startswith("feat/"):
         raise WorkerExecutionError("refusing to create a PR from a non-worker branch")
-    if len(base_sha) != 40:
-        raise WorkerExecutionError("worker PR requires an exact 40-character base sha")
+    if len(base_sha) != 40 or any(ch not in "0123456789abcdef" for ch in base_sha):
+        raise WorkerExecutionError("worker PR requires an exact lowercase 40-character base sha")
+    if not worker_request_id or len(worker_request_id) < 8 or len(worker_request_id) > 128:
+        raise WorkerExecutionError("worker PR requires a bounded worker_request_id")
 
-    body = "\\n".join(
+    body = "\n".join(
         [
             "Automated capability implementation generated through Automate's bounded worker pipeline.",
             "",
             f"- capability: {capability_id}",
+            f"- worker_request_id: {worker_request_id}",
             f"- base_sha: {base_sha}",
             f"- authoritative_tests: {json.dumps(test_result.get('command', []))}",
             f"- authoritative_test_status: {test_result.get('status')}",
@@ -60,7 +64,6 @@ def create_worker_pr(
         title,
         "--body",
         body,
-        "--draft",
     ]
     try:
         result = subprocess.run(
@@ -85,6 +88,8 @@ def create_worker_pr(
         "branch": branch,
         "capability_id": capability_id,
         "url": url,
-        "draft": True,
+        "draft": False,
         "base_sha": base_sha,
+        "request_id": worker_request_id,
+        "pr_number": int(url.rstrip("/").split("/")[-1]) if url.rstrip("/").split("/")[-1].isdigit() else None,
     }

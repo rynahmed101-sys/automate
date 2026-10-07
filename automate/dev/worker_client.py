@@ -102,6 +102,16 @@ def dispatch_worker(packet: dict[str, Any], *, url: str | None = None,
     job_id = queued.get("jobId")
     if not isinstance(job_id, str) or not job_id:
         raise WorkerTransportError("worker did not return a jobId")
+
+    state = str(queued.get("state") or "").lower()
+    if state in {"running", "succeeded", "failed", "cancelled", "dead"}:
+        return {
+            "queued": queued,
+            "execution_requested": False,
+            "deduplicated": True,
+            "terminal_or_active_state": state,
+        }
+
     execution = start_worker_job(job_id, url=url, token=token, timeout=timeout)
     if execution.get("success") is False:
         raise WorkerTransportError("worker execution could not be started")

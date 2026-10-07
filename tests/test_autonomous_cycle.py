@@ -54,7 +54,12 @@ def test_cycle_can_queue_without_executing():
         "automate.dev.autonomous.dispatch_worker",
         return_value={"queued": {"success": True, "jobId": "j1"}, "execution_requested": False},
     ) as dispatch:
-        result = run_autonomous_cycle("x", worker_url="https://worker", worker_token="secret")
+        result = run_autonomous_cycle(
+            "x",
+            worker_url="https://worker",
+            worker_token="secret",
+            mode="research",
+        )
     assert result["status"] == "research_dispatched"
     dispatch.assert_called_once()
     assert dispatch.call_args.args[0]["schema_version"] == "mirror.research_job.v1"
@@ -81,6 +86,37 @@ def test_cycle_validates_worker_result_before_local_apply():
             worker_url="https://worker",
             worker_token="secret",
             execute_worker=True,
+            mode="research",
         )
     assert outcome["status"] == "validated_proposal"
     commit.assert_not_called()
+
+
+def test_backlog_mode_never_commissions_mirror_research():
+    packet = decision()["worker_packet"]
+    packet["schema_version"] = "automate.worker.v1"
+    with patch.dict(
+        "os.environ",
+        {"AUTOMATE_EXTERNAL_RESEARCH_ENABLED": "true"},
+        clear=False,
+    ), patch(
+        "automate.dev.autonomous.supervisor_snapshot",
+        return_value={**decision(), "worker_packet": packet},
+    ), patch(
+        "automate.dev.autonomous.dispatch_worker",
+        return_value={
+            "queued": {"success": True, "jobId": "worker-1"},
+            "execution_requested": False,
+        },
+    ) as dispatch:
+        result = run_autonomous_cycle(
+            "x",
+            worker_url="https://worker",
+            worker_token="secret",
+            mode="backlog",
+        )
+    assert result["operating_mode"] == "BACKLOG"
+    assert result["research"] is None
+    assert result["status"] == "worker_dispatched"
+    dispatch.assert_called_once()
+    assert dispatch.call_args.args[0]["schema_version"] == "automate.worker.v1"

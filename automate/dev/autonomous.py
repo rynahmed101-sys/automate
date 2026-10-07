@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from automate.dev.inventory import InventoryError
 from automate.dev.verification_engine import deterministic_id
@@ -20,6 +20,7 @@ from automate.dev.worker import validate_worker_result
 from automate.dev.worker_client import (
     WorkerTransportError,
     dispatch_worker,
+    read_worker_job,
     wait_worker_job,
 )
 
@@ -35,6 +36,7 @@ def run_autonomous_cycle(
     worker_token: str | None = None,
     execute_worker: bool = False,
     local_root: Path | None = None,
+    mode: Literal["backlog", "research"] = "backlog",
 ) -> dict[str, Any]:
     decision = supervisor_snapshot(repository, live=True)
     if not decision["can_dispatch"]:
@@ -48,13 +50,106 @@ def run_autonomous_cycle(
         "task": packet["packet"].get("task", {}),
     }
 
-    # External world research stays disabled by governance until the current
-    # 1A-3A reconciliation/verification frontier is cleared.
-    if os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "").strip().lower() not in {"1", "true", "yes"}:
+    # BACKLOG mode is strictly implementation-first. It must never commission
+    # open-ended Mirror research merely because the worker is being automated.
+    if mode == "backlog":
+        try:
+            dispatch = dispatch_worker(
+                packet,
+                url=worker_url,
+                token=worker_token,
+                execute=execute_worker,
+            )
+        except WorkerTransportError as exc:
+            raise AutonomousCycleError(str(exc)) from exc
+        output: dict[str, Any] = {
+            "status": "worker_dispatched",
+            "decision": decision,
+            "dispatch": dispatch,
+            "research": None,
+            "operating_mode": "BACKLOG",
+        }
+        queued = dispatch.get("queued", {})
+        job_id = queued.get("jobId")
+        job_state = str(queued.get("state") or "").lower()
+        if isinstance(job_id, str) and job_state in {"succeeded", "failed", "cancelled"}:
+            try:
+                persisted = read_worker_job(
+                    job_id,
+                    url=worker_url,
+                    token=worker_token,
+                    include_result=True,
+                )
+                output["persisted_job"] = persisted
+            except WorkerTransportError as exc:
+                output["persisted_job_read_error"] = str(exc)
+        if not execute_worker:
+            return output
+        execution = dispatch.get("execution", {})
+        result = execution.get("result")
+        job_id = execution.get("jobId") or dispatch.get("queued", {}).get("jobId")
+        if not isinstance(result, dict) and isinstance(job_id, str):
+            try:
+                completed = wait_worker_job(
+                    job_id,
+                    url=worker_url,
+                    token=worker_token,
+                    timeout=900.0,
+                )
+            except WorkerTransportError as exc:
+                return {
+                    **output,
+                    "status": "worker_queued",
+                    "next_step": "poll the durable worker job again",
+                    "error": str(exc),
+                }
+            result = completed.get("job", {}).get("result")
+            output["dispatch"] = {**dispatch, "execution": {**execution, "polled": completed}}
+        if not isinstance(result, dict):
+            raise AutonomousCycleError("worker execution returned no persisted worker result")
+        errors = validate_worker_result(result, packet["packet"])
+        if errors:
+            raise AutonomousCycleError("; ".join(errors))
+        if local_root is None:
+            output["status"] = "validated_proposal"
+            return output
+        try:
+            commit = build_worker_commit(packet["packet"], result, repository_root=local_root)
+        except Exception as exc:
+            raise AutonomousCycleError(str(exc)) from exc
+        output["commit"] = commit
+        if (
+            commit.get("status") == "committed"
+            and local_root is not None
+            and os.getenv("AUTOMATE_AUTO_PUBLISH", "").strip().lower() in {"1", "true", "yes"}
+        ):
+            from automate.dev.publisher import publish_worker_commit
+            try:
+                published = publish_worker_commit(
+                    repository,
+                    local_root,
+                    packet=packet["packet"],
+                    commit=commit,
+                )
+            except Exception as exc:
+                return {
+                    **output,
+                    "status": "publication_failed",
+                    "publication_error": str(exc),
+                }
+            output["publication"] = published
+            output["status"] = published["status"]
+        else:
+            output["status"] = commit["status"]
+        return output
+
+    # RESEARCH mode is explicitly opt-in and remains separate from the backlog.
+    research_enabled = os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+    if not research_enabled:
         return {
             "status": "research_disabled_by_governance",
             "decision": decision,
-            "next_step": "run the Verification & Reconciliation Engine against the installed backlog",
+            "next_step": "keep external research disabled until DISCOVERY_READY",
         }
 
     mirror_endpoint = os.getenv("MIRROR_RESEARCH_ENDPOINT", "").strip()

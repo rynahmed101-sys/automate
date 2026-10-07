@@ -12,7 +12,7 @@
     "job_id":{"type":["string","null"],"maxLength":128},
     "result_ids":{"type":"array","maxItems":100,"items":{"type":"string","maxLength":128}},
     "repository":{"type":"string","minLength":1,"maxLength":200},
-    "evidence_state":{"type":"string","enum":["UNVERIFIED","IN_PROGRESS","VERIFIED","PARTIALLY_SUPPORTED","REPRODUCED","CONTRADICTED","UNRESOLVED","FALSE","BLOCKED","QUARANTINED"]},
+    "evidence_state":{"type":"string","enum":["UNVERIFIED","IN_PROGRESS","IMPLEMENTATION_VERIFIED","VERIFIED","PARTIALLY_SUPPORTED","REPRODUCED","CONTRADICTED","UNRESOLVED","FALSE","BLOCKED","QUARANTINED"]},
     "exact_commit_sha":{"type":"string","pattern":"^[0-9a-f]{40}$"},
     "tree_sha":{"type":["string","null"],"maxLength":128},
     "branch":{"type":"string","minLength":1,"maxLength":255},

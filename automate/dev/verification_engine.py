@@ -30,6 +30,7 @@ class EvidenceState(str, Enum):
     UNVERIFIED = "UNVERIFIED"
     IN_PROGRESS = "IN_PROGRESS"
     VERIFIED = "VERIFIED"
+    IMPLEMENTATION_VERIFIED = "IMPLEMENTATION_VERIFIED"
     PARTIALLY_SUPPORTED = "PARTIALLY_SUPPORTED"
     REPRODUCED = "REPRODUCED"
     CONTRADICTED = "CONTRADICTED"
@@ -42,6 +43,7 @@ EVIDENCE_TRANSITIONS = {
     EvidenceState.UNVERIFIED: {EvidenceState.IN_PROGRESS, EvidenceState.BLOCKED, EvidenceState.QUARANTINED, EvidenceState.CONTRADICTED, EvidenceState.FALSE},
     EvidenceState.IN_PROGRESS: {EvidenceState.VERIFIED, EvidenceState.PARTIALLY_SUPPORTED, EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.UNRESOLVED, EvidenceState.BLOCKED, EvidenceState.QUARANTINED},
     EvidenceState.VERIFIED: {EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.QUARANTINED},
+    EvidenceState.IMPLEMENTATION_VERIFIED: {EvidenceState.VERIFIED, EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.QUARANTINED},
     EvidenceState.PARTIALLY_SUPPORTED: {EvidenceState.VERIFIED, EvidenceState.REPRODUCED, EvidenceState.CONTRADICTED, EvidenceState.UNRESOLVED, EvidenceState.QUARANTINED},
     EvidenceState.REPRODUCED: {EvidenceState.VERIFIED, EvidenceState.CONTRADICTED, EvidenceState.QUARANTINED},
     EvidenceState.CONTRADICTED: {EvidenceState.UNRESOLVED, EvidenceState.QUARANTINED},
@@ -105,10 +107,13 @@ class VerificationRequest:
 
 def build_request(*, capability_id: str, repository: str, revision: str,
                   branch: str, scope: Iterable[str],
-                  action_cycle_id: str, parent_ids: Iterable[str] = ()) -> VerificationRequest:
+                  action_cycle_id: str, parent_ids: Iterable[str] = (),
+                  request_id: str | None = None) -> VerificationRequest:
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("verification request requires an exact 40-character commit SHA")
-    rid = deterministic_id("ver", capability_id, repository, revision, list(scope))
+    rid = request_id or deterministic_id("ver", capability_id, repository, revision, list(scope))
+    if not re.fullmatch(r"ver_[0-9a-f]{32}", rid):
+        raise ValueError("verification request requires a deterministic ver_ identity")
     req = VerificationRequest(action_cycle_id, rid, capability_id, repository, revision,
                               branch, tuple(scope), tuple(parent_ids))
     errors = validate_schema(req.to_dict(), REQUEST_SCHEMA)
@@ -282,7 +287,8 @@ def reconcile_snapshot(*, requested_revision: str, snapshot: Mapping[str, Any],
     observed_main = snapshot.get("main_sha")
     observed_engine = snapshot.get("engine_sha")
     findings: list[dict[str, Any]] = []
-    target_key = "main_sha" if snapshot.get("requested_branch") in {None, "main"} else "engine_sha"
+    target_branch = snapshot.get("requested_branch") or "main"
+    target_key = "main_sha" if target_branch == "main" else "engine_sha" if target_branch == "engine" else "target_sha"
     observed_target = snapshot.get(target_key)
     if observed_target and requested_revision != observed_target:
         findings.append({"kind":"stale_revision","state":EvidenceState.BLOCKED.value,
@@ -310,7 +316,11 @@ def reconcile_snapshot(*, requested_revision: str, snapshot: Mapping[str, Any],
 
 
 def action_evidence(snapshot: Mapping[str, Any], revision: str) -> dict[str, Any]:
-    runs = list(snapshot.get("workflow_runs_main", [])) + list(snapshot.get("workflow_runs_engine", []))
+    runs = (
+        list(snapshot.get("workflow_runs_main", []))
+        + list(snapshot.get("workflow_runs_engine", []))
+        + list(snapshot.get("workflow_runs_target", []))
+    )
     exact = [
         r for r in runs
         if r.get("head_sha") == revision
@@ -372,7 +382,8 @@ def apply_bounded_repair(*, root: str | Path, plan: RepairPlan) -> list[dict[str
 
 def run_backlog_item(
     *, capability_id: str, repository: str, revision: str, branch: str,
-    action_cycle_id: str, snapshot: Mapping[str, Any], evidence_db: str | Path
+    action_cycle_id: str, snapshot: Mapping[str, Any], evidence_db: str | Path,
+    request_id: str | None = None
 ) -> dict[str, Any]:
     request = build_request(
         capability_id=capability_id,
@@ -381,6 +392,7 @@ def run_backlog_item(
         branch=branch,
         scope=["inventory", "diagnosis", "mathematical", "computational", "ci", "security", "provenance"],
         action_cycle_id=action_cycle_id,
+        request_id=request_id,
     )
     graph = EvidenceGraph(evidence_db)
     request_id = graph.add(
@@ -398,75 +410,172 @@ def run_backlog_item(
         payload=reconciliation,
         parent_id=request_id,
     )
-    math_results = (
-        verify_improper_integral_cases()
-        if capability_id == "stage1b.improper_integrals"
-        else []
-    )
-    math_ok = bool(math_results) and all(
+    capability_specific_math = capability_id == "stage1b.improper_integrals"
+    math_results = verify_improper_integral_cases() if capability_specific_math else []
+    math_ok = capability_specific_math and bool(math_results) and all(
         row["passed"] is row["expected"] for row in math_results
     )
-    math_state = EvidenceState.VERIFIED if math_ok else EvidenceState.CONTRADICTED
+    math_state = (
+        EvidenceState.VERIFIED
+        if capability_specific_math and math_ok
+        else EvidenceState.CONTRADICTED
+        if capability_specific_math
+        else EvidenceState.UNVERIFIED
+    )
     math_id = graph.add(
         kind="mathematical_check",
         state=math_state,
-        payload={"cases": math_results},
+        payload={
+            "cases": math_results,
+            "capability_specific_adapter": capability_specific_math,
+        },
         parent_id=reconciliation_id,
     )
+
     actions = action_evidence(snap, revision)
     actions_id = graph.add(
         kind="ci_security",
-        state=EvidenceState.VERIFIED
-        if actions["exact_head_verified"] and actions["security_verified"]
-        else EvidenceState.BLOCKED,
+        state=(
+            EvidenceState.VERIFIED
+            if actions["exact_head_verified"] and actions["security_verified"]
+            else EvidenceState.BLOCKED
+        ),
         payload=actions,
         parent_id=math_id,
     )
-    mirror_request = mirror_verification_request(
-        request=request,
-        hypothesis="independent convergence/stability check for the first real Stage 1B frontier",
-        inputs={"integrand": "1/(1+x**2)", "lower": "-oo", "upper": "oo"},
-        assumptions=(),
-        experiment_budget={
-            "max_precision": 80,
-            "max_truncation": 8,
-            "max_runtime_ms": 30000,
-        },
+
+    mirror_request = None
+    mirror_id = None
+    mirror_result = None
+    mirror_evidence_id = None
+    mirror_required = capability_specific_math
+    mirror_enabled = (
+        mirror_required
+        and __import__("os").getenv("AUTOMATE_MIRROR_VERIFICATION_ENABLED", "").strip().lower()
+        in {"1", "true", "yes"}
     )
-    mirror_id = graph.add(
-        kind="mirror_request",
-        state=EvidenceState.IN_PROGRESS,
-        payload=mirror_request,
-        parent_id=math_id,
+
+    if mirror_required:
+        mirror_request = mirror_verification_request(
+            request=request,
+            hypothesis=(
+                "independent convergence/stability check for improper-integral behavior"
+            ),
+            inputs={"integrand": "1/(1+x**2)", "lower": "-oo", "upper": "oo"},
+            assumptions=(),
+            experiment_budget={
+                "max_precision": 80,
+                "max_truncation": 8,
+                "max_runtime_ms": 30000,
+            },
+        )
+        mirror_id = graph.add(
+            kind="mirror_request",
+            state=EvidenceState.IN_PROGRESS,
+            payload=mirror_request,
+            parent_id=math_id,
+        )
+
+        if mirror_enabled:
+            try:
+                from automate.dev.mirror_verification_client import run_mirror_verification
+
+                mirror_result = run_mirror_verification(mirror_request)
+                mirror_state = (
+                    EvidenceState.REPRODUCED
+                    if mirror_result.get("status") == "REPRODUCED"
+                    else EvidenceState.UNRESOLVED
+                    if mirror_result.get("status") == "UNRESOLVED"
+                    else EvidenceState.CONTRADICTED
+                )
+                mirror_evidence_id = graph.add(
+                    kind="mirror_experimental_result",
+                    state=mirror_state,
+                    payload=mirror_result,
+                    parent_id=mirror_id,
+                )
+            except Exception as exc:
+                mirror_result = {
+                    "status": "UNRESOLVED",
+                    "error": str(exc),
+                    "authority": "UNTRUSTED_EXPERIMENTAL_OBSERVATION",
+                }
+                mirror_evidence_id = graph.add(
+                    kind="mirror_experimental_result",
+                    state=EvidenceState.BLOCKED,
+                    payload=mirror_result,
+                    parent_id=mirror_id,
+                )
+
+    mirror_ok = (
+        not mirror_enabled
+        or (isinstance(mirror_result, dict) and mirror_result.get("status") == "REPRODUCED")
     )
-    state = (
-        EvidenceState.VERIFIED
-        if math_ok and actions["exact_head_verified"] and actions["security_verified"]
-        else EvidenceState.PARTIALLY_SUPPORTED if math_ok
-        else EvidenceState.CONTRADICTED
-    )
+    no_reconciliation_findings = not reconciliation["findings"]
+
+    if not no_reconciliation_findings or not actions["exact_head_verified"] or not actions["security_verified"]:
+        state = EvidenceState.BLOCKED
+    elif capability_specific_math and not math_ok:
+        state = EvidenceState.CONTRADICTED
+    elif mirror_required and not mirror_ok:
+        state = EvidenceState.UNRESOLVED
+    elif capability_specific_math:
+        state = EvidenceState.VERIFIED
+    else:
+        state = EvidenceState.IMPLEMENTATION_VERIFIED
+
     packet = build_verifiable_packet(
         request=request,
-        graph_ids=[request_id, reconciliation_id, math_id, actions_id, mirror_id],
+        graph_ids=[
+            request_id,
+            reconciliation_id,
+            math_id,
+            actions_id,
+            *([mirror_id] if mirror_id else []),
+            *([mirror_evidence_id] if mirror_evidence_id else []),
+        ],
         repository_state={**snap, "evidence_state": state.value},
         tests=["python -m pytest -q tests/test_improper_integrals.py"],
         ci_run_ids=actions["ci_run_ids"],
         security_run_ids=actions["security_run_ids"],
         math_evidence={"state": math_state.value, "cases_checked": len(math_results)},
         computational_evidence={
-            "state": EvidenceState.UNVERIFIED.value,
-            "alternate_route": "Mirror requested, result not fabricated",
+            "state": (
+                EvidenceState.REPRODUCED.value
+                if isinstance(mirror_result, dict) and mirror_result.get("status") == "REPRODUCED"
+                else EvidenceState.UNVERIFIED.value
+            ),
+            "alternate_route": "Mirror verification is untrusted experimental evidence; no certification is inferred.",
+            "mirror_experimental_evidence_id": mirror_evidence_id,
         },
         provenance_evidence={
             "source_revision": revision,
             "reconciliation_evidence_id": reconciliation_id,
         },
-        mirror_experiment_ids=[],
-        unresolved=[f["detail"] for f in reconciliation["findings"]],
+        mirror_experiment_ids=(
+            [str(mirror_result.get("experiment_id"))]
+            if isinstance(mirror_result, dict) and mirror_result.get("experiment_id")
+            else []
+        ),
+        unresolved=[
+            *[f["detail"] for f in reconciliation["findings"]],
+            *(
+                ["capability-specific mathematical verifier failed"]
+                if capability_specific_math and math_state == EvidenceState.CONTRADICTED
+                else []
+            ),
+            *(
+                ["Mirror independent verification is unresolved"]
+                if mirror_required and mirror_enabled and not mirror_ok
+                else []
+            ),
+        ],
         limitations=(
             ["The verifier cannot certify or promote."]
+            + ([] if capability_specific_math else ["No capability-specific mathematical adapter is registered; implementation evidence is reported separately."])
             + ([] if actions["exact_head_verified"] else ["Exact-head CI evidence is missing."])
             + ([] if actions["security_verified"] else ["Security Audit evidence is missing."])
+            + (["Mirror verification is disabled for this cycle."] if mirror_required and not mirror_enabled else [])
         ),
     )
     graph.close()
@@ -476,6 +585,8 @@ def run_backlog_item(
         "actions": actions,
         "math": math_results,
         "packet": packet,
+        "mirror_request": mirror_request,
+        "mirror_result": mirror_result,
         "evidence_state": state.value,
     }
 
@@ -508,11 +619,11 @@ def validate_packet_consistency(
         if not isinstance(packet.get(key), list):
             errors.append(f"packet {key} missing")
     state = str(packet.get("evidence_state", ""))
-    if state == EvidenceState.VERIFIED.value:
+    if state in {EvidenceState.VERIFIED.value, EvidenceState.IMPLEMENTATION_VERIFIED.value}:
         if repository_state.get("exact_head_verified") is not True:
-            errors.append("VERIFIED packet lacks exact-head verification")
+            errors.append(f"{state} packet lacks exact-head verification")
         if repository_state.get("security_verified") is not True:
-            errors.append("VERIFIED packet lacks security verification")
+            errors.append(f"{state} packet lacks security verification")
     if repository_state.get("requested_revision") and repository_state.get("requested_revision") != request.revision:
         errors.append("repository snapshot revision does not match request")
     return errors
@@ -567,31 +678,75 @@ def gh_api(path: str, *, timeout: int = 30) -> Any:
     """Bounded live GitHub reader used by the verification engine."""
     if not path.startswith("/"):
         raise ValueError("GitHub API paths must be absolute")
-    proc = subprocess.run(
-        ["gh", "api", path, "--method", "GET"],
-        capture_output=True, text=True, timeout=timeout, check=False,
-    )
-    if proc.returncode:
-        raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
+
+    token = __import__("os").getenv("GH_TOKEN") or __import__("os").getenv("GITHUB_TOKEN")
+    if token:
+        proc = subprocess.run(
+            ["gh", "api", path, "--method", "GET"],
+            capture_output=True, text=True, timeout=timeout, check=False,
+        )
+        if proc.returncode:
+            raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
+        raw = proc.stdout
+    else:
+        credential = subprocess.run(
+            ["git", "config", "--get", "http.https://github.com/.extraheader"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        ).stdout.strip()
+        command = [
+            "curl", "--fail", "--silent", "--show-error",
+            "--header", "Accept: application/vnd.github+json",
+            "--header", "X-GitHub-Api-Version: 2022-11-28",
+        ]
+        if credential:
+            command.extend(["--header", credential])
+        command.append("https://api.github.com" + path)
+        proc = subprocess.run(
+            command,
+            capture_output=True, text=True, timeout=timeout, check=False,
+        )
+        if proc.returncode:
+            raise RuntimeError(f"GitHub read failed: {proc.stderr.strip()}")
+        raw = proc.stdout
+
     try:
-        return json.loads(proc.stdout)
+        return json.loads(raw)
     except json.JSONDecodeError as exc:
         raise RuntimeError("GitHub returned non-JSON verification data") from exc
 
-def live_repository_snapshot(repository: str) -> dict[str, Any]:
+def live_repository_snapshot(repository: str, requested_branch: str = "main") -> dict[str, Any]:
+    if not re.fullmatch(r"[A-Za-z0-9._/-]{1,255}", requested_branch):
+        raise ValueError("requested branch contains unsafe characters")
+    if requested_branch.startswith("/") or ".." in requested_branch.split("/"):
+        raise ValueError("requested branch contains unsafe path segments")
+
     main = gh_api(f"/repos/{repository}/git/ref/heads/main")
     engine = gh_api(f"/repos/{repository}/git/ref/heads/engine")
-    main_sha = main["object"]["sha"]
-    engine_sha = engine["object"]["sha"]
+    target = gh_api(f"/repos/{repository}/git/ref/heads/{requested_branch}")
+    main_sha = str(main["object"]["sha"])
+    engine_sha = str(engine["object"]["sha"])
+    target_sha = str(target["object"]["sha"])
     runs_main = gh_api(f"/repos/{repository}/actions/runs?branch=main&per_page=100")
     runs_engine = gh_api(f"/repos/{repository}/actions/runs?branch=engine&per_page=100")
-    status = gh_api(f"/repos/{repository}/commits/{main_sha}/status")
+    runs_target = gh_api(
+        f"/repos/{repository}/actions/runs?branch={requested_branch}&per_page=100"
+    )
+    status = gh_api(f"/repos/{repository}/commits/{target_sha}/status")
     prs = gh_api(f"/repos/{repository}/pulls?state=all&per_page=100")
     compare = gh_api(f"/repos/{repository}/compare/main...engine")
     return {
-        "repository": repository, "main_sha": main_sha, "engine_sha": engine_sha,
+        "repository": repository,
+        "main_sha": main_sha,
+        "engine_sha": engine_sha,
+        "requested_branch": requested_branch,
+        "requested_revision": target_sha,
+        "target_sha": target_sha,
         "workflow_runs_main": runs_main.get("workflow_runs", []),
         "workflow_runs_engine": runs_engine.get("workflow_runs", []),
+        "workflow_runs_target": runs_target.get("workflow_runs", []),
         "combined_status": status,
         "pull_requests": prs,
         "compare": compare,

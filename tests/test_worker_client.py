@@ -58,3 +58,23 @@ def test_dispatch_execution_calls_worker_once():
         token="secret",
         timeout=30.0,
     )
+
+
+def test_dispatch_does_not_reexecute_active_or_terminal_duplicate():
+    packet = {"schema_version": "automate.worker.v1", "packet": {"request_id": "wrk_test_12345678"}}
+    for state in ["running", "succeeded", "failed", "cancelled", "dead"]:
+        with patch(
+            "automate.dev.worker_client.submit_worker_packet",
+            return_value={"jobId": "job-1", "state": state},
+        ), patch(
+            "automate.dev.worker_client.start_worker_job"
+        ) as execute:
+            result = dispatch_worker(
+                packet,
+                url="https://worker.example",
+                token="secret",
+                execute=True,
+            )
+        assert result["execution_requested"] is False
+        assert result["deduplicated"] is True
+        execute.assert_not_called()
