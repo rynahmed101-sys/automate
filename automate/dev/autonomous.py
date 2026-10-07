@@ -158,6 +158,34 @@ def run_autonomous_cycle(
             raise AutonomousCycleError("worker execution returned no persisted worker result")
         errors = validate_worker_result(result, packet["packet"])
         if errors:
+            if learning_store is not None:
+                try:
+                    learning = record_cycle_experience(
+                        learning_store,
+                        action_cycle_id=packet["packet"]["request_id"],
+                        task_kind="capability_implementation",
+                        task_target=capability_item["id"],
+                        strategy_id=selected_strategy["strategy_id"],
+                        outcome="failure",
+                        observation="worker result failed Automate validation: " + "; ".join(errors),
+                        revision=packet["packet"]["repository"]["base_sha_claim"],
+                        evidence_refs=[{"id": str(job_id or "worker-result"), "kind": "worker_result"}],
+                        failure_class="contract_schema_defect",
+                        repository=repository,
+                    )
+                    output["learning"] = learning
+                    if worker_url and worker_token:
+                        persist_learning_artifact(
+                            learning["experience"],
+                            artifact_type="learning_experience",
+                            request_id="learning_" + learning["experience_id"].removeprefix("exp_"),
+                            correlation_id=packet["packet"]["request_id"],
+                            source_revision=packet["packet"]["repository"]["base_sha_claim"],
+                            url=worker_url,
+                            token=worker_token,
+                        )
+                except LearningRuntimeError:
+                    output["learning_persistence"] = "unavailable"
             raise AutonomousCycleError("; ".join(errors))
         if local_root is None:
             output["status"] = "validated_proposal"
@@ -167,6 +195,44 @@ def run_autonomous_cycle(
         except Exception as exc:
             raise AutonomousCycleError(str(exc)) from exc
         output["commit"] = commit
+        if learning_store is not None:
+            try:
+                learning = record_cycle_experience(
+                    learning_store,
+                    action_cycle_id=packet["packet"]["request_id"],
+                    task_kind="capability_implementation",
+                    task_target=capability_item["id"],
+                    strategy_id=selected_strategy["strategy_id"],
+                    outcome="success",
+                    observation="worker result passed validation and produced a bounded commit proposal",
+                    revision=packet["packet"]["repository"]["base_sha_claim"],
+                    evidence_refs=[{"id": str(job_id or "worker-result"), "kind": "worker_result"}],
+                    repository=repository,
+                )
+                output["learning"] = learning
+                if worker_url and worker_token:
+                    persist_learning_artifact(
+                        learning["experience"],
+                        artifact_type="learning_experience",
+                        request_id="learning_" + learning["experience_id"].removeprefix("exp_"),
+                        correlation_id=packet["packet"]["request_id"],
+                        source_revision=packet["packet"]["repository"]["base_sha_claim"],
+                        url=worker_url,
+                        token=worker_token,
+                    )
+                    for lesson in learning.get("candidate_lessons", []):
+                        if isinstance(lesson, dict):
+                            persist_learning_artifact(
+                                lesson,
+                                artifact_type="learning_lesson",
+                                request_id="lesson_" + lesson["lesson_id"].removeprefix("les_"),
+                                correlation_id=packet["packet"]["request_id"],
+                                source_revision=packet["packet"]["repository"]["base_sha_claim"],
+                                url=worker_url,
+                                token=worker_token,
+                            )
+            except LearningRuntimeError:
+                output["learning_persistence"] = "unavailable"
         if (
             commit.get("status") == "committed"
             and local_root is not None
