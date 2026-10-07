@@ -1043,3 +1043,102 @@ Automate frontier/request
 ```
 
 The loop may run indefinitely. The verifier never becomes the authority simply because it has become good at verification.
+
+
+## 10. Operating modes and the long-term closed loop
+
+The autonomous system does not run every loop all the time.
+
+### BACKLOG mode — canonical curriculum dominant
+
+While the phase/capability ledger contains unresolved canonical work, the control plane remains in BACKLOG mode.
+
+In BACKLOG mode:
+
+- the strict earliest-ready ledger gate selects the next capability;
+- implementation workers may be commissioned through bounded packets;
+- the Verification & Reconciliation Engine may investigate, test, diagnose, and reconcile;
+- THE MIRROR may be used as a bounded laboratory when the active capability genuinely needs physical/numerical investigation;
+- external open-ended discovery is not commissioned merely because the system is idle between implementation attempts;
+- Mirror discovery cannot create new canonical capability scope.
+
+The purpose is to use the 1A–13A backlog as the system's proving ground. Every completed capability exercises the same queue, worker, transport, evidence, verification, reconciliation, learning, and promotion machinery.
+
+### DISCOVERY_READY mode — canonical curriculum exhausted
+
+When the canonical queue reaches a terminal state with no unresolved pre-discovery work, the control plane may expose DISCOVERY_READY.
+
+This does not mean a new capability is automatically correct or admitted.
+
+It means the discovery loop is now permitted to operate.
+
+THE MIRROR may:
+
+1. inspect its accumulated experiments, observations, research notes, and previous candidate history;
+2. choose a bounded mathematical or physical question;
+3. research established and competing approaches;
+4. run available bounded laboratory tests;
+5. search for counterexamples, instability, missing assumptions, and alternative explanations;
+6. create at most one candidate capability proposal per bounded discovery cycle;
+7. hand the candidate to Chanfana as untrusted durable evidence.
+
+Automate then:
+
+1. validates the proposal contract;
+2. checks collisions and dependency/prerequisite state;
+3. creates a non-authoritative future-capability record;
+4. sends the candidate through bounded investigation and Verification & Reconciliation;
+5. compares independent evidence where required;
+6. determines implementation scope and regression obligations;
+7. opens a normal implementation/reconciliation PR;
+8. only after the ordinary verification/promotion lifecycle succeeds, admits the capability into the authoritative capability inventory and ledger.
+
+The future-capability record is therefore a staging area between discovery and canonical curriculum. Mirror never appends directly to the authoritative ledger.
+
+### Investigation is bidirectional
+
+After DISCOVERY_READY, Mirror has two legitimate directions of use:
+
+**Automate → Mirror:** Automate requests experiments when mathematical or physical uncertainty needs laboratory evidence, perturbation, simulation, or counterexample search.
+
+**Mirror → Automate:** Mirror independently discovers research questions, candidate methods, or candidate capabilities and submits them for triage.
+
+The two directions share evidence contracts but never share certification authority.
+
+### Learning closes the behavioral loop
+
+Experiences from backlog execution and post-ledger discovery feed the same learning machinery.
+
+Repeated successful strategies remain candidates until independently reproduced.
+
+Repeated failures create investigation candidates.
+
+Adopted lessons may change future strategy selection.
+
+System-improvement lessons may produce bounded mutable evolution proposals.
+
+Constitutional/epistemic rules remain outside automatic promotion.
+
+The long-term loop is therefore:
+
+Canonical capability frontier
+→ bounded implementation
+→ durable execution
+→ evidence / Mirror investigation
+→ Verification & Reconciliation
+→ reviewable promotion
+→ learned experience
+→ next canonical frontier
+
+and, after canonical exhaustion:
+
+Canonical queue exhausted
+→ Mirror discovery
+→ research + experiment + challenge
+→ candidate capability
+→ Automate triage
+→ verification / implementation
+→ explicit ledger admission
+→ next canonical frontier.
+
+This is a controlled expansion loop, not an unconstrained self-rewriting loop.
