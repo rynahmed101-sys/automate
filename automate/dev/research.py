@@ -93,7 +93,7 @@ def build_mirror_research_job(
         "execution_kind": "external_research",
         "target": {"mirror_endpoint": mirror_endpoint},
         "query": query,
-        "providers": ["crossref", "openalex", "arxiv", "github", "huggingface"],
+        "providers": ["openalex", "crossref", "inspirehep", "semanticscholar", "arxiv", "github", "huggingface"],
         "limits": {
             "max_results_per_provider": max_results_per_provider,
             "deadline_ms": deadline_ms,
@@ -109,10 +109,11 @@ def build_mirror_research_job(
             "summary": summary,
             "requirements": requirements,
             "instructions": [
-                "Find mature scientific and open-source approaches before recommending reinvention.",
+                "Ground the investigation in established mathematics/physics, canonical references, mature implementations, and known failure modes before considering frontier claims.",
+                "Prefer established/reference sources first, then independent implementations and primary literature, then frontier/preprint claims.",
                 "Look for counterexamples, edge cases, known failure modes, and contradictory evidence.",
-                "Include unusual or frontier approaches when evidence warrants them; established theory is a baseline, not a veto.",
-                "Return evidence and uncertainty, not certification.",
+                "Include unusual or frontier approaches when evidence warrants them; established theory is a reference/control, never a hidden acceptance criterion.",
+                "Return evidence, provenance, uncertainty, and disagreement explicitly; never return certification.",
             ],
         },
     }
