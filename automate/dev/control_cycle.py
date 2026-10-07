@@ -87,13 +87,47 @@ def run_control_cycle(
                 "dispatch_allowed": False,
                 "status": "mirror_discovery_disabled_by_governance",
             }
-        from automate.dev.mirror_discovery_client import dispatch_mirror_discovery, MirrorDiscoveryError
         try:
-            result = dispatch_mirror_discovery(
-                grant,
-                max_tool_steps=6,
+            from automate.dev.discovery_job import (
+                build_discovery_job,
+                dispatch_discovery_job,
+                read_discovery_job,
+                DiscoveryJobError,
             )
-        except MirrorDiscoveryError as exc:
+            if not worker_url or not worker_token:
+                raise DiscoveryJobError("durable worker transport credentials are required for Mirror discovery")
+            action_cycle_id = grant["correlation_id"]
+            envelope = build_discovery_job(
+                grant=grant,
+                action_cycle_id=action_cycle_id,
+                mirror_endpoint=__import__("os").getenv("MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT", ""),
+            )
+            dispatch = dispatch_discovery_job(
+                envelope,
+                worker_url=worker_url,
+                worker_token=worker_token,
+            )
+            job_id = str(dispatch.get("queued", {}).get("jobId") or "")
+            if not job_id:
+                raise DiscoveryJobError("Chanfana returned no durable discovery job ID")
+            durable = read_discovery_job(
+                job_id,
+                worker_url=worker_url,
+                worker_token=worker_token,
+            )
+            job = durable.get("job", {})
+            if job.get("state") != "succeeded":
+                return {
+                    **control,
+                    "discovery_grant": grant,
+                    "dispatch_allowed": False,
+                    "status": "mirror_discovery_job_not_complete",
+                    "discovery_job": durable,
+                }
+            result = job.get("result")
+            if not isinstance(result, dict):
+                raise DiscoveryJobError("durable discovery job result is not an object")
+        except DiscoveryJobError as exc:
             return {
                 **control,
                 "discovery_grant": grant,
