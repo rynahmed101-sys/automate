@@ -36,7 +36,7 @@ def create_worker_pr(
     if len(request_id) < 8 or len(request_id) > 128:
         raise WorkerExecutionError("worker PR requires a bounded request id")
 
-    body = "\\n".join(
+    body = "\n".join(
         [
             "Automated capability implementation generated through Automate's bounded worker pipeline.",
             "",
