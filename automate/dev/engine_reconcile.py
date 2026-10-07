@@ -261,8 +261,10 @@ def reconcile_engine(
         )
         listed_rows = json.loads(listed.stdout or "[]")
         if listed_rows:
-            head_sha = str(listed_rows[0].get("headRefOid") or "")
-            if re.fullmatch(r"[0-9a-f]{40}", head_sha) and _exact_pr_checks_verified(checkout, repository, head_sha):
+            # The PR was just created from this exact reconciliation commit.
+            # Bind the merge check to that immutable SHA directly.
+            head_sha = new_head
+            if _exact_pr_checks_verified(checkout, repository, head_sha):
                 merge = _run(
                     checkout,
                     [

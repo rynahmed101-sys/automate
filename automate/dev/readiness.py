@@ -17,6 +17,7 @@ from automate.dev.worker_client import WorkerTransportError, _request_json, work
 
 REQUIRED_GATES = (
     "worker_contract_tested",
+    "verification_engine_configured",
     "worker_api_authenticated_bounded",
     "worker_transport_live",
     "worker_output_independently_validated",
@@ -216,6 +217,15 @@ def collect_readiness_evidence(
     evidence["autonomous_foundation_merged_main"] = bool(
         _foundation_present_on_main(repository)
     )
+
+    verification_endpoint = os.getenv("VERIFICATION_ENGINE_ENDPOINT", "").strip()
+    evidence["verification_engine_configured"] = verification_endpoint.startswith(
+        ("https://", "http://")
+    )
+    if not evidence["verification_engine_configured"]:
+        errors.append(
+            "VERIFICATION_ENGINE_ENDPOINT must be an explicit http(s) URL for autonomous verification"
+        )
 
     evidence["live_control_plane_clean"] = False
     try:
