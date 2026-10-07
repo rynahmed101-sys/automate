@@ -251,6 +251,37 @@ def execute_promotion(
         }
 
     expected_head_sha = result.get("head_sha")
+    live_before_merge = _gh_json(repository, "/git/ref/heads/main")
+    live_main_sha = str(live_before_merge.get("object", {}).get("sha") or "")
+    if live_main_sha != current_main_sha:
+        return {
+            **result,
+            "execution": "blocked_by_race",
+            "reasons": [
+                *result.get("reasons", []),
+                "authoritative main moved after gate evaluation; re-evaluate before merge",
+            ],
+        }
+    fresh_pr = _pr(repository, pr_number)
+    if fresh_pr.get("head", {}).get("sha") != expected_head_sha:
+        return {
+            **result,
+            "execution": "blocked_by_race",
+            "reasons": [
+                *result.get("reasons", []),
+                "PR head moved after gate evaluation; re-evaluate before merge",
+            ],
+        }
+    if fresh_pr.get("base", {}).get("sha") != current_main_sha:
+        return {
+            **result,
+            "execution": "blocked_by_race",
+            "reasons": [
+                *result.get("reasons", []),
+                "PR base moved after gate evaluation; reconcile before merge",
+            ],
+        }
+
     command = [
         "gh",
         "pr",
@@ -670,6 +701,37 @@ def execute_bookkeeping_promotion(
         }
 
     head_sha = evaluation["pr"]["head_sha"]
+    live_before_merge = _gh_json(repository, "/git/ref/heads/main")
+    live_main_sha = str(live_before_merge.get("object", {}).get("sha") or "")
+    if live_main_sha != current_main_sha:
+        return {
+            **evaluation,
+            "execution": "blocked_by_race",
+            "reasons": [
+                *evaluation.get("reasons", []),
+                "authoritative main moved after bookkeeping gate evaluation; re-evaluate before merge",
+            ],
+        }
+    fresh_pr = _pr(repository, pr_number)
+    if fresh_pr.get("head", {}).get("sha") != head_sha:
+        return {
+            **evaluation,
+            "execution": "blocked_by_race",
+            "reasons": [
+                *evaluation.get("reasons", []),
+                "bookkeeping PR head moved after gate evaluation; re-evaluate before merge",
+            ],
+        }
+    if fresh_pr.get("base", {}).get("sha") != current_main_sha:
+        return {
+            **evaluation,
+            "execution": "blocked_by_race",
+            "reasons": [
+                *evaluation.get("reasons", []),
+                "bookkeeping PR base moved after gate evaluation; reconcile before merge",
+            ],
+        }
+
     command = [
         "gh", "pr", "merge", str(pr_number),
         "--repo", repository,
