@@ -31,6 +31,11 @@
     "reconciliation_branch_prefix": "integrate/",
     "reconciliation_owner": "primary-integrator",
     "feature_base": "main",
+    "control_plane_base": "engine",
+    "reconciliation_bases": [
+      "main",
+      "engine"
+    ],
     "shared_integration_files": [
       "automate/theory/rules.py",
       "schemas/automate-agent-v1.json",
@@ -1161,6 +1166,22 @@
     "security_workflow_run": 37544252443,
     "note": "Current main SHA is pending fresh exact-head and Security Audit verification."
   },
+  "control_plane_references": [
+    {
+      "number": 147,
+      "branch": "feat/operating-mode-contract-20261007",
+      "state": "closed_superseded",
+      "purpose": "closed-loop operating mode control plane",
+      "head_sha": "06bb14b14fcf54f9c0b04db67edb20d3ee897606"
+    },
+    {
+      "number": 148,
+      "branch": "feat/future-capability-admission-queue-20261007",
+      "state": "closed_superseded",
+      "purpose": "future capability admission staging control plane",
+      "head_sha": "b33968f93869da9f1034bec2bf5534b067cd5087"
+    }
+  ],
   "integration_references": [
     {
       "number": 95,
