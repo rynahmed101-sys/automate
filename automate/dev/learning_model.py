@@ -19,6 +19,9 @@ from automate.dev.learning import LearningError, build_evolution_proposal, build
 class LearningModelError(RuntimeError):
     """Raised when a model cannot produce a valid candidate artifact."""
 
+MAX_MODEL_PROMPT_BYTES = 1_000_000
+MAX_MODEL_RESPONSE_BYTES = 1_500_000
+
 
 def reasoning_endpoint(value: str | None = None) -> str:
     endpoint = (value or os.getenv("AUTOMATE_REASONING_ENDPOINT") or "").strip().rstrip("/")
@@ -68,7 +71,10 @@ def _request_model(
     )
     try:
         with urlopen(request, timeout=timeout) as response:
-            raw = response.read().decode("utf-8")
+            raw_bytes = response.read(MAX_MODEL_RESPONSE_BYTES + 1)
+            if len(raw_bytes) > MAX_MODEL_RESPONSE_BYTES:
+                raise LearningModelError("reasoning model response exceeds bounded response budget")
+            raw = raw_bytes.decode("utf-8")
     except (HTTPError, URLError, TimeoutError, OSError) as exc:
         raise LearningModelError(f"reasoning model request failed: {exc}") from exc
     try:
@@ -92,6 +98,22 @@ def generate_candidate_lessons(
         return []
     if not 1 <= max_lessons <= 10:
         raise LearningModelError("max_lessons must be between 1 and 10")
+    bounded_experiences = [
+        {
+            "experience_id": exp.get("experience_id"),
+            "outcome": exp.get("outcome"),
+            "task": exp.get("task"),
+            "strategy": exp.get("strategy"),
+            "failure_class": exp.get("failure_class"),
+            "observation": {
+                "summary": str(exp.get("observation", {}).get("summary", ""))[:4000],
+                "reproducible": exp.get("observation", {}).get("reproducible"),
+            },
+        }
+        for exp in experiences
+        if isinstance(exp, Mapping)
+    ]
+
     prompt = json.dumps(
         {
             "task": "Analyze the following execution experiences and propose reusable candidate lessons.",
@@ -102,7 +124,7 @@ def generate_candidate_lessons(
                 "Every lesson remains CANDIDATE and UNVERIFIED.",
                 "Use only supplied experience IDs as supporting references.",
             ],
-            "experiences": list(experiences),
+            "experiences": bounded_experiences,
             "output": {
                 "lessons": [
                     {
@@ -118,6 +140,8 @@ def generate_candidate_lessons(
         },
         separators=(",", ":"),
     )
+    if len(prompt.encode("utf-8")) > MAX_MODEL_PROMPT_BYTES:
+        raise LearningModelError("reasoning model prompt exceeds bounded prompt budget")
     decoded = _request_model(
         endpoint=endpoint or reasoning_endpoint(),
         token=token or os.getenv("AUTOMATE_REASONING_TOKEN"),
