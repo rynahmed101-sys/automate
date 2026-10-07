@@ -39,12 +39,24 @@ def test_learning_cli_transition_does_not_forge_independence_marker(tmp_path):
     finally:
         store.close()
 
+    reproduced = CliRunner().invoke(
+        main,
+        [
+            "learn", "transition", lesson["lesson_id"], "REPRODUCED",
+            "--reason", "verification evidence supplied",
+            "--evidence-id", "reproduction-1",
+            "--db", str(tmp_path / "learning.db"),
+        ],
+    )
+    assert reproduced.exit_code == 0, reproduced.output
+
     result = CliRunner().invoke(
         main,
         [
             "learn", "transition", lesson["lesson_id"], "VERIFIED",
             "--reason", "verification evidence supplied",
             "--evidence-id", "verification-1",
+            "--independence", "independent_route",
             "--db", str(tmp_path / "learning.db"),
         ],
     )
