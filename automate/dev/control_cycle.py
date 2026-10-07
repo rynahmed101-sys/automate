@@ -374,6 +374,126 @@ def run_control_cycle(
         }
 
     if handoff is not None:
+        head_sha = str(
+            handoff.get("head_sha")
+            or handoff.get("pr", {}).get("head", {}).get("sha")
+            or handoff.get("pr", {}).get("head_sha")
+            or ""
+        )
+        try:
+            from automate.dev.failure_recovery import (
+                exact_head_recovery_state,
+                diagnose_worker_failure,
+                quarantine_worker_pr,
+                rerun_failed_workflows,
+            )
+            recovery = exact_head_recovery_state(repository, head_sha)
+        except Exception as exc:
+            return {
+                **control,
+                "status": "worker_recovery_inspection_blocked",
+                "error": str(exc),
+                "dispatch_allowed": False,
+                "lifecycle": handoff,
+            }
+
+        if recovery["state"] == "retryable_failure":
+            retry = rerun_failed_workflows(repository, list(recovery["retryable"]))
+            return {
+                **control,
+                "status": "worker_verification_retry_requested",
+                "dispatch_allowed": False,
+                "lifecycle": handoff,
+                "recovery": recovery,
+                "retry": retry,
+            }
+
+        if recovery["state"] == "pending":
+            return {
+                **control,
+                "status": "worker_verification_pending",
+                "dispatch_allowed": False,
+                "lifecycle": handoff,
+                "recovery": recovery,
+            }
+
+        if recovery["state"] == "repeated_failure":
+            pr_number = handoff.get("number") or handoff.get("pr", {}).get("number")
+            failures = list(recovery["failures"])
+            if not isinstance(pr_number, int):
+                return {
+                    **control,
+                    "status": "worker_recovery_blocked",
+                    "error": "repeated failure has no valid worker PR number",
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                    "recovery": recovery,
+                }
+            diagnosis = diagnose_worker_failure(repository, pr_number, failures)
+            quarantine = quarantine_worker_pr(repository, pr_number, failures)
+            if quarantine.get("state") != "quarantined":
+                return {
+                    **control,
+                    "status": "worker_quarantine_failed",
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                    "recovery": recovery,
+                    "diagnosis": diagnosis,
+                    "quarantine": quarantine,
+                }
+            context_notes = [
+                "AUTONOMOUS_RECOVERY: prior worker proposal was quarantined after repeated exact-head failures.",
+                *diagnosis["notes"],
+            ]
+            if not worker_url or not worker_token:
+                return {
+                    **control,
+                    "status": "worker_quarantined_repair_ready",
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                    "recovery": recovery,
+                    "diagnosis": diagnosis,
+                    "quarantine": quarantine,
+                    "repair_context": context_notes,
+                }
+            try:
+                repair_packet = build_worker_packet(
+                    capability_id,
+                    repository=repository,
+                    base_sha_claim=current_main_sha,
+                    development_branch="main",
+                    context_notes=context_notes,
+                )
+                dispatch = __import__("automate.dev.worker_client", fromlist=["dispatch_worker"]).dispatch_worker(
+                    repair_packet,
+                    url=worker_url,
+                    token=worker_token,
+                    execute=execute_worker,
+                )
+            except Exception as exc:
+                return {
+                    **control,
+                    "status": "worker_repair_dispatch_blocked",
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                    "recovery": recovery,
+                    "diagnosis": diagnosis,
+                    "quarantine": quarantine,
+                    "repair_context": context_notes,
+                    "error": str(exc),
+                }
+            return {
+                **control,
+                "status": "worker_repair_dispatched" if execute_worker else "worker_repair_queued",
+                "dispatch_allowed": False,
+                "lifecycle": handoff,
+                "recovery": recovery,
+                "diagnosis": diagnosis,
+                "quarantine": quarantine,
+                "repair_context": context_notes,
+                "dispatch": dispatch,
+            }
+
         verification = None
         require_verification = True
         if require_verification:
