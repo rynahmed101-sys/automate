@@ -55,7 +55,7 @@ jobs:
             exit 1
           }
           runs="$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=${{ steps.pin.outputs.sha }}&per_page=100")"
-          python - <<'PY'
+          RUNS_JSON="$runs" python - <<'PY'
           import json, os
           payload = json.loads(os.environ["RUNS_JSON"])
           required = {"Automate Engine CI", "Security Audit"}
@@ -68,8 +68,6 @@ jobs:
           if missing:
               raise SystemExit("Pinned engine release lacks successful exact-head evidence: " + ", ".join(missing))
           PY
-        env:
-          RUNS_JSON: ${{ steps.pin.outputs.sha && '' }}
 
       - name: Stop cleanly while scheduler is disabled
         if: steps.pin.outputs.enabled != 'true'
