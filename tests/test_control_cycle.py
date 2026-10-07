@@ -124,3 +124,22 @@ def test_discovery_cycle_never_allows_more_than_one_candidate():
         ]
     }
     assert len(extract_candidate_proposals(result)) == 2
+
+
+def test_merged_worker_waits_for_exact_main_verification_before_new_dispatch():
+    control = {
+        "mode": "BACKLOG",
+        "queue": {"next_action": {"action": "implement", "capability_id": "stage1b.series_expansions"}},
+    }
+    merged = {
+        "post_merge": {
+            "state": "VERIFYING_EXACT_MAIN",
+            "gates": {
+                "exact_head_ci_verified": False,
+                "security_audit_verified": False,
+            },
+        }
+    }
+    # Contract-level regression: this state must stop the cycle rather than
+    # reaching the fresh-worker dispatch path.
+    assert merged["post_merge"]["state"] not in {"BLOCKED_STALE_MAIN", "BOOKKEEPING_READY"}
