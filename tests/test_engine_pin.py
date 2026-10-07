@@ -83,8 +83,8 @@ def test_pin_auto_merge_requires_workflow_level_main_pr_checks():
     from automate.dev import engine_pin
 
     runs = [
-        {"name": "Automate CI", "status": "completed", "conclusion": "success"},
-        {"name": "Security Audit", "status": "completed", "conclusion": "success"},
+        {"name": "Automate CI", "head_sha": "a" * 40, "status": "completed", "conclusion": "success"},
+        {"name": "Security Audit", "head_sha": "a" * 40, "status": "completed", "conclusion": "success"},
     ]
 
     def fake(root, args, check=False):
@@ -141,8 +141,8 @@ def test_pin_creation_auto_merge_uses_created_commit_sha(tmp_path: Path):
             return CompletedProcess(
                 args, 0,
                 stdout=json.dumps({"workflow_runs": [
-                    {"name": "Automate CI", "status": "completed", "conclusion": "success"},
-                    {"name": "Security Audit", "status": "completed", "conclusion": "success"},
+                    {"name": "Automate CI", "head_sha": created_sha, "status": "completed", "conclusion": "success"},
+                    {"name": "Security Audit", "head_sha": created_sha, "status": "completed", "conclusion": "success"},
                 ]}),
                 stderr="",
             )
