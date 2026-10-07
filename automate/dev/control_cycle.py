@@ -324,8 +324,18 @@ def run_control_cycle(
         verification = None
         require_verification = str(__import__("os").getenv("AUTOMATE_REQUIRE_VERIFICATION", "")).strip().lower() in {"1", "true", "yes"}
         if require_verification:
-            head_sha = str(handoff.get("head_sha") or handoff.get("pr", {}).get("head_sha") or "")
-            branch_name = str(handoff.get("branch") or handoff.get("pr", {}).get("branch") or "")
+            head_sha = str(
+                handoff.get("head_sha")
+                or handoff.get("pr", {}).get("head", {}).get("sha")
+                or handoff.get("pr", {}).get("head_sha")
+                or ""
+            )
+            branch_name = str(
+                handoff.get("branch")
+                or handoff.get("pr", {}).get("head", {}).get("ref")
+                or handoff.get("pr", {}).get("branch")
+                or ""
+            )
             try:
                 from automate.dev.verification_job import (
                     build_verification_job,
