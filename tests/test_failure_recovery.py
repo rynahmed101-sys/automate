@@ -123,3 +123,58 @@ def test_recovery_attempts_use_distinct_worker_branches():
     assert worker_branch_name("stage1b.series_expansions", base, 2) == (
         "feat/stage1b.series_expansions-" + "b" * 12 + "-repair2"
     )
+
+
+def test_recovery_worker_request_identity_changes_with_attempt(monkeypatch):
+    from automate.dev.worker import build_worker_packet
+
+    monkeypatch.setattr(
+        "automate.dev.worker.load_inventory",
+        lambda: {
+            "capabilities": [{
+                "id": "stage1b.series_expansions",
+                "implementation_state": "planned",
+                "depends_on": [],
+                "canonical_files": ["automate/backend/series_expansions.py", "tests/test_series_expansions.py"],
+                "shared_integration_points": [],
+                "stage": "1B",
+                "name": "Series expansions",
+                "references": [],
+                "task": {"source": "github_issue", "ref": "141", "summary": "series", "requirements": []},
+            }],
+            "branch_policy": {
+                "shared_integration_files": [],
+                "capability_branch_prefix": "feat/",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        "automate.dev.worker.get_capability",
+        lambda _: {
+            "id": "stage1b.series_expansions",
+            "implementation_state": "planned",
+            "depends_on": [],
+            "canonical_files": ["automate/backend/series_expansions.py", "tests/test_series_expansions.py"],
+            "shared_integration_points": [],
+            "stage": "1B",
+            "name": "Series expansions",
+            "references": [],
+            "task": {"source": "github_issue", "ref": "141", "summary": "series", "requirements": []},
+        },
+    )
+    monkeypatch.setattr(
+        "automate.dev.worker.ROOT",
+        __import__("pathlib").Path("."),
+    )
+    base = "a" * 40
+    first = build_worker_packet(
+        "stage1b.series_expansions",
+        base_sha_claim=base,
+    )
+    repair = build_worker_packet(
+        "stage1b.series_expansions",
+        base_sha_claim=base,
+        recovery_attempt=2,
+    )
+    assert first["packet"]["request_id"] != repair["packet"]["request_id"]
+    assert "AUTONOMOUS_RECOVERY_ATTEMPT: 2" in repair["packet"]["context"]["notes"]
