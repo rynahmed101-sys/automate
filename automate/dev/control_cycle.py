@@ -488,6 +488,7 @@ def run_control_cycle(
                     int(lifecycle["pr"]["number"]),
                     current_main_sha=current_main_sha,
                     execute=should_execute,
+                    verification_result=result,
                 )
         except PromotionError as exc:
             return {
