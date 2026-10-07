@@ -43,6 +43,34 @@ jobs:
               out.write(f"sha={sha or ''}\n")
           PY
 
+      - name: Validate pinned engine release evidence
+        if: steps.pin.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          live_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/engine" --jq '.object.sha')"
+          test "$live_sha" = "${{ steps.pin.outputs.sha }}" || {
+            echo "Pinned engine SHA is not the live engine tip: pinned=${{ steps.pin.outputs.sha }} live=$live_sha" >&2
+            exit 1
+          }
+          runs="$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=${{ steps.pin.outputs.sha }}&per_page=100")"
+          python - <<'PY'
+          import json, os
+          payload = json.loads(os.environ["RUNS_JSON"])
+          required = {"Automate Engine CI", "Security Audit"}
+          successful = {
+              run.get("name")
+              for run in payload.get("workflow_runs", [])
+              if run.get("status") == "completed" and run.get("conclusion") == "success"
+          }
+          missing = sorted(required - successful)
+          if missing:
+              raise SystemExit("Pinned engine release lacks successful exact-head evidence: " + ", ".join(missing))
+          PY
+        env:
+          RUNS_JSON: ${{ steps.pin.outputs.sha && '' }}
+
       - name: Stop cleanly while scheduler is disabled
         if: steps.pin.outputs.enabled != 'true'
         run: echo "Automate control cycle is disabled by authoritative main."
