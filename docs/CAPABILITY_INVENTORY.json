@@ -1217,10 +1217,10 @@
       "purpose": "reconcile post-PR-140 authoritative main changes into long-lived engine trunk"
     },
     {
-      "number": 155,
-      "branch": "integrate/control-plane-machinery-20261007",
+      "number": 159,
+      "branch": "integrate/control-plane-machinery-v2-20261007",
       "state": "open",
-      "purpose": "consolidated autonomous control-plane machinery"
+      "purpose": "consolidated autonomous control-plane machinery (clean verification replacement)"
     }
   ]
 }
