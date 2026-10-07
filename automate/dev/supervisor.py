@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import subprocess
+import json
+import os
+import re
 from typing import Any
 
 from automate.dev.inventory import (
@@ -35,6 +38,42 @@ def observed_main_sha() -> str | None:
             return None
     sha = result.stdout.strip()
     return sha if len(sha) == 40 else None
+
+
+def _github_open_worker_prs(repository: str) -> list[dict[str, Any]]:
+    env = os.environ.copy()
+    if not env.get("GH_TOKEN") and not env.get("GITHUB_TOKEN"):
+        return []
+    result = subprocess.run(
+        [
+            "gh", "pr", "list", "--repo", repository, "--state", "open",
+            "--base", "main", "--limit", "100",
+            "--json", "number,headRefName,headRefOid,baseRefOid,body,title,isDraft,url",
+        ],
+        capture_output=True, text=True, check=False, env=env,
+    )
+    if result.returncode != 0:
+        return []
+    try:
+        rows = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError:
+        return []
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def _pending_worker_pr(repository: str, capability_id: str, main_sha: str) -> dict[str, Any] | None:
+    expected_prefix = "feat/" + capability_id + "-" + main_sha[:12]
+    for pr in _github_open_worker_prs(repository):
+        branch = str(pr.get("headRefName") or "")
+        body = str(pr.get("body") or "")
+        if (
+            branch == expected_prefix
+            and str(pr.get("baseRefName") or "main") == "main"
+            and re.search(r"(?m)^- capability:\s*" + re.escape(capability_id) + r"\s*$", body)
+            and str(pr.get("baseRefOid") or "") == main_sha
+        ):
+            return pr
+    return None
 
 
 def supervisor_snapshot(
@@ -90,6 +129,25 @@ def supervisor_snapshot(
         }
 
     action = next_action(data)
+    if action["action"] == "implement":
+        capability_id = action.get("capability_id")
+        if capability_id:
+            pending = _pending_worker_pr(repository, capability_id, live_main_sha)
+            if pending:
+                return {
+                    "schema_version": "automate.supervisor.v1",
+                    "action": "promote_worker_pr",
+                    "reason": "A worker has already published the earliest capability from this exact main base; do not dispatch duplicate work.",
+                    "errors": [],
+                    "queue": queue,
+                    "live": live_state,
+                    "can_dispatch": False,
+                    "capability_id": capability_id,
+                    "pr_number": int(pending["number"]),
+                    "head_sha": str(pending["headRefOid"]),
+                    "worker_pr": pending,
+                }
+
     if action["action"] != "implement":
         return {
             "schema_version": "automate.supervisor.v1",
