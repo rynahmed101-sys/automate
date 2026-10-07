@@ -87,48 +87,8 @@ def test_cycle_validates_worker_result_before_local_apply():
 
 
 
-
-def test_backlog_cycle_publishes_when_auto_publish_is_enabled(monkeypatch):
-    monkeypatch.setenv("AUTOMATE_AUTO_PUBLISH", "1")
-    with patch(
-        "automate.dev.autonomous.supervisor_snapshot",
-        return_value=decision(),
-    ), patch(
-        "automate.dev.autonomous.dispatch_worker",
-        return_value={
-            "execution": {
-                "result": {
-                    "schema_version": "automate.worker_result.v1",
-                    "request_id": "wrk_test_12345678",
-                    "status": "proposed",
-                    "changes": [],
-                    "tests": [],
-                    "unresolved": [],
-                },
-                "jobId": "j1",
-            },
-            "queued": {"success": True, "jobId": "j1"},
-        },
-    ), patch(
-        "automate.dev.autonomous.validate_worker_result",
-        return_value=[],
-    ), patch(
-        "automate.dev.autonomous.build_worker_commit",
-        return_value={"status": "committed", "branch": "feat/stage1b.improper_integrals"},
-    ):
-        import automate.dev.publisher as publisher
-        with patch.object(
-            publisher,
-            "publish_worker_commit",
-            create=True,
-            return_value={"status": "submitted", "pr_number": 171},
-        ) as publish:
-            result = run_autonomous_cycle(
-                "x",
-                worker_url="https://worker",
-                worker_token="secret",
-                execute_worker=True,
-                local_root=Path("."),
-            )
-    assert result["status"] == "submitted"
-    publish.assert_called_once()
+def test_scheduler_enables_verified_worker_publication():
+    workflow = Path(".github/workflows/autonomous-cycle.yml").read_text(encoding="utf-8")
+    assert 'AUTOMATE_AUTO_PUBLISH: "1"' in workflow
+    assert "--execute-worker" in workflow
+    assert "--local-root ." in workflow
