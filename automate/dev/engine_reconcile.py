@@ -55,7 +55,7 @@ def reconcile_engine(
     main_sha = _run(checkout, ["git", "rev-parse", "refs/remotes/origin/main"], check=True).stdout.strip()
     engine_sha = _run(checkout, ["git", "rev-parse", "refs/remotes/origin/engine"], check=True).stdout.strip()
 
-    if not re.fullmatch(r"[0-9a-f]{40}", main_sha + engine_sha):
+    if not re.fullmatch(r"[0-9a-f]{40}", main_sha) or not re.fullmatch(r"[0-9a-f]{40}", engine_sha):
         raise EngineReconcileError("observed branch SHAs are malformed")
 
     ancestor = _run(
