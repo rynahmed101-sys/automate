@@ -186,7 +186,6 @@ def ensure_engine_pin(
                 [
                     "gh", "pr", "merge", str(pr["number"]),
                     "--repo", repository,
-                    "--auto",
                     "--merge",
                     "--delete-branch=false",
                     "--match-head-commit", head_sha,
