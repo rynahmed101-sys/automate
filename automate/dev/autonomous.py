@@ -109,6 +109,12 @@ def run_autonomous_cycle(
     # RESEARCH mode is explicitly opt-in and remains separate from the backlog.
     research_enabled = os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "").strip().lower() in {"1", "true", "yes"}
     if not research_enabled:
+        return {
+            "status": "research_disabled_by_governance",
+            "decision": decision,
+            "next_step": "keep external research disabled until DISCOVERY_READY",
+        }
+
     mirror_endpoint = os.getenv("MIRROR_RESEARCH_ENDPOINT", "").strip()
     if not mirror_endpoint:
         raise AutonomousCycleError("MIRROR_RESEARCH_ENDPOINT is required when external research is enabled")
