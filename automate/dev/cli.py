@@ -253,6 +253,7 @@ def worker_status_command(job_id: str, worker_url: str | None, worker_token: str
 @click.option("--worker-token", default=None, help="Worker API token. Defaults to AUTOMATE_WORKER_TOKEN.")
 @click.option("--execute-worker", is_flag=True, help="Ask the worker to execute the AI attempt after queueing.")
 @click.option("--local-root", type=click.Path(path_type=Path, exists=True, file_okay=False), default=None)
+@click.option("--learning-db", type=click.Path(path_type=Path), default=None, help="SQLite learning ledger path.")
 @click.option("--json", "as_json", is_flag=True)
 def autonomous_cycle_command(
     repository: str,
@@ -260,6 +261,7 @@ def autonomous_cycle_command(
     worker_token: str | None,
     execute_worker: bool,
     local_root: Path | None,
+    learning_db: Path | None,
     as_json: bool,
 ) -> None:
     """Run one bounded autonomous development cycle."""
@@ -271,6 +273,7 @@ def autonomous_cycle_command(
             worker_token=worker_token,
             execute_worker=execute_worker,
             local_root=local_root,
+            learning_db=learning_db,
         )
     except AutonomousCycleError as exc:
         raise click.ClickException(str(exc)) from exc
