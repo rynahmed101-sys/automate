@@ -28,20 +28,45 @@ def _authorized(headers: Any) -> bool:
 
 
 def verify_payload(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
-    required = ("action_cycle_id", "capability_id", "repository", "revision", "branch", "scope")
-    missing = [key for key in required if key not in payload]
-    if missing:
-        return 400, {"error": "missing required verification fields", "fields": missing}
+    is_envelope = payload.get("schema_version") == "automate.verification_job.v1"
+    if is_envelope:
+        required = (
+            "request_id", "action_cycle_id", "capability_id",
+            "source_revision", "source_repository", "source_branch",
+            "limits", "provenance",
+        )
+        missing = [key for key in required if key not in payload]
+        if missing:
+            return 400, {"error": "missing required verification envelope fields", "fields": missing}
+        request_payload = {
+            "action_cycle_id": payload["action_cycle_id"],
+            "capability_id": payload["capability_id"],
+            "repository": payload["source_repository"],
+            "revision": payload["source_revision"],
+            "branch": payload["source_branch"],
+            "scope": [
+                "inventory",
+                str(payload.get("workflow_kind") or "verification"),
+                *[str(k) for k in (payload.get("payload") or {}).keys()],
+            ],
+            "parent_ids": (payload.get("provenance") or {}).get("parent_ids", []),
+        }
+    else:
+        required = ("action_cycle_id", "capability_id", "repository", "revision", "branch", "scope")
+        missing = [key for key in required if key not in payload]
+        if missing:
+            return 400, {"error": "missing required verification fields", "fields": missing}
+        request_payload = payload
 
     try:
         request = build_request(
-            capability_id=str(payload["capability_id"]),
-            repository=str(payload["repository"]),
-            revision=str(payload["revision"]),
-            branch=str(payload["branch"]),
-            scope=[str(x) for x in payload["scope"]],
-            action_cycle_id=str(payload["action_cycle_id"]),
-            parent_ids=[str(x) for x in payload.get("parent_ids", [])],
+            capability_id=str(request_payload["capability_id"]),
+            repository=str(request_payload["repository"]),
+            revision=str(request_payload["revision"]),
+            branch=str(request_payload["branch"]),
+            scope=[str(x) for x in request_payload["scope"]],
+            action_cycle_id=str(request_payload["action_cycle_id"]),
+            parent_ids=[str(x) for x in request_payload.get("parent_ids", [])],
         )
         snapshot = live_repository_snapshot(request.repository)
         snapshot["requested_revision"] = request.revision
