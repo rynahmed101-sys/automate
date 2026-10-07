@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 
+from automate.dev.bookkeeping import create_bookkeeping_pr
 from automate.dev.inventory import InventoryError
 from automate.dev.prmgr import create_worker_pr
 from automate.dev.publisher import build_worker_commit, push_worker_branch
@@ -115,6 +116,23 @@ def run_autonomous_cycle(
     local_root: Path | None = None,
 ) -> dict[str, Any]:
     decision = supervisor_snapshot(repository, live=True)
+
+    if decision.get("action") == "promote_bookkeeping_pr":
+        if not isinstance(decision.get("pr_number"), int) or not isinstance(decision.get("head_sha"), str):
+            raise AutonomousCycleError("bookkeeping promotion decision is missing PR identity")
+        promotion = promote_worker_pr(repository, decision["pr_number"], decision["head_sha"])
+        return {"status": "bookkeeping_promotion", "decision": decision, "promotion": promotion}
+
+    if decision.get("action") == "create_bookkeeping":
+        if local_root is None:
+            return {"status": "waiting_for_local_root", "decision": decision}
+        result = create_bookkeeping_pr(
+            repository,
+            root=local_root,
+            capability_id=str(decision["capability_id"]),
+            worker_pr=decision["worker_pr"],
+        )
+        return {"status": "bookkeeping", "decision": decision, "bookkeeping": result}
 
     if decision.get("action") == "promote_worker_pr":
         if not isinstance(decision.get("pr_number"), int) or not isinstance(decision.get("head_sha"), str):
@@ -251,6 +269,10 @@ def run_autonomous_cycle(
     output["commit"] = commit
     if commit["status"] != "committed":
         output["status"] = commit["status"]
+        return output
+
+    if os.getenv("AUTOMATE_AUTO_PUBLISH", "1").strip().lower() not in {"1", "true", "yes"}:
+        output["status"] = "committed"
         return output
 
     branch_name = str(commit["branch"])
