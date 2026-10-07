@@ -250,5 +250,5 @@ def test_capability_promotion_accepts_exact_implementation_verification():
             "evidence_state": "IMPLEMENTATION_VERIFIED",
         },
     )
-    assert result["state"] == "BLOCKED"
-    assert result["gates"]["verification_evidence"] is False
+    assert result["state"] == "READY_TO_MERGE"
+    assert result["gates"]["verification_evidence"] is True
