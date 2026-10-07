@@ -75,7 +75,9 @@ def _exact_pr_evidence(repository: str, head_sha: str) -> bool:
 
 
 def promote_worker_pr(repository: str, pr_number: int, head_sha: str) -> dict[str, Any]:
-    """Merge a worker PR only when its immutable head has exact CI + security evidence."""
+    """Merge a governed PR only when its immutable head has exact CI + security evidence."""
+    if os.getenv("AUTOMATE_AUTO_PROMOTE", "1").strip().lower() not in {"1", "true", "yes"}:
+        return {"status": "promotion_disabled_by_governance", "pr_number": pr_number, "head_sha": head_sha}
     if len(head_sha) != 40:
         raise AutonomousCycleError("worker promotion requires an exact head SHA")
     if not _exact_pr_evidence(repository, head_sha):
@@ -118,12 +120,16 @@ def run_autonomous_cycle(
     decision = supervisor_snapshot(repository, live=True)
 
     if decision.get("action") == "promote_bookkeeping_pr":
+        if os.getenv("AUTOMATE_AUTO_BOOKKEEP", "1").strip().lower() not in {"1", "true", "yes"}:
+            return {"status": "bookkeeping_promotion_disabled_by_governance", "decision": decision}
         if not isinstance(decision.get("pr_number"), int) or not isinstance(decision.get("head_sha"), str):
             raise AutonomousCycleError("bookkeeping promotion decision is missing PR identity")
         promotion = promote_worker_pr(repository, decision["pr_number"], decision["head_sha"])
         return {"status": "bookkeeping_promotion", "decision": decision, "promotion": promotion}
 
     if decision.get("action") == "create_bookkeeping":
+        if os.getenv("AUTOMATE_AUTO_BOOKKEEP", "1").strip().lower() not in {"1", "true", "yes"}:
+            return {"status": "bookkeeping_disabled_by_governance", "decision": decision}
         if local_root is None:
             return {"status": "waiting_for_local_root", "decision": decision}
         result = create_bookkeeping_pr(
