@@ -170,6 +170,83 @@ def audit_live_command(repository: str, as_json: bool) -> None:
     if not payload["valid"]:
         raise click.exceptions.Exit(1)
 
+@capability.command("promotion-inspect")
+@click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--pr", "pr_number", type=int, required=True, help="Canonical capability PR number.")
+@click.option("--main-sha", default=None, help="Exact current main SHA. When omitted, the controller reads live GitHub state.")
+@click.option("--require-review", is_flag=True, help="Require an explicit approved review before promotion.")
+@click.option("--json", "as_json", is_flag=True)
+def promotion_inspect_command(
+    repository: str,
+    pr_number: int,
+    main_sha: str | None,
+    require_review: bool,
+    as_json: bool,
+) -> None:
+    """Evaluate evidence gates for one canonical capability PR without merging."""
+    from automate.dev.promotion import PromotionError, inspect_promotion
+    if main_sha is None:
+        import os
+        from automate.dev.promotion import _gh_json
+        try:
+            ref = _gh_json(repository, "/git/ref/heads/main")
+            main_sha = ref.get("object", {}).get("sha")
+        except PromotionError as exc:
+            raise click.ClickException(str(exc)) from exc
+    if not isinstance(main_sha, str) or len(main_sha) != 40:
+        raise click.ClickException("current main SHA is unavailable or malformed")
+    try:
+        payload = inspect_promotion(
+            repository,
+            pr_number,
+            current_main_sha=main_sha,
+            require_review=require_review,
+        )
+    except (PromotionError, InventoryError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2) if as_json else json.dumps(payload, indent=2))
+    if payload["state"] != "READY_TO_MERGE":
+        raise click.exceptions.Exit(1)
+
+@capability.command("promotion-execute")
+@click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
+@click.option("--pr", "pr_number", type=int, required=True, help="Canonical capability PR number.")
+@click.option("--main-sha", default=None, help="Exact current main SHA. When omitted, the controller reads live GitHub state.")
+@click.option("--execute", is_flag=True, help="Actually request the guarded GitHub merge.")
+@click.option("--require-review", is_flag=True, help="Require an explicit approved review before promotion.")
+@click.option("--json", "as_json", is_flag=True)
+def promotion_execute_command(
+    repository: str,
+    pr_number: int,
+    main_sha: str | None,
+    execute: bool,
+    require_review: bool,
+    as_json: bool,
+) -> None:
+    """Run one evidence-gated promotion attempt; default is a dry run."""
+    from automate.dev.promotion import PromotionError, _gh_json, execute_promotion
+    if main_sha is None:
+        try:
+            ref = _gh_json(repository, "/git/ref/heads/main")
+            main_sha = ref.get("object", {}).get("sha")
+        except PromotionError as exc:
+            raise click.ClickException(str(exc)) from exc
+    if not isinstance(main_sha, str) or len(main_sha) != 40:
+        raise click.ClickException("current main SHA is unavailable or malformed")
+    try:
+        payload = execute_promotion(
+            repository,
+            pr_number,
+            current_main_sha=main_sha,
+            execute=execute,
+            require_review=require_review,
+        )
+    except (PromotionError, InventoryError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(payload, indent=2) if as_json else json.dumps(payload, indent=2))
+    if payload.get("execution") in {"not_ready", "blocked_by_governance"}:
+        raise click.exceptions.Exit(1)
+
 @capability.command("supervise")
 @click.option("--repo", "repository", required=True, help="GitHub repository in owner/name form.")
 @click.option("--base-sha", default=None, help="Observed main SHA to bind into the worker packet.")
