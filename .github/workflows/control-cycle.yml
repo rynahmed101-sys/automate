@@ -68,9 +68,33 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write(f"state={result['state']}\\n")
 
-      - name: Stop after reconciliation action
-        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state != 'ALIGNED'
-        run: echo "Engine reconciliation is pending; the control cycle will resume after engine catches up."
+      - name: Update scheduler engine pin
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED'
+        id: engine_pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATE_AUTO_PIN_ENGINE: ${{ vars.AUTOMATE_AUTO_PIN_ENGINE }}
+        run: |
+          set -euo pipefail
+          python -m pip install -e .
+          python - <<'PY'
+          import json
+          import os
+          from automate.dev.engine_pin import ensure_engine_pin
+
+          result = ensure_engine_pin(
+              "${{ github.workspace }}",
+              "${{ github.repository }}",
+              auto_update=os.getenv("AUTOMATE_AUTO_PIN_ENGINE", "").strip().lower() in {"1", "true", "yes"},
+              auto_merge=os.getenv("AUTOMATE_AUTO_PIN_ENGINE", "").strip().lower() in {"1", "true", "yes"},
+          )
+          print(json.dumps(result, indent=2))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"state={result['state']}\n")
+
+      - name: Stop after reconciliation or pin action
+        if: steps.pin.outputs.enabled == 'true' && (steps.reconcile.outputs.state != 'ALIGNED' || steps.engine_pin.outputs.state != 'PIN_ALIGNED')
+        run: echo "Control-plane release alignment is pending; the next scheduled cycle will resume after the required PR lands."
 
       - name: Validate pinned engine release evidence
         if: steps.pin.outputs.enabled == 'true'
