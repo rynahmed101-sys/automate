@@ -99,23 +99,35 @@ Its `engine` branch is the living infrastructure development trunk.
 
 Its `main` branch is the release surface.
 
-### THE MIRROR — experimental scientific laboratory
+### THE MIRROR — frontier scientific AI worker and experimental laboratory
 
-`rynahmed101-sys/the-mirror` exists for experiments that should not become mathematical authority merely because a computation produced an interesting result.
+`rynahmed101-sys/the-mirror` is not merely an evidence generator. Its AI operator is the system's scientific frontier worker.
 
-It owns:
+It may:
 
-- hypotheses;
-- controlled experiments;
-- simulations;
-- perturbations;
-- counterexample searches;
-- numerical comparison;
-- runtime/error/stability observations;
-- reproducible experiment provenance;
-- experimental evidence.
+- research public scientific sources and open-source implementations;
+- inspect repository code and tests;
+- implement bounded capability code;
+- diagnose and repair failed capability implementations;
+- design and execute experiments;
+- search for counterexamples and unexpected behavior;
+- generate candidate mathematical/physical capabilities;
+- propose new experiments and research directions;
+- preserve surprising or contradictory results.
 
-Mirror observations are evidence to Automate, not Automate truth.
+Mirror's work priority is strict:
+
+1. repair a failed capability;
+2. current Automate backlog;
+3. next ledger frontier;
+4. explicit Automate request;
+5. discovery.
+
+If higher-priority work exists, discovery waits.
+
+Mirror may create a capability candidate, but it must never silently create a canonical ledger/inventory entry. Existing capability IDs and ledger fingerprints supplied by Automate prevent duplication.
+
+Mirror observations and code proposals remain untrusted evidence/proposals to Automate. Automate remains the only authority for verification, promotion, certification, and canonical bookkeeping.
 
 Mirror must never mutate Automate's ledger, inventory, rule registry, certification state, or Git history.
 
@@ -537,6 +549,27 @@ Do not attack these as a flat todo list. The dependency order is:
 
 The system must not jump from “worker contracts exist” to “turn the worker on.”
 
+
+### I10 — Frontier AI scientific worker
+
+**Goal:** Mirror can act as the intelligent scientific implementation/research partner rather than a passive experiment service.
+
+Required:
+
+- provider-neutral AI decision interface;
+- strict priority context from Automate;
+- bounded repository read/write tools;
+- web/scientific-source research tools;
+- capability-pack inspection;
+- failed-implementation diagnosis;
+- repair proposal generation;
+- candidate capability generation without ledger mutation;
+- experiment execution and evidence capture;
+- explicit uncertainty and unresolved-question reporting.
+
+**Current state:** IMPLEMENTATION STARTED.
+
+This does not weaken Automate's authority. It moves intelligence to the frontier worker while keeping verification and certification in the control plane.
 ## 10. What is NOT a dependency
 
 These are explicitly not foundational dependencies:
