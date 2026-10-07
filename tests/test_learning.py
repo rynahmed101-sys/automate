@@ -298,3 +298,61 @@ def test_repeated_candidate_lessons_merge_supporting_evidence(tmp_path: Path):
         }
     finally:
         store.close()
+
+
+def test_adopted_strategy_lesson_changes_future_selection(tmp_path: Path):
+    store = LearningStore(tmp_path / "learning.db")
+    try:
+        for idx in range(8):
+            _experience(
+                store,
+                outcome="success" if idx < 7 else "failure",
+                strategy_id="learned-strategy",
+                target="selection",
+            )
+        lesson = build_lesson(
+            lesson_type="strategy",
+            statement="Use learned-strategy after independent reproduction.",
+            scope={
+                "task_kind": "calculus",
+                "task_target": "selection",
+                "strategy_id": "learned-strategy",
+            },
+            supporting_experience_ids=[
+                row["experience_id"]
+                for row in store.recent_experiences(
+                    task_kind="calculus",
+                    task_target="selection",
+                    limit=20,
+                )
+            ],
+            expected_effect="Improve future selection on the same scoped task.",
+        )
+        store.add_lesson(lesson)
+        store.transition_lesson(
+            lesson["lesson_id"],
+            "REPRODUCED",
+            reason="independent replay reproduced the strategy boundary",
+            evidence=[{"id": "replay-1", "independence": "independent_route"}],
+        )
+        store.transition_lesson(
+            lesson["lesson_id"],
+            "VERIFIED",
+            reason="cross-engine verification accepted the reproduced behavior",
+            evidence=[{"id": "verify-1", "independence": "cross_engine"}],
+        )
+        store.transition_lesson(
+            lesson["lesson_id"],
+            "ADOPTED",
+            reason="adopt after independent verification",
+            evidence=[{"id": "adopt-verify-1", "independence": "cross_engine"}],
+        )
+
+        selection = store.select_strategy(
+            task_kind="calculus",
+            task_target="selection",
+        )
+        assert selection["strategy_id"] == "learned-strategy"
+        assert selection["source"] == "adopted_lesson"
+    finally:
+        store.close()
