@@ -1144,3 +1144,26 @@ Canonical queue exhausted
 This is a controlled expansion loop, not an unconstrained self-rewriting loop.
 
 <!-- Control-plane release audit marker: 2026-10-07. No behavioral change. -->
+
+
+## Frontier worker toolbelt and scientific grounding policy
+
+THE MIRROR is now treated as the frontier scientific AI worker, not merely a research endpoint. Its bounded toolbelt includes scholarly/code research, repository workspace inspection and writing, local execution, isolated Git proposal preparation, experiment execution, descriptive analysis, provenance capture, and provider-neutral AI decision making.
+
+Research providers are ordered so established/reference grounding comes first: OpenAlex, Crossref, INSPIRE-HEP, Semantic Scholar, then arXiv and code/model sources. A trusted index or repository is not itself proof that a returned claim is established physics. Reference grounding means locating mature methods, canonical mathematics/physics, known failure modes, and independent implementations before implementing a capability or elevating a frontier claim.
+
+The policy is deliberately asymmetric:
+
+- established/reference capability work is preferred before frontier invention;
+- repair takes precedence over all discovery;
+- current backlog takes precedence over ledger expansion;
+- discovery is allowed only when explicitly granted;
+- disagreement with established physics is investigated rather than automatically rejected;
+- lack of reference grounding blocks non-repair frontier implementation;
+- no worker can certify its own result.
+
+The concrete cross-repository path is:
+
+Automate mission -> Chanfana `mirror.frontier_job.v1` -> Mirror frontier AI -> bounded research/code/experiment tools -> evidence/provenance -> Automate verification -> proposal/promotion.
+
+Chanfana remains transport only. Mirror may modify its bounded workspace and prepare a proposal, but remote Git mutation and canonical Automate mutation remain forbidden.
