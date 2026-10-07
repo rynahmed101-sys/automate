@@ -6,6 +6,8 @@ ADOPTED strategy lessons to future worker packets.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -195,6 +197,11 @@ def sync_remote_learning(
         try:
             if not isinstance(artifact, Mapping):
                 raise LearningRuntimeError("remote learning artifact is not an object")
+            remote_hash = str(item.get("artifactSha256") or "")
+            serialized = json.dumps(dict(artifact), separators=(",", ":"), ensure_ascii=False)
+            local_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+            if not remote_hash or remote_hash != local_hash:
+                raise LearningRuntimeError("remote learning artifact hash mismatch")
             if artifact_type == "learning_experience":
                 errors_list = validate_experience(artifact)
                 if errors_list:
