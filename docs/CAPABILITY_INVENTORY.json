@@ -1180,6 +1180,12 @@
       "state": "closed_superseded",
       "purpose": "future capability admission staging control plane",
       "head_sha": "b33968f93869da9f1034bec2bf5534b067cd5087"
+    },
+    {
+      "number": 168,
+      "branch": "chore/auto-engine-reconcile-scheduler-v2-20261007",
+      "state": "open",
+      "purpose": "automatic main-to-engine reconciliation and release pinning"
     }
   ],
   "integration_references": [
