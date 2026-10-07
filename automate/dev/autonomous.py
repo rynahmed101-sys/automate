@@ -117,7 +117,29 @@ def run_autonomous_cycle(
         except Exception as exc:
             raise AutonomousCycleError(str(exc)) from exc
         output["commit"] = commit
-        output["status"] = commit["status"]
+        if (
+            commit.get("status") == "committed"
+            and local_root is not None
+            and os.getenv("AUTOMATE_AUTO_PUBLISH", "").strip().lower() in {"1", "true", "yes"}
+        ):
+            from automate.dev.publisher import publish_worker_commit
+            try:
+                published = publish_worker_commit(
+                    repository,
+                    local_root,
+                    packet=packet["packet"],
+                    commit=commit,
+                )
+            except Exception as exc:
+                return {
+                    **output,
+                    "status": "publication_failed",
+                    "publication_error": str(exc),
+                }
+            output["publication"] = published
+            output["status"] = published["status"]
+        else:
+            output["status"] = commit["status"]
         return output
 
     # RESEARCH mode is explicitly opt-in and remains separate from the backlog.
