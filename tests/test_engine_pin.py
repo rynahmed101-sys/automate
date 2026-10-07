@@ -42,7 +42,7 @@ def test_engine_pin_never_updates_without_explicit_auto_update(tmp_path: Path):
             return CompletedProcess(args, 0, stdout="b" * 40 + "\n", stderr="")
         if args[:3] == ["git", "merge-base", "--is-ancestor"]:
             return CompletedProcess(args, 0, stdout="", stderr="")
-        if args[:3] == ["gh", "api"]:
+        if args[:2] == ["gh", "api"]:
             return CompletedProcess(args, 0, stdout='{"workflow_runs":[{"name":"Automate Engine CI","status":"completed","conclusion":"success"},{"name":"Security Audit","status":"completed","conclusion":"success"}]}', stderr="")
         return CompletedProcess(args, 0, stdout="", stderr="")
 
