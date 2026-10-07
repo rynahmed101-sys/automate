@@ -44,8 +44,8 @@ def test_capability_next_prioritizes_first_remaining_stage1b_capability():
     result = CliRunner().invoke(main, ["capability", "next", "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["next_action"]["action"] == "continue_development"
-    assert payload["next_action"]["capability_ids"] == ["stage1b.improper_integrals"]
+    assert payload["next_action"]["action"] == "implement"
+    assert payload["next_action"]["capability_id"] == "stage1b.series_expansions"
 
 
 def test_capabilities_exposes_control_plane():
@@ -111,8 +111,8 @@ def test_capability_next_filters_active_packets_by_dependencies():
 
     data = load_inventory()
     payload = next_action(data)
-    assert payload["action"] == "continue_development"
-    assert payload["capability_ids"] == ["stage1b.improper_integrals"]
+    assert payload["action"] == "implement"
+    assert payload["capability_id"] == "stage1b.series_expansions"
 
 
 def test_preserved_work_does_not_satisfy_dependency():
@@ -147,9 +147,8 @@ def test_tracked_planned_capability_remains_claimable():
 
     data = load_inventory()
     action = next_action(data)
-    assert action["action"] == "continue_development"
-    assert action["capability_ids"] == ["stage1b.improper_integrals"]
-    assert "stage1b.improper_integrals" in action["capability_ids"]
+    assert action["action"] == "implement"
+    assert action["capability_id"] == "stage1b.series_expansions"
     candidate = next_unclaimed(data)
     assert candidate is not None
     assert candidate["id"] == "stage1b.series_expansions"
@@ -159,7 +158,8 @@ def test_queue_command_exposes_active_and_blocked_state():
     result = CliRunner().invoke(main, ["capability", "queue", "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["next_action"]["action"] == "continue_development"
+    assert payload["next_action"]["action"] == "implement"
+    assert payload["next_action"]["capability_id"] == "stage1b.series_expansions"
     assert payload["next_unclaimed"] == "stage1b.series_expansions"
     assert "stage1c.ode" in payload["preserved_out_of_order"]
 
