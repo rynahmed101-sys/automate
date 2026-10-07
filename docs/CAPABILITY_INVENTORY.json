@@ -1186,6 +1186,13 @@
       "branch": "chore/auto-engine-reconcile-scheduler-v2-20261007",
       "state": "open",
       "purpose": "automatic main-to-engine reconciliation and release pinning"
+    },
+    {
+      "number": 169,
+      "branch": "feat/autonomous-scheduler-20261007",
+      "state": "open",
+      "purpose": "readiness-gated unattended autonomous control-cycle scheduler",
+      "head_sha": "e18ee4e3db183e9138648b43bb0323dd0ebee5fa"
     }
   ],
   "integration_references": [
