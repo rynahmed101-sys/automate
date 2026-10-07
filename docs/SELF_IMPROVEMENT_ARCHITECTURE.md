@@ -45,3 +45,10 @@ The executor can create one atomic Git commit and open a normal PR to `main`. It
 The deepest authority/epistemic rules are classified separately. Governance or constitutional changes are never automatically promoted.
 
 The goal is not a machine that always agrees with its original designers. The goal is a machine that can change its methods when evidence justifies change, while preserving provenance, uncertainty, reversibility, and adversarial verification.
+
+
+## Shared-memory synchronization
+
+When Chanfana's durable learning service is configured, Automate may synchronize recent experiences and lessons before strategy selection and publish newly recorded artifacts afterward. Remote availability is not a prerequisite for the local learning path.
+
+The cross-repository service remains a transport layer. Automate validates incoming artifacts against its own contracts before they can affect local learning state.
