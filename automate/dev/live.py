@@ -50,6 +50,11 @@ def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]]
         for ref in data.get("integration_references", [])
         if isinstance(ref.get("number"), int)
     }
+    control_plane_refs = {
+        ref["number"]: ref
+        for ref in data.get("control_plane_references", [])
+        if isinstance(ref.get("number"), int)
+    }
 
     for item in data["capabilities"]:
         if item["implementation_state"] not in ACTIVE_STATES:
@@ -79,16 +84,48 @@ def audit_live(repository_full_name: str, *, pull_requests: list[dict[str, Any]]
         if len(unique) > 1:
             errors.append(f"Branch '{branch}' is claimed by multiple capabilities: {', '.join(unique)}")
 
+    for number in sorted(set(inventory_refs).intersection(control_plane_refs)):
+        errors.append(f"PR #{number} cannot be both capability-owned and control-plane-owned.")
+
     for number, pr in by_number.items():
         branch = pr.get("headRefName", "")
-        if branch.startswith("feat/") and number not in inventory_refs:
-            errors.append(f"Open capability PR #{number} ({branch}) has no capability ownership reference.")
-        if branch.startswith("integrate/") and number not in integration_refs:
-            errors.append(f"Open reconciliation PR #{number} ({branch}) has no integration ownership reference.")
-        if branch.startswith("integrate/") and number in integration_refs:
-            recorded_branch = integration_refs[number].get("branch")
-            if recorded_branch and recorded_branch != branch:
-                errors.append(f"PR #{number} integration branch mismatch: inventory={recorded_branch}, live={branch}.")
+        if branch.startswith("feat/"):
+            if number in inventory_refs:
+                if pr.get("baseRefName") not in (None, data["branch_policy"]["feature_base"]):
+                    errors.append(
+                        f"PR #{number} capability lane targets {pr.get('baseRefName')}, "
+                        f"not {data['branch_policy']['feature_base']}."
+                    )
+            elif number in control_plane_refs:
+                control_base = data["branch_policy"].get("control_plane_base", "engine")
+                if pr.get("baseRefName") not in (None, control_base):
+                    errors.append(
+                        f"PR #{number} control-plane lane targets {pr.get('baseRefName')}, "
+                        f"not {control_base}."
+                    )
+                recorded_branch = control_plane_refs[number].get("branch")
+                if recorded_branch and recorded_branch != branch:
+                    errors.append(
+                        f"PR #{number} control-plane branch mismatch: "
+                        f"inventory={recorded_branch}, live={branch}."
+                    )
+            else:
+                errors.append(f"Open capability PR #{number} ({branch}) has no capability or control-plane ownership reference.")
+        if branch.startswith("integrate/"):
+            if number not in integration_refs:
+                errors.append(f"Open reconciliation PR #{number} ({branch}) has no integration ownership reference.")
+            else:
+                reconciliation_bases = data["branch_policy"].get("reconciliation_bases", ["main", "engine"])
+                if pr.get("baseRefName") not in (None, *reconciliation_bases):
+                    errors.append(
+                        f"PR #{number} reconciliation lane targets {pr.get('baseRefName')}, "
+                        f"not one of {reconciliation_bases}."
+                    )
+                recorded_branch = integration_refs[number].get("branch")
+                if recorded_branch and recorded_branch != branch:
+                    errors.append(
+                        f"PR #{number} integration branch mismatch: inventory={recorded_branch}, live={branch}."
+                    )
 
     return errors
 
