@@ -339,7 +339,7 @@ def test_live_audit_accepts_only_well_formed_transient_worker_handoff():
 
     pr = {
         "number": 205,
-        "headRefName": "feat/stage1b.series_expansions",
+        "headRefName": "feat/stage1b.series_expansions-" + "a" * 12,
         "headRefOid": "a" * 40,
         "baseRefName": "main",
         "baseRefOid": "b" * 40,
