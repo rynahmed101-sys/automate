@@ -10,6 +10,7 @@ The controller is intentionally narrow:
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from typing import Any, Literal
 
@@ -106,6 +107,88 @@ def run_control_cycle(
     # First-class handoff check: an existing worker PR is durable work.
     # Never dispatch a second job for the same canonical capability while that
     # handoff exists, even if inventory bookkeeping has not caught up yet.
+    # Detect a previously merged worker handoff even if canonical inventory
+    # bookkeeping has not yet caught up.
+    try:
+        merged_handoff = __import__("automate.dev.promotion", fromlist=["inspect_merged_worker_handoff"]).inspect_merged_worker_handoff(
+            repository,
+            capability_id=capability_id,
+            current_main_sha=current_main_sha,
+        )
+    except PromotionError as exc:
+        return {
+            **control,
+            "status": "merged_handoff_inspection_error",
+            "error": str(exc),
+            "dispatch_allowed": False,
+        }
+
+    if merged_handoff is not None:
+        post = merged_handoff.get("post_merge", {})
+        if post.get("state") == "BLOCKED_STALE_MAIN":
+            return {
+                **control,
+                "status": "post_merge_reconciliation_required",
+                "dispatch_allowed": False,
+                "lifecycle": merged_handoff,
+            }
+        if post.get("state") == "BOOKKEEPING_READY":
+            if local_root is None:
+                return {
+                    **control,
+                    "status": "bookkeeping_ready",
+                    "dispatch_allowed": False,
+                    "lifecycle": merged_handoff,
+                    "next_step": "provide the canonical checkout root to publish the bookkeeping PR",
+                }
+            try:
+                from automate.dev.bookkeeping import build_bookkeeping_plan
+                from automate.dev.bookkeeping_pr import create_bookkeeping_pr
+
+                root = Path(local_root)
+                inventory_text = __import__("subprocess").run(
+                    ["git", "show", f"{current_main_sha}:docs/CAPABILITY_INVENTORY.json"],
+                    cwd=root, capture_output=True, text=True, check=True,
+                ).stdout
+                ledger_text = __import__("subprocess").run(
+                    ["git", "show", f"{current_main_sha}:docs/PROJECT_PHASE_LEDGER.md"],
+                    cwd=root, capture_output=True, text=True, check=True,
+                ).stdout
+                plan = build_bookkeeping_plan(
+                    json.loads(inventory_text),
+                    ledger_text,
+                    capability_id=capability_id,
+                    merge_sha=current_main_sha,
+                    exact_head_ci_run=int(post["gates"]["exact_head_ci_verified"] and (post.get("ci_run_id") or 0)),
+                    security_run=int(post["gates"]["security_audit_verified"] and (post.get("security_run_id") or 0)),
+                    merged_pr_number=int(merged_handoff["pr_number"]),
+                )
+                bookkeeping = create_bookkeeping_pr(
+                    root,
+                    repository,
+                    capability_id=capability_id,
+                    merge_sha=current_main_sha,
+                    merged_pr_number=int(merged_handoff["pr_number"]),
+                    exact_head_ci_run=int(post.get("ci_run_id") or 0),
+                    security_run=int(post.get("security_run_id") or 0),
+                    plan=plan,
+                )
+                return {
+                    **control,
+                    "status": "bookkeeping_pr_open",
+                    "dispatch_allowed": False,
+                    "lifecycle": merged_handoff,
+                    "bookkeeping": bookkeeping,
+                }
+            except Exception as exc:
+                return {
+                    **control,
+                    "status": "bookkeeping_blocked",
+                    "dispatch_allowed": False,
+                    "lifecycle": merged_handoff,
+                    "error": str(exc),
+                }
+
     try:
         handoff = find_worker_handoff(
             repository,
