@@ -1,0 +1,43 @@
+name: Autonomous Control Cycle
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+
+concurrency:
+  group: automate-control-cycle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  control-cycle:
+    if: ${{ vars.AUTOMATE_CONTROL_CYCLE_ENABLED == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      AUTOMATE_AUTO_PUBLISH: ${{ vars.AUTOMATE_AUTO_PUBLISH || '0' }}
+      AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE || '0' }}
+      CHANFANA_WORKER_URL: ${{ secrets.CHANFANA_WORKER_URL }}
+      CHANFANA_WORKER_TOKEN: ${{ secrets.CHANFANA_WORKER_TOKEN }}
+    steps:
+      - name: Check out Automate
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Automate
+        run: python -m pip install -e .
+
+      - name: Run one bounded control cycle
+        run: |
+          execute_worker="--execute-worker"
+          if [ "${{ vars.AUTOMATE_EXECUTE_WORKER || '0' }}" != "1" ]; then
+            execute_worker=""
+          fi
+          automate capability control-cycle             --repo "${GITHUB_REPOSITORY}"             --worker-url "${CHANFANA_WORKER_URL}"             --worker-token "${CHANFANA_WORKER_TOKEN}"             ${execute_worker}             --json
