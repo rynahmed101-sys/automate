@@ -47,3 +47,19 @@ def test_auto_readiness_remains_off_when_exact_head_is_not_verified(monkeypatch)
     assert result["ready"] is False
     assert result["worker_mode"] == "off"
     assert "exact_head_authority_current" in result["blocking_gates"]
+
+
+def test_bootstrap_ready_only_when_lifecycle_is_sole_blocker():
+    evidence = {gate: True for gate in REQUIRED_GATES}
+    evidence["github_lifecycle_exercised"] = False
+    result = evaluate_readiness(evidence)
+    assert result["ready"] is False
+    assert result["bootstrap_ready"] is True
+
+
+def test_bootstrap_not_ready_when_another_gate_is_missing():
+    evidence = {gate: True for gate in REQUIRED_GATES}
+    evidence["github_lifecycle_exercised"] = False
+    evidence["worker_transport_live"] = False
+    result = evaluate_readiness(evidence)
+    assert result["bootstrap_ready"] is False
