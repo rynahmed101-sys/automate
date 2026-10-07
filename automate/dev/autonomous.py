@@ -14,7 +14,7 @@ import os
 import subprocess
 
 from automate.dev.bookkeeping import create_bookkeeping_pr
-from automate.dev.failure_recovery import failure_notes, quarantine_worker_pr, rerun_failed_workflows
+from automate.dev.failure_recovery import diagnose_worker_failure, failure_notes, quarantine_worker_pr, rerun_failed_workflows
 from automate.dev.inventory import InventoryError
 from automate.dev.prmgr import create_worker_pr
 from automate.dev.publisher import build_worker_commit, push_worker_branch
@@ -131,12 +131,14 @@ def run_autonomous_cycle(
         quarantine = quarantine_worker_pr(repository, int(decision["pr_number"]), failures)
         if quarantine.get("status") != "quarantined":
             return {"status": "quarantine_failed", "decision": decision, "recovery": quarantine}
+        diagnosis = diagnose_worker_failure(repository, int(decision["pr_number"]), failures)
         packet = build_worker_packet(
             str(decision["capability_id"]),
             repository=repository,
             base_sha_claim=str(decision["live"].get("main_sha") or observed_main_sha()),
             context_notes=[
                 *failure_notes(failures),
+                *diagnosis["notes"],
                 "AUTONOMOUS_RECOVERY_ATTEMPT: " + str(max(int(f.get("attempt") or 0) for f in failures) + 1),
             ],
         )
@@ -159,6 +161,7 @@ def run_autonomous_cycle(
                 "status": "repair_queued",
                 "decision": decision,
                 "recovery": quarantine,
+                "diagnosis": diagnosis,
                 "dispatch": dispatch,
             }
 
