@@ -570,7 +570,14 @@ def find_worker_handoff(
         capability = re.search(r"(?m)^- capability:\\s*([a-z0-9][a-z0-9_.-]*)\\s*$", body)
         request = re.search(r"(?m)^- worker_request_id:\\s*([A-Za-z0-9_.:-]{8,128})\\s*$", body)
         base = re.search(r"(?m)^- base_sha:\\s*([0-9a-f]{40})\\s*$", body)
-        if capability and capability.group(1) == capability_id and request and base:
+        expected_branch = "feat/" + capability_id
+        if (
+            capability
+            and capability.group(1) == capability_id
+            and request
+            and base
+            and str(pr.get("head", {}).get("ref")) == expected_branch
+        ):
             matches.append({
                 **pr,
                 "_worker_capability_id": capability.group(1),
