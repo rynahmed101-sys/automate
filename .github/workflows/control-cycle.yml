@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Read authoritative control-plane pin
         id: pin
@@ -140,7 +140,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
+        if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED' && steps.readiness.outputs.eligible == 'true'
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
