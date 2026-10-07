@@ -741,19 +741,27 @@ def inspect_worker_handoff_pr(
             "reasons": ["worker PR touches files outside assigned capability boundary: " + ", ".join(unexpected[:10])],
         }
 
+    live_head = str(live_pr.get("head", {}).get("sha") or "")
+    ci = _latest_completed_success(repository, WORKFLOW_CI, live_head)
+    security = _latest_completed_success(repository, WORKFLOW_SECURITY, live_head)
+    evaluation = evaluate_promotion(
+        live_pr,
+        capability_id=capability_id,
+        current_main_sha=current_main_sha,
+        ci_run=ci,
+        security_run=security,
+        require_review=require_review,
+    )
+
     return {
         "state": "IMPLEMENTATION_PR",
         "capability_id": capability_id,
         "pr": {
             "number": pr_number,
             "branch": live_pr.get("head", {}).get("ref"),
-            "head_sha": live_pr.get("head", {}).get("sha"),
+            "head_sha": live_head,
             "base_sha": live_pr.get("base", {}).get("sha"),
         },
-        "promotion": inspect_promotion(
-            repository,
-            pr_number,
-            current_main_sha=current_main_sha,
-            require_review=require_review,
-        ),
+        "promotion": evaluation,
+        "temporary_ownership": "VALIDATED_WORKER_HANDOFF",
     }
