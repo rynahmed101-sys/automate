@@ -31,8 +31,10 @@ def create_worker_pr(
         raise WorkerExecutionError("repository must be in owner/name form")
     if not branch.startswith("feat/"):
         raise WorkerExecutionError("refusing to create a PR from a non-worker branch")
-    if len(base_sha) != 40:
-        raise WorkerExecutionError("worker PR requires an exact 40-character base sha")
+    if len(base_sha) != 40 or any(ch not in "0123456789abcdef" for ch in base_sha):
+        raise WorkerExecutionError("worker PR requires an exact lowercase 40-character base sha")
+    if not worker_request_id or len(worker_request_id) > 128:
+        raise WorkerExecutionError("worker PR requires a bounded worker_request_id")
     if len(request_id) < 8 or len(request_id) > 128:
         raise WorkerExecutionError("worker PR requires a bounded request id")
 
@@ -41,6 +43,7 @@ def create_worker_pr(
             "Automated capability implementation generated through Automate's bounded worker pipeline.",
             "",
             f"- capability: {capability_id}",
+            f"- worker_request_id: {worker_request_id}",
             f"- base_sha: {base_sha}",
             f"- worker_request_id: {request_id}",
             f"- authoritative_tests: {json.dumps(test_result.get('command', []))}",
