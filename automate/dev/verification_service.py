@@ -67,6 +67,7 @@ def verify_payload(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
             scope=[str(x) for x in request_payload["scope"]],
             action_cycle_id=str(request_payload["action_cycle_id"]),
             parent_ids=[str(x) for x in request_payload.get("parent_ids", [])],
+            request_id=(str(payload["request_id"]) if is_envelope else None),
         )
         snapshot = live_repository_snapshot(request.repository)
         snapshot["requested_revision"] = request.revision
@@ -76,6 +77,7 @@ def verify_payload(payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
             revision=request.revision,
             branch=request.branch,
             action_cycle_id=request.action_cycle_id,
+            request_id=request.request_id,
             snapshot=snapshot,
             evidence_db="data/verification-evidence.db",
         )
