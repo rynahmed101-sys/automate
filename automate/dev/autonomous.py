@@ -154,11 +154,73 @@ def run_autonomous_cycle(
                 "recovery": quarantine,
                 "error": str(exc),
             }
+        if not execute_worker:
+            return {
+                "status": "repair_queued",
+                "decision": decision,
+                "recovery": quarantine,
+                "dispatch": dispatch,
+            }
+
+        execution = dispatch.get("execution", {})
+        result = execution.get("result")
+        if not isinstance(result, dict):
+            return {
+                "status": "repair_queued",
+                "decision": decision,
+                "recovery": quarantine,
+                "dispatch": dispatch,
+            }
+
+        errors = validate_worker_result(result, packet["packet"])
+        if errors:
+            return {
+                "status": "repair_result_rejected",
+                "decision": decision,
+                "recovery": quarantine,
+                "errors": errors,
+            }
+        if local_root is None:
+            return {
+                "status": "repair_validated_proposal",
+                "decision": decision,
+                "recovery": quarantine,
+                "dispatch": dispatch,
+            }
+
+        try:
+            commit = build_worker_commit(packet["packet"], result, repository_root=local_root)
+            if commit["status"] != "committed":
+                return {
+                    "status": "repair_" + str(commit["status"]),
+                    "decision": decision,
+                    "recovery": quarantine,
+                    "commit": commit,
+                }
+            push_worker_branch(local_root, branch_name=str(commit["branch"]))
+            pr = create_worker_pr(
+                repository,
+                branch=str(commit["branch"]),
+                capability_id=str(decision["capability_id"]),
+                title="fix: repair " + str(packet["packet"]["capability"]["name"]),
+                base_sha=str(packet["packet"]["repository"]["base_sha_claim"]),
+                test_result=commit["tests"],
+                draft=False,
+            )
+        except Exception as exc:
+            return {
+                "status": "repair_publication_failed",
+                "decision": decision,
+                "recovery": quarantine,
+                "error": str(exc),
+            }
         return {
-            "status": "repair_dispatched" if execute_worker else "repair_queued",
+            "status": "repair_submitted",
             "decision": decision,
             "recovery": quarantine,
             "dispatch": dispatch,
+            "commit": commit,
+            "publication": pr,
         }
 
     if decision.get("action") == "promote_bookkeeping_pr":
