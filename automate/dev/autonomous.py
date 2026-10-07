@@ -49,19 +49,66 @@ def run_autonomous_cycle(
         "task": packet["packet"].get("task", {}),
     }
 
-    # Backlog mode intentionally does not commission open-ended research.
-    # Research mode remains separately gated so the canonical capability
-    # curriculum can run without depending on the external research loop.
-    research_enabled = os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+    # BACKLOG mode is strictly implementation-first. It must never commission
+    # open-ended Mirror research merely because the worker is being automated.
     if mode == "backlog":
-        research_enabled = False
-    if mode == "research" and not research_enabled:
-        return {
-            "status": "research_disabled_by_governance",
+        try:
+            dispatch = dispatch_worker(
+                packet,
+                url=worker_url,
+                token=worker_token,
+                execute=execute_worker,
+            )
+        except WorkerTransportError as exc:
+            raise AutonomousCycleError(str(exc)) from exc
+        output: dict[str, Any] = {
+            "status": "worker_dispatched",
             "decision": decision,
-            "next_step": "run the Verification & Reconciliation Engine against the installed backlog",
+            "dispatch": dispatch,
+            "research": None,
+            "operating_mode": "BACKLOG",
         }
+        if not execute_worker:
+            return output
+        execution = dispatch.get("execution", {})
+        result = execution.get("result")
+        job_id = execution.get("jobId") or dispatch.get("queued", {}).get("jobId")
+        if not isinstance(result, dict) and isinstance(job_id, str):
+            try:
+                completed = wait_worker_job(
+                    job_id,
+                    url=worker_url,
+                    token=worker_token,
+                    timeout=900.0,
+                )
+            except WorkerTransportError as exc:
+                return {
+                    **output,
+                    "status": "worker_queued",
+                    "next_step": "poll the durable worker job again",
+                    "error": str(exc),
+                }
+            result = completed.get("job", {}).get("result")
+            output["dispatch"] = {**dispatch, "execution": {**execution, "polled": completed}}
+        if not isinstance(result, dict):
+            raise AutonomousCycleError("worker execution returned no persisted worker result")
+        errors = validate_worker_result(result, packet["packet"])
+        if errors:
+            raise AutonomousCycleError("; ".join(errors))
+        if local_root is None:
+            output["status"] = "validated_proposal"
+            return output
+        try:
+            commit = build_worker_commit(packet["packet"], result, repository_root=local_root)
+        except Exception as exc:
+            raise AutonomousCycleError(str(exc)) from exc
+        output["commit"] = commit
+        output["status"] = commit["status"]
+        return output
 
+    # RESEARCH mode is explicitly opt-in and remains separate from the backlog.
+    research_enabled = os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+    if not research_enabled:
     mirror_endpoint = os.getenv("MIRROR_RESEARCH_ENDPOINT", "").strip()
     if not mirror_endpoint:
         raise AutonomousCycleError("MIRROR_RESEARCH_ENDPOINT is required when external research is enabled")
