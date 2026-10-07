@@ -17,8 +17,8 @@ permissions:
 
 
 concurrency:
-  group: automate-engine-ci
-  cancel-in-progress: true
+  group: automate-engine-ci-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   engine:
