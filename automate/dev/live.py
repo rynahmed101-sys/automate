@@ -42,13 +42,14 @@ def audit_live(
     *,
     pull_requests: list[dict[str, Any]] | None = None,
     current_pr_number: int | None = None,
-    base_branch: str = "main",
+    base_branch: str | None = None,
 ) -> list[str]:
     data = load_inventory()
+    target_base = base_branch or os.getenv("GITHUB_BASE_REF") or os.getenv("GITHUB_REF_NAME") or "main"
     prs = live_pull_requests(repository_full_name) if pull_requests is None else pull_requests
     scoped_prs = [
         pr for pr in prs
-        if pr.get("baseRefName") in (None, base_branch)
+        if pr.get("baseRefName") in (None, target_base)
         and (current_pr_number is None or int(pr.get("number", -1)) == current_pr_number)
     ]
     by_number = {int(pr["number"]): pr for pr in scoped_prs if "number" in pr}
@@ -101,7 +102,7 @@ def audit_live(
     for number, pr in by_number.items():
         branch = pr.get("headRefName", "")
         if branch.startswith("feat/"):
-            if base_branch == "main":
+            if target_base == "main":
                 if number not in inventory_refs:
                     errors.append(f"Open capability PR #{number} ({branch}) has no capability ownership reference.")
                 elif pr.get("baseRefName") not in (None, data["branch_policy"]["feature_base"]):
@@ -134,7 +135,7 @@ def summarize_live(
     repository_full_name: str,
     *,
     current_pr_number: int | None = None,
-    base_branch: str = "main",
+    base_branch: str | None = None,
 ) -> dict[str, Any]:
     errors = audit_live(
         repository_full_name,
