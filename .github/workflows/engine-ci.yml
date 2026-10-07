@@ -3,6 +3,12 @@ name: Automate Engine CI
 on:
   push:
     branches: [engine]
+  pull_request:
+    branches: [engine]
+    types:
+      - opened
+      - synchronize
+      - reopened
   workflow_dispatch:
 
 permissions:
