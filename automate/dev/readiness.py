@@ -215,7 +215,7 @@ def collect_readiness_evidence(
             )
             if not evidence["worker_transport_live"]:
                 errors.append("worker health endpoint returned an unexpected protocol")
-        except (WorkerTransportError, Exception) as exc:
+        except Exception as exc:
             errors.append(f"live worker health check failed: {exc}")
     else:
         errors.append("AUTOMATE_WORKER_URL and AUTOMATE_WORKER_TOKEN are required for live worker health evidence")
