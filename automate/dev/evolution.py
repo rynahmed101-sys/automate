@@ -28,6 +28,7 @@ FORBIDDEN_AUTHORITY_PATHS = {
     ".github/workflows/security.yml",
 }
 ALLOWED_KINDS = {"knowledge", "strategy", "verifier", "capability"}
+EVOLUTION_SAFE_ROOTS = ("automate/", "tests/", "schemas/", "docs/")
 
 
 class EvolutionPlanError(ValueError):
@@ -68,6 +69,11 @@ def _under_prefix(path: str, prefixes: Iterable[str]) -> bool:
         or normalized.startswith(prefix.rstrip("/") + "/")
         for prefix in prefixes
     )
+
+
+def _safe_prefix(prefix: str) -> bool:
+    normalized = prefix.replace("\\", "/").lstrip("/").rstrip("/") + "/"
+    return any(normalized.startswith(root) for root in EVOLUTION_SAFE_ROOTS)
 
 
 def _validate_plan(value: Mapping[str, Any]) -> list[str]:
@@ -120,6 +126,12 @@ def build_evolution_plan(
     prefixes = tuple(sorted({str(x).replace("\\", "/").rstrip("/") for x in allowed_path_prefixes if str(x).strip()}))
     if not prefixes:
         raise EvolutionPlanError("at least one allowed path prefix is required")
+    unsafe_prefixes = [prefix for prefix in prefixes if not _safe_prefix(prefix)]
+    if unsafe_prefixes:
+        raise EvolutionPlanError(
+            "evolution paths must stay under approved repository roots: "
+            + ", ".join(unsafe_prefixes)
+        )
 
     changes_tuple = tuple(dict(x) for x in changes)
     if not changes_tuple:
