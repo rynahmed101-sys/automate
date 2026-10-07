@@ -1222,5 +1222,13 @@
       "state": "open",
       "purpose": "consolidated autonomous control-plane machinery (clean verification replacement)"
     }
+  ],
+  "control_plane_references": [
+    {
+      "number": 170,
+      "branch": "feat/self-learning-substrate-20261007",
+      "state": "open",
+      "purpose": "evidence-driven learning and bounded strategy adaptation"
+    }
   ]
 }
