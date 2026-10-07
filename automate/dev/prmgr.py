@@ -37,6 +37,7 @@ def create_worker_pr(
     body = "\\n".join(
         [
             "Automated capability implementation generated through Automate's bounded worker pipeline.",
+            "- automation_role: capability_implementation",
             "",
             f"- capability: {capability_id}",
             f"- base_sha: {base_sha}",
