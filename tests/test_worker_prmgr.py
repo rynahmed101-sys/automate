@@ -16,7 +16,7 @@ def test_create_worker_pr_rejects_non_worker_branch():
                 title="x",
                 base_sha="0" * 40,
                 test_result={"status": "passed", "command": ["python", "-m", "pytest"]},
-                worker_worker_request_id="wrk_" + "a" * 32,
+                worker_request_id="wrk_" + "a" * 32,
             )
         except WorkerExecutionError as exc:
             assert "non-worker branch" in str(exc)
@@ -37,6 +37,7 @@ def test_create_worker_pr_emits_deterministic_handoff_metadata_and_ready_state()
             capability_id="stage1b.improper_integrals",
             title="feat: implement improper integrals",
             base_sha="0" * 40,
+            worker_request_id="wrk_" + "a" * 32,
             test_result={"status": "passed", "command": ["python", "-m", "pytest", "-q", "tests/test_improper_integrals.py"]},
         )
     assert result["draft"] is False
