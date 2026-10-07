@@ -14,7 +14,7 @@ from typing import Any, Iterable, Mapping
 from urllib.parse import quote
 
 from automate.dev.learning import LearningError, LearningStore, build_experience, validate_experience, validate_lesson, validate_discovery_proposal
-from automate.dev.worker_client import WorkerTransportError, _request_json, worker_base_url, worker_token
+from automate.dev.worker_client import WorkerTransportError, _request_json, worker_api_url, worker_token
 
 
 class LearningRuntimeError(RuntimeError):
@@ -141,7 +141,7 @@ def persist_learning_artifact(
             source_revision=source_revision,
         )
         return _request_json(
-            worker_base_url(url) + "/learning",
+            worker_api_url(url) + "/learning",
             token=worker_token(token),
             method="POST",
             body=handoff,
@@ -161,7 +161,7 @@ def read_remote_learning(
         raise LearningRuntimeError("remote learning read limit must be between 1 and 100")
     try:
         payload = _request_json(
-            worker_base_url(url) + "/learning?limit=" + str(int(limit)),
+            worker_api_url(url) + "/learning?limit=" + str(int(limit)),
             token=worker_token(token),
             timeout=30.0,
         )
