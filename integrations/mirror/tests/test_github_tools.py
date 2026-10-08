@@ -14,5 +14,5 @@ def test_github_branch_is_bounded():
 
 def test_github_tool_never_allows_unbounded_branch():
     tool = GitHubTool(Path("."))
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         tool.push_branch("main")
