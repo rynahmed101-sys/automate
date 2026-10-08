@@ -8,6 +8,9 @@ from automate.dev.failure_recovery import (
     exact_head_recovery_state,
     quarantine_worker_pr,
     rerun_failed_workflows,
+    next_recovery_attempt,
+    find_quarantined_worker_handoff,
+    build_repair_hold,
 )
 from automate.dev.publisher import worker_branch_name
 
@@ -211,6 +214,56 @@ def test_control_cycle_quarantines_repeated_worker_failure_without_transport(mon
         lambda *_: {"state": "quarantined", "pr_number": 77},
     )
     result = cycle.run_control_cycle("owner/repo")
-    assert result["status"] == "worker_quarantined_repair_ready"
+    assert result["status"] == "repair_hold"
     assert result["quarantine"]["state"] == "quarantined"
     assert "AUTONOMOUS_RECOVERY" in result["repair_context"][0]
+    assert result["repair_hold"]["automatic_rectification_required"] is True
+    assert result["repair_hold"]["dispatch_blocked"] is True
+
+
+def test_recovery_generation_increments_from_repair_branch():
+    assert next_recovery_attempt("feat/stage1b.series_expansions-aaaaaaaaaaaa") == 2
+    assert next_recovery_attempt("feat/stage1b.series_expansions-aaaaaaaaaaaa-repair2") == 3
+    assert next_recovery_attempt("feat/stage1b.series_expansions-aaaaaaaaaaaa-repair9") == 10
+
+
+def test_repair_hold_builder_is_machine_readable():
+    hold = build_repair_hold(
+        capability_id="stage1b.series_expansions",
+        source_sha="a" * 40,
+        recovery_attempt=3,
+        reason="repeated failure",
+    )
+    assert hold["schema_version"] == "automate.repair_hold.v1"
+    assert hold["state"] == "REPAIR_HOLD"
+    assert hold["automatic_correction_required"] is True
+    assert hold["automatic_rectification_required"] is True
+    assert hold["recovery_attempt"] == 3
+    assert hold["dispatch_blocked"] is True
+
+
+def test_quarantined_worker_pr_creates_durable_hold_signal(monkeypatch):
+    monkeypatch.setenv("GH_TOKEN", "secret")
+    closed = {
+        "number": 88,
+        "headRefName": "feat/stage1b.series_expansions-aaaaaaaaaaaa",
+        "headRefOid": "b" * 40,
+        "body": "\\n".join([
+            "AUTONOMOUS RECOVERY: repeated failure",
+            "- capability: stage1b.series_expansions",
+        ]),
+        "mergedAt": None,
+        "closedAt": "2026-10-08T00:00:00Z",
+        "url": "https://github.com/example/pull/88",
+    }
+    monkeypatch.setattr(
+        "automate.dev.failure_recovery._run",
+        lambda args: CompletedProcess(args, 0, json.dumps([closed]), ""),
+    )
+    result = find_quarantined_worker_handoff(
+        "owner/repo", capability_id="stage1b.series_expansions"
+    )
+    assert result is not None
+    assert result["state"] == "REPAIR_HOLD"
+    assert result["pr_number"] == 88
+    assert result["head_sha"] == "b" * 40
