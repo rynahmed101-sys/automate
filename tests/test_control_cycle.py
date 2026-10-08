@@ -178,6 +178,10 @@ def test_control_cycle_delegates_commit_only_to_autonomous_worker(monkeypatch):
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
+        "automate.dev.failure_recovery.find_quarantined_worker_handoff",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
         "automate.dev.control_cycle.inspect_capability_lifecycle",
         lambda *args, **kwargs: {"state": "READY"},
     )
