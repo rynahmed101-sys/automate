@@ -32,7 +32,7 @@ def run_harmonic_oscillator_demo(output_dir: str = "output") -> int:
     Executes the canonical Automate demonstration.
     """
     console.print("\n[bold cyan]================================================================[/bold cyan]")
-    console.print("[bold cyan]       AUTOMATE: FORMAL PHYSICS DERIVATION ENGINE DEMO          [/bold cyan]")
+    console.print("[bold cyan]       AUTOMATE: PHYSICS CALCULATION AND OPTIONAL VERIFICATION DEMO          [/bold cyan]")
     console.print("[bold cyan]================================================================[/bold cyan]\n")
 
     out_path = Path(output_dir)
@@ -114,8 +114,8 @@ def run_harmonic_oscillator_demo(output_dir: str = "output") -> int:
     impact = graph.simulate_assumption_removal(asm_to_drop)
     print_assumption_report(impact)
 
-    # 6. High-level Transformation Macro Expansion
-    console.print("\n[bold yellow][Step 6][/bold yellow] Demonstrating Lossless Certificate Expansion (Compiler Analogy):")
+    # 6. Optional derivation detail
+    console.print("\n[bold yellow][Step 6][/bold yellow] Showing optional derivation detail:")
     el_edge_id = "edge_euler_lagrange"
     subgraph = graph.expand_edge_certificate(el_edge_id)
     if subgraph:
@@ -126,7 +126,7 @@ def run_harmonic_oscillator_demo(output_dir: str = "output") -> int:
         console.print("  [dim]* No micro-steps certificate found to expand.[/dim]")
 
     # 7. Generate Visualizations and Reports
-    console.print("\n[bold yellow][Step 7][/bold yellow] Generating Derivation Artifacts & Certificate Package:")
+    console.print("\n[bold yellow][Step 7][/bold yellow] Generating Derivation Artifacts & Optional Verification Report:")
     html_file = out_path / "harmonic_oscillator.html"
     generate_interactive_html(graph, html_file)
     console.print(f"  [green][OK][/green] Interactive HTML Graph: [green]{html_file.resolve()}[/green]")
@@ -139,14 +139,12 @@ def run_harmonic_oscillator_demo(output_dir: str = "output") -> int:
     report_file.write_text(json.dumps(reports, indent=2), encoding="utf-8")
     console.print(f"  [green][OK][/green] Verification Audit Report: [green]{report_file.resolve()}[/green]")
 
-    cert_dir = out_path / "certificates"
-    cert_files = graph.export_certificate_package(cert_dir)
-    console.print(f"  [green][OK][/green] Verifiable Certificate Package: [green]{cert_dir.resolve()}[/green] ({len(cert_files)} files)\n")
+    console.print("  [dim]* Certificate packaging is optional and is not part of the calculator demo.[/dim]\n")
 
     # 8. Terminal Summary Table
     print_graph_summary(graph)
 
-    console.print("\n[bold green][SUCCESS] Automate formal physics derivation demonstration completed successfully![/bold green]\n")
+    console.print("\n[bold green][SUCCESS] Automate physics calculation demonstration completed successfully![/bold green]\n")
     return 0
 
 
