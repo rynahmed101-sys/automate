@@ -90,7 +90,7 @@ def test_control_cycle_does_not_dispatch_when_worker_handoff_exists():
         "pr": {"number": 900},
     }
 
-    with patch("automate.dev.control_cycle.resolve_operating_mode", return_value=control),          patch("automate.dev.control_cycle._gh_json", return_value={"object": {"sha": "a" * 40}}),          patch("automate.dev.control_cycle.find_worker_handoff", return_value=handoff),          patch("automate.dev.control_cycle.inspect_merged_worker_handoff", return_value=None),          patch("automate.dev.control_cycle.build_worker_packet", return_value={"packet": {
+    with patch("automate.dev.control_cycle.resolve_operating_mode", return_value=control),          patch("automate.dev.control_cycle._gh_json", return_value={"object": {"sha": "a" * 40}}),          patch("automate.dev.control_cycle.find_quarantined_worker_handoff", return_value=None),          patch("automate.dev.control_cycle.find_worker_handoff", return_value=handoff),          patch("automate.dev.control_cycle.inspect_merged_worker_handoff", return_value=None),          patch("automate.dev.control_cycle.build_worker_packet", return_value={"packet": {
              "repository": {"base_sha_claim": "a" * 40},
              "capability": {"id": "stage1b.series_expansions"},
          }}),          patch("automate.dev.control_cycle.inspect_worker_handoff_pr", return_value=lifecycle),          patch("automate.dev.control_cycle.run_autonomous_cycle") as dispatch:
@@ -175,6 +175,10 @@ def test_control_cycle_delegates_commit_only_to_autonomous_worker(monkeypatch):
     )
     monkeypatch.setattr(
         "automate.dev.control_cycle.find_worker_handoff",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "automate.dev.failure_recovery.find_quarantined_worker_handoff",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
