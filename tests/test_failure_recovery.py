@@ -248,7 +248,7 @@ def test_quarantined_worker_pr_creates_durable_hold_signal(monkeypatch):
         "number": 88,
         "headRefName": "feat/stage1b.series_expansions-aaaaaaaaaaaa",
         "headRefOid": "b" * 40,
-        "body": "\\n".join([
+        "body": "\n".join([
             "AUTONOMOUS RECOVERY: repeated failure",
             "- capability: stage1b.series_expansions",
         ]),
@@ -267,3 +267,25 @@ def test_quarantined_worker_pr_creates_durable_hold_signal(monkeypatch):
     assert result["state"] == "REPAIR_HOLD"
     assert result["pr_number"] == 88
     assert result["head_sha"] == "b" * 40
+
+
+def test_control_cycle_stays_on_durable_repair_hold(monkeypatch):
+    import automate.dev.control_cycle as cycle
+
+    monkeypatch.setenv("GH_TOKEN", "secret")
+    monkeypatch.setattr(cycle, "resolve_operating_mode", lambda: _backlog_control())
+    monkeypatch.setattr(cycle, "_gh_json", lambda *_: {"object": {"sha": "a" * 40}})
+    monkeypatch.setattr(cycle, "inspect_merged_worker_handoff", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "automate.dev.failure_recovery.find_quarantined_worker_handoff",
+        lambda *args, **kwargs: {
+            "state": "REPAIR_HOLD",
+            "pr_number": 88,
+            "branch": "feat/stage1b.series_expansions-aaaaaaaaaaaa",
+            "head_sha": "b" * 40,
+        },
+    )
+    result = cycle.run_control_cycle("owner/repo")
+    assert result["status"] == "repair_hold"
+    assert result["dispatch_allowed"] is False
+    assert result["repair_hold"]["state"] == "REPAIR_HOLD"
