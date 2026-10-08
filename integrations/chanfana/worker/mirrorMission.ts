@@ -63,6 +63,15 @@ export async function executeMirrorMission(
   if (!configuredRepo || configuredRepo !== mission.target.repository) {
     throw new Error("Mirror mission repository is not allowlisted");
   }
+  if (mission.target.repository !== "rynahmed101-sys/the-mirror") {
+    throw new Error("Mirror mission repository is fixed to the canonical Mirror repository");
+  }
+  if (mission.target.workflow !== "autonomous-mission.yml") {
+    throw new Error("Mirror mission workflow is not allowlisted");
+  }
+  if (mission.target.ref !== "main") {
+    throw new Error("Mirror mission ref is not allowlisted");
+  }
 
   const startedAt = Date.now();
   const dispatchTime = new Date().toISOString();
