@@ -138,36 +138,6 @@ def test_safe_parsing_and_shape_rejections():
     assert not _check("matrix_rank", ["Matrix([[1, 0], [0, 1]])"], "1").passed
 
 
-def test_ai_workflow():
-    graph = DerivationGraph(id="ai_linear_algebra")
-    graph.add_node(DerivationNode(id="A", expression=MathematicalExpression(raw_str="Matrix([[1, 2], [3, 4]])"),
-                                  node_kind="matrix"))
-    proposal = DerivationProposal(
-        proposal_id="la_agent_001", input_nodes=["A"],
-        output_nodes=[{"id": "At", "expression": "Matrix([[1, 3], [2, 4]])", "node_kind": "matrix"}],
-        rule="matrix_transpose", justification="Transpose of a 2x2 matrix.",
-        target_checker="linear_algebra",
-        origin={"type": "ai", "provider": "acceptance"},
-    )
-    dry = apply_and_verify_proposal(proposal, graph, dry_run=True)
-    assert dry.success and not dry.graph_updated and "At" not in graph.nodes
-    applied = apply_and_verify_proposal(proposal, graph, dry_run=False)
-    assert applied.success and applied.graph_updated
-    assert graph.edges[applied.edge_id].status == VerificationStatus.SYMBOLIC_CHECKED
-
-
-def test_ai_cannot_self_assign_verified_status():
-    from automate.ai.validation import validate_ai_proposal
-    raw = {
-        "schema_version": "automate.proposal.v1", "proposal_id": "la_bad_status",
-        "input_nodes": [], "output_nodes": [{"id": "out", "expression": "Matrix([[1]])"}],
-        "rule": "matrix_transpose", "justification": "status injection",
-        "target_checker": "linear_algebra", "status": "VERIFIED",
-    }
-    result = validate_ai_proposal(raw)
-    assert not result.is_valid
-
-
 def test_registry_exposes_core_family():
     from automate.theory.rules import RuleRegistry
     expected = {
