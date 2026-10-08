@@ -1,7 +1,5 @@
 """Named Phase 1A Linear Algebra inner-product capability acceptance campaign."""
 
-from automate.ai.proposals import apply_and_verify_proposal
-from automate.ai.schemas import DerivationProposal
 from automate.backend.linear_algebra_backend import LinearAlgebraChecker
 from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
