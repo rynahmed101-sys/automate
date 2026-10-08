@@ -15,6 +15,7 @@ workerRouter.get("/health", WorkerHealth);
 workerRouter.use("/learning", requireWorkerAuth);
 workerRouter.use("/learning/*", requireWorkerAuth);
 workerRouter.get("/learning", LearningRead);
+workerRouter.use("/jobs", requireWorkerAuth);
 workerRouter.use("/jobs/*", requireWorkerAuth);
 workerRouter.post("/jobs", WorkerJobCreate);
 workerRouter.get("/jobs/:id", WorkerJobRead);
