@@ -64,7 +64,7 @@ def _exact_pr_evidence(repository: str, head_sha: str) -> bool:
         payload = json.loads(result.stdout or "{}")
     except json.JSONDecodeError:
         return False
-    required = {"Automate CI", "Security Audit"}
+    required = {"Automate Engine CI", "Security Audit"}
     successful = {
         str(run.get("name"))
         for run in payload.get("workflow_runs", [])
@@ -261,82 +261,11 @@ def run_autonomous_cycle(
         "task": packet["packet"].get("task", {}),
     }
 
-    mirror_enabled = os.getenv(
-        "AUTOMATE_MIRROR_DISCOVERY_ENABLED",
-        os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", ""),
-    ).strip().lower() in {"1", "true", "yes"}
-    mirror_endpoint = os.getenv(
-        "MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT",
-        os.getenv("MIRROR_RESEARCH_ENDPOINT", ""),
-    ).strip()
-
-    research_dispatch: dict[str, Any] = {"status": "disabled_by_governance"}
-    if mirror_enabled:
-        if not mirror_endpoint:
-            raise AutonomousCycleError(
-                "MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT is required when Mirror discovery is enabled"
-            )
-        research_job = build_mirror_research_job(
-            capability=capability_item,
-            mirror_endpoint=mirror_endpoint,
-            request_id="res_" + hashlib.sha256(
-                (
-                    capability_item["id"]
-                    + "|"
-                    + str(packet["packet"]["repository"].get("base_sha_claim"))
-                    + "|mirror-discovery"
-                ).encode()
-            ).hexdigest()[:32],
-            correlation_id=packet["packet"]["request_id"],
-        )
-        try:
-            research_dispatch = dispatch_worker(
-                research_job,
-                url=worker_url,
-                token=worker_token,
-                execute=execute_worker,
-            )
-        except WorkerTransportError as exc:
-            raise AutonomousCycleError("Mirror research commission failed: " + str(exc)) from exc
-
-        if not execute_worker:
-            return {
-                "status": "research_dispatched",
-                "decision": decision,
-                "research": research_dispatch,
-                "next_step": "the next bounded cycle will consume the durable research job before implementation dispatch",
-            }
-
-        research_execution = research_dispatch.get("execution", {})
-        research_result = research_execution.get("result")
-        research_job_id = research_execution.get("jobId") or research_dispatch.get("queued", {}).get("jobId")
-        if not isinstance(research_result, dict) and isinstance(research_job_id, str):
-            try:
-                completed = wait_worker_job(
-                    research_job_id,
-                    url=worker_url,
-                    token=worker_token,
-                    timeout=300.0,
-                )
-            except WorkerTransportError as exc:
-                return {
-                    "status": "research_queued",
-                    "decision": decision,
-                    "research": research_dispatch,
-                    "next_step": "poll the durable Mirror research job again",
-                    "error": str(exc),
-                }
-            research_result = completed.get("job", {}).get("result")
-            research_dispatch["execution"] = {**research_execution, "polled": completed}
-
-        if not isinstance(research_result, dict):
-            raise AutonomousCycleError("Mirror research execution returned no persisted result")
-
-        packet["packet"].setdefault("context", {"files": [], "notes": []})
-        packet["packet"]["context"].setdefault("notes", []).append(
-            "UNTRUSTED_EXTERNAL_EVIDENCE: durable Mirror research receipt "
-            + str(research_job_id or "unknown")
-        )
+    # Mirror is a non-deployed laboratory. Its evidence is never a required
+    # network dependency for the autonomous implementation loop. When a future
+    # local/in-process Mirror adapter exists, it may be commissioned through the
+    # same untrusted evidence contract without changing this authority boundary.
+    research_dispatch: dict[str, Any] = {"status": "mirror_lab_not_deployed"}
 
     try:
         dispatch = dispatch_worker(
