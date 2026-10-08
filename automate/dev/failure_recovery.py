@@ -164,7 +164,7 @@ def rerun_failed_workflows(
 def next_recovery_attempt(branch: str | None) -> int:
     """Return the next repair generation from a canonical worker branch name."""
     name = str(branch or "").strip()
-    match = __import__("re").search(r"-repair(\\d+)$", name)
+    match = __import__("re").search(r"-repair(\d+)$", name)
     if match:
         return max(2, int(match.group(1)) + 1)
     return 2
@@ -201,7 +201,7 @@ def find_quarantined_worker_handoff(
         if REPAIR_MARKER not in body:
             continue
         capability = __import__("re").search(
-            r"(?m)^- capability:\\s*([a-z0-9][a-z0-9_.-]*)\\s*$",
+            r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$",
             body,
         )
         if not capability or capability.group(1) != capability_id:
