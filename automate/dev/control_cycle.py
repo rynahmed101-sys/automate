@@ -359,6 +359,31 @@ def run_control_cycle(
                     "error": str(exc),
                 }
 
+    # Durable repair holds take precedence over any stale/original worker handoff.
+    # A quarantined capability must never be duplicated merely because the original
+    # PR is still discoverable in GitHub while recovery is being performed.
+    try:
+        from automate.dev.failure_recovery import find_quarantined_worker_handoff
+        repair_hold = find_quarantined_worker_handoff(
+            repository,
+            capability_id=capability_id,
+        )
+    except Exception as exc:
+        return {
+            **control,
+            "status": "repair_hold_inspection_blocked",
+            "dispatch_allowed": False,
+            "error": str(exc),
+        }
+    if repair_hold is not None:
+        return {
+            **control,
+            "status": "repair_hold",
+            "dispatch_allowed": False,
+            "repair_hold": repair_hold,
+            "next_step": "wait for or dispatch the next automatic repair worker handoff; do not start a duplicate original worker task",
+        }
+
     try:
         handoff = find_worker_handoff(
             repository,
@@ -372,29 +397,6 @@ def run_control_cycle(
             "error": str(exc),
             "dispatch_allowed": False,
         }
-
-    if handoff is None:
-        try:
-            from automate.dev.failure_recovery import find_quarantined_worker_handoff
-            repair_hold = find_quarantined_worker_handoff(
-                repository,
-                capability_id=capability_id,
-            )
-        except Exception as exc:
-            return {
-                **control,
-                "status": "repair_hold_inspection_blocked",
-                "dispatch_allowed": False,
-                "error": str(exc),
-            }
-        if repair_hold is not None:
-            return {
-                **control,
-                "status": "repair_hold",
-                "dispatch_allowed": False,
-                "repair_hold": repair_hold,
-                "next_step": "wait for or dispatch the next automatic repair worker handoff; do not start a duplicate original worker task",
-            }
 
     if handoff is not None:
         head_sha = str(
