@@ -14,7 +14,8 @@ def test_control_cycle_does_not_require_mirror_deployment():
     assert "MIRROR_FRONTIER_JOB_TOKEN" not in workflow
     assert "MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT" not in workflow
     assert "MIRROR_AUTONOMOUS_DISCOVERY_TOKEN" not in workflow
-    assert 'AUTOMATE_MIRROR_DISCOVERY_ENABLED: "0"' in workflow
+    assert "AUTOMATE_MIRROR_DISCOVERY_ENABLED" not in workflow
+    assert "AUTOMATE_EXTERNAL_RESEARCH_ENABLED" not in workflow
 
 
 def test_authoritative_ledger_keeps_series_before_later_stage_work():
