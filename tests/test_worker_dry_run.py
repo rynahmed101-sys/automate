@@ -103,9 +103,9 @@ def test_build_worker_commit_completes_without_push(tmp_path: Path):
         enforce_inventory_scope=False,
     )
 
+    expected_branch = "feat/stage1b.dry_run-" + base_sha[:12]
     assert outcome["status"] == "committed"
-    assert outcome["branch"].startswith("feat/stage1b.dry_run-")
-    assert len(outcome["branch"].rsplit("-", 1)[-1]) == 12
+    assert outcome["branch"] == expected_branch
     assert len(outcome["commit_sha"]) == 40
     assert outcome["tests"]["authoritative"] is True
-    assert git(repo, "branch", "--list", outcome["branch"])
+    assert git(repo, "branch", "--list", expected_branch)
