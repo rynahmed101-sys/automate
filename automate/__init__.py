@@ -14,4 +14,7 @@ __all__ = [
     "DerivationNode",
     "DerivationEdge",
     "DerivationGraph",
+    "CALCULATOR_OPERATIONS",
+    "CalculatorError",
+    "calculate",
 ]
