@@ -276,6 +276,11 @@ def test_control_cycle_stays_on_durable_repair_hold(monkeypatch):
     monkeypatch.setattr(cycle, "resolve_operating_mode", lambda: _backlog_control())
     monkeypatch.setattr(cycle, "_gh_json", lambda *_: {"object": {"sha": "a" * 40}})
     monkeypatch.setattr(cycle, "inspect_merged_worker_handoff", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cycle, "find_worker_handoff", lambda *args, **kwargs: {
+        "number": 77,
+        "head_sha": "b" * 40,
+        "request_id": "wrk_test",
+    })
     monkeypatch.setattr(
         "automate.dev.failure_recovery.find_quarantined_worker_handoff",
         lambda *args, **kwargs: {
