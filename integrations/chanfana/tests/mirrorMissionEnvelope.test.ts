@@ -26,7 +26,19 @@ describe("Mirror mission envelope", () => {
       authorization: { github_mutation_allowed: false, scope: "proposal_only" },
       source_revision: sha, limits: { deadline_ms: 120000, max_response_bytes: 500000 },
       provenance: { capability_id: "x", correlation_id: "y", requested_by: "automate" },
-    })).toThrow("authorization");
+    })).toThrow();
+  });
+
+  it("rejects any attempt to grant Mirror GitHub mutation authority", () => {
+    expect(() => validateMirrorMissionEnvelope({
+      schema_version: "mirror.mission_job.v1", request_id: "mirror_test_124",
+      execution_kind: "mirror_autonomous_mission",
+      target: { repository: "rynahmed101-sys/the-mirror", workflow: "autonomous-mission.yml", ref: "main" },
+      mission: { objective: "test", authorization_granted: true },
+      authorization: { github_mutation_allowed: true, scope: "bounded_branch_and_pr_only" },
+      source_revision: sha, limits: { deadline_ms: 120000, max_response_bytes: 500000 },
+      provenance: { capability_id: "x", correlation_id: "y", requested_by: "automate" },
+    })).toThrow();
   });
 
   it("rejects non-SHA source revisions", () => {
