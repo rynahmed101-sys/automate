@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LearningHandoffEnvelope } from "../src/worker/learningEnvelope";
+import { LearningHandoffEnvelope } from "../worker/learningEnvelope";
 
 describe("learning transport contract", () => {
   it("requires the untrusted authority marker", () => {
