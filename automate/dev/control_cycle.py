@@ -18,6 +18,7 @@ from automate.dev.autonomous import run_autonomous_cycle
 from automate.dev.inventory import load_inventory, queue_snapshot
 from automate.dev.discovery_grant import build_discovery_grant
 from automate.dev.worker import build_worker_packet
+from automate.dev.failure_recovery import find_quarantined_worker_handoff
 from automate.dev.promotion import (
     PromotionError,
     _gh_json,
@@ -363,7 +364,6 @@ def run_control_cycle(
     # A quarantined capability must never be duplicated merely because the original
     # PR is still discoverable in GitHub while recovery is being performed.
     try:
-        from automate.dev.failure_recovery import find_quarantined_worker_handoff
         repair_hold = find_quarantined_worker_handoff(
             repository,
             capability_id=capability_id,
