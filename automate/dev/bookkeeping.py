@@ -79,6 +79,127 @@ def find_merged_worker(repository: str, capability_id: str) -> dict[str, Any] | 
     return None
 
 
+
+
+def _normalized_inventory_sha256(inventory: dict[str, Any]) -> str:
+    import hashlib
+    normalized = json.dumps(inventory, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _ledger_sha256(ledger: str) -> str:
+    import hashlib
+    return hashlib.sha256(ledger.encode("utf-8")).hexdigest()
+
+
+def build_bookkeeping_plan(
+    inventory: dict[str, Any],
+    ledger: str,
+    *,
+    capability_id: str,
+    merge_sha: str,
+    exact_head_ci_run: int,
+    security_run: int,
+    merged_pr_number: int | None = None,
+) -> dict[str, Any]:
+    """Build a non-mutating, exact-evidence-bound canonical bookkeeping plan."""
+    if not re.fullmatch(r"[0-9a-f]{40}", str(merge_sha)):
+        raise BookkeepingError("merge_sha must be an exact lowercase 40-character commit")
+    if not isinstance(exact_head_ci_run, int) or exact_head_ci_run < 1:
+        raise BookkeepingError("exact_head_ci_run must be a positive workflow run id")
+    if not isinstance(security_run, int) or security_run < 1:
+        raise BookkeepingError("security_run must be a positive workflow run id")
+
+    capabilities = inventory.get("capabilities")
+    if not isinstance(capabilities, list):
+        raise BookkeepingError("capability inventory is missing capabilities")
+    matches = [item for item in capabilities if isinstance(item, dict) and item.get("id") == capability_id]
+    if len(matches) != 1:
+        raise BookkeepingError(f"expected exactly one inventory capability: {capability_id}")
+    item = json.loads(json.dumps(matches[0]))
+
+    name = str(item.get("name") or "").strip()
+    if not name:
+        raise BookkeepingError(f"capability {capability_id} has no canonical name")
+
+    # The ledger anchor must identify exactly one capability. Never guess between
+    # duplicate names or silently mutate a different stage.
+    unchecked = "- [ ] " + name
+    pending = "- [!] " + name
+    complete = "- [x] " + name
+    occurrences = sum(ledger.count(anchor) for anchor in (unchecked, pending, complete))
+    if occurrences != 1:
+        raise BookkeepingError(
+            f"ledger anchor for {capability_id} is ambiguous; expected one exact entry, found {occurrences}"
+        )
+    if complete in ledger:
+        raise BookkeepingError(f"ledger already marks {capability_id} completed")
+
+    item["implementation_state"] = "merged_main"
+    item["authority"] = {"kind": "main_merge", "ref": merge_sha}
+    verification = dict(item.get("verification") or {})
+    verification.update({
+        "merged_main": True,
+        "exact_head_verified": True,
+        "development_ci_verified": True,
+        "security_audit_verified": True,
+    })
+    item["verification"] = verification
+
+    refs = list(item.get("references") or [])
+    if merged_pr_number is not None:
+        if not isinstance(merged_pr_number, int) or merged_pr_number < 1:
+            raise BookkeepingError("merged_pr_number must be positive")
+        if not any(
+            isinstance(ref, dict)
+            and ref.get("type") == "pr"
+            and ref.get("number") == merged_pr_number
+            and ref.get("state") == "merged"
+            for ref in refs
+        ):
+            refs.append({
+                "type": "pr",
+                "number": merged_pr_number,
+                "state": "merged",
+                "role": "worker_generated",
+                "merge_sha": merge_sha,
+            })
+    item["references"] = refs
+
+    planned_inventory = json.loads(json.dumps(inventory))
+    for index, candidate in enumerate(planned_inventory["capabilities"]):
+        if candidate.get("id") == capability_id:
+            planned_inventory["capabilities"][index] = item
+            break
+
+    planned_ledger = ledger.replace(unchecked, "- [!] " + name, 1)
+    if planned_ledger == ledger:
+        planned_ledger = ledger.replace(pending, "- [!] " + name, 1)
+
+    changes = [
+        {
+            "path": "docs/CAPABILITY_INVENTORY.json",
+            "before_sha256": _normalized_inventory_sha256(inventory),
+            "content": json.dumps(planned_inventory, indent=2) + "\n",
+        },
+        {
+            "path": "docs/PROJECT_PHASE_LEDGER.md",
+            "before_sha256": _ledger_sha256(ledger),
+            "content": planned_ledger,
+        },
+    ]
+    return {
+        "schema_version": "automate.canonical_bookkeeping.v1",
+        "capability_id": capability_id,
+        "promotion_source_merge_sha": merge_sha,
+        "exact_head_ci_run": exact_head_ci_run,
+        "security_run": security_run,
+        "next_action": "re-observe canonical main after bookkeeping promotion",
+        "authority_change": "BOOKKEEPING_PR_ONLY",
+        "canonical_mutation_performed": False,
+        "changes": changes,
+    }
+
 def create_bookkeeping_pr(
     repository: str,
     *,
