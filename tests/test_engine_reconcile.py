@@ -22,7 +22,7 @@ def test_reconcile_aligned_when_engine_contains_main(tmp_path: Path):
     assert result["action"] == "none"
 
 
-def test_reconcile_conflict_fails_closed(tmp_path: Path):
+def test_reconcile_conflict_resolves_declared_paths(tmp_path: Path):
     def fake(root, args, check=False):
         if args[:3] == ["git", "rev-parse", "refs/remotes/origin/main"]:
             return CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
@@ -34,6 +34,37 @@ def test_reconcile_conflict_fails_closed(tmp_path: Path):
             return CompletedProcess(args, 0, stdout="[]", stderr="")
         if args[:2] == ["git", "merge"] and "--no-ff" in args:
             return CompletedProcess(args, 1, stdout="", stderr="conflict")
+        if args[:3] == ["git", "status", "--porcelain"]:
+            return CompletedProcess(args, 0, stdout="UU automate/dev/example.py\n", stderr="")
+        if args[:4] == ["git", "diff", "--name-only", "--diff-filter=U"]:
+            return CompletedProcess(args, 0, stdout="", stderr="")
+        if args[:3] == ["git", "rev-parse", "HEAD"]:
+            return CompletedProcess(args, 0, stdout="c" * 40 + "\n", stderr="")
+        if args[:2] == ["gh", "pr"]:
+            return CompletedProcess(args, 0, stdout="https://github.com/example/pr/1\n", stderr="")
+        return CompletedProcess(args, 0, stdout="", stderr="")
+
+    with patch("automate.dev.engine_reconcile._run", fake):
+        result = reconcile_engine(tmp_path, "rynahmed101-sys/automate")
+
+    assert result["state"] == "PR_CREATED"
+    assert result["resolution"]["engine_wins"] == ["automate/dev/example.py"]
+
+
+def test_reconcile_unknown_conflict_fails_closed(tmp_path: Path):
+    def fake(root, args, check=False):
+        if args[:3] == ["git", "rev-parse", "refs/remotes/origin/main"]:
+            return CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
+        if args[:3] == ["git", "rev-parse", "refs/remotes/origin/engine"]:
+            return CompletedProcess(args, 0, stdout="b" * 40 + "\n", stderr="")
+        if args[:3] == ["git", "merge-base", "--is-ancestor"]:
+            return CompletedProcess(args, 1, stdout="", stderr="")
+        if args[:2] == ["gh", "pr"] and args[2] == "list":
+            return CompletedProcess(args, 0, stdout="[]", stderr="")
+        if args[:2] == ["git", "merge"] and "--no-ff" in args:
+            return CompletedProcess(args, 1, stdout="", stderr="conflict")
+        if args[:3] == ["git", "status", "--porcelain"]:
+            return CompletedProcess(args, 0, stdout="UU random/unknown.txt\n", stderr="")
         return CompletedProcess(args, 0, stdout="", stderr="")
 
     with patch("automate.dev.engine_reconcile._run", fake):
@@ -41,6 +72,7 @@ def test_reconcile_conflict_fails_closed(tmp_path: Path):
 
     assert result["state"] == "CONFLICT"
     assert result["action"] == "manual_reconciliation_required"
+    assert "unclassified" in result["error"]
 
 
 def test_reconcile_never_force_pushes(tmp_path: Path):
