@@ -10,6 +10,10 @@ export const MirrorMissionEnvelope = z.object({
     ref: z.string().min(1).max(200),
   }),
   mission: z.record(z.string(), z.unknown()),
+  authorization: z.object({
+    github_mutation_allowed: z.boolean(),
+    scope: z.enum(["proposal_only", "bounded_branch_and_pr_only"]),
+  }),
   source_revision: z.string().regex(/^[0-9a-f]{40}$/),
   limits: z.object({
     deadline_ms: z.number().int().min(5000).max(900000),
