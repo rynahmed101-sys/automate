@@ -57,6 +57,53 @@ def _exact_pr_checks_verified(root: Path, repository: str, head_sha: str) -> boo
     return {"Automate Engine CI", "Security Audit"} <= successful
 
 
+def _resolve_declared_merge_conflicts(checkout: Path) -> tuple[list[str], list[str]]:
+    """Resolve only explicitly classified main/engine conflicts.
+
+    The reconciliation target is the living engine branch, so implementation,
+    tests, and schemas keep the engine version while system workflow and
+    governance documentation keep authoritative main. Unknown paths fail
+    closed instead of receiving an accidental winner.
+    """
+    status = _run(checkout, ["git", "status", "--porcelain"], check=True)
+    paths: list[str] = []
+    for line in status.stdout.splitlines():
+        if len(line) >= 4 and line[:2] in {"UU", "AA", "AU", "UA", "DU", "UD"}:
+            paths.append(line[3:])
+    if not paths:
+        return [], []
+
+    main_wins: list[str] = []
+    engine_wins: list[str] = []
+    unknown: list[str] = []
+    for path in paths:
+        if path.startswith(".github/workflows/") or path.startswith("docs/"):
+            main_wins.append(path)
+        elif path.startswith("automate/dev/") or path.startswith("tests/") or path.startswith("schemas/"):
+            engine_wins.append(path)
+        else:
+            unknown.append(path)
+
+    if unknown:
+        raise EngineReconcileError(
+            "unclassified reconciliation conflict(s): " + ", ".join(sorted(unknown))
+        )
+
+    for path in main_wins:
+        _run(checkout, ["git", "checkout", "--theirs", "--", path], check=True)
+        _run(checkout, ["git", "add", "--", path], check=True)
+    for path in engine_wins:
+        _run(checkout, ["git", "checkout", "--ours", "--", path], check=True)
+        _run(checkout, ["git", "add", "--", path], check=True)
+
+    remaining = _run(checkout, ["git", "diff", "--name-only", "--diff-filter=U"], check=True)
+    if remaining.stdout.strip():
+        raise EngineReconcileError(
+            "declared reconciliation policy left unresolved conflicts: " + remaining.stdout.strip()
+        )
+    return main_wins, engine_wins
+
+
 def reconcile_engine(
     root: str | Path,
     repository: str,
@@ -69,6 +116,10 @@ def reconcile_engine(
     if not re.fullmatch(r"[^/\s]+/[^/\s]+", repository):
         raise EngineReconcileError("repository must be owner/name")
 
+    # Scheduled runners do not guarantee a Git identity. Configure an explicit
+    # machine identity before any merge commit can be created.
+    _run(checkout, ["git", "config", "user.name", "automate-control-plane[bot]"], check=True)
+    _run(checkout, ["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     _run(checkout, ["git", "fetch", "origin", "main", "engine"], check=True)
     main_sha = _run(checkout, ["git", "rev-parse", "refs/remotes/origin/main"], check=True).stdout.strip()
     engine_sha = _run(checkout, ["git", "rev-parse", "refs/remotes/origin/engine"], check=True).stdout.strip()
@@ -206,17 +257,30 @@ def reconcile_engine(
         checkout,
         ["git", "merge", "--no-ff", "--no-edit", main_sha],
     )
+    resolution = {"main_wins": [], "engine_wins": []}
     if merged.returncode != 0:
-        _run(checkout, ["git", "merge", "--abort"])
-        return {
-            "schema_version": "automate.engine_reconcile.v1",
-            "state": "CONFLICT",
-            "main_sha": main_sha,
-            "engine_sha": engine_sha,
-            "branch": branch,
-            "action": "manual_reconciliation_required",
-            "error": merged.stderr.strip() or merged.stdout.strip(),
-        }
+        try:
+            main_wins, engine_wins = _resolve_declared_merge_conflicts(checkout)
+            _run(
+                checkout,
+                [
+                    "git", "commit", "-m",
+                    "integrate: reconcile authoritative main into engine with declared policy",
+                ],
+                check=True,
+            )
+            resolution = {"main_wins": main_wins, "engine_wins": engine_wins}
+        except EngineReconcileError as exc:
+            _run(checkout, ["git", "merge", "--abort"])
+            return {
+                "schema_version": "automate.engine_reconcile.v1",
+                "state": "CONFLICT",
+                "main_sha": main_sha,
+                "engine_sha": engine_sha,
+                "branch": branch,
+                "action": "manual_reconciliation_required",
+                "error": str(exc),
+            }
 
     new_head = _run(checkout, ["git", "rev-parse", "HEAD"], check=True).stdout.strip()
     _run(checkout, ["git", "push", "--set-upstream", "origin", branch], check=True)
@@ -261,8 +325,10 @@ def reconcile_engine(
         )
         listed_rows = json.loads(listed.stdout or "[]")
         if listed_rows:
-            head_sha = str(listed_rows[0].get("headRefOid") or "")
-            if re.fullmatch(r"[0-9a-f]{40}", head_sha) and _exact_pr_checks_verified(checkout, repository, head_sha):
+            # The PR was just created from this exact reconciliation commit.
+            # Bind the merge check to that immutable SHA directly.
+            head_sha = new_head
+            if _exact_pr_checks_verified(checkout, repository, head_sha):
                 merge = _run(
                     checkout,
                     [
@@ -294,6 +360,7 @@ def reconcile_engine(
         "engine_sha": engine_sha,
         "branch": branch,
         "reconciliation_head_sha": new_head,
+        "resolution": resolution,
         "pr_url": pr_url,
         "action": "await_checks_and_reconciliation_merge",
     }

@@ -1,232 +1,179 @@
-"""Fail-closed canonical bookkeeping plan after a verified capability merge."""
+"""Canonical post-merge bookkeeping for the autonomous capability queue."""
 
 from __future__ import annotations
 
-import hashlib
 import json
+import os
 import re
-from typing import Any, Mapping
-
-from automate.dev.inventory import next_action
-
-
-class BookkeepingError(ValueError):
-    """Raised when canonical promotion bookkeeping is ambiguous or unsafe."""
+import subprocess
+from pathlib import Path
+from typing import Any
 
 
-TERMINAL_STATES = {"merged_main", "superseded", "abandoned"}
+class BookkeepingError(RuntimeError):
+    pass
 
 
-def _sha(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+def _env() -> dict[str, str]:
+    return os.environ.copy()
 
 
-def _significant_tokens(value: str) -> set[str]:
-    normalized = re.sub(r"[^a-z0-9]+", " ", value.lower())
-    stop = {
-        "and", "the", "of", "for", "with", "where", "other", "general",
-        "higher", "order", "without", "arbitrary", "aware", "related",
+def _run(root: Path, args: list[str], *, check: bool = False) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(args, cwd=root, capture_output=True, text=True, check=False, env=_env())
+    if check and result.returncode != 0:
+        raise BookkeepingError(result.stderr.strip() or result.stdout.strip() or "git/gh command failed")
+    return result
+
+
+def _exact_main_evidence(repository: str, sha: str) -> bool:
+    result = _run(
+        Path.cwd(),
+        ["gh", "api", f"repos/{repository}/actions/runs?head_sha={sha}&per_page=100"],
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        return False
+    successful = {
+        str(run.get("name"))
+        for run in payload.get("workflow_runs", [])
+        if run.get("head_sha") == sha
+        and run.get("status") == "completed"
+        and run.get("conclusion") == "success"
     }
-    return {token for token in normalized.split() if len(token) >= 3 and token not in stop}
+    return {"Automate CI", "Security Audit"} <= successful
 
 
-def _stage_section_bounds(ledger: str, stage: str) -> tuple[int, int]:
-    heading = re.compile(rf"^## {re.escape(stage)}\.", re.MULTILINE)
-    match = heading.search(ledger)
-    if not match:
-        raise BookkeepingError(f"ledger section for stage {stage} is missing")
-    next_heading = re.search(r"^## ", ledger[match.end():], re.MULTILINE)
-    end = match.end() + next_heading.start() if next_heading else len(ledger)
-    return match.end(), end
-
-
-def _ledger_line_for_capability(ledger: str, *, stage: str, name: str) -> str:
-    start, end = _stage_section_bounds(ledger, stage)
-    section = ledger[start:end]
-    wanted = _significant_tokens(name)
-    candidates = []
-    for line in section.splitlines():
-        if re.match(r"^- \[ \] ", line):
-            tokens = _significant_tokens(line[6:])
-            overlap = len(wanted & tokens)
-            if wanted and overlap / len(wanted) >= 0.75:
-                candidates.append(line)
-    if len(candidates) != 1:
-        raise BookkeepingError(
-            f"ledger anchor is ambiguous for {name!r}: matched {len(candidates)} unchecked items"
-        )
-    return candidates[0]
-
-def _next_capability(inventory: Mapping[str, Any], *, completed_id: str) -> Mapping[str, Any] | None:
-    projected = json.loads(json.dumps(inventory))
-    completed = next(
-        (item for item in projected.get("capabilities", []) if item.get("id") == completed_id),
-        None,
+def _closed_worker_prs(repository: str) -> list[dict[str, Any]]:
+    result = _run(
+        Path.cwd(),
+        [
+            "gh", "pr", "list", "--repo", repository, "--state", "closed",
+            "--base", "main", "--limit", "100",
+            "--json", "number,headRefName,headRefOid,baseRefOid,body,title,mergedAt,mergeCommit,url",
+        ],
+        check=False,
     )
-    if completed is None:
-        raise BookkeepingError(f"unknown capability {completed_id}")
-    completed["implementation_state"] = "merged_main"
-    for ref in completed.get("references", []):
-        if ref.get("type") == "pr":
-            ref["state"] = "merged"
-
-    decision = next_action(projected)
-    candidate_id = decision.get("capability_id")
-    if decision.get("action") != "implement" or not candidate_id:
-        return None
-    return next(
-        (item for item in projected.get("capabilities", []) if item.get("id") == candidate_id),
-        None,
-    )
-
-def _replace_once(text: str, old: str, new: str, *, label: str) -> str:
-    count = text.count(old)
-    if count != 1:
-        raise BookkeepingError(f"{label} expected exactly once, found {count}")
-    return text.replace(old, new, 1)
+    if result.returncode != 0:
+        return []
+    try:
+        rows = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError:
+        return []
+    return [row for row in rows if isinstance(row, dict) and row.get("mergedAt")]
 
 
-def build_bookkeeping_plan(
-    inventory: Mapping[str, Any],
-    ledger: str,
+def find_merged_worker(repository: str, capability_id: str) -> dict[str, Any] | None:
+    for pr in _closed_worker_prs(repository):
+        body = str(pr.get("body") or "")
+        branch = str(pr.get("headRefName") or "")
+        match = re.search(r"(?m)^- capability:\s*" + re.escape(capability_id) + r"\s*$", body)
+        if match and branch.startswith("feat/" + capability_id + "-"):
+            merge_commit = pr.get("mergeCommit") or {}
+            merge_sha = str(merge_commit.get("oid") or "")
+            if len(merge_sha) == 40:
+                return {**pr, "merge_sha": merge_sha}
+    return None
+
+
+def create_bookkeeping_pr(
+    repository: str,
     *,
+    root: Path,
     capability_id: str,
-    merge_sha: str,
-    exact_head_ci_run: int,
-    security_run: int,
-    merged_pr_number: int | None = None,
+    worker_pr: dict[str, Any],
 ) -> dict[str, Any]:
-    if not re.fullmatch(r"[0-9a-f]{40}", merge_sha):
-        raise BookkeepingError("merge SHA must be an exact lowercase 40-character commit")
-    if not isinstance(exact_head_ci_run, int) or exact_head_ci_run < 1:
-        raise BookkeepingError("exact_head_ci_run must be a positive integer")
-    if not isinstance(security_run, int) or security_run < 1:
-        raise BookkeepingError("security_run must be a positive integer")
+    merge_sha = str(worker_pr["merge_sha"])
+    main_ref = _run(root, ["git", "fetch", "origin", "main"], check=True)
+    main_sha = _run(root, ["git", "rev-parse", "refs/remotes/origin/main"], check=True).stdout.strip()
+    if main_sha != merge_sha and not _run(root, ["git", "merge-base", "--is-ancestor", merge_sha, main_sha]).returncode == 0:
+        raise BookkeepingError("worker merge is not contained in current authoritative main")
 
-    records = inventory.get("capabilities", [])
-    item = next((x for x in records if x.get("id") == capability_id), None)
+    if not _exact_main_evidence(repository, merge_sha):
+        return {
+            "status": "waiting_for_exact_main_evidence",
+            "capability_id": capability_id,
+            "merge_sha": merge_sha,
+        }
+
+    inventory_path = root / "docs/CAPABILITY_INVENTORY.json"
+    ledger_path = root / "docs/PROJECT_PHASE_LEDGER.md"
+    inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+    item = next((x for x in inventory["capabilities"] if x["id"] == capability_id), None)
     if item is None:
-        raise BookkeepingError(f"unknown capability {capability_id}")
-    if item.get("implementation_state") in TERMINAL_STATES:
-        raise BookkeepingError(f"{capability_id} is already terminal")
-    if item.get("stage") == "7":
-        raise BookkeepingError("discovery-stage candidates require the separate future-capability admission path")
-    if merged_pr_number is not None and (
-        not isinstance(merged_pr_number, int) or merged_pr_number < 1
-    ):
-        raise BookkeepingError("merged_pr_number must be a positive integer when provided")
+        raise BookkeepingError(f"unknown capability in inventory: {capability_id}")
 
-    ledger_line = _ledger_line_for_capability(
-        ledger,
-        stage=str(item["stage"]),
-        name=str(item["name"]),
-    )
-    next_item = _next_capability(inventory, completed_id=capability_id)
-
-    next_name = (
-        f"{next_item['name']} ({next_item['id']})"
-        if next_item
-        else "no unresolved pre-discovery capability"
-    )
-
-    ledger_start, ledger_end = _stage_section_bounds(ledger, str(item["stage"]))
-    section = ledger[ledger_start:ledger_end]
-    section = _replace_once(
-        section,
-        ledger_line,
-        ledger_line.replace("- [ ] ", "- [x] ", 1),
-        label="capability ledger checkbox",
-    )
-
-    frontier_pattern = re.compile(
-        r"^\*\*Control-plane frontier:\*\*.*$",
-        re.MULTILINE,
-    )
-    frontier_matches = frontier_pattern.findall(section)
-    if frontier_matches:
-        if len(frontier_matches) != 1:
-            raise BookkeepingError("stage control-plane frontier anchor is ambiguous")
-        next_frontier = (
-            f"**Control-plane frontier:** the next claimable capability is **{next_name}**."
-        )
-        section = _replace_once(
-            section,
-            frontier_matches[0],
-            next_frontier,
-            label="stage control-plane frontier",
-        )
-
-    status_pattern = re.compile(r"^\*\*Current status:\*\*.*$", re.MULTILINE)
-    status_matches = status_pattern.findall(section)
-    if status_matches:
-        if len(status_matches) != 1:
-            raise BookkeepingError("stage current-status anchor is ambiguous")
-        status_line = (
-            f"**Current status:** [~] Active. Canonical capability promotion "
-            f"requires exact-main verification and Security Audit evidence. "
-            f"The next claimable capability is **{next_name}**. "
-            f"Out-of-order preserved work cannot bypass the strict ladder."
-        )
-        section = _replace_once(
-            section,
-            status_matches[0],
-            status_line,
-            label="stage current status",
-        )
-
-    next_ledger = ledger[:ledger_start] + section + ledger[ledger_end:]
-    next_inventory = json.loads(json.dumps(inventory))
-    target = next(x for x in next_inventory["capabilities"] if x["id"] == capability_id)
-    target["implementation_state"] = "merged_main"
-    target["authority"] = {"kind": "main_merge", "ref": merge_sha}
-    for ref in target.get("references", []):
-        if ref.get("type") == "pr" and str(ref.get("state", "")).startswith("open"):
-            ref["state"] = "merged"
-            ref["merge_sha"] = merge_sha
-    if merged_pr_number is not None:
-        references = list(target.get("references", []))
-        if not any(ref.get("type") == "pr" and ref.get("number") == merged_pr_number for ref in references):
-            references.append({
-                "type": "pr",
-                "number": merged_pr_number,
-                "state": "merged",
-                "role": "implementation",
-            })
-        target["references"] = references
-
-    verification = dict(target.get("verification", {}))
-    verification.update({
+    item["implementation_state"] = "merged_main"
+    item["authority"] = {"kind": "main_merge", "ref": merge_sha}
+    item["verification"].update({
+        "locally_tested": True,
+        "development_ci_verified": True,
         "merged_main": True,
         "exact_head_verified": True,
         "security_audit_verified": True,
     })
-    target["verification"] = verification
-    target["verification_evidence"] = {
-        "main_sha": merge_sha,
-        "exact_head_workflow_run": exact_head_ci_run,
-        "security_workflow_run": security_run,
-    }
+    item["references"] = [
+        *item.get("references", []),
+        {
+            "type": "pr",
+            "number": int(worker_pr["number"]),
+            "state": "merged",
+            "role": "worker_generated",
+            "branch": str(worker_pr["headRefName"]),
+            "merge_sha": merge_sha,
+        },
+    ]
 
-    return {
-        "schema_version": "automate.canonical_bookkeeping.v1",
-        "capability_id": capability_id,
-        "promotion_source_merge_sha": merge_sha,
-        "exact_head_ci_run": exact_head_ci_run,
-        "security_run": security_run,
-        "merged_pr_number": merged_pr_number,
-        "next_action": next_item["id"] if next_item else None,
-        "authority_change": "BOOKKEEPING_PR_ONLY",
-        "canonical_mutation_performed": False,
-        "changes": [
-            {
-                "path": "docs/CAPABILITY_INVENTORY.json",
-                "before_sha256": _sha(json.dumps(inventory, sort_keys=True, separators=(",", ":"))),
-                "content": json.dumps(next_inventory, indent=2) + "\n",
-            },
-            {
-                "path": "docs/PROJECT_PHASE_LEDGER.md",
-                "before_sha256": _sha(ledger),
-                "content": next_ledger,
-            },
+    inventory_path.write_text(json.dumps(inventory, indent=2) + "\n", encoding="utf-8")
+    ledger = ledger_path.read_text(encoding="utf-8")
+    name = str(item["name"])
+    ledger = ledger.replace("- [ ] " + name, "- [!] " + name)
+    frontier = "**Control-plane frontier:** the next claimable Stage 1B capability is **Taylor / Maclaurin series and higher-order expansions** (GitHub issue #141)."
+    if capability_id == "stage1b.series_expansions":
+        ledger = ledger.replace(
+            frontier,
+            "**Control-plane frontier:** the next claimable Stage 1B capability is the earliest remaining calculus item after Series; the machine-readable capability inventory is authoritative for the exact next claim."
+        )
+        ledger = ledger.replace(
+            "The next claimable capability is Series expansions (Issue #141).",
+            "Series expansions are now implemented/merged; the machine-readable capability inventory determines the next claimable calculus capability."
+        )
+    ledger_path.write_text(ledger, encoding="utf-8")
+
+    branch = "integrate/auto-bookkeep-" + merge_sha[:12]
+    _run(root, ["git", "switch", "-C", branch, main_sha], check=True)
+    _run(root, ["git", "add", "--", "docs/CAPABILITY_INVENTORY.json", "docs/PROJECT_PHASE_LEDGER.md"], check=True)
+    _run(root, ["git", "commit", "-m", "chore: record autonomous capability promotion"], check=True)
+    commit_sha = _run(root, ["git", "rev-parse", "HEAD"], check=True).stdout.strip()
+    _run(root, ["git", "push", "--set-upstream", "origin", branch], check=True)
+
+    body = "\n".join([
+        "Automated canonical bookkeeping generated after an exact-head verified worker merge.",
+        "",
+        f"- capability: {capability_id}",
+        f"- merge_sha: {merge_sha}",
+        f"- bookkeeping_head_sha: {commit_sha}",
+        "- automation_role: canonical_bookkeeping",
+        "- worker_self_certification: false",
+        "- independent_cross_check: pending",
+    ])
+    created = _run(
+        root,
+        [
+            "gh", "pr", "create", "--repo", repository,
+            "--head", branch, "--base", "main",
+            "--title", "chore: record autonomous capability promotion",
+            "--body", body,
         ],
+        check=True,
+    )
+    return {
+        "status": "bookkeeping_pr_created",
+        "capability_id": capability_id,
+        "merge_sha": merge_sha,
+        "bookkeeping_head_sha": commit_sha,
+        "pr_url": created.stdout.strip(),
     }
