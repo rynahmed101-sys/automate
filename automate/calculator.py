@@ -31,7 +31,9 @@ def calculate(operation: str, expression: str, *, variable: str | None=None,
               second_expression: str | None=None) -> Any:
     if operation not in CALCULATOR_OPERATIONS:
         raise CalculatorError(f"Unsupported operation: {operation}")
-    p=SafeParser(); expr=_parse(p,expression)
+    p=SafeParser()
+    equation = p.parse_equation_isolated(expression) if operation == "solve" and "=" in expression else None
+    expr = equation if equation is not None else _parse(p, expression)
     s=lambda: _symbol(variable,expr)
     if operation=="evaluate": return expr
     if operation=="simplify": return sp.simplify(expr)
@@ -50,9 +52,7 @@ def calculate(operation: str, expression: str, *, variable: str | None=None,
         if point is None: raise CalculatorError("limit requires --point.")
         return sp.limit(expr,s(),_parse(p,point))
     if operation=="series": return sp.series(expr,s(),0,order)
-    if operation=="solve":
-        target = p.parse_equation_isolated(expression) if "=" in expression else expr
-        return sp.solve(target, s())
+    if operation=="solve": return sp.solve(expr, s())
     if operation=="solve_system":
         if not second_expression or not variables: raise CalculatorError("solve_system requires --second-expression and --variables x,y.")
         return sp.solve((expr,_parse(p,second_expression)),[sp.Symbol(v.strip()) for v in variables])
