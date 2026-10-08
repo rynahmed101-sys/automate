@@ -167,13 +167,27 @@ def test_recovery_worker_request_identity_changes_with_attempt(monkeypatch):
         __import__("pathlib").Path("."),
     )
     base = "a" * 40
+    context_files = [
+        {
+            "path": "automate/backend/series_expansions.py",
+            "sha": "1" * 40,
+            "content": "def series_expansions(): pass",
+        },
+        {
+            "path": "tests/test_series_expansions.py",
+            "sha": "2" * 40,
+            "content": "def test_series_expansions(): pass",
+        },
+    ]
     first = build_worker_packet(
         "stage1b.series_expansions",
         base_sha_claim=base,
+        context_files=context_files,
     )
     repair = build_worker_packet(
         "stage1b.series_expansions",
         base_sha_claim=base,
+        context_files=context_files,
         recovery_attempt=2,
     )
     assert first["packet"]["request_id"] != repair["packet"]["request_id"]
