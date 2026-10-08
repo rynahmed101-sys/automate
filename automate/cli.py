@@ -33,8 +33,6 @@ from automate.ai import (
     DerivationProposal
 )
 from automate.theory.rules import RuleRegistry
-from automate.dev.cli import capability
-
 
 @click.group()
 @click.version_option(version="0.2.0", prog_name="automate")
@@ -587,8 +585,6 @@ def engine(as_json: bool):
         console.print("  Canonical mutation authority: none")
         console.print("  External repositories required: no")
 
-
-main.add_command(capability)
 
 if __name__ == "__main__":
     main()
