@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorkerJobCreate } from "../src/endpoints/worker/jobCreate";
+import { WorkerJobCreate } from "../endpoints/worker/jobCreate";
 
 describe("main worker job-create envelope parity", () => {
   it("accepts learning and research envelopes through the route's validated union", () => {
