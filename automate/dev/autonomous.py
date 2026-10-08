@@ -255,9 +255,12 @@ def run_autonomous_cycle(
 
     packet = decision["worker_packet"]
     capability = packet["packet"]["capability"]
+    # External Mirror/research execution is an explicit activation gate.
+    # The system master plan keeps this lane OFF until end-to-end readiness is
+    # genuinely proven. A missing variable must never activate it by default.
     mirror_enabled = os.getenv(
         "AUTOMATE_MIRROR_DISCOVERY_ENABLED",
-        os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "1"),
+        os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "0"),
     ).strip().lower() in {"1", "true", "yes"}
 
     research_dispatch: dict[str, Any] = {"status": "disabled_by_governance"}
