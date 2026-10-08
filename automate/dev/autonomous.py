@@ -18,7 +18,6 @@ from automate.dev.failure_recovery import failure_notes, quarantine_worker_pr, r
 from automate.dev.inventory import InventoryError
 from automate.dev.prmgr import create_worker_pr
 from automate.dev.publisher import build_worker_commit, push_worker_branch
-from automate.dev.research import build_mirror_research_job
 from automate.dev.supervisor import observed_main_sha, supervisor_snapshot
 from automate.dev.worker import validate_worker_result
 from automate.dev.worker_client import WorkerTransportError, dispatch_worker, wait_worker_job
