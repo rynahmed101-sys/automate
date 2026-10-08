@@ -1,7 +1,7 @@
 """
 Command Line Interface (CLI) for Automate.
 Supports both human-readable Rich console rendering and machine-readable JSON mode (--json)
-for seamless integration with direct AI agents, automated verification pipelines, and CI/CD.
+for direct machine use and simple AI integration.
 """
 
 from pathlib import Path
@@ -22,6 +22,7 @@ from automate.backend.electrostatics_backend import ElectrostaticsChecker
 from automate.visualization.html_graph import generate_interactive_html
 from automate.visualization.terminal import print_graph_summary, print_assumption_report, console
 from automate.demo import run_harmonic_oscillator_demo
+from automate.ir.tensors import TensorEquation
 from automate.theory.rules import RuleRegistry
 
 @click.group()
@@ -41,7 +42,7 @@ def demo(output_dir: str):
 @main.command()
 @click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
 def capabilities(as_json: bool):
-    """Discover available verification backends, IR capabilities, and AI providers."""
+    """Discover available mathematical and physics backends."""
     lean_checker = LeanChecker()
     caps = {
         "schema_version": "0.2.0",
