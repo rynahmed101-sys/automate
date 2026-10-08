@@ -14,7 +14,8 @@ describe("Mirror mission envelope", () => {
         workflow: "autonomous-mission.yml",
         ref: "main",
       },
-      mission: { objective: "research and propose a capability" },
+      mission: { objective: "research and propose a capability", authorization_granted: false },
+      authorization: { github_mutation_allowed: false, scope: "proposal_only" },
       source_revision: sha,
       limits: { deadline_ms: 120000, max_response_bytes: 500000 },
       provenance: {
@@ -26,13 +27,14 @@ describe("Mirror mission envelope", () => {
     expect(value.target.repository).toBe("rynahmed101-sys/the-mirror");
   });
 
-  it("rejects non-SHA source revisions", () => {
+  it("rejects inconsistent GitHub mutation authorization", () => {\n    expect(() => validateMirrorMissionEnvelope({\n      schema_version: "mirror.mission_job.v1", request_id: "mirror_test_123", execution_kind: "mirror_autonomous_mission",\n      target: { repository: "rynahmed101-sys/the-mirror", workflow: "autonomous-mission.yml", ref: "main" },\n      mission: { objective: "test", authorization_granted: true },\n      authorization: { github_mutation_allowed: false, scope: "proposal_only" },\n      source_revision: sha, limits: { deadline_ms: 120000, max_response_bytes: 500000 },\n      provenance: { capability_id: "x", correlation_id: "y", requested_by: "automate" },\n    })).toThrow("authorization");\n  });\n\n  it("rejects non-SHA source revisions", () => {
     expect(() => MirrorMissionEnvelope.parse({
       schema_version: "mirror.mission_job.v1",
       request_id: "mirror_test_123",
       execution_kind: "mirror_autonomous_mission",
       target: { repository: "rynahmed101-sys/the-mirror", workflow: "autonomous-mission.yml", ref: "main" },
-      mission: { objective: "test" },
+      mission: { objective: "test", authorization_granted: false },
+      authorization: { github_mutation_allowed: false, scope: "proposal_only" },
       source_revision: "main",
       limits: { deadline_ms: 120000, max_response_bytes: 500000 },
       provenance: { capability_id: "x", correlation_id: "y", requested_by: "automate" },
