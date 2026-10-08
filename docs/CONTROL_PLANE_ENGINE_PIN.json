@@ -1,7 +1,7 @@
 {
   "schema_version": "automate.control_plane_pin.v1",
-  "enabled": false,
-  "engine_sha": null,
-  "auto_promote": false,
-  "notes": "Starts inert. Activation requires an explicit pin to a verified engine tip. Implementation promotion, canonical bookkeeping, and Mirror discovery have separate gates."
+  "enabled": true,
+  "engine_sha": "2bd0e34ca903afef366feaa4847f06764a01006a",
+  "auto_promote": true,
+  "notes": "Activated 2026-10-08 after exact-head Automate Engine CI #251 and Security Audit #1152 passed on the pinned engine. Scheduled control cycle may reconcile, dispatch bounded workers, promote verified implementation PRs, and create canonical bookkeeping proposals. Scientific capability certification still requires the existing verification ladder."
 }
