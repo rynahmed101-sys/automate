@@ -7,6 +7,7 @@ import { DiscoveryJobEnvelope } from "../../worker/discoveryEnvelope";
 import { LearningHandoffEnvelope } from "../../worker/learningEnvelope";
 import { ResearchJobEnvelope } from "../../worker/researchEnvelope";
 import { FrontierJobEnvelope } from "../../worker/frontierEnvelope";
+import { MirrorMissionEnvelope } from "../../worker/mirrorMissionEnvelope";
 
 export class WorkerJobCreate extends OpenAPIRoute<HandleArgs> {
   public schema = {
@@ -20,6 +21,7 @@ export class WorkerJobCreate extends OpenAPIRoute<HandleArgs> {
         ResearchJobEnvelope,
         FrontierJobEnvelope,
         DiscoveryJobEnvelope,
+        MirrorMissionEnvelope,
       ])),
     },
     responses: {
