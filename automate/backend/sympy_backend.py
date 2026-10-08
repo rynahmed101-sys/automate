@@ -777,6 +777,8 @@ class SymPyChecker(BaseChecker):
             return False, {"rule": "total_differential"}, [], "Malformed total differential differentials: provide one valid identifier per variable."
         if len(set(differentials)) != len(differentials):
             return False, {"rule": "total_differential"}, [], "Duplicate differential symbols are not allowed."
+        if set(variables) & set(differentials):
+            return False, {"rule": "total_differential"}, [], "Variable and differential identifiers must be distinct."
         symbols = {name: sp.Symbol(name, real=True) for name in variables}
         diff_symbols = {name: sp.Symbol(name, real=True) for name in differentials}
         parser = SafeParser(extra_symbols={**symbols, **diff_symbols})
