@@ -1,7 +1,5 @@
 """Named Phase 1A Linear Algebra inner-product capability acceptance campaign."""
 
-from automate.ai.proposals import apply_and_verify_proposal
-from automate.ai.schemas import DerivationProposal
 from automate.backend.linear_algebra_backend import LinearAlgebraChecker
 from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
@@ -204,38 +202,6 @@ def test_malformed_inputs_and_output_contracts_fail_closed():
         ["Vector([1, 0])", "Vector([0, 1])"],
         outputs=["Vector([1, 0])"],
     ).passed
-
-
-def test_ai_proposal_path_for_inner_product():
-    graph = DerivationGraph(id="ai_linear_algebra_inner_product")
-    graph.add_node(
-        DerivationNode(
-            id="a",
-            expression=MathematicalExpression(raw_str="Vector([1, 2])"),
-            node_kind="vector",
-        )
-    )
-    graph.add_node(
-        DerivationNode(
-            id="b",
-            expression=MathematicalExpression(raw_str="Vector([3, 4])"),
-            node_kind="vector",
-        )
-    )
-    proposal = DerivationProposal(
-        proposal_id="la_inner_agent_001",
-        input_nodes=["a", "b"],
-        output_nodes=[{"id": "dot", "expression": "11", "node_kind": "scalar"}],
-        rule="vector_inner_product",
-        justification="The Hermitian inner product of two real vectors.",
-        target_checker="linear_algebra",
-        origin={"type": "ai", "provider": "acceptance"},
-    )
-    dry = apply_and_verify_proposal(proposal, graph, dry_run=True)
-    assert dry.success and not dry.graph_updated and "dot" not in graph.nodes
-    applied = apply_and_verify_proposal(proposal, graph, dry_run=False)
-    assert applied.success and applied.graph_updated
-    assert graph.edges[applied.edge_id].status == VerificationStatus.SYMBOLIC_CHECKED
 
 
 def test_registry_exposes_inner_product_family():

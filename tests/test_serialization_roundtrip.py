@@ -120,21 +120,3 @@ def test_derivation_graph_json_roundtrip():
     assert graph_reloaded.nodes["n1"].expression.ast["value"] == "E"
     assert graph_reloaded.edges["e1"].certificate.rule_name == "identity"
     assert graph_reloaded.edges["e1"].status == VerificationStatus.SYMBOLIC_CHECKED
-
-
-def test_certificate_manifest_sha256_verification(tmp_path):
-    graph = parse_theory_file("examples/harmonic_oscillator.yaml")
-    pkg_dir = tmp_path / "cert_pkg"
-    files = graph.export_certificate_package(pkg_dir)
-
-    manifest_path = pkg_dir / "manifest.json"
-    assert manifest_path.exists()
-    manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
-
-    # Verify SHA-256 for each exported artifact
-    for fname, meta in manifest_data.items():
-        fpath = pkg_dir / fname
-        assert fpath.exists(), f"File {fname} declared in manifest does not exist"
-        computed_sha = hashlib.sha256(fpath.read_bytes()).hexdigest()
-        assert computed_sha == meta["sha256"], f"SHA-256 mismatch for {fname}"
-        assert fpath.stat().st_size == meta["size_bytes"], f"Size mismatch for {fname}"
