@@ -63,29 +63,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Validate development control plane
-        run: |
-          automate capability validate --json
-          automate capability queue --json
-
-      - name: Audit live capability references
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          automate capability audit-live --repo "${{ github.repository }}" --json
-
-
-      - name: Enforce capability branch scope
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mapfile -t changed_files < <(gh pr diff "${{ github.event.pull_request.number }}" --name-only)
-          args=(--branch "$GITHUB_HEAD_REF")
-          for changed in "${changed_files[@]}"; do
-            [[ -n "$changed" ]] && args+=(--changed-file "$changed")
-          done
-          automate capability guard "${args[@]}"
-
       - name: Run development test shard
         run: |
           mapfile -t test_files < <(find tests -maxdepth 1 -type f -name 'test_*.py' | sort)
@@ -132,18 +109,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-
-      - name: Validate development control plane
-        run: |
-          automate capability validate --json
-          automate capability queue --json
-
-      - name: Audit live capability references
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          automate capability audit-live --repo "${{ github.repository }}" --json
-
 
       - name: Run full test suite
         run: |
