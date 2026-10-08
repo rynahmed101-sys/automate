@@ -520,17 +520,17 @@
       "order": 160,
       "stage": "1B",
       "name": "Taylor, Maclaurin, and higher-order series expansions",
-      "implementation_state": "planned",
+      "implementation_state": "merged_main",
       "authority": {
-        "kind": "roadmap",
-        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+        "kind": "main_merge",
+        "ref": "fe6c3d3af7258f4c81a0d65266274fdafb257e15"
       },
       "references": [
         {
-          "type": "issue",
-          "number": 141,
-          "state": "open",
-          "role": "tracking"
+          "type": "pr",
+          "number": 195,
+          "state": "merged",
+          "role": "authoritative_merge"
         }
       ],
       "depends_on": [
@@ -545,17 +545,22 @@
         "schemas/automate-agent-v1.json"
       ],
       "verification": {
-        "locally_tested": false,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
       "safe_to_delete": false,
-      "notes": "Next claimable Stage 1B capability. Canonical worker boundary is SymPy backend implementation plus focused series-expansion tests."
+      "notes": "Machine-generated Stage 1B capability promoted by PR #195. Taylor/Maclaurin implementation and focused tests are authoritative on main. Formal proof is not claimed.",
+      "verification_evidence": {
+        "main_sha": "fe6c3d3af7258f4c81a0d65266274fdafb257e15",
+        "exact_head_workflow_run": 37723137376,
+        "security_workflow_run": 37723137529
+      }
     },
     {
       "id": "stage1b.partial_derivatives",
@@ -1161,19 +1166,12 @@
     }
   ],
   "authoritative_verification": {
-    "main_sha": "a191f1100578189e97f3603178dc7027dbfd0ec7",
-    "exact_head_workflow_run": 37544252524,
-    "security_workflow_run": 37544252443,
-    "note": "Current main SHA is pending fresh exact-head and Security Audit verification."
+    "main_sha": "fe6c3d3af7258f4c81a0d65266274fdafb257e15",
+    "exact_head_workflow_run": 37723137376,
+    "security_workflow_run": 37723137529,
+    "note": "Current authoritative main has successful Automate CI and Security Audit evidence. Fresh evidence is required after any subsequent main merge."
   },
-  "control_plane_references": [
-    {
-      "number": 169,
-      "branch": "feat/autonomous-scheduler-20261007",
-      "state": "open",
-      "purpose": "readiness-gated unattended autonomous control-cycle scheduler"
-    }
-  ],
+  "control_plane_references": [],
   "integration_references": [
     {
       "number": 95,
