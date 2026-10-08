@@ -45,14 +45,25 @@ def validate_branch_scope(branch: str, files: list[str]) -> list[str]:
             and str(ref.get("state", "")).startswith("open")
         ]
         if not recorded:
-            errors.append(
-                f"Capability branch '{branch}' has no active ownership record in "
-                "docs/CAPABILITY_INVENTORY.json."
-            )
+            # Worker-generated capability PRs can exist before canonical inventory
+            # bookkeeping is merged. Permit only a branch whose prefix is the exact
+            # ID of a known non-terminal capability.
+            suffix_match = __import__("re").match(r"^feat/(.+?)-[0-9a-f]{8,40}$", branch)
+            candidate = suffix_match.group(1) if suffix_match else ""
+            known = {
+                item["id"]
+                for item in data["capabilities"]
+                if item.get("implementation_state") not in {"merged_main", "superseded", "abandoned"}
+            }
+            if candidate not in known:
+                errors.append(
+                    f"Capability branch '{branch}' has no active ownership record in "
+                    "docs/CAPABILITY_INVENTORY.json."
+                )
         elif len(recorded) > 1:
             errors.append(
                 f"Capability branch '{branch}' is claimed by multiple capabilities: "
-                + ", ".join(sorted(set(recorded)))
+                + ", ".join(sorted(set(recorded))
             )
     elif branch.startswith("integrate/"):
         return errors
