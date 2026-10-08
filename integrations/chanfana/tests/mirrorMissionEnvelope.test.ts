@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MirrorMissionEnvelope, validateMirrorMissionEnvelope } from "../src/worker/mirrorMissionEnvelope";
+import { MirrorMissionEnvelope, validateMirrorMissionEnvelope } from "../worker/mirrorMissionEnvelope";
 
 const sha = "a".repeat(40);
 
