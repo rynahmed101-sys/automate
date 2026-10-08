@@ -286,7 +286,7 @@ def _is_safe_binding(value: Any) -> bool:
     if any(value is allowed for allowed in _ALLOWED_FUNCTIONS.values()):
         return True
     # SymPy expressions/symbols are safe bindings.
-    if isinstance(value, sp.Basic):
+    if isinstance(value, (sp.Basic, sp.MatrixBase)):
         return True
     # A user-defined symbolic function such as sp.Function("x") is a
     # SymPy FunctionClass. It is safe because calls still originate only
@@ -346,7 +346,11 @@ class SafeParser:
                     f"at position {match.start()}: {match.group()!r}"
                 )
 
-    def _check_expr(self, expr: sp.Basic) -> None:
+    def _check_expr(self, expr: Any) -> None:
+        if not isinstance(expr, (sp.Basic, sp.MatrixBase)):
+            raise SafeParseError(
+                f"Parser produced unsupported object type {type(expr).__name__}."
+            )
         atom_count = len(expr.atoms())
         if atom_count > self.max_atoms:
             raise SafeParseError(
@@ -517,11 +521,6 @@ class SafeParser:
                 f"(took {elapsed:.2f}s)."
             )
 
-        if not isinstance(expr, sp.Basic):
-            raise SafeParseError(
-                f"Parser produced unsupported object type {type(expr).__name__}."
-            )
-
         self._check_expr(expr)
         return expr
 
@@ -607,7 +606,7 @@ class SafeParser:
                         raise SafeParseError(
                             f"Could not deserialize isolated parser result: {type(exc).__name__}: {exc}"
                         ) from exc
-                    if not isinstance(result, sp.Basic):
+                    if not isinstance(result, (sp.Basic, sp.MatrixBase)):
                         raise SafeParseError(
                             f"Isolated parser returned unsupported object type "
                             f"{type(result).__name__}."
