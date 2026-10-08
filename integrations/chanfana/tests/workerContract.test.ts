@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorkerPacket } from "../src/worker/contracts";
+import { WorkerPacket } from "../worker/contracts";
 
 describe("worker context transport", () => {
   it("preserves bounded context fields when packets are validated", () => {
