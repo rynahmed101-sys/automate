@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateFrontierJobEnvelope } from "../src/worker/frontierEnvelope";
+import { validateFrontierJobEnvelope } from "../worker/frontierEnvelope";
 
 describe("frontier job envelope", () => {
   it("accepts bounded non-authoritative Mirror missions", () => {
