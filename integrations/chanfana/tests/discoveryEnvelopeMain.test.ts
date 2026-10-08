@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DiscoveryJobEnvelope } from "../src/worker/discoveryEnvelope";
+import { DiscoveryJobEnvelope } from "../worker/discoveryEnvelope";
 
 describe("main durable discovery contract", () => {
   it("accepts a one-candidate no-canonical-mutation grant", () => {
