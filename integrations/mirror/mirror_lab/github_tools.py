@@ -44,6 +44,7 @@ class GitHubTool:
         return name
 
     def push_branch(self, name: str) -> dict[str, Any]:
+        raise RuntimeError("Mirror is proposal-only; branch publication belongs to the Automate merger lane")
         branch = self.validate_branch(name)
         current = self._run(["git", "branch", "--show-current"], timeout=10)
         if current["returncode"] != 0 or current["stdout"].strip() != branch:
@@ -51,6 +52,7 @@ class GitHubTool:
         return self._run(["git", "push", "--set-upstream", "origin", branch], timeout=180)
 
     def create_pr(self, branch: str, title: str, body: str) -> dict[str, Any]:
+        raise RuntimeError("Mirror is proposal-only; PR creation belongs to the Automate merger lane")
         branch = self.validate_branch(branch)
         if not title.strip() or len(title) > 200:
             raise ValueError("PR title is required and bounded")
