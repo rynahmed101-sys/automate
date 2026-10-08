@@ -576,7 +576,10 @@
       "depends_on": [
         "stage1b.calculus"
       ],
-      "canonical_files": [],
+      "canonical_files": [
+        "automate/backend/sympy_backend.py",
+        "tests/test_partial_derivatives.py"
+      ],
       "shared_integration_points": [
         "automate/theory/rules.py",
         "schemas/automate-agent-v1.json"
@@ -591,7 +594,18 @@
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false
+      "safe_to_delete": false,
+      "task": {
+        "source": "docs/PROJECT_PHASE_LEDGER.md",
+        "ref": "stage1b.partial_derivatives",
+        "summary": "Partial derivatives and total differentials",
+        "requirements": [
+          "Support first-order partial derivatives and total differentials for represented multivariable expressions.",
+          "Preserve variable ordering and explicit assumptions/domains.",
+          "Fail closed when variables, domains, or represented semantics are unresolved.",
+          "Test positive, negative, boundary, malformed, and symbolic unresolved cases."
+        ]
+      }
     },
     {
       "id": "stage1b.higher_order_partials",
