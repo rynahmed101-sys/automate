@@ -1,10 +1,10 @@
 name: Triad Integration CI
 
 on:
+  # PR evidence must follow every PR-head movement. Path filtering here would
+  # allow a later documentation/control-plane commit to invalidate the exact
+  # triad head without rerunning the integration suite.
   pull_request:
-    paths:
-      - "integrations/**"
-      - ".github/workflows/triad-integration-ci.yml"
   push:
     branches: [main]
     paths:
