@@ -15,7 +15,7 @@ def decision():
                 "repository": {
                     "full_name": "rynahmed101-sys/automate",
                     "base_branch": "main",
-                    "base_sha_claim": "0000000000000000000000000000000000000000",
+                    "base_sha_claim": "0" * 40,
                 },
                 "capability": {
                     "id": "stage1b.improper_integrals",
@@ -50,19 +50,19 @@ def test_cycle_stops_before_dispatch_when_supervisor_blocks():
 
 
 def test_cycle_can_queue_without_executing():
-    with patch.dict("os.environ", {"AUTOMATE_EXTERNAL_RESEARCH_ENABLED": "true", "MIRROR_RESEARCH_ENDPOINT": "https://mirror/research/world"}), patch("automate.dev.autonomous.supervisor_snapshot", return_value=decision()), patch(
+    with patch.dict("os.environ", {"AUTOMATE_EXTERNAL_RESEARCH_ENABLED": "true"}, clear=False), patch(
+        "automate.dev.autonomous.supervisor_snapshot", return_value=decision()
+    ), patch(
         "automate.dev.autonomous.dispatch_worker",
         return_value={"queued": {"success": True, "jobId": "j1"}, "execution_requested": False},
     ) as dispatch:
-        result = run_autonomous_cycle(
-            "x",
-            worker_url="https://worker",
-            worker_token="secret",
-            mode="research",
-        )
-    assert result["status"] == "research_dispatched"
+        result = run_autonomous_cycle("x", worker_url="https://worker", worker_token="secret")
+    assert result["status"] == "mirror_mission_dispatched"
     dispatch.assert_called_once()
-    assert dispatch.call_args.args[0]["schema_version"] == "mirror.research_job.v1"
+    job = dispatch.call_args.args[0]
+    assert job["schema_version"] == "mirror.mission_job.v1"
+    assert job["target"]["repository"] == "rynahmed101-sys/the-mirror"
+    assert job["target"]["workflow"] == "autonomous-mission.yml"
 
 
 def test_cycle_validates_worker_result_before_local_apply():
@@ -74,10 +74,21 @@ def test_cycle_validates_worker_result_before_local_apply():
         "tests": [],
         "unresolved": [],
     }
-    with patch.dict("os.environ", {"AUTOMATE_EXTERNAL_RESEARCH_ENABLED": "true", "MIRROR_RESEARCH_ENDPOINT": "https://mirror/research/world"}), patch("automate.dev.autonomous.supervisor_snapshot", return_value=decision()), patch(
+    with patch.dict("os.environ", {"AUTOMATE_EXTERNAL_RESEARCH_ENABLED": "true"}, clear=False), patch(
+        "automate.dev.autonomous.supervisor_snapshot", return_value=decision()
+    ), patch(
         "automate.dev.autonomous.dispatch_worker",
         side_effect=[
-            {"execution": {"success": True, "result": {"schema_version": "mirror.research_result.v1", "authority": "UNTRUSTED_EXTERNAL_EVIDENCE", "results": []}}},
+            {
+                "execution": {
+                    "success": True,
+                    "result": {
+                        "schema_version": "mirror.mission_result_ack.v1",
+                        "authority": "UNTRUSTED_MIRROR_PROPOSAL",
+                        "results": [],
+                    },
+                }
+            },
             {"execution": {"success": True, "result": result}},
         ],
     ), patch("automate.dev.autonomous.build_worker_commit") as commit:
@@ -86,37 +97,14 @@ def test_cycle_validates_worker_result_before_local_apply():
             worker_url="https://worker",
             worker_token="secret",
             execute_worker=True,
-            mode="research",
         )
     assert outcome["status"] == "validated_proposal"
     commit.assert_not_called()
 
 
-def test_backlog_mode_never_commissions_mirror_research():
-    packet = decision()["worker_packet"]
-    packet["schema_version"] = "automate.worker.v1"
-    with patch.dict(
-        "os.environ",
-        {"AUTOMATE_EXTERNAL_RESEARCH_ENABLED": "true"},
-        clear=False,
-    ), patch(
-        "automate.dev.autonomous.supervisor_snapshot",
-        return_value={**decision(), "worker_packet": packet},
-    ), patch(
-        "automate.dev.autonomous.dispatch_worker",
-        return_value={
-            "queued": {"success": True, "jobId": "worker-1"},
-            "execution_requested": False,
-        },
-    ) as dispatch:
-        result = run_autonomous_cycle(
-            "x",
-            worker_url="https://worker",
-            worker_token="secret",
-            mode="backlog",
-        )
-    assert result["operating_mode"] == "BACKLOG"
-    assert result["research"] is None
-    assert result["status"] == "worker_dispatched"
-    dispatch.assert_called_once()
-    assert dispatch.call_args.args[0]["schema_version"] == "automate.worker.v1"
+def test_scheduler_enables_verified_worker_publication():
+    workflow = Path(".github/workflows/control-cycle.yml").read_text(encoding="utf-8")
+    assert 'AUTOMATE_LEARNING_ENABLED: "true"' in workflow
+    assert 'AUTOMATE_AUTO_PUBLISH: "1"' in workflow
+    assert "--execute-worker" in workflow
+    assert "--local-root" in workflow

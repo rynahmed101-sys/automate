@@ -63,3 +63,37 @@ def test_bootstrap_not_ready_when_another_gate_is_missing():
     evidence["worker_transport_live"] = False
     result = evaluate_readiness(evidence)
     assert result["bootstrap_ready"] is False
+
+
+def test_readiness_requires_verification_engine_configuration():
+    evidence = {gate: True for gate in REQUIRED_GATES}
+    evidence["verification_engine_configured"] = False
+    result = evaluate_readiness(evidence)
+    assert result["ready"] is False
+    assert result["worker_mode"] == "off"
+    assert result["blocking_gates"] == ["verification_engine_configured"]
+
+def test_github_lifecycle_accepts_first_legacy_worker_promotion(monkeypatch):
+    from automate.dev.readiness import _github_lifecycle_exercised
+
+    base_sha = "06bb0edc40578bdc45e287729bb12371d7a2a53e"
+    monkeypatch.setattr(
+        "automate.dev.readiness._gh_json",
+        lambda repository, *args: [{
+            "merged_at": "2026-10-08T03:31:30Z",
+            "head": {"ref": "feat/stage1b.series_expansions-a1b2c3d4"},
+            "body": (
+                "Automated capability implementation generated through Automate's bounded worker pipeline.\n"
+                "- capability: stage1b.series_expansions\n"
+                "- worker_request_id: wrk_a1b2c3d4e5f60718293a4b5c6d7e8f90\n"
+                f"- base_sha: {base_sha}\n"
+            ),
+            "merge_commit_sha": "fe6c3d3af7258f4c81a0d65266274fdafb257e15",
+        }],
+    )
+    monkeypatch.setattr(
+        "automate.dev.readiness._workflow_success",
+        lambda repository, workflow, sha: workflow in {"ci.yml", "security.yml"}
+        and sha == "fe6c3d3af7258f4c81a0d65266274fdafb257e15",
+    )
+    assert _github_lifecycle_exercised("rynahmed101-sys/automate") is True
