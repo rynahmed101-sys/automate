@@ -16,6 +16,7 @@ import subprocess
 from automate.dev.bookkeeping import create_bookkeeping_pr
 from automate.dev.failure_recovery import failure_notes, quarantine_worker_pr, rerun_failed_workflows
 from automate.dev.inventory import InventoryError
+from automate.dev.research import build_mirror_research_job
 from automate.dev.prmgr import create_worker_pr
 from automate.dev.publisher import build_worker_commit, push_worker_branch
 from automate.dev.supervisor import observed_main_sha, supervisor_snapshot
@@ -270,11 +271,11 @@ def run_autonomous_cycle(
                 "MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT is required when Mirror discovery is enabled"
             )
         research_job = build_mirror_research_job(
-            capability=capability_item,
+            capability=capability,
             mirror_endpoint=mirror_endpoint,
             request_id="res_" + hashlib.sha256(
                 (
-                    capability_item["id"]
+                    capability["id"]
                     + "|"
                     + str(packet["packet"]["repository"].get("base_sha_claim"))
                     + "|mirror-discovery"
