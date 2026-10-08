@@ -132,6 +132,7 @@ class MirrorAgent:
                     objective=str(a.get("objective") or ""),
                     prompt=str(a.get("prompt") or ""),
                 ),
+                mutating=True,
             ))
         if free.available().get("opencode"):
             self.tools.register(Tool(
@@ -142,6 +143,7 @@ class MirrorAgent:
                     objective=str(a.get("objective") or ""),
                     prompt=str(a.get("prompt") or ""),
                 ),
+                mutating=True,
             ))
         self.tools.register(Tool(
             "research_world",
@@ -420,6 +422,13 @@ class MirrorAgent:
             name = str(call.get("tool", ""))
             if name.startswith("github_") and name in {"github_push_branch", "github_create_pr"} and not mission.authorization_granted:
                 results.append({"tool": name, "result": {"status": "AUTHORIZATION_DENIED", "error": "mission did not grant GitHub mutation authorization"}})
+                continue
+            tool = self.tools._tools.get(name)
+            if tool is None:
+                results.append({"tool": name, "result": {"status": "TOOL_NOT_FOUND", "error": "unknown Mirror tool"}})
+                continue
+            if tool.mutating and not mission.authorization_granted:
+                results.append({"tool": name, "result": {"status": "AUTHORIZATION_DENIED", "error": "mission did not grant mutation authorization"}})
                 continue
             args = dict(call.get("arguments", {}))
             if name in {"implement_automate_change", "repair_automate_change"}:
