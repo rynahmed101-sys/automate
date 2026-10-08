@@ -3,7 +3,7 @@
 **Status:** AUTHORITATIVE SYSTEM MAP  
 **Owner:** Automate primary integrator  
 **Scope:** Automate + Chanfana Worker Substrate + Verification & Reconciliation Engine + THE MIRROR + external research/data providers  
-**Last reviewed:** 2026-10-07
+**Last reviewed:** 2026-10-08
 
 > **This is the single system-level architecture and infrastructure authority for the autonomous scientific ecosystem.**
 >
@@ -71,11 +71,9 @@ Its `engine` branch is the living development trunk.
 
 Its `main` branch is the certified release surface.
 
-### Chanfana — bounded execution substrate and shared verifier infrastructure
+### Chanfana — durable execution, transport, and system memory
 
-`rynahmed101-sys/chanfana-openapi-template` exists to execute bounded jobs reliably.
-
-It owns:
+`rynahmed101-sys/chanfana-openapi-template` is the durable substrate connecting the other two environments. It owns:
 
 - durable job persistence;
 - queue dispatch;
@@ -85,43 +83,83 @@ It owns:
 - retry/requeue behavior;
 - worker API boundaries;
 - runtime resource/time limits;
-- structured job/result transport.
+- structured job/result transport;
+- durable learning and experience storage used as operational memory for Automate and the wider system;
+- correlation/provenance persistence across long-running work.
 
-It also supplies the durable/control-plane compartments used by the Verification & Reconciliation Engine, but it does **not** own:
+The learning store is memory, not truth. It may retain experiences, lessons, research proposals/results, evolution proposals/plans, repair outcomes, and other bounded artifacts, while preserving source revision, correlation ID, hashes, and authority labels.
 
-- mathematical truth;
-- the Automate capability ledger;
-- capability certification;
-- Git authority;
-- scientific interpretation.
+Chanfana does **not** decide mathematical truth or certification and does not rewrite Automate's ledger. It makes the system durable enough to learn from what happened and resume work after interruptions.
 
 Its `engine` branch is the living infrastructure development trunk.
 
 Its `main` branch is the release surface.
 
-### THE MIRROR — experimental laboratory and scientific verification execution
+### THE MIRROR — autonomous AI engineering partner, research brain, and scientific laboratory
 
-`rynahmed101-sys/the-mirror` exists for experiments that should not become mathematical authority merely because a computation produced an interesting result.
+`rynahmed101-sys/the-mirror` is the system's general-purpose AI engineering environment. It is simultaneously:
 
-It owns:
+- the scientific laboratory for unusual or established mathematics/physics;
+- a research and discovery engine;
+- a software-engineering workspace;
+- a diagnosis and repair engine;
+- a capability-generation partner for Automate;
+- a source of independent verification work when the claim needs experimentation rather than repository-only checks.
 
-- hypotheses;
-- controlled experiments;
-- simulations;
-- perturbations;
-- counterexample searches;
-- numerical comparison;
-- runtime/error/stability observations;
-- reproducible experiment provenance;
-- experimental evidence.
+Mirror owns:
 
-Mirror observations are evidence to the Verification Engine and Automate, never Automate truth. Mirror also supplies scientific execution, numerical diagnostics, perturbation, simulation, and counterexample machinery when a verification task requires more than repository or CI inspection.
+- hypotheses and model formalization;
+- scholarly and code research;
+- executable experiment design;
+- simulations, perturbations, parameter sweeps, and numerical diagnostics;
+- counterexample and failure searches;
+- capability design and implementation proposals;
+- diagnosis of implementation, integration, numerical, test, provenance, and CI failures;
+- bounded repairs and repair proposals;
+- reproducible provenance and evidence;
+- follow-up work and discovery candidates.
 
-Mirror must never mutate Automate's ledger, inventory, rule registry, certification state, or Git history.
+Mirror may create and modify code in its own repository and may prepare bounded capability/repair changes for Automate through reviewable Git proposals or worker handoffs. Mirror may recommend or implement a correction; it may not certify the correction, promote itself, change Automate's canonical ledger/certification records, or bypass Automate's acceptance gates.
 
-Its `engine` branch is the living laboratory development trunk.
+Its observations and engineering output are not dismissed merely because they are produced by an AI. They are evaluated according to the relevant evidence class, reproducibility, independent checks, CI, and Automate's authority boundary.
+
+Its `engine` branch is the living development trunk.
 
 Its `main` branch is the release surface.
+
+### Persistent self-development loop
+
+The three repositories are treated as one continuously operating system, not three unrelated projects:
+
+```
+observe canonical state
+  ↓
+repair defects / reconcile stale work
+  ↓
+select the earliest eligible capability
+  ↓
+Automate specifies the bounded objective
+  ↓
+Mirror researches, designs, codes, experiments, or repairs
+  ↓
+Chanfana transports the work and persists execution + learning memory
+  ↓
+Automate / Verification Engine evaluates evidence and integration
+  ↓
+reviewable Git mutation
+  ↓
+CI + Security + exact-head verification
+  ↓
+promotion / bookkeeping
+  ↓
+record the actual outcome in durable memory
+  ↓
+recompute the frontier
+  ↓
+repeat indefinitely
+```
+
+Mutation is therefore allowed, but it is bounded, attributable, reversible through Git history, and evidence-gated. Self-development does not mean self-certification and does not mean unconstrained self-rewriting.
 
 ### External research/data workers — evidence acquisition, currently OFF
 
