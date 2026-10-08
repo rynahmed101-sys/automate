@@ -1247,6 +1247,12 @@
       "branch": "integrate/control-plane-machinery-v2-20261007",
       "state": "open",
       "purpose": "consolidated autonomous control-plane machinery (clean verification replacement)"
+    },
+    {
+      "number": 204,
+      "branch": "integrate/triad-into-automate-20261008",
+      "state": "open",
+      "purpose": "bounded Mirror/Chanfana triad integration pending house-order certification"
     }
   ]
 }
