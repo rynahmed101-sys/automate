@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { executePacket } from "../src/worker/packetRunner";
+import { executePacket } from "../worker/packetRunner";
 
 const frontierPacket = {
   schema_version: "mirror.frontier_job.v1",
