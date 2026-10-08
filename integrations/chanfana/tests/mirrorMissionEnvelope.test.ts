@@ -6,37 +6,37 @@ const sha = "a".repeat(40);
 describe("Mirror mission envelope", () => {
   it("accepts an exact revision and non-deployed Actions target", () => {
     const value = validateMirrorMissionEnvelope({
-      schema_version: "mirror.mission_job.v1",
-      request_id: "mirror_test_123",
+      schema_version: "mirror.mission_job.v1", request_id: "mirror_test_123",
       execution_kind: "mirror_autonomous_mission",
-      target: {
-        repository: "rynahmed101-sys/the-mirror",
-        workflow: "autonomous-mission.yml",
-        ref: "main",
-      },
+      target: { repository: "rynahmed101-sys/the-mirror", workflow: "autonomous-mission.yml", ref: "main" },
       mission: { objective: "research and propose a capability", authorization_granted: false },
       authorization: { github_mutation_allowed: false, scope: "proposal_only" },
-      source_revision: sha,
-      limits: { deadline_ms: 120000, max_response_bytes: 500000 },
-      provenance: {
-        capability_id: "stage1b.demo",
-        correlation_id: "corr_demo",
-        requested_by: "automate",
-      },
+      source_revision: sha, limits: { deadline_ms: 120000, max_response_bytes: 500000 },
+      provenance: { capability_id: "stage1b.demo", correlation_id: "corr_demo", requested_by: "automate" },
     });
     expect(value.target.repository).toBe("rynahmed101-sys/the-mirror");
   });
 
-  it("rejects inconsistent GitHub mutation authorization", () => {\n    expect(() => validateMirrorMissionEnvelope({\n      schema_version: "mirror.mission_job.v1", request_id: "mirror_test_123", execution_kind: "mirror_autonomous_mission",\n      target: { repository: "rynahmed101-sys/the-mirror", workflow: "autonomous-mission.yml", ref: "main" },\n      mission: { objective: "test", authorization_granted: true },\n      authorization: { github_mutation_allowed: false, scope: "proposal_only" },\n      source_revision: sha, limits: { deadline_ms: 120000, max_response_bytes: 500000 },\n      provenance: { capability_id: "x", correlation_id: "y", requested_by: "automate" },\n    })).toThrow("authorization");\n  });\n\n  it("rejects non-SHA source revisions", () => {
+  it("rejects inconsistent GitHub mutation authorization", () => {
+    expect(() => validateMirrorMissionEnvelope({
+      schema_version: "mirror.mission_job.v1", request_id: "mirror_test_123",
+      execution_kind: "mirror_autonomous_mission",
+      target: { repository: "rynahmed101-sys/the-mirror", workflow: "autonomous-mission.yml", ref: "main" },
+      mission: { objective: "test", authorization_granted: true },
+      authorization: { github_mutation_allowed: false, scope: "proposal_only" },
+      source_revision: sha, limits: { deadline_ms: 120000, max_response_bytes: 500000 },
+      provenance: { capability_id: "x", correlation_id: "y", requested_by: "automate" },
+    })).toThrow("authorization");
+  });
+
+  it("rejects non-SHA source revisions", () => {
     expect(() => MirrorMissionEnvelope.parse({
-      schema_version: "mirror.mission_job.v1",
-      request_id: "mirror_test_123",
+      schema_version: "mirror.mission_job.v1", request_id: "mirror_test_123",
       execution_kind: "mirror_autonomous_mission",
       target: { repository: "rynahmed101-sys/the-mirror", workflow: "autonomous-mission.yml", ref: "main" },
       mission: { objective: "test", authorization_granted: false },
       authorization: { github_mutation_allowed: false, scope: "proposal_only" },
-      source_revision: "main",
-      limits: { deadline_ms: 120000, max_response_bytes: 500000 },
+      source_revision: "main", limits: { deadline_ms: 120000, max_response_bytes: 500000 },
       provenance: { capability_id: "x", correlation_id: "y", requested_by: "automate" },
     })).toThrow();
   });
