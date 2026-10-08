@@ -25,6 +25,6 @@ def test_supervisor_reports_current_frontier_without_dispatching(monkeypatch):
     )
     assert result["action"] == "dispatch"
     assert result["can_dispatch"] is True
-    assert result["capability_id"] == "stage1b.series_expansions"
-    assert result["worker_packet"]["packet"]["task"]["source"] == "github_issue"
-    assert result["worker_packet"]["packet"]["task"]["ref"] == "141"
+    assert result["capability_id"] == "stage1b.partial_derivatives"
+    assert result["worker_packet"]["packet"]["task"]["source"] == "docs/PROJECT_PHASE_LEDGER.md"
+    assert result["worker_packet"]["packet"]["task"]["ref"] == "stage1b.partial_derivatives"
