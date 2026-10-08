@@ -101,3 +101,11 @@ def test_cli_calculate_preserves_expression_and_equation_solving():
     ])
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["result"] == "[-2, 2]"
+
+
+def test_calculator_accepts_sympy_matrix_objects():
+    import sympy as sp
+    from automate import calculate
+
+    matrix = sp.Matrix([[1, 2], [3, 4]])
+    assert calculate("matrix_determinant", matrix) == -2
