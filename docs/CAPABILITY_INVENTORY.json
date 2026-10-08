@@ -2,9 +2,9 @@
   "$schema": "../schemas/automate-capability-inventory-v1.json",
   "schema_version": "automate.capability_inventory.v1",
   "authoritative_branch": "main",
-  "roadmap_authority": "docs/PROJECT_PHASE_LEDGER.md",
+  "roadmap_authority": "docs/AUTOMATE_SCIENTIFIC_ENGINE_LEDGER.md",
   "registry_authority": "automate/theory/rules.py",
-  "inventory_purpose": "Track implementation ownership and verification separately from roadmap status.",
+  "inventory_purpose": "Track scientific capability implementation and verification evidence separately from the authoritative scientific-engine ledger.",
   "lifecycle_states": [
     "planned",
     "active_development",
@@ -29,12 +29,10 @@
   "branch_policy": {
     "capability_branch_prefix": "feat/",
     "reconciliation_branch_prefix": "integrate/",
-    "reconciliation_owner": "primary-integrator",
+    "reconciliation_owner": "primary-scientific-integrator",
     "feature_base": "main",
-    "control_plane_base": "engine",
     "reconciliation_bases": [
-      "main",
-      "engine"
+      "main"
     ],
     "shared_integration_files": [
       "automate/theory/rules.py",
@@ -42,7 +40,7 @@
       "tests/test_cli_schema_contracts.py",
       "automate/cli.py"
     ],
-    "rule": "Capability packets own math source, focused tests and semantic docs. Shared registry/schema/dispatch integration belongs to the primary integrator.",
+    "rule": "Capability packets may own isolated scientific implementation and focused tests. Shared semantic registry/schema/dispatch integration is reconciled by the primary scientific integrator. No autonomous control-plane branch is part of Automate.",
     "allowed_maintenance_branch_prefixes": [
       "fix/",
       "hotfix/",
