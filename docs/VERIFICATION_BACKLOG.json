@@ -1,0 +1,1077 @@
+{
+  "schema_version": "automate.verification_backlog.v1",
+  "generated_from": {
+    "repository": "rynahmed101-sys/automate",
+    "branch": "engine",
+    "inventory_sha": "d1f559d531d2b143f25466975ac1056f35926b3d"
+  },
+  "authority": "docs/PROJECT_PHASE_LEDGER.md",
+  "scope": [
+    "1A",
+    "1B",
+    "1C",
+    "2A",
+    "2B",
+    "2C",
+    "2D",
+    "2E",
+    "3A"
+  ],
+  "rule": "Historical work is evidence/source material until independently reconciled; ledger ordering controls new work.",
+  "first_frontier": {
+    "capability_id": "stage1b.improper_integrals",
+    "issue": 115
+  },
+  "external_research": "OFF",
+  "bounded_mirror_verification": "AVAILABLE_WHEN_JUSTIFIED",
+  "capabilities": [
+    {
+      "id": "stage1a.linear_algebra",
+      "order": 10,
+      "stage": "1A",
+      "name": "Linear algebra core and spectral extensions",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main",
+        "ref": "a90e91d8926a763297c6681e6ba325eed9722fbb"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 52,
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 56,
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 63,
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 84,
+          "state": "merged"
+        }
+      ],
+      "depends_on": [],
+      "canonical_files": [
+        "automate/backend/linear_algebra_backend.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      }
+    },
+    {
+      "id": "stage1a.change_of_basis",
+      "order": 20,
+      "stage": "1A",
+      "name": "Change of basis",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main_merge",
+        "ref": "fcee67d780bb9c430a523d90bf79ca48e3307536"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 93,
+          "branch": "feat/stage1a-isolated-change-of-basis",
+          "head_sha": "e50324516a19a6a6323a12ef60cfc88966e7e0e0",
+          "state": "closed_duplicate"
+        },
+        {
+          "type": "pr",
+          "number": 62,
+          "state": "merged",
+          "role": "historical"
+        }
+      ],
+      "depends_on": [
+        "stage1a.linear_algebra"
+      ],
+      "canonical_files": [
+        "automate/change_of_basis.py",
+        "tests/test_change_of_basis.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": true,
+      "notes": "PR93 was an isolated duplicate/hardening packet. Canonical change-of-basis verification already exists in main via PR62/backend acceptance tests.",
+      "preserved_in": "main",
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      }
+    },
+    {
+      "id": "stage1a.pseudoinverse",
+      "order": 30,
+      "stage": "1A",
+      "name": "Pseudoinverse and least squares",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main_merge",
+        "ref": "d3c52c4a8427beed72c5c27984b61d76d8105b65"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 92,
+          "branch": "integrate/stage1-controlled-1c-1a",
+          "state": "closed_superseded_by_pr96",
+          "role": "historical_integration_batch"
+        },
+        {
+          "type": "pr",
+          "number": 87,
+          "state": "closed_duplicate"
+        },
+        {
+          "type": "pr",
+          "number": 60,
+          "state": "closed_duplicate"
+        }
+      ],
+      "depends_on": [
+        "stage1a.linear_algebra"
+      ],
+      "canonical_files": [
+        "automate/backend/linear_algebra_backend.py",
+        "tests/test_linear_algebra_pseudoinverse.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      }
+    },
+    {
+      "id": "stage1a.complex_semantics",
+      "order": 40,
+      "stage": "1A",
+      "name": "Complex scalar, vector and matrix semantics",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main_merge",
+        "ref": "25101f7c2686e0fc7bd39d35ce48342c3a9a0762"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 65,
+          "branch": "reconcile/phase1a-complex-semantics",
+          "state": "closed_superseded_by_pr100",
+          "role": "historical_source"
+        },
+        {
+          "type": "pr",
+          "number": 59,
+          "state": "closed_duplicate"
+        }
+      ],
+      "depends_on": [
+        "stage1a.linear_algebra"
+      ],
+      "canonical_files": [
+        "automate/backend/linear_algebra_backend.py",
+        "tests/test_complex_linear_algebra.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context.",
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      }
+    },
+    {
+      "id": "stage1a.orthogonal_unitary",
+      "order": 70,
+      "stage": "1A",
+      "name": "Orthogonal and unitary matrix semantics",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main_merge",
+        "ref": "7ea5570a69c0c41e61666b0d29007eabbc19c790"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 101,
+          "branch": "integrate/stage1a-orthogonal-v2",
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 91,
+          "state": "closed_superseded",
+          "role": "historical_source"
+        }
+      ],
+      "depends_on": [
+        "stage1a.complex_semantics"
+      ],
+      "canonical_files": [
+        "automate/backend/linear_algebra_backend.py",
+        "tests/test_linear_algebra_orthogonal.py"
+      ],
+      "shared_integration_points": [
+        "schemas/automate-agent-v1.json",
+        "tests/test_cli_schema_contracts.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      },
+      "notes": "The useful orthogonal-matrix semantics from PR91 were integrated as central rule matrix_orthogonal in PR101. The duplicate unitary helper from PR91 was intentionally not carried forward."
+    },
+    {
+      "id": "stage1b.calculus",
+      "order": 100,
+      "stage": "1B",
+      "name": "Limits, continuity, differentiation and integration stack",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main_merge",
+        "ref": "b92da859fcc43b30cf919b15529e8d7e379dc6c6"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 75,
+          "branch": "reconcile/stage1b-current-main",
+          "state": "merged",
+          "role": "authoritative_merge"
+        },
+        {
+          "type": "pr",
+          "number": 61,
+          "state": "closed_superseded_by_pr75"
+        },
+        {
+          "type": "pr",
+          "number": 66,
+          "state": "closed_superseded_by_pr75"
+        },
+        {
+          "type": "pr",
+          "number": 68,
+          "state": "closed_superseded_by_pr75"
+        },
+        {
+          "type": "pr",
+          "number": 69,
+          "state": "closed_superseded_by_pr75"
+        },
+        {
+          "type": "pr",
+          "number": 70,
+          "state": "closed_superseded_by_pr75"
+        },
+        {
+          "type": "pr",
+          "number": 71,
+          "state": "closed_superseded_by_pr75"
+        }
+      ],
+      "depends_on": [
+        "stage1a.linear_algebra"
+      ],
+      "canonical_files": [
+        "automate/backend/sympy_backend.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json",
+        "tests/test_cli_schema_contracts.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "PR75 is the authoritative current-main reconciliation of the implemented Stage 1B calculus stack. The remaining Stage 1B ladder is tracked separately.",
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      }
+    },
+    {
+      "id": "stage1b.fundamental_theorem",
+      "order": 140,
+      "stage": "1B",
+      "name": "Fundamental theorem of calculus",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main_merge",
+        "ref": "2838c33df8f33fcdea6e27d93b204b193cc9b939"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 108,
+          "branch": "integrate/stage1b-ftc",
+          "head_sha": "46489cf43ecdb57f7879c84fb9e7f77eb6d5d043",
+          "state": "merged",
+          "role": "authoritative_merge"
+        },
+        {
+          "type": "pr",
+          "number": 111,
+          "state": "merged",
+          "role": "post_merge_defect_repair"
+        }
+      ],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "Current implementation packet for the next incomplete Stage 1B capability. Do not treat it as merged or certified until reconciled on main and exact-head/security verified.",
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      }
+    },
+    {
+      "id": "stage1b.improper_integrals",
+      "order": 150,
+      "stage": "1B",
+      "name": "Improper integrals and convergence-aware handling",
+      "implementation_state": "active_development",
+      "authority": {
+        "kind": "engine",
+        "ref": "03ada017462725d1ddd67be3b785c9eb8fe6ddfc9"
+      },
+      "references": [
+        {
+          "type": "issue",
+          "number": 115,
+          "state": "open",
+          "role": "tracking"
+        },
+        {
+          "type": "branch",
+          "branch": "engine",
+          "state": "active_development",
+          "role": "current_engine_implementation"
+        }
+      ],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [
+        "automate/backend/sympy_backend.py",
+        "tests/test_improper_integrals.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "Active Stage 1B frontier. Engine implementation establishes convergence-aware semantics; release certification remains gated by development CI, independent cross-checks, main promotion, exact-head verification, and security audit."
+    },
+    {
+      "id": "stage1b.series_expansions",
+      "order": 160,
+      "stage": "1B",
+      "name": "Taylor, Maclaurin, and higher-order series expansions",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.partial_derivatives",
+      "order": 170,
+      "stage": "1B",
+      "name": "Partial derivatives and total differentials",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.higher_order_partials",
+      "order": 180,
+      "stage": "1B",
+      "name": "Higher-order partial derivatives",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.jacobians_hessians",
+      "order": 190,
+      "stage": "1B",
+      "name": "Jacobians and Hessians",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.multivariable_chain_rule",
+      "order": 200,
+      "stage": "1B",
+      "name": "Multivariable chain rule",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.stationary_constrained_optimization",
+      "order": 210,
+      "stage": "1B",
+      "name": "Stationary points and constrained optimization",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1b.domain_singularity_assumptions",
+      "order": 220,
+      "stage": "1B",
+      "name": "Domain, singularity, and assumption-aware calculus",
+      "implementation_state": "planned",
+      "authority": {
+        "kind": "roadmap",
+        "ref": "docs/PROJECT_PHASE_LEDGER.md"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": false,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false
+    },
+    {
+      "id": "stage1c.ode",
+      "order": 250,
+      "stage": "1C",
+      "name": "Reusable ODE foundation",
+      "implementation_state": "preserved_out_of_order",
+      "authority": {
+        "kind": "branch",
+        "ref": "PR114"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 114,
+          "branch": "integrate/stage1c-ode-current-main",
+          "state": "closed_future_work",
+          "role": "preserved_out_of_order"
+        },
+        {
+          "type": "pr",
+          "number": 105,
+          "branch": "integrate/stage1c-ode-foundation",
+          "state": "closed_future_work",
+          "role": "historical_source"
+        },
+        {
+          "type": "pr",
+          "number": 92,
+          "branch": "integrate/stage1-controlled-1c-1a",
+          "state": "closed_superseded_by_pr105",
+          "role": "historical_integration_batch"
+        },
+        {
+          "type": "pr",
+          "number": 90,
+          "state": "closed_duplicate"
+        },
+        {
+          "type": "pr",
+          "number": 73,
+          "state": "closed_historical"
+        }
+      ],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [
+        "automate/ode.py",
+        "tests/test_ode_stage1c.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "A current-main reconciliation packet exists in PR114, but it is intentionally preserved out of order until the remaining Stage 1B ladder reaches a terminal state."
+    },
+    {
+      "id": "stage2a.vector_calculus",
+      "order": 300,
+      "stage": "2A",
+      "name": "Vector calculus core",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main",
+        "ref": "a90e91d8926a763297c6681e6ba325eed9722fbb"
+      },
+      "references": [],
+      "depends_on": [
+        "stage1b.calculus"
+      ],
+      "canonical_files": [
+        "automate/backend/vector_calculus_backend.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      }
+    },
+    {
+      "id": "stage2b.coordinate_and_pde",
+      "order": 320,
+      "stage": "2B",
+      "name": "Coordinate-aware vector calculus and generic PDE residual verification",
+      "implementation_state": "preserved_out_of_order",
+      "authority": {
+        "kind": "branch",
+        "ref": "PR76"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 76,
+          "branch": "feat/stage2-vector-pde-foundation",
+          "head_sha": "67dad73d5e2112d8156238b2e1fcf4361a18b033",
+          "state": "closed_future_work",
+          "role": "primary"
+        }
+      ],
+      "depends_on": [
+        "stage2a.vector_calculus",
+        "stage1b.calculus"
+      ],
+      "canonical_files": [
+        "automate/backend/coordinate_vector_calculus_backend.py",
+        "automate/backend/pde_backend.py",
+        "tests/test_stage2a_coordinate_calculus.py",
+        "tests/test_pde_backend.py"
+      ],
+      "shared_integration_points": [
+        "automate/backend/vector_calculus_backend.py",
+        "automate/backend/__init__.py",
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json",
+        "automate/cli.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "PR76 is a cumulative packet. Its useful coordinate/PDE work must be transplanted onto current main; its stale shared-file edits are not authoritative. Preserved as later-stage work; it is not part of the active implementation queue while the Stage 1B ladder has unresolved items."
+    },
+    {
+      "id": "stage2b.transforms",
+      "order": 330,
+      "stage": "2B",
+      "name": "Fourier/Laplace transform and convolution foundation",
+      "implementation_state": "preserved_out_of_order",
+      "authority": {
+        "kind": "branch",
+        "ref": "PR79"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 79,
+          "branch": "feat/stage2b-transform-foundation",
+          "head_sha": "b1c0039fbb7853ede536ba87f562a62698e373a8",
+          "state": "closed_future_work",
+          "role": "primary"
+        }
+      ],
+      "depends_on": [
+        "stage2b.coordinate_and_pde"
+      ],
+      "canonical_files": [
+        "automate/backend/transform_backend.py",
+        "automate/ir/ast.py",
+        "tests/test_stage2c_transforms.py",
+        "docs/STAGE2C_TRANSFORMS.md"
+      ],
+      "shared_integration_points": [
+        "automate/backend/__init__.py",
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json",
+        "automate/cli.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "PR79 contains some registered placeholder rules without backend implementations. Only implemented semantics should be transplanted; placeholders must not be certified. Preserved as later-stage work; it is not part of the active implementation queue while the Stage 1B ladder has unresolved items."
+    },
+    {
+      "id": "stage2c.mechanics",
+      "order": 400,
+      "stage": "2C",
+      "name": "Classical mechanics foundation and verification",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main_merge",
+        "ref": "7879dfd36d06b894d9c836c259bb3d147caa80c0"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 82,
+          "state": "merged"
+        }
+      ],
+      "depends_on": [
+        "stage1c.ode"
+      ],
+      "canonical_files": [
+        "automate/mechanics"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      }
+    },
+    {
+      "id": "stage2d.electromagnetism",
+      "order": 500,
+      "stage": "2D",
+      "name": "Electrostatics/electromagnetism foundation",
+      "implementation_state": "merged_main",
+      "authority": {
+        "kind": "main_merge",
+        "ref": "87a129054d74443e0cc15ac5a75939a4fcb6b498"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 83,
+          "state": "merged"
+        }
+      ],
+      "depends_on": [
+        "stage2a.vector_calculus"
+      ],
+      "canonical_files": [
+        "automate/electromagnetism"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "verification_evidence": {
+        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
+        "exact_head_workflow_run": 37430727665,
+        "security_workflow_run": 37430727700
+      }
+    },
+    {
+      "id": "stage2e.statistical_and_optics",
+      "order": 600,
+      "stage": "2E",
+      "name": "Statistical inference and waves/optics work",
+      "implementation_state": "preserved_out_of_order",
+      "authority": {
+        "kind": "branches",
+        "ref": "PR85/PR88"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 85,
+          "state": "closed_future_work"
+        },
+        {
+          "type": "pr",
+          "number": 88,
+          "state": "closed_future_work"
+        }
+      ],
+      "depends_on": [
+        "stage1c.ode"
+      ],
+      "canonical_files": [
+        "automate/backend/statistical_backend.py",
+        "automate/waves_optics/core.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json",
+        "automate/cli.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": true,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "Preserved as later-stage work; it is not part of the active implementation queue while the Stage 1B ladder has unresolved items."
+    },
+    {
+      "id": "stage3a.numerical",
+      "order": 700,
+      "stage": "3A",
+      "name": "Numerical mathematics foundation",
+      "implementation_state": "preserved_out_of_order",
+      "authority": {
+        "kind": "branch",
+        "ref": "PR89"
+      },
+      "references": [
+        {
+          "type": "pr",
+          "number": 89,
+          "state": "closed_future_work"
+        }
+      ],
+      "depends_on": [
+        "stage1a.linear_algebra",
+        "stage1b.calculus",
+        "stage1c.ode"
+      ],
+      "canonical_files": [
+        "automate/numerical/core.py"
+      ],
+      "shared_integration_points": [
+        "automate/theory/rules.py",
+        "schemas/automate-agent-v1.json",
+        "automate/cli.py"
+      ],
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "safe_to_delete": false,
+      "notes": "Preserved as later-stage work; it is not part of the active implementation queue while the Stage 1B ladder has unresolved items."
+    }
+  ]
+}

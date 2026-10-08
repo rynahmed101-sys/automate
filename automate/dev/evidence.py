@@ -14,9 +14,9 @@ from automate.dev.worker import ROOT
 EVIDENCE_SCHEMA_PATH = ROOT / "schemas" / "automate-evidence-receipt-v1.json"
 
 _TRUST_ORDER = {
-    "PLANNED": 0, "IMPLEMENTED": 1, "LOCALLY_TESTED": 2,
-    "DEV_CI_VERIFIED": 3, "MERGED_MAIN": 4, "EXACT_HEAD_VERIFIED": 5,
-    "SECURITY_VERIFIED": 6, "INDEPENDENTLY_CROSS_CHECKED": 7, "CERTIFIED": 8,
+    "PLANNED": 0, "IMPLEMENTED": 1, "LOCALLY_TESTED": 2, "DEV_CI_VERIFIED": 3,
+    "IMPLEMENTATION_VERIFIED": 4, "MERGED_MAIN": 5, "EXACT_HEAD_VERIFIED": 6,
+    "SECURITY_VERIFIED": 7, "INDEPENDENTLY_CROSS_CHECKED": 8, "CERTIFIED": 9,
 }
 
 def validate_receipt(receipt: dict[str, Any]) -> list[str]:

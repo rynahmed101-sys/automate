@@ -60,7 +60,27 @@ def test_dispatch_execution_calls_worker_once():
     )
 
 
-def test_worker_api_url_normalizes_chanfana_surface():
+def test_dispatch_does_not_reexecute_active_or_terminal_duplicate():
+    packet = {"schema_version": "automate.worker.v1", "packet": {"request_id": "wrk_test_12345678"}}
+    for state in ["running", "succeeded", "failed", "cancelled", "dead"]:
+        with patch(
+            "automate.dev.worker_client.submit_worker_packet",
+            return_value={"jobId": "job-1", "state": state},
+        ), patch(
+            "automate.dev.worker_client.start_worker_job"
+        ) as execute:
+            result = dispatch_worker(
+                packet,
+                url="https://worker.example",
+                token="secret",
+                execute=True,
+            )
+        assert result["execution_requested"] is False
+        assert result["deduplicated"] is True
+        execute.assert_not_called()
+
+
+def test_worker_api_url_normalizes_chfanana_worker_surface():
     assert worker_api_url("https://worker.example") == "https://worker.example/worker/v1"
     assert worker_api_url("https://worker.example/worker/v1") == "https://worker.example/worker/v1"
 
@@ -82,5 +102,5 @@ def test_worker_api_paths_are_consistent(monkeypatch):
     assert seen == [
         "https://worker.example/worker/v1/jobs",
         "https://worker.example/worker/v1/jobs/j1/execute",
-        "https://worker.example/worker/v1/jobs/j1",
+        "https://worker.example/worker/v1/jobs/j1?includeResult=true",
     ]

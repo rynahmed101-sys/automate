@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rynahmed101-sys.github.io/automate/schemas/automate-repair-hold-v1.json",
+  "title": "Automate Repair Hold",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "state",
+    "scope",
+    "capability_id",
+    "source_revision",
+    "recovery_attempt",
+    "automatic_correction_required",
+    "automatic_rectification_required",
+    "reason",
+    "resume_conditions",
+    "dispatch_blocked"
+  ],
+  "properties": {
+    "schema_version": {"const": "automate.repair_hold.v1"},
+    "state": {"const": "REPAIR_HOLD"},
+    "scope": {"const": "capability"},
+    "capability_id": {"type": "string", "minLength": 1},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "recovery_attempt": {"type": "integer", "minimum": 2},
+    "automatic_correction_required": {"const": true},
+    "automatic_rectification_required": {"const": true},
+    "reason": {"type": "string", "minLength": 1},
+    "repair_dispatch": {"type": ["object", "null"]},
+    "resume_conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "dispatch_blocked": {"const": true}
+  }
+}

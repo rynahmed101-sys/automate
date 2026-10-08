@@ -4,75 +4,126 @@
 
 Automate should advance continuously without confusing speed with authority.
 
-OBSERVE -> PLAN -> PREPARE -> WORK -> INSPECT -> TEST -> RECONCILE -> VERIFY -> CERTIFY -> ADVANCE
+OBSERVE → PLAN → PREPARE → WORK → INSPECT → TEST → RECONCILE → VERIFY → PACKET → AUTHORIZE → ADVANCE
 
-A slow worker, queued CI, or unavailable external worker is not itself a reason for Automate to stop. When one lane waits, Automate should perform other safe work that does not cross an evidence boundary.
+The Verification & Reconciliation Engine is the reasoning layer that performs the middle of this loop. It is distributed across the three repositories rather than trapped inside one.
 
-## Boss boundary
+## Ownership model
 
-Automate owns roadmap order, capability ownership, file boundaries, proposal validation, independent tests, Git lifecycle, merge/certification decisions, recovery, and the durable distinction between evidence and claims.
+- **Automate:** canonical maths/physics, capability ledger, inventory, acceptance policy, Git promotion, certification.
+- **Chanfana:** durable execution, queues, leases, recovery, authentication, resource limits, transport, evidence persistence, verifier control-plane primitives.
+- **Mirror:** scientific laboratory execution, simulation, perturbation, numerical diagnostics, counterexamples, discovery analysis, experimental provenance.
+- **Verification Engine:** diagnoses failures, selects evidence, coordinates repairs and checks, reconciles repository state, and builds verifiable packets. It has no certification authority.
 
-Workers may propose implementation. They may not promote their own trust level.
+## The verifier's hard job
+
+The verifier must know what to correct and why.
+
+A failure is not automatically an implementation bug:
+
+```
+failure
+ ├─ implementation defect?
+ ├─ test defect?
+ ├─ contract defect?
+ ├─ missing assumption?
+ ├─ numerical precision/discretization issue?
+ ├─ backend mismatch?
+ ├─ data/provenance corruption?
+ ├─ CI/environment issue?
+ ├─ genuine contradiction?
+ └─ unresolved scientific behavior?
+```
+
+Only after diagnosis may a bounded repair be proposed.
+
+The repair loop is:
+
+```
+diagnose
+ → smallest safe repair
+ → preserve/strengthen tests
+ → rerun
+ → compare independent evidence
+ → record lineage
+```
+
+Deleting or weakening the evidence that exposed the problem is forbidden.
 
 ## Work lanes
 
-1. Capability: implement the earliest legitimate mathematical/physics capability.
-2. Verification: adversarial cases, cross-checks, and evidence quality.
-3. Reconciliation: stale branches, inventory drift, duplicate ownership, control-plane defects.
-4. Research: inspect mature mathematics/physics implementations and extract patterns, not authority.
-5. Infrastructure: worker contracts, evidence receipts, scheduling, recovery, machine-agent interfaces.
-6. CI: improve feedback speed without weakening authoritative verification.
+1. Capability implementation at the earliest legitimate ledger frontier.
+2. Verification and mathematical cross-checks.
+3. Repository reconciliation and stale-branch cleanup.
+4. Controlled repair and regression protection.
+5. Research of mature implementations and literature.
+6. Chanfana execution/control infrastructure.
+7. Mirror scientific experiments required by verification.
+8. CI/security evidence.
 
-A lane may proceed only when independent of blocked or unverified work.
+A blocked lane must not silently grant permission to leapfrog the ledger.
 
-## Evidence
+## Shared machinery rule
 
-Meaningful autonomous actions should record the exact repository/base SHA, target, packet/result identifiers, changed-file hashes, focused tests, independent verification, CI/security identifiers, branch/PR/merge SHA, trust state, unresolved issues, and timestamp.
+Use one contract and one clear owner for shared compartments. Do not build duplicate queue, provenance, evidence, experiment-envelope, or repair-envelope systems merely because the logic crosses repository boundaries.
 
-Trust states are distinct:
-PLANNED -> IMPLEMENTED -> LOCALLY_TESTED -> DEV_CI_VERIFIED -> MERGED_MAIN -> EXACT_HEAD_VERIFIED -> SECURITY_VERIFIED -> INDEPENDENTLY_CROSS_CHECKED -> CERTIFIED
+Chanfana should carry durable verifier jobs. Mirror should execute scientific work that actually requires laboratory machinery. Automate should execute or expose canonical mathematical checks and preserve authority.
 
-No lower-trust evidence may masquerade as a higher-trust state.
+## Backlog-first operation
 
-## Research policy
+The current Stage 1A–3A backlog is the verifier's first production workload and acceptance test.
 
-External repositories, papers, datasets, examples, and AI-generated research are evidence sources, not authorities. Convert useful research into reusable capability requirements, backend/adapters, tests or counterexamples, provenance, or design patterns.
+For each item:
 
-## Recovery
+```
+inventory
+ → dependency graph
+ → diagnose
+ → bounded repair if justified
+ → deterministic tests
+ → mathematical/computational checks
+ → optional Mirror experiment
+ → CI/security
+ → exact-head evidence
+ → verifiable packet
+ → Automate decision
+```
 
-Classify failures, preserve evidence, minimize the failing surface, retry only permitted failure classes, repair the smallest responsible layer, rerun focused evidence, then return to authoritative verification.
+Mirror/external-world discovery remains ON HOLD during this backlog phase. Existing local Mirror capabilities may be used when they are part of a bounded verification task.
 
-## Advancement
+## Activation order
 
-After each action, recompute the next safe action from the phase ledger, live Git state, capability inventory, active branches/PRs, evidence receipts, and current verification state.
+Do not enable a generic external worker merely because the contracts exist.
 
-## Immediate sequence
+First prove:
 
-W0: finish the autonomous contract foundation without enabling live workers.
-W1-W2: harden the machine worker API and provider-neutral model boundary.
-W3: make repository context packet-authorized and provenance-preserving.
-W4-W5: make proposal application and PR lifecycle independently testable.
-W6: make reconciliation/recovery a first-class supervisor function.
-W7: support bounded one-capability-at-a-time autonomous cycles.
-W8: add controlled self-healing.
+1. durable Chanfana job execution;
+2. fail-closed packet/result validation;
+3. repository reconciliation;
+4. bounded repair with rollback/lineage;
+5. canonical mathematical checks;
+6. Mirror experiment request/result boundary;
+7. evidence normalization;
+8. verifiable-packet generation;
+9. exact-head and Security Audit evidence;
+10. end-to-end dry run.
 
-In parallel, continue mathematical development only at the earliest legitimate ledger frontier: Stage 1B improper integrals and convergence-aware handling.
+Only then activate broader autonomous workers.
 
-## Activation rule
+## Continuous operation
 
-A real external capability worker remains OFF until every readiness gate has independent evidence. A dry run is not a merge. A worker result is not proof. A green PR run is not exact-head certification.
+When one lane waits, the system selects another safe lane. It stops only when no safe action remains, authority is required, or evidence is insufficient.
 
-## Continuous means non-idle
+After the current backlog is cleared:
 
-Continuous does not mean uncontrolled. When one lane is blocked, another safe lane is selected automatically. Stop only when no safe action remains, an authority boundary requires human judgment, or a failure requires escalation.
+```
+verify/reconcile
+ → packet
+ → Automate authority decision
+ → capability frontier
+ → research/design
+ → bounded implementation
+ → repeat
+```
 
-
-## Structured-data research boundary
-
-The autonomous research layer treats structured data as evidence, not model memory. A bounded data query uses a provider-neutral request contract and returns rows plus provenance, hashes, retrieval time, and bounded execution statistics. Providers may later include DuckDB/local CSV/Parquet, BigQuery-like SQL services, scientific databases, or domain repositories. No provider becomes an authority merely because it returned records.
-
-The control-plane boundary is:
-
-query request -> bounded provider execution -> provenance-preserving evidence packet -> worker reasoning -> independent verification.
-
-A provider adapter must fail closed when it cannot satisfy the requested row, byte, timeout, or provenance requirements.
+The cycle is intentionally endless. The machinery is allowed to keep working so humans can return to their ancient tradition of sleeping occasionally.
