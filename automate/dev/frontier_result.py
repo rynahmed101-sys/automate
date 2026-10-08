@@ -20,11 +20,19 @@ def validate_frontier_result(result: dict[str, Any], *, capability_id: str, base
         errors.append("frontier result capability_id mismatch")
     if result.get("base_revision") != base_sha:
         errors.append("frontier result base revision mismatch")
+    status = str(result.get("status") or "")
+    if status in {"TEST_FAILED", "PATCH_REJECTED", "PATCH_APPLY_FAILED", "ENVIRONMENT_SETUP_FAILED", "FRONTIER_FAILED"}:
+        errors.append("frontier result is not eligible for application: " + status)
+    if status and status not in {"PROPOSED", "NO_CHANGE_PROPOSED"}:
+        errors.append("frontier result status is not application-safe: " + status)
+
     proposal = result.get("proposal")
     if not isinstance(proposal, dict):
         errors.append("frontier result missing proposal")
     elif not isinstance(proposal.get("diff"), dict):
         errors.append("frontier result missing bounded diff evidence")
+    elif not isinstance(proposal["diff"].get("stdout"), str):
+        errors.append("frontier result diff stdout must be text")
     return errors
 
 
