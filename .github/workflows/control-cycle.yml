@@ -172,7 +172,7 @@ jobs:
           VERIFICATION_ENGINE_ENDPOINT: ${{ secrets.VERIFICATION_ENGINE_ENDPOINT }}
           MIRROR_FRONTIER_ENDPOINT: ${{ secrets.MIRROR_FRONTIER_ENDPOINT }}
           MIRROR_FRONTIER_JOB_TOKEN: ${{ secrets.MIRROR_FRONTIER_JOB_TOKEN }}
-          AUTOMATE_FRONTIER_WORKER_ENABLED: "1"
+          AUTOMATE_FRONTIER_WORKER_ENABLED: "0"
           AUTOMATE_LEARNING_ENABLED: "true"
           AUTOMATE_AUTO_PUBLISH: "1"
           AUTOMATE_AUTO_PROMOTE: ${{ vars.AUTOMATE_AUTO_PROMOTE || '1' }}
@@ -184,12 +184,12 @@ jobs:
           python -m pip install -e .
           python - <<'PY'
           import os
-          enabled = os.getenv("AUTOMATE_FRONTIER_WORKER_ENABLED") == "1"
           endpoint = os.getenv("MIRROR_FRONTIER_ENDPOINT", "").strip()
           token = os.getenv("MIRROR_FRONTIER_JOB_TOKEN", "").strip()
-          if enabled and (not endpoint or not token):
-              raise SystemExit("Mirror frontier worker is enabled but MIRROR_FRONTIER_ENDPOINT/MIRROR_FRONTIER_JOB_TOKEN are not configured")
-          print("mirror_frontier_configured=" + ("true" if endpoint and token else "false"))
+          enabled = bool(endpoint and token)
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write("AUTOMATE_FRONTIER_WORKER_ENABLED=" + ("1" if enabled else "0") + "\n")
+          print("mirror_frontier_enabled=" + ("true" if enabled else "false"))
           PY
           automate capability control-cycle \
             --repo "${{ github.repository }}" \
