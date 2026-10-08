@@ -104,6 +104,22 @@ These states must never be silently collapsed. A capability can be implemented a
 - [!] Implemented/merged but authoritative verification is still pending
 - [x] Completed and authoritatively verified
 
+## Ten-stage machinery status map
+
+The capability checkboxes above describe roadmap items. They must not be interpreted as a claim that all machinery for a stage is integrated, current, or usable. The authoritative classification of the machinery itself is maintained in [docs/MATH_PHYSICS_10_STAGE_MACHINERY_MAP.md](MATH_PHYSICS_10_STAGE_MACHINERY_MAP.md).
+
+That map uses these additional classifications:
+
+- **✓ Fully integrated** — authoritative-path machinery with the relevant verified slice.
+- **◇ Present, but out of order** — real preserved implementation that is not yet part of the authoritative active path.
+- **◐ Partially missing** — a meaningful foundation exists, but required general machinery is incomplete.
+- **⚠ Present but broken** — authoritative implementation exists but is currently known to be unusable/broken.
+- **○ Completely missing** — no authoritative implementation of that required machinery was found.
+
+A stage may contain several classifications at once. **Presence is not integration, and integration is not stage completion.**
+
+The machinery map is deliberately narrower than the capability inventory. docs/CAPABILITY_INVENTORY.json remains the capability-level implementation/evidence companion; it does not override this map's integration/order classification.
+
 ---
 
 # Stage 1 — Complete Core Mathematical Engine
@@ -615,11 +631,11 @@ When entering a new chat:
 
 **Active development stage:** Stage 1 — Complete Core Mathematical Engine.
 
-**Current priority:** actively develop the Stage 1B convergence frontier, beginning with improper integrals and then series, multivariable, and assumption-aware extensions. The Fundamental Theorem of Calculus is already implemented on the authoritative baseline; development may proceed on the living `engine` trunk without waiting for `main` promotion.
+**Current priority:** continue from the earliest incomplete Stage 1B capability. Do not infer the frontier from stale historical prose, branch names, or the older roadmap pointer. Use the live ledger plus the ten-stage machinery map, then inspect current main/engine evidence before selecting work.
 
 **Important:** existing Phase 2+ implementation is not discarded. It remains part of the codebase and will be reused and brought into this staged ladder when its prerequisites are mature.
 
-**Current authoritative baseline:** the current `main` HEAD. The latest current main HEAD is `1b6abfa199679597cc5ad6221eb15cc634fb055c`, and its Exact-head and Security Audit workflows both pass. Stage 2C and 2D are therefore verified for the slices already marked `[x]`; this does not imply the entire physics families are complete. The ledger must not claim certification for capabilities that are only present on unmerged branches.
+**Current authoritative baseline:** the current `main` HEAD. The historical SHA and workflow references previously embedded in this section are stale and must not be reused as current verification evidence. Fresh Exact-head and Security Audit evidence is required after subsequent main changes. Stage 2C and 2D remain only verified for the specific slices explicitly marked `[x]`; this does not imply completion of those physics families.
 
 ---
 
@@ -632,7 +648,7 @@ The primary agent owns repository ground work, reconciliation, defect repair, ce
 - PR #83 — Stage 2D completion: merged to main; differential Maxwell equations, Lorentz force, and Poynting-vector/energy-balance verification are now `[x]` after exact-head/security verification of current main.
 - Existing Stage 2B/Stage 2C/Stage 2D branches that predate the current main may be stale; do not blindly merge them.
 
-These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The active Stage 1B frontier is `stage1b.improper_integrals`. It is developed on the living `engine` trunk and advances through evidence gates before promotion to `main`.
+These delegated branches may be stale. Do not blindly rebase or duplicate their work. Reconcile each against the current main only when it reaches the review queue. The active Stage 1B frontier is determined from the current unchecked ledger item and current repository evidence. Preserved later-stage machinery may be harvested when dependencies permit, but its presence does not move the active frontier.
 
 ---
 
