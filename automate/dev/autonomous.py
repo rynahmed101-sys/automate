@@ -15,7 +15,7 @@ from automate.dev.inventory import InventoryError
 from automate.dev.verification_engine import deterministic_id
 from automate.dev.publisher import build_worker_commit
 from automate.dev.research import build_mirror_research_job, build_mirror_frontier_job
-from automate.dev.frontier_result import apply_frontier_diff, FrontierProposalError
+from automate.dev.frontier_result import build_frontier_commit, FrontierProposalError
 from automate.dev.supervisor import supervisor_snapshot
 from automate.dev.worker import validate_worker_result
 from automate.dev.worker_client import (
@@ -154,16 +154,26 @@ def run_autonomous_cycle(
             output["proposal"] = result
             return output
         try:
-            applied = apply_frontier_diff(
+            frontier_packet = build_worker_packet(
+                capability_item["id"],
+                repository=repository,
+                base_sha_claim=base_sha,
+                development_branch="main",
+            )["packet"]
+            commit = build_frontier_commit(
                 result,
-                capability_id=capability_item["id"],
-                base_sha=base_sha,
+                packet=frontier_packet,
                 repository_root=local_root,
             )
         except FrontierProposalError as exc:
             raise AutonomousCycleError(str(exc)) from exc
-        output["proposal_application"] = applied
-        output["status"] = applied["status"]
+        output["commit"] = commit
+        output["proposal_application"] = {
+            "status": "isolated_worker_commit",
+            "capability_id": capability_item["id"],
+            "canonical_worktree_modified": False,
+        }
+        output["status"] = commit["status"]
         return output
 
     # BACKLOG mode is strictly implementation-first. It must never commission
