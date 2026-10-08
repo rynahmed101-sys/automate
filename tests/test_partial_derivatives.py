@@ -54,3 +54,10 @@ def test_partial_derivative_unsafe_expression_fails_closed():
     report = SymPyChecker().verify_edge(edge, graph)
     assert not report.passed
     assert report.status == VerificationStatus.FAILED
+
+
+def test_total_differential_variable_and_differential_collision_fails_closed():
+    graph, edge = _edge("total_differential", "x*y", "x*(y) + y*(x)", {"variables": ["x", "y"], "differentials": ["x", "dy"]})
+    report = SymPyChecker().verify_edge(edge, graph)
+    assert not report.passed
+    assert report.status == VerificationStatus.FAILED
