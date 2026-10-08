@@ -15,6 +15,7 @@ from typing import Any
 
 
 WORKFLOWS = ("ci.yml", "security.yml")
+REPAIR_MARKER = "AUTONOMOUS RECOVERY:"
 
 
 class RecoveryError(RuntimeError):
@@ -158,6 +159,97 @@ def rerun_failed_workflows(
                 or f"rerun failed for workflow run {run_id}"
             )
     return {"requested": requested, "errors": errors}
+
+
+def next_recovery_attempt(branch: str | None) -> int:
+    """Return the next repair generation from a canonical worker branch name."""
+    name = str(branch or "").strip()
+    match = __import__("re").search(r"-repair(\\d+)$", name)
+    if match:
+        return max(2, int(match.group(1)) + 1)
+    return 2
+
+
+def find_quarantined_worker_handoff(
+    repository: str,
+    *,
+    capability_id: str,
+) -> dict[str, Any] | None:
+    """Recover a durable capability repair hold from a closed, unmerged worker PR."""
+    result = _run([
+        "gh", "pr", "list",
+        "--repo", repository,
+        "--state", "closed",
+        "--base", "main",
+        "--limit", "100",
+        "--json", "number,headRefName,headRefOid,body,mergedAt,closedAt,url",
+    ])
+    if result.returncode != 0:
+        raise RecoveryError(result.stderr.strip() or "GitHub closed-PR query failed")
+    try:
+        rows = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError as exc:
+        raise RecoveryError("GitHub closed-PR query returned invalid JSON") from exc
+    if not isinstance(rows, list):
+        raise RecoveryError("GitHub closed-PR query returned a non-list payload")
+
+    candidates: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict) or row.get("mergedAt"):
+            continue
+        body = str(row.get("body") or "")
+        if REPAIR_MARKER not in body:
+            continue
+        capability = __import__("re").search(
+            r"(?m)^- capability:\\s*([a-z0-9][a-z0-9_.-]*)\\s*$",
+            body,
+        )
+        if not capability or capability.group(1) != capability_id:
+            continue
+        candidates.append({
+            "pr_number": row.get("number"),
+            "branch": row.get("headRefName"),
+            "head_sha": row.get("headRefOid"),
+            "closed_at": row.get("closedAt"),
+            "url": row.get("url"),
+            "state": "REPAIR_HOLD",
+            "source": "quarantined_worker_pr",
+        })
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: str(item.get("closed_at") or ""), reverse=True)
+    return candidates[0]
+
+
+def build_repair_hold(
+    *,
+    capability_id: str,
+    source_sha: str,
+    recovery_attempt: int,
+    reason: str,
+    repair_dispatch: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build a machine-readable hold while automatic rectification is in progress."""
+    return {
+        "schema_version": "automate.repair_hold.v1",
+        "state": "REPAIR_HOLD",
+        "scope": "capability",
+        "capability_id": capability_id,
+        "source_revision": source_sha,
+        "recovery_attempt": recovery_attempt,
+        "automatic_correction_required": True,
+        "automatic_rectification_required": True,
+        "reason": reason,
+        "repair_dispatch": repair_dispatch,
+        "resume_conditions": [
+            "a repair worker handoff exists for the same capability",
+            "the repair head passes exact-head CI and Security Audit",
+            "required verification evidence passes on the exact repair head",
+            "promotion and post-merge exact-main gates pass",
+        ],
+        "dispatch_blocked": True,
+    }
 
 
 def quarantine_worker_pr(
