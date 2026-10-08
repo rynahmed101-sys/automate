@@ -2,15 +2,16 @@ from automate.dev import readiness
 
 
 def test_lifecycle_gate_rejects_forged_request_identity(monkeypatch):
-    base_sha = "a" * 40
+    branch_base_sha = "a" * 40
+    claimed_base_sha = "b" * 40
     payload = [{
         "merged_at": "2026-10-07T00:00:00Z",
-        "merge_commit_sha": "b" * 40,
-        "head": {"ref": "feat/stage1b.series_expansions-" + base_sha[:12]},
+        "merge_commit_sha": "c" * 40,
+        "head": {"ref": "feat/stage1b.series_expansions-" + branch_base_sha[:12]},
         "body": (
             "- capability: stage1b.series_expansions\n"
-            "- worker_request_id: wrk_" + "c" * 32 + "\n"
-            "- base_sha: " + base_sha
+            "- worker_request_id: wrk_" + "d" * 32 + "\n"
+            "- base_sha: " + claimed_base_sha
         ),
     }]
     monkeypatch.setattr(readiness, "_gh_json", lambda *args: payload)
