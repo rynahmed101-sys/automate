@@ -51,7 +51,7 @@ jobs:
       - name: Reconcile engine with authoritative main
         id: reconcile
         env:
-          GH_TOKEN: ${{ secrets.AUTOMATE_MERGER_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.AUTOMATE_GITHUB_TOKEN || github.token }}
           AUTOMATE_AUTO_RECONCILE: ${{ vars.AUTOMATE_AUTO_RECONCILE || '1' }}
         run: |
           set -euo pipefail
@@ -78,7 +78,7 @@ jobs:
         if: steps.reconcile.outputs.state == 'ALIGNED'
         id: engine_pin
         env:
-          GH_TOKEN: ${{ secrets.AUTOMATE_MERGER_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.AUTOMATE_GITHUB_TOKEN || github.token }}
           AUTOMATE_AUTO_PIN_ENGINE: ${{ vars.AUTOMATE_AUTO_PIN_ENGINE || '1' }}
         run: |
           set -euo pipefail
@@ -105,7 +105,7 @@ jobs:
       - name: Validate pinned engine release evidence
         if: steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED'
         env:
-          GH_TOKEN: ${{ secrets.AUTOMATE_MERGER_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.AUTOMATE_GITHUB_TOKEN || github.token }}
         run: |
           set -euo pipefail
           live_sha="$(gh api "repos/${{ github.repository }}/git/ref/heads/engine" --jq '.object.sha')"
@@ -149,7 +149,7 @@ jobs:
         id: readiness
         if: steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED' && steps.pin.outputs.enabled == 'true'
         env:
-          GH_TOKEN: ${{ secrets.AUTOMATE_MERGER_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.AUTOMATE_GITHUB_TOKEN || github.token }}
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
           AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
         run: |
@@ -173,7 +173,7 @@ jobs:
       - name: Run exactly one bounded control cycle
         if: steps.pin.outputs.enabled == 'true' && steps.reconcile.outputs.state == 'ALIGNED' && steps.engine_pin.outputs.state == 'PIN_ALIGNED' && steps.readiness.outputs.eligible == 'true'
         env:
-          GH_TOKEN: ${{ secrets.AUTOMATE_MERGER_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.AUTOMATE_GITHUB_TOKEN || github.token }}
           AUTOMATE_WORKER_URL: ${{ secrets.AUTOMATE_WORKER_URL }}
           AUTOMATE_WORKER_TOKEN: ${{ secrets.AUTOMATE_WORKER_TOKEN }}
           VERIFICATION_ENGINE_ENDPOINT: ${{ secrets.VERIFICATION_ENGINE_ENDPOINT }}
