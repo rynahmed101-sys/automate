@@ -111,7 +111,8 @@ _ALLOWED_FUNCTIONS: Dict[str, Any] = {
     "re": sp_re, "im": sp_im, "conjugate": conjugate,
     "diff": diff, "Derivative": Derivative, "Integral": Integral,
     "pi": pi, "E": E, "I": I, "oo": oo, "nan": nan, "zoo": zoo,
-    "Symbol": Symbol, "Integer": Integer, "Rational": Rational, "Float": Float,\n    "Matrix": Matrix, "eye": eye, "zeros": zeros, "ones": ones, "diag": diag,
+    "Symbol": Symbol, "Integer": Integer, "Rational": Rational, "Float": Float,
+    "Matrix": Matrix, "eye": eye, "zeros": zeros, "ones": ones, "diag": diag,
 }
 
 _MAX_ATOM_COUNT = 2000
