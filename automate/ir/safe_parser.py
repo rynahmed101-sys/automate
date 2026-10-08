@@ -49,6 +49,13 @@ from sympy import (
 )
 
 
+def _safe_matrix(*args: Any) -> Matrix:
+    """Construct a SymPy Matrix while accepting natural row/column syntax."""
+    if len(args) == 1:
+        return Matrix(args[0])
+    return Matrix(args)
+
+
 class SafeParseError(ValueError):
     """Raised when a mathematical expression cannot be safely parsed."""
     pass
@@ -112,7 +119,7 @@ _ALLOWED_FUNCTIONS: Dict[str, Any] = {
     "diff": diff, "Derivative": Derivative, "Integral": Integral,
     "pi": pi, "E": E, "I": I, "oo": oo, "nan": nan, "zoo": zoo,
     "Symbol": Symbol, "Integer": Integer, "Rational": Rational, "Float": Float,
-    "Matrix": Matrix, "eye": eye, "zeros": zeros, "ones": ones, "diag": diag,
+    "Matrix": _safe_matrix, "eye": eye, "zeros": zeros, "ones": ones, "diag": diag,
 }
 
 _MAX_ATOM_COUNT = 2000
