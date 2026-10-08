@@ -105,24 +105,8 @@ class MirrorAgent:
             "Inspect bounded remote GitHub repository state.",
             lambda _a: github.repo_state(),
         ))
-        self.tools.register(Tool(
-            "github_push_branch",
-            "Push only a mirror/* branch after explicit mission authorization.",
-            lambda a: github.push_branch(str(a.get("branch", ""))),
-            mutating=True,
-        ))
-        self.tools.register(Tool(
-            "github_create_pr",
-            "Open a reviewable PR from a mirror/* branch; never merge.",
-            lambda a: github.create_pr(str(a.get("branch", "")), str(a.get("title", "")), str(a.get("body", ""))),
-            mutating=True,
-        ))
-        self.tools.register(Tool(
-            "github_publish_automate_patch",
-            "Apply, verify, commit, push, and open a PR from an exact Automate revision; never merge.",
-            lambda a: self._publish_automate_change(a),
-            mutating=True,
-        ))
+        # Mirror is intentionally proposal-only. Canonical GitHub mutation is
+        # delegated to Automate's merger/control-plane lane.
         self.tools.register(Tool(
             "github_ci",
             "Read CI state for an exact Git revision.",
@@ -281,6 +265,18 @@ class MirrorAgent:
             shutil.rmtree(root, ignore_errors=True)
 
     def _publish_automate_change(self, args: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "status": "MUTATION_DELEGATED_TO_AUTOMATE_MERGER",
+            "authority": "UNTRUSTED_MIRROR_PROPOSAL",
+            "error": "Mirror cannot push branches or create canonical Automate PRs directly",
+            "proposal": {
+                "base_revision": str(args.get("base_revision") or ""),
+                "patch": str(args.get("patch") or ""),
+                "title": str(args.get("title") or ""),
+                "body": str(args.get("body") or ""),
+            },
+        }
+        # Kept unreachable intentionally as a historical implementation seam.
         if not args.get("authorization_granted"):
             return {"status": "AUTHORIZATION_DENIED", "error": "mission did not grant GitHub mutation authorization"}
         revision = self._checked_sha(args.get("base_revision"))
