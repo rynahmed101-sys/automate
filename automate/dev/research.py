@@ -172,6 +172,10 @@ def build_mirror_mission_job(
             "ref": "main",
         },
         "mission": mission,
+        "authorization": {
+            "github_mutation_allowed": bool(github_mutation_allowed),
+            "scope": "bounded_branch_and_pr_only" if github_mutation_allowed else "proposal_only",
+        },
         "source_revision": source_revision,
         "limits": {
             "deadline_ms": deadline_ms,
