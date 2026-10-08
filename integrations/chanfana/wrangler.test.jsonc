@@ -1,0 +1,17 @@
+{
+  "compatibility_date": "2026-10-06",
+  "main": "src/index.ts",
+  "name": "chanfana-openapi-template-test",
+  "queues": {
+    "producers": [
+      { "binding": "AUTOMATE_JOB_QUEUE", "queue": "automate-worker-jobs-test" }
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "openapi-template-db",
+      "database_id": "87926603-d882-4e4c-b74d-45427c83a657"
+    }
+  ]
+}
