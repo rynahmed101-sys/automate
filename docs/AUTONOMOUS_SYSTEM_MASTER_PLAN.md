@@ -44,6 +44,21 @@ The important boundary is:
 
 **Evidence can influence investigation. Evidence cannot directly become authority.**
 
+## Current live operating mode - 2026-10-08
+
+The system is now running in bounded autonomous development mode against a verified Automate engine pin.
+
+- Automate main pins verified engine 2bd0e34ca903afef366feaa4847f06764a01006a and may run the scheduled control cycle.
+- The control cycle can reconcile engine, select the earliest eligible capability, dispatch bounded workers, generate reviewable implementation PRs, promote verified PRs, and prepare canonical bookkeeping.
+- Mirror is an active engineering partner as well as a scientific laboratory. It may research, diagnose, repair, implement, test, generate capability proposals, perform experiments, and participate in verification. Its outputs remain untrusted until Automate acceptance gates pass.
+- Chanfana is the durable execution and memory substrate. It persists jobs, leases, worker recovery, learning artifacts, research/verification handoffs, and frontier results.
+- Autonomous mutation is reviewable and evidence-gated: the system mutates development branches and PRs through bounded workers; canonical main and certification state remain behind reconciliation, exact-head CI, security, verification, and promotion boundaries.
+- Autonomous discovery remains separately governed. It may generate candidates when its explicit operating gate is enabled, but discovery cannot rewrite the capability ledger or certify its own findings.
+
+The first autonomous capability-generation result is Automate PR #195 for stage1b.series_expansions, generated from the current ledger frontier after the control plane became operational.
+
+This is bounded autonomy, not an assertion that every cross-repository deployment resource is already proven. Missing external deployment credentials or live service resources must hold or degrade the affected capability path without weakening canonical verification.
+
 No worker, database, search result, external model, scientific package, Mirror experiment, or AI-generated proposal may self-certify a capability.
 
 ## 2. Repository roles
@@ -71,9 +86,9 @@ Its `engine` branch is the living development trunk.
 
 Its `main` branch is the certified release surface.
 
-### Chanfana Worker Substrate — bounded execution infrastructure
+### Chanfana Worker Substrate — bounded execution infrastructure + system memory
 
-`rynahmed101-sys/chanfana-openapi-template` exists to execute bounded jobs reliably.
+`rynahmed101-sys/chanfana-openapi-template` executes bounded jobs reliably and persists durable system memory for Automate and Mirror.
 
 It owns:
 
@@ -99,9 +114,11 @@ Its `engine` branch is the living infrastructure development trunk.
 
 Its `main` branch is the release surface.
 
-### THE MIRROR — experimental scientific laboratory
+### THE MIRROR — autonomous engineering partner + experimental scientific laboratory
 
-`rynahmed101-sys/the-mirror` exists for experiments that should not become mathematical authority merely because a computation produced an interesting result.
+`rynahmed101-sys/the-mirror` is the system's persistent AI engineering and scientific environment. It may perform research, diagnosis, implementation, repair, capability generation, experiments, simulation, perturbation, counterexample search, coding, and bounded verification work.
+
+Mirror may prepare reviewable changes against Automate's exact frontier revision, but it cannot self-certify, rewrite Automate authority, or bypass CI, verification, or promotion gates. It supplies work and evidence; Automate decides whether that work counts.
 
 It owns:
 
