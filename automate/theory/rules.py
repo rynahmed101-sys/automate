@@ -198,6 +198,36 @@ class RuleRegistry:
         ))
 
         self.register(RuleDefinition(
+            rule_id="partial_differentiate",
+            name="Partial Derivative",
+            category="calculus",
+            description="Verifies a first-order partial derivative of a multivariable expression with an explicit differentiation variable.",
+            domain="multivariable_calculus",
+            inputs=["Multivariable Scalar Expression"],
+            outputs=["Partial Derivative"],
+            required_assumptions=["explicit_differentiation_variable"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Definition of the partial derivative"
+        ))
+
+        self.register(RuleDefinition(
+            rule_id="total_differential",
+            name="Total Differential",
+            category="calculus",
+            description="Verifies df as the sum of explicit first-order partial derivatives multiplied by the corresponding differentials.",
+            domain="multivariable_calculus",
+            inputs=["Multivariable Scalar Expression"],
+            outputs=["Total Differential"],
+            required_assumptions=["explicit_variable_list"],
+            implementation_backend="sympy",
+            symbolic_checker_available=True,
+            allowed_checkers=["sympy"],
+            citation="Definition of the total differential"
+        ))
+
+        self.register(RuleDefinition(
             rule_id="chain_rule",
             name="Chain Rule",
             category="calculus",
