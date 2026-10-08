@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   validateVerificationResultIdentity,
-} from "../src/worker/jobRunner";
-import { VerificationJobEnvelope } from "../src/worker/verificationEnvelope";
+} from "../worker/jobRunner";
+import { VerificationJobEnvelope } from "../worker/verificationEnvelope";
 
 const verification = VerificationJobEnvelope.parse({
   schema_version: "automate.verification_job.v1",
