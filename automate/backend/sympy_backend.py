@@ -115,6 +115,14 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_differentiate(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                elif rule == "partial_differentiate":
+                    passed, details, certificates, error_msg = self._verify_partial_differentiate(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
+                elif rule == "total_differential":
+                    passed, details, certificates, error_msg = self._verify_total_differential(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule in ("chain_rule", "product_rule", "quotient_rule"):
                     passed, details, certificates, error_msg = self._verify_composite_derivative_rule(
                         rule, out_nodes[0], edge.parameters
@@ -735,6 +743,74 @@ class SymPyChecker(BaseChecker):
             {"step": 1, "operation": "differentiate", "variable": str(variable), "order": order,
              "input": str(in_expr), "result": str(expected)},
             {"step": 2, "operation": "simplify(actual - expected)", "residual": str(residual)},
+        ]
+        return passed, details, steps, error
+
+    @classmethod
+    def _verify_partial_differentiate(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """Verify a first-order partial derivative with an explicit variable."""
+        params = dict(params or {})
+        params["order"] = 1
+        passed, details, steps, error = cls._verify_differentiate(in_node, out_node, params)
+        details = dict(details)
+        details["rule"] = "partial_differentiate"
+        details["derivative_kind"] = "partial"
+        return passed, details, steps, error
+
+    @classmethod
+    def _verify_total_differential(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """Verify df = sum_i (partial f / partial x_i) dx_i for explicit variables."""
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+        variables = params.get("variables")
+        differentials = params.get("differentials")
+        if not isinstance(variables, list) or not variables or not all(isinstance(v, str) and v.isidentifier() for v in variables):
+            return False, {"rule": "total_differential"}, [], "Malformed total differential variables: parameters['variables'] must be a non-empty list of valid identifiers."
+        if len(set(variables)) != len(variables):
+            return False, {"rule": "total_differential"}, [], "Duplicate total differential variables are not allowed."
+        if differentials is None:
+            differentials = [f"d{v}" for v in variables]
+        if not isinstance(differentials, list) or len(differentials) != len(variables) or not all(isinstance(d, str) and d.isidentifier() for d in differentials):
+            return False, {"rule": "total_differential"}, [], "Malformed total differential differentials: provide one valid identifier per variable."
+        if len(set(differentials)) != len(differentials):
+            return False, {"rule": "total_differential"}, [], "Duplicate differential symbols are not allowed."
+        symbols = {name: sp.Symbol(name, real=True) for name in variables}
+        diff_symbols = {name: sp.Symbol(name, real=True) for name in differentials}
+        parser = SafeParser(extra_symbols={**symbols, **diff_symbols})
+        try:
+            in_expr = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+        except SafeParseError as exc:
+            return False, {"rule": "total_differential"}, [], f"SafeParser rejected total differential expression: {exc}"
+        try:
+            partials = [sp.diff(in_expr, symbols[name]) for name in variables]
+            expected = sp.Add(*(partial * diff_symbols[d] for partial, d in zip(partials, differentials)))
+            residual = sp.simplify(actual - expected)
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return False, {"rule": "total_differential"}, [], f"UNVERIFIED: total differential could not be established: {type(exc).__name__}: {exc}"
+        equivalence = residual.equals(0) if hasattr(residual, "equals") else residual == 0
+        if residual == 0 or equivalence is True:
+            passed, status_override, error = True, None, None
+        elif equivalence is False:
+            passed, status_override, error = False, None, f"Total differential mismatch: expected {expected}, got {actual}."
+        else:
+            passed, status_override, error = False, VerificationStatus.UNVERIFIED.value, "UNVERIFIED: total differential comparison could not establish equality."
+        details = {
+            "rule": "total_differential", "variables": variables, "differentials": differentials,
+            "input_expression": str(in_expr),
+            "partial_derivatives": {v: str(p) for v, p in zip(variables, partials)},
+            "expected_total_differential": str(expected), "actual_total_differential": str(actual),
+            "residual": str(residual),
+        }
+        if status_override:
+            details["_status_override"] = status_override
+        steps = [
+            {"step": 1, "operation": "compute_partial_derivatives", "partials": details["partial_derivatives"]},
+            {"step": 2, "operation": "assemble_total_differential", "result": str(expected)},
+            {"step": 3, "operation": "simplify(actual - expected)", "residual": str(residual)},
         ]
         return passed, details, steps, error
 
