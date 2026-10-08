@@ -7,7 +7,7 @@ from automate.dev.worker import build_worker_packet
 
 def test_closed_loop_role_boundaries_preserve_identity_and_authority():
     revision = "a" * 40
-    capability = "stage1b.series_expansions"
+    capability = "stage1b.partial_derivatives"
 
     worker = build_worker_packet(
         capability,
@@ -55,7 +55,7 @@ def test_closed_loop_role_boundaries_preserve_identity_and_authority():
 
 def test_existing_triad_dry_run_remains_non_mutating():
     result = run_triad_dry_run(
-        "stage1b.series_expansions",
+        "stage1b.partial_derivatives",
         repository="rynahmed101-sys/automate",
         revision="a" * 40,
         branch="engine",
