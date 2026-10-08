@@ -13,7 +13,7 @@ def test_worker_packet_for_current_frontier_is_bounded():
     assert packet["schema_version"] == "automate.worker.v1"
     assert body["task"]["source"] == "docs/PROJECT_PHASE_LEDGER.md"
     assert body["task"]["ref"] == "stage1b.partial_derivatives"
-    assert "Support first-order partial derivatives and total differentials." in body["task"]["requirements"]
+    assert "Support first-order partial derivatives and total differentials for represented multivariable expressions." in body["task"]["requirements"]
     assert body["capability"]["id"] == "stage1b.partial_derivatives"
     assert body["repository"]["base_branch"] == "main"
     assert body["constraints"]["allow_delete"] is False
