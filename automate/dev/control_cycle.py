@@ -18,7 +18,7 @@ from automate.dev.autonomous import run_autonomous_cycle
 from automate.dev.inventory import load_inventory, queue_snapshot
 from automate.dev.discovery_grant import build_discovery_grant
 from automate.dev.worker import build_worker_packet
-from automate.dev.failure_recovery import find_quarantined_worker_handoff
+from automate.dev import failure_recovery
 from automate.dev.promotion import (
     PromotionError,
     _gh_json,
@@ -36,6 +36,11 @@ class VerificationError(RuntimeError):
 
 
 OperatingMode = Literal["BACKLOG", "DISCOVERY_READY", "STOPPED"]
+
+
+def find_quarantined_worker_handoff(*args: Any, **kwargs: Any) -> dict[str, Any] | None:
+    """Dynamic seam for the durable repair-hold inspector."""
+    return failure_recovery.find_quarantined_worker_handoff(*args, **kwargs)
 
 
 def resolve_operating_mode(data: dict[str, Any] | None = None) -> dict[str, Any]:
