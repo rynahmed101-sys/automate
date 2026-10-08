@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stateForWorkerResult } from "../src/worker/state";
+import { stateForWorkerResult } from "../worker/state";
 
 describe("worker result state", () => {
   it("marks failed and rejected results as failed jobs", () => {
