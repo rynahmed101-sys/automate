@@ -183,6 +183,7 @@ def test_control_cycle_quarantines_repeated_worker_failure_without_transport(mon
 
     monkeypatch.setenv("GH_TOKEN", "secret")
     monkeypatch.setattr(cycle, "resolve_operating_mode", lambda: _backlog_control())
+    monkeypatch.setattr(cycle, "find_quarantined_worker_handoff", lambda *args, **kwargs: None)
     monkeypatch.setattr(cycle, "_gh_json", lambda *_: {"object": {"sha": "a" * 40}})
     monkeypatch.setattr(cycle, "inspect_merged_worker_handoff", lambda *args, **kwargs: None)
     monkeypatch.setattr(
