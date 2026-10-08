@@ -1,5 +1,5 @@
 import type { D1Migration } from "cloudflare:test";
-import type { Env as AppEnv } from "../src/bindings";
+import type { Env as AppEnv } from "../bindings";
 
 export type Env = AppEnv & {
 	MIGRATIONS: D1Migration[];
