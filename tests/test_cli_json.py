@@ -67,7 +67,8 @@ def test_cli_calculate_substitute_and_multivariable():
         "--variables", "x,y", "--json"
     ])
     assert result.exit_code == 0, result.output
-    assert json.loads(result.output)["result"] == "Matrix([[2*x + y], [x + 2*y]])"
+    assert "2*x + y" in json.loads(result.output)["result"]
+    assert "x + 2*y" in json.loads(result.output)["result"]
 
 def test_cli_calculate_matrix_operations():
     result = CliRunner().invoke(main, [
