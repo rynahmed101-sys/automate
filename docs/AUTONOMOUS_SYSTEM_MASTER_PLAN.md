@@ -3,7 +3,7 @@
 **Status:** AUTHORITATIVE SYSTEM MAP  
 **Owner:** Automate primary integrator  
 **Scope:** Automate + Chanfana Worker Substrate + THE MIRROR + external research/data workers  
-**Last reviewed:** 2026-10-06
+**Last reviewed:** 2026-10-08
 
 > **This is the single system-level architecture and infrastructure authority for the autonomous scientific ecosystem.**
 >
@@ -582,9 +582,9 @@ The infrastructure audit does **not** invalidate the current Stage 1B work.
 
 It clarifies its place.
 
-The immediate development frontier remains:
+The immediate development frontier remains the earliest incomplete Stage 1B capability after the completed series-expansion milestone:
 
-**Stage 1B → improper integrals and convergence-aware handling**
+**Stage 1B → partial derivatives and total differentials**
 
 while infrastructure work proceeds around it in parallel where it removes a real dependency.
 
