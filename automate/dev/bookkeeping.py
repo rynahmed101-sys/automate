@@ -127,12 +127,38 @@ def build_bookkeeping_plan(
     unchecked = "- [ ] " + name
     pending = "- [!] " + name
     complete = "- [x] " + name
-    occurrences = sum(ledger.count(anchor) for anchor in (unchecked, pending, complete))
-    if occurrences != 1:
-        raise BookkeepingError(
-            f"ledger anchor for {capability_id} is ambiguous; expected one exact entry, found {occurrences}"
-        )
-    if complete in ledger:
+
+    exact = [anchor for anchor in (unchecked, pending, complete) if anchor in ledger]
+    if len(exact) == 1:
+        ledger_anchor = exact[0]
+    else:
+        import re
+        def tokens(value: str) -> set[str]:
+            words = re.findall(r"[a-z0-9]+", value.lower())
+            return {word for word in words if word not in {"and", "the", "of", "for", "to"}}
+
+        target_tokens = tokens(name)
+        candidates: list[tuple[float, str]] = []
+        for line in ledger.splitlines():
+            stripped = line.strip()
+            match = re.match(r"^- \[([ x!])\] (.+)$", stripped)
+            if not match:
+                continue
+            candidate_tokens = tokens(match.group(2))
+            if not target_tokens or not candidate_tokens:
+                continue
+            coverage = len(target_tokens & candidate_tokens) / len(target_tokens)
+            if coverage >= 0.80:
+                candidates.append((coverage, stripped))
+
+        if len(candidates) != 1:
+            raise BookkeepingError(
+                f"ledger anchor for {capability_id} is ambiguous; expected one exact entry, "
+                f"found {len(exact)} exact and {len(candidates)} semantic candidates"
+            )
+        ledger_anchor = candidates[0][1]
+
+    if ledger_anchor == complete:
         raise BookkeepingError(f"ledger already marks {capability_id} completed")
 
     item["implementation_state"] = "merged_main"
@@ -172,9 +198,7 @@ def build_bookkeeping_plan(
             planned_inventory["capabilities"][index] = item
             break
 
-    planned_ledger = ledger.replace(unchecked, "- [x] " + name, 1)
-    if planned_ledger == ledger:
-        planned_ledger = ledger.replace(pending, "- [x] " + name, 1)
+    planned_ledger = ledger.replace(ledger_anchor, "- [x] " + ledger_anchor[6:], 1)
 
     changes = [
         {
