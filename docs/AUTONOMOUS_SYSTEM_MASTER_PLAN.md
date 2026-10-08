@@ -935,7 +935,7 @@ Chanfana transports and bounds the work. It does not decide scientific meaning.
 
 ## Mirror boundary
 
-**Mirror/external researcher remains ON HOLD while the verification backlog is being cleared.**
+**Open-ended autonomous discovery remains governed by operating mode. Mirror's engineering, research, diagnosis, repair, capability-generation, and bounded verification work is available during backlog clearing.**
 
 After backlog clearance and readiness gates, the Verification Engine may commission Mirror when an evidence question genuinely requires laboratory work:
 
@@ -1095,10 +1095,10 @@ In BACKLOG mode:
 
 - the strict earliest-ready ledger gate selects the next capability;
 - implementation workers may be commissioned through bounded packets;
-- the Verification & Reconciliation Engine may investigate, test, diagnose, and reconcile;
-- THE MIRROR may be used as a bounded laboratory when the active capability genuinely needs physical/numerical investigation;
-- external open-ended discovery is not commissioned merely because the system is idle between implementation attempts;
-- Mirror discovery cannot create new canonical capability scope.
+- the Verification & Reconciliation Engine may investigate, test, diagnose, repair, and reconcile;
+- THE MIRROR may research, code, implement, repair, simulate, challenge, and verify the active capability when useful;
+- open-ended discovery and new capability proposals remain governed by the current operating mode;
+- Mirror discovery cannot directly create new authoritative capability scope.
 
 The purpose is to use the 1A–13A backlog as the system's proving ground. Every completed capability exercises the same queue, worker, transport, evidence, verification, reconciliation, learning, and promotion machinery.
 
@@ -1204,4 +1204,4 @@ The concrete cross-repository path is:
 
 Automate mission -> Chanfana `mirror.frontier_job.v1` -> Mirror frontier AI -> bounded research/code/experiment tools -> evidence/provenance -> Automate verification -> proposal/promotion.
 
-Chanfana remains transport only. Mirror may modify its bounded workspace and prepare a proposal, but remote Git mutation and canonical Automate mutation remain forbidden.
+Chanfana remains the durable transport and memory substrate. Mirror may modify its bounded workspace and create reviewable branches/PRs for its own work or proposed cross-repository changes. Direct unreviewed mutation of Automate authority surfaces remains forbidden.
