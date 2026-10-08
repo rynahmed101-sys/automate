@@ -139,6 +139,7 @@ def build_mirror_mission_job(
     correlation_id: str,
     deadline_ms: int = 300_000,
     max_response_bytes: int = 1_500_000,
+    github_mutation_allowed: bool = False,
 ) -> dict[str, Any]:
     """Commission the non-deployed Mirror lab through Chanfana durable transport."""
     if not source_revision or len(source_revision) != 40:
@@ -152,7 +153,7 @@ def build_mirror_mission_job(
         "capability_id": str(capability.get("id") or ""),
         "automate_revision": source_revision,
         "task": task,
-        "authorization_granted": True,
+        "authorization_granted": bool(github_mutation_allowed),
         "arguments": {
             "research_world": {
                 "query": (objective + (": " + str(task.get("summary") or "") if task.get("summary") else ""))[:500],
@@ -180,6 +181,6 @@ def build_mirror_mission_job(
             "capability_id": str(capability.get("id") or ""),
             "correlation_id": correlation_id,
             "requested_by": "automate",
-            "authorization_scope": "bounded_branch_and_pr_only",
+            "authorization_scope": "bounded_branch_and_pr_only" if github_mutation_allowed else "proposal_only",
         },
     }
