@@ -141,7 +141,14 @@ def build_mirror_mission_job(
     max_response_bytes: int = 1_500_000,
     github_mutation_allowed: bool = False,
 ) -> dict[str, Any]:
-    """Commission the non-deployed Mirror lab through Chanfana durable transport."""
+    """Commission the non-deployed Mirror lab through Chanfana durable transport.
+
+    Mirror is proposal-only. Canonical GitHub mutation belongs to Automate's
+    merger/control-plane lane, so this boundary rejects any request that tries
+    to delegate mutation authority into Mirror.
+    """
+    if github_mutation_allowed:
+        raise ValueError("Mirror missions are proposal-only; GitHub mutation must be performed by the Automate merger lane")
     if not source_revision or len(source_revision) != 40:
         raise ValueError("source_revision must be an exact Git SHA")
     objective = str(capability.get("name") or capability.get("id") or "").strip()
