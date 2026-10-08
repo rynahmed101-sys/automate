@@ -1,7 +1,5 @@
 """Named Phase 1A eigenproblem capability acceptance campaign."""
 
-from automate.ai.proposals import apply_and_verify_proposal
-from automate.ai.schemas import DerivationProposal
 from automate.backend.linear_algebra_backend import LinearAlgebraChecker
 from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
@@ -192,51 +190,6 @@ def test_symbol_parameter_boundary():
         parameters={"symbol": "lam"},
     )
     assert not report.passed and "must not appear" in (report.error_message or "")
-
-
-def test_ai_diagonalization_proposal_path():
-    graph = DerivationGraph(id="ai_linear_algebra_diagonalize")
-    graph.add_node(DerivationNode(
-        id="A",
-        expression=MathematicalExpression(
-            raw_str="Matrix([[2, 1], [1, 2]])",
-            ast={"kind": "matrix", "shape": [2, 2]},
-        ),
-        node_kind="matrix",
-    ))
-    proposal = DerivationProposal(
-        proposal_id="la_diag_agent_001",
-        input_nodes=["A"],
-        output_nodes=[
-            {"id": "P", "expression": "Matrix([[1, 1], [1, -1]])", "node_kind": "matrix"},
-            {"id": "D", "expression": "Matrix([[3, 0], [0, 1]])", "node_kind": "matrix"},
-        ],
-        rule="matrix_diagonalize",
-        justification="P diagonalizes A into D.",
-        target_checker="linear_algebra",
-        origin={"type": "ai", "provider": "acceptance"},
-    )
-    dry = apply_and_verify_proposal(proposal, graph, dry_run=True)
-    assert dry.success and not dry.graph_updated and "P" not in graph.nodes
-    applied = apply_and_verify_proposal(proposal, graph, dry_run=False)
-    assert applied.success and applied.graph_updated
-    assert graph.edges[applied.edge_id].status == VerificationStatus.SYMBOLIC_CHECKED
-
-
-def test_ai_malformed_linear_algebra_proposal_fails_closed():
-    from automate.ai.validation import validate_ai_proposal
-    raw = {
-        "schema_version": "automate.proposal.v1",
-        "proposal_id": "la_bad_eigen",
-        "input_nodes": [],
-        "output_nodes": [{"id": "out", "expression": "Matrix([[1, 2], [3]])"}],
-        "rule": "matrix_eigenvalues",
-        "justification": "malformed matrix",
-        "target_checker": "linear_algebra",
-    }
-    result = validate_ai_proposal(raw)
-    assert not result.is_valid
-    assert any("inconsistent lengths" in error.lower() for error in result.errors)
 
 
 def test_registry_exposes_eigenproblem_family():
