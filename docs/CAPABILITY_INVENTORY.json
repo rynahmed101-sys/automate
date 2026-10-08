@@ -48,7 +48,8 @@
       "hotfix/",
       "docs/",
       "chore/",
-      "refactor/"
+      "refactor/",
+      "repair/"
     ]
   },
   "capabilities": [
