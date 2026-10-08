@@ -139,7 +139,7 @@ def _github_lifecycle_exercised(repository: str) -> bool:
         # machine-generated capability. The lifecycle gate is evidence-only:
         # merged main + exact CI + Security Audit remain mandatory.
         current_branch = "feat/" + capability_id + "-" + base_sha[:12]
-        legacy_branch = "feat/" + capability_id + "-" + base_sha[:8]
+        legacy_branch = "feat/" + capability_id + "-" + worker_request.group(1)[4:12]
         if head_branch not in {current_branch, legacy_branch}:
             continue
         if not re.fullmatch(r"wrk_[0-9a-f]{32}", worker_request.group(1)):
