@@ -46,20 +46,9 @@ The important boundary is:
 
 ## Current live operating mode - 2026-10-08
 
-The system is now running in bounded autonomous development mode against a verified Automate engine pin.
+The system operates as a bounded autonomous development system. Automate owns the ledger, authority, verification, promotion, and certification decisions. Chanfana owns bounded execution and durable job state. Mirror is a non-deployed laboratory and research/engineering partner. The three repositories follow the capability ledger in Automate; later-stage work may be preserved but cannot advance the active frontier.
 
-- Automate main pins verified engine 2bd0e34ca903afef366feaa4847f06764a01006a and may run the scheduled control cycle.
-- The control cycle can reconcile engine, select the earliest eligible capability, dispatch bounded workers, generate reviewable implementation PRs, promote verified PRs, and prepare canonical bookkeeping.
-- Mirror is an active engineering partner as well as a scientific laboratory. It may research, diagnose, repair, implement, test, generate capability proposals, perform experiments, and participate in verification. Its outputs remain untrusted until Automate acceptance gates pass.
-- Chanfana is the durable execution and memory substrate. It persists jobs, leases, worker recovery, learning artifacts, research/verification handoffs, and frontier results.
-- Autonomous mutation is reviewable and evidence-gated: the system mutates development branches and PRs through bounded workers; canonical main and certification state remain behind reconciliation, exact-head CI, security, verification, and promotion boundaries.
-- Autonomous discovery remains separately governed. It may generate candidates when its explicit operating gate is enabled, but discovery cannot rewrite the capability ledger or certify its own findings.
-
-The first autonomous capability-generation result is Automate PR #195 for stage1b.series_expansions, generated from the current ledger frontier after the control plane became operational.
-
-This is bounded autonomy, not an assertion that every cross-repository deployment resource is already proven. Missing external deployment credentials or live service resources must hold or degrade the affected capability path without weakening canonical verification.
-
-No worker, database, search result, external model, scientific package, Mirror experiment, or AI-generated proposal may self-certify a capability.
+The autonomous control plane may make operational decisions such as capability selection, research commissioning, retry, quarantine, repair generation, reconciliation, promotion, and bookkeeping. It may not rewrite the ledger's authority model, self-certify evidence, weaken verification gates, or silently promote out-of-order capabilities.
 
 ## 2. Repository roles
 
@@ -290,23 +279,9 @@ A BigQuery worker is one possible provider. It is not “the research engine.”
 
 **Goal:** Interesting or uncertain claims can be investigated independently without contaminating Automate's authority.
 
-Required:
+**Current state:** ACTIVE LABORATORY.
 
-- reproducible experiment identity;
-- hypothesis/input/assumption capture;
-- raw observations;
-- numerical results;
-- error and runtime measurements;
-- stability/convergence analysis;
-- perturbation testing;
-- counterexample search;
-- independent-route comparison;
-- provenance chain;
-- evidence handoff into Automate.
-
-**Current state:** PARTIAL / HARDENING.
-
-Mirror has substantial experimental infrastructure and provenance machinery. Its role is architecturally defined, but production/live validation and remaining hardening work still need completion. Mirror PRs that remain blocked by deployment/authentication evidence are not equivalent to certified infrastructure.
+Mirror is a non-deployed scientific and engineering laboratory. It can produce hypotheses, experiments, simulations, counterexamples, and evidence packets. Automate treats all Mirror output as untrusted evidence and independently decides whether it matters. No deployment gate is attached to Mirror.
 
 ### I6 — End-to-end autonomous cycle
 
