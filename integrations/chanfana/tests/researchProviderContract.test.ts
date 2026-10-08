@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ResearchProvider } from "../src/worker/researchEnvelope";
+import { ResearchProvider } from "../worker/researchEnvelope";
 
 describe("research providers", () => {
   it("accepts physics literature providers used by Automate", () => {
