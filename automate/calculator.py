@@ -16,7 +16,13 @@ CALCULATOR_OPERATIONS = (
 class CalculatorError(ValueError):
     """A calculation request could not be completed."""
 
-def _parse(parser: SafeParser, value: str) -> Any:
+def _parse(parser: SafeParser, value: Any) -> Any:
+    if isinstance(value, (sp.Basic, sp.MatrixBase)):
+        return value
+    if not isinstance(value, str):
+        raise CalculatorError(
+            f"Expression must be a string or SymPy mathematical object, got {type(value).__name__}."
+        )
     return parser.parse_isolated(value)
 
 def _symbol(name: str | None, expr: Any) -> sp.Symbol:
@@ -25,7 +31,7 @@ def _symbol(name: str | None, expr: Any) -> sp.Symbol:
     if len(free) == 1: return free[0]
     raise CalculatorError("Provide --variable when the operation needs exactly one variable.")
 
-def calculate(operation: str, expression: str, *, variable: str | None=None,
+def calculate(operation: str, expression: Any, *, variable: str | None=None,
               variables: list[str] | None=None, point: str | None=None,
               order: int=6, value: str | None=None,
               second_expression: str | None=None) -> Any:
