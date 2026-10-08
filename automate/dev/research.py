@@ -63,6 +63,74 @@ def source_digest(source: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(source, sort_keys=True, separators=(",",":")).encode()).hexdigest()
 
 
+
+def build_mirror_research_job(
+    *,
+    capability: dict[str, Any],
+    mirror_endpoint: str,
+    request_id: str,
+    correlation_id: str,
+    max_results_per_provider: int = 5,
+    deadline_ms: int = 120_000,
+    max_response_bytes: int = 1_000_000,
+) -> dict[str, Any]:
+    """Build a bounded, non-authoritative research request for the Mirror lane."""
+    import re
+
+    if not isinstance(capability, dict):
+        raise ValueError("capability must be an object")
+    capability_id = str(capability.get("id") or "").strip()
+    if not capability_id:
+        raise ValueError("capability id is required")
+    if not isinstance(mirror_endpoint, str) or not mirror_endpoint.strip():
+        raise ValueError("mirror_endpoint is required")
+    if not re.match(r"^https?://", mirror_endpoint):
+        raise ValueError("mirror_endpoint must be an HTTP(S) endpoint")
+    if not isinstance(request_id, str) or not request_id.strip():
+        raise ValueError("request_id is required")
+    if not isinstance(correlation_id, str) or not correlation_id.strip():
+        raise ValueError("correlation_id is required")
+    if not isinstance(max_results_per_provider, int) or not 1 <= max_results_per_provider <= 10:
+        raise ValueError("max_results_per_provider must be between 1 and 10")
+    if not isinstance(deadline_ms, int) or not 1_000 <= deadline_ms <= 900_000:
+        raise ValueError("deadline_ms must be between 1000 and 900000")
+    if not isinstance(max_response_bytes, int) or not 1_024 <= max_response_bytes <= 1_500_000:
+        raise ValueError("max_response_bytes must be between 1024 and 1500000")
+
+    objective = str(capability.get("name") or capability_id).strip()
+    task = capability.get("task")
+    summary = ""
+    if isinstance(task, dict):
+        summary = str(task.get("summary") or "").strip()
+    query = objective[:500]
+    if summary:
+        query = (query + ": " + summary)[:500]
+
+    return {
+        "schema_version": "automate.mirror_research_job.v1",
+        "request_id": request_id,
+        "correlation_id": correlation_id,
+        "execution_kind": "mirror_research",
+        "target": {
+            "repository": "rynahmed101-sys/the-mirror",
+            "endpoint": mirror_endpoint,
+        },
+        "capability_id": capability_id,
+        "objective": objective,
+        "query": query,
+        "providers": ["crossref", "openalex", "arxiv", "github", "huggingface"],
+        "limits": {
+            "max_results_per_provider": max_results_per_provider,
+            "deadline_ms": deadline_ms,
+            "max_response_bytes": max_response_bytes,
+        },
+        "provenance": {
+            "capability_id": capability_id,
+            "correlation_id": correlation_id,
+            "requested_by": "automate",
+            "authorization_scope": "research_only_untrusted",
+        },
+    }
 def build_mirror_mission_job(
     *,
     capability: dict[str, Any],
