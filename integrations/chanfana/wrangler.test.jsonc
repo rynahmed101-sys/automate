@@ -1,6 +1,6 @@
 {
   "compatibility_date": "2026-10-06",
-  "main": "src/index.ts",
+  "main": "index.ts",
   "name": "chanfana-openapi-template-test",
   "queues": {
     "producers": [
