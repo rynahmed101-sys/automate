@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 from pathlib import Path
 
@@ -47,10 +48,20 @@ def validate_branch_scope(branch: str, files: list[str]) -> list[str]:
             and str(ref.get("state", "")).startswith("open")
         ]
         if not recorded:
-            errors.append(
-                f"Capability branch '{branch}' has no active ownership record in "
-                "docs/CAPABILITY_INVENTORY.json."
-            )
+            # Worker-generated capability PRs may precede canonical bookkeeping.
+            # Permit only a known, non-terminal capability with a typed worker branch.
+            suffix_match = re.match(r"^feat/(.+?)-[0-9a-f]{8,40}$", branch)
+            candidate = suffix_match.group(1) if suffix_match else ""
+            known = {
+                item["id"]
+                for item in data["capabilities"]
+                if item.get("implementation_state") not in {"merged_main", "superseded", "abandoned"}
+            }
+            if candidate not in known:
+                errors.append(
+                    f"Capability branch '{branch}' has no active ownership record in "
+                    "docs/CAPABILITY_INVENTORY.json."
+                )
         elif len(recorded) > 1:
             errors.append(
                 f"Capability branch '{branch}' is claimed by multiple capabilities: "
