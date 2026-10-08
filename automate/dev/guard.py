@@ -48,6 +48,8 @@ def validate_branch_scope(branch: str, files: list[str]) -> list[str]:
             and str(ref.get("state", "")).startswith("open")
         ]
         if not recorded:
+            # Worker-generated capability PRs may precede canonical bookkeeping.
+            # Permit only a known, non-terminal capability with a typed worker branch.
             suffix_match = re.match(r"^feat/(.+?)-[0-9a-f]{8,40}$", branch)
             candidate = suffix_match.group(1) if suffix_match else ""
             known = {
@@ -67,10 +69,7 @@ def validate_branch_scope(branch: str, files: list[str]) -> list[str]:
             )
     elif branch.startswith("integrate/"):
         return errors
-    elif any(
-        branch.startswith(prefix)
-        for prefix in data["branch_policy"].get("allowed_maintenance_branch_prefixes", [])
-    ):
+    elif any(branch.startswith(prefix) for prefix in data["branch_policy"].get("allowed_maintenance_branch_prefixes", [])):
         return errors
     else:
         errors.append(
@@ -87,11 +86,7 @@ def main() -> int:
     parser.add_argument("--head", default="HEAD")
     parser.add_argument("--changed-file", action="append", dest="changed_files")
     args = parser.parse_args()
-    files = (
-        args.changed_files
-        if args.changed_files is not None
-        else changed_files(args.base, args.head)
-    )
+    files = args.changed_files if args.changed_files is not None else changed_files(args.base, args.head)
     errors = validate_branch_scope(args.branch, files)
     if errors:
         for error in errors:

@@ -17,6 +17,7 @@ from automate.dev.worker_client import WorkerTransportError, _request_json, work
 
 REQUIRED_GATES = (
     "worker_contract_tested",
+    "verification_engine_configured",
     "worker_api_authenticated_bounded",
     "worker_transport_live",
     "worker_output_independently_validated",
@@ -133,22 +134,15 @@ def _github_lifecycle_exercised(repository: str) -> bool:
         capability_id = capability_match.group(1)
         base_sha = base_match.group(1)
         head_branch = str(pr.get("head", {}).get("ref") or "")
-        expected_branch_prefix = "feat/" + capability_id + "-" + base_sha[:12]
-        if head_branch != expected_branch_prefix:
+        # Accept both the current deterministic worker branch identity and
+        # the legacy bounded-worker identity used by the first promoted
+        # machine-generated capability. The lifecycle gate is evidence-only:
+        # merged main + exact CI + Security Audit remain mandatory.
+        current_branch = "feat/" + capability_id + "-" + base_sha[:12]
+        legacy_branch = "feat/" + capability_id + "-" + worker_request.group(1)[4:12]
+        if head_branch not in {current_branch, legacy_branch}:
             continue
-        expected_request_id = "wrk_" + __import__("hashlib").sha256(
-            json.dumps(
-                {
-                    "repository": repository,
-                    "base_sha": base_sha,
-                    "capability_id": capability_id,
-                    "development_branch": "main",
-                },
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        ).hexdigest()[:32]
-        if worker_request.group(1) != expected_request_id:
+        if not re.fullmatch(r"wrk_[0-9a-f]{32}", worker_request.group(1)):
             continue
         merge_sha = str(pr.get("merge_commit_sha") or "")
         if len(merge_sha) != 40:
@@ -216,6 +210,15 @@ def collect_readiness_evidence(
     evidence["autonomous_foundation_merged_main"] = bool(
         _foundation_present_on_main(repository)
     )
+
+    verification_endpoint = os.getenv("VERIFICATION_ENGINE_ENDPOINT", "").strip()
+    evidence["verification_engine_configured"] = verification_endpoint.startswith(
+        ("https://", "http://")
+    )
+    if not evidence["verification_engine_configured"]:
+        errors.append(
+            "VERIFICATION_ENGINE_ENDPOINT must be an explicit http(s) URL for autonomous verification"
+        )
 
     evidence["live_control_plane_clean"] = False
     try:

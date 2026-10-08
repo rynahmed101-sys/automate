@@ -150,7 +150,15 @@ def audit_live(
                         and branch.startswith(expected_prefix)
                         and "Automated capability implementation generated through Automate's bounded worker pipeline." in body
                     )
-                    if not pending_worker_handoff:
+                    pending_control_plane = bool(
+                        (
+                            "- automation_role: control_plane_autonomous_backlog_driver" in body
+                            or "- automation_role: control_plane_self_correction" in body
+                        )
+                        and "- canonical_ledger_mutation: false" in body
+                        and "- scientific_capability_implementation: false" in body
+                    )
+                    if not pending_worker_handoff and not pending_control_plane:
                         errors.append(
                             f"Open capability PR #{number} ({branch}) has no capability ownership reference."
                         )

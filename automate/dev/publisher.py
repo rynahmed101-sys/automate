@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Iterator
 
 from automate.dev.executor import WorkerExecutionError, execute_worker_proposal, git_commit
-from automate.dev.prmgr import create_worker_pr
 
 
 @contextmanager
@@ -78,23 +77,19 @@ def isolated_worker_worktree(
         )
 
 
-def worker_branch_name(
-    capability_id: str,
-    base_sha: str | None = None,
-    recovery_attempt: int | None = None,
-) -> str:
+def worker_branch_name(capability_id: str, base_sha: str | None = None, recovery_attempt: int | None = None) -> str:
     if not capability_id or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789_.-" for ch in capability_id):
         raise WorkerExecutionError("capability id is not safe for a worker branch")
-    suffix = ""
     if base_sha is not None:
-        if len(base_sha) != 40 or any(ch not in "0123456789abcdef" for ch in base_sha):
-            raise WorkerExecutionError("base sha is not safe for a worker branch")
+        if not len(base_sha) == 40 or any(ch not in "0123456789abcdef" for ch in base_sha):
+            raise WorkerExecutionError("worker branch base sha must be a 40-character lowercase hex SHA")
         suffix = "-" + base_sha[:12]
         if recovery_attempt is not None:
             if recovery_attempt < 2:
                 raise WorkerExecutionError("recovery attempt must be >= 2")
             suffix += "-repair" + str(recovery_attempt)
-    return "feat/" + capability_id + suffix
+        return "feat/" + capability_id + suffix
+    return "feat/" + capability_id
 
 
 def build_worker_commit(
@@ -117,7 +112,6 @@ def build_worker_commit(
         match = re.fullmatch(r"AUTONOMOUS_RECOVERY_ATTEMPT:\s*(\d+)", str(note).strip())
         if match:
             recovery_attempt = int(match.group(1))
-            break
     branch_name = worker_branch_name(capability_id, base_sha, recovery_attempt)
     message = commit_message or (
         "feat: implement " + str(packet["capability"]["name"])
@@ -156,9 +150,6 @@ def build_worker_commit(
         "commit_sha": commit_sha,
         "changed_files": execution["changed_files"],
         "tests": execution["tests"],
-        "request_id": packet.get("request_id"),
-        "capability_id": capability_id,
-        "base_sha": base_sha,
     }
 
 
@@ -180,42 +171,3 @@ def push_worker_branch(
     if result.returncode != 0:
         raise WorkerExecutionError(f"git push failed: {result.stderr.strip()}")
     return branch_name
-
-
-
-def publish_worker_commit(
-    repository: str,
-    repository_root: Path,
-    *,
-    packet: dict[str, Any],
-    commit: dict[str, Any],
-) -> dict[str, Any]:
-    """Push a validated worker branch and open its promotion-ready PR."""
-    if commit.get("status") != "committed":
-        raise WorkerExecutionError("only committed worker results can be published")
-    branch_name = commit.get("branch")
-    if not isinstance(branch_name, str):
-        raise WorkerExecutionError("committed worker result has no branch")
-    request_id = packet.get("request_id")
-    capability_id = packet.get("capability", {}).get("id")
-    base_sha = packet.get("repository", {}).get("base_sha_claim")
-    if not all(isinstance(value, str) for value in (request_id, capability_id, base_sha)):
-        raise WorkerExecutionError("worker packet is missing publication identity")
-
-    push_worker_branch(repository_root, branch_name=branch_name)
-    pr = create_worker_pr(
-        repository,
-        branch=branch_name,
-        capability_id=capability_id,
-        title="feat: implement " + str(packet["capability"]["name"]),
-        base_sha=base_sha,
-        request_id=request_id,
-        test_result=commit.get("tests") or {},
-    )
-    return {
-        **commit,
-        "status": "submitted",
-        "pr_number": pr.get("pr_number"),
-        "pr_url": pr.get("url"),
-        "pr": pr,
-    }

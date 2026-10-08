@@ -1,10 +1,4 @@
-"""Fail-closed recovery evidence for worker verification failures.
-
-This module is deliberately narrower than the old self-correction packet. It
-answers one question: what is the exact verification state of one worker PR
-head, and what bounded recovery action is justified? It does not certify
-science or mutate canonical inventory/ledger state.
-"""
+"""Fail-closed recovery for autonomous worker PR verification failures."""
 
 from __future__ import annotations
 
@@ -14,326 +8,111 @@ import subprocess
 from typing import Any
 
 
-WORKFLOWS = ("ci.yml", "security.yml")
-REPAIR_MARKER = "AUTONOMOUS RECOVERY:"
-
-
-class RecoveryError(RuntimeError):
-    """Raised when recovery evidence cannot be established safely."""
-
-
 def _env() -> dict[str, str]:
-    env = os.environ.copy()
-    if not env.get("GH_TOKEN") and not env.get("GITHUB_TOKEN"):
-        raise RecoveryError("GH_TOKEN or GITHUB_TOKEN is required for recovery inspection")
-    return env
+    return os.environ.copy()
 
 
 def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, capture_output=True, text=True, check=False, env=_env())
 
 
-def workflow_runs(
-    repository: str,
-    workflow_file: str,
-    head_sha: str,
-) -> list[dict[str, Any]]:
-    if len(head_sha) != 40:
-        raise RecoveryError("recovery requires a full 40-character head SHA")
+def _workflow_runs(repository: str, workflow: str, head_sha: str) -> list[dict[str, Any]]:
     result = _run([
-        "gh", "api",
-        f"repos/{repository}/actions/workflows/{workflow_file}/runs?head_sha={head_sha}&per_page=50",
+        "gh", "run", "list", "--repo", repository, "--workflow", workflow,
+        "--commit", head_sha, "--limit", "20",
+        "--json", "databaseId,conclusion,attempt,status,headSha,name,url",
     ])
     if result.returncode != 0:
-        raise RecoveryError(result.stderr.strip() or "GitHub workflow query failed")
+        return []
     try:
-        payload = json.loads(result.stdout or "{}")
-    except json.JSONDecodeError as exc:
-        raise RecoveryError("GitHub workflow query returned invalid JSON") from exc
-    rows = payload.get("workflow_runs", []) if isinstance(payload, dict) else []
-    return [dict(row) for row in rows if isinstance(row, dict) and row.get("head_sha") == head_sha]
+        payload = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError:
+        return []
+    return [row for row in payload if isinstance(row, dict) and row.get("headSha") == head_sha]
 
 
-def exact_head_recovery_state(
-    repository: str,
-    head_sha: str,
-) -> dict[str, Any]:
-    """Classify exact-head CI/security evidence without collapsing failures."""
-    runs_by_workflow = {
-        workflow: workflow_runs(repository, workflow, head_sha)
-        for workflow in WORKFLOWS
+def exact_head_recovery_state(repository: str, head_sha: str) -> dict[str, Any]:
+    workflows = ("Automate CI", "Security Audit")
+    runs: dict[str, list[dict[str, Any]]] = {
+        name: _workflow_runs(repository, name, head_sha) for name in workflows
     }
     failures: list[dict[str, Any]] = []
-    pending: list[str] = []
-    successful: list[str] = []
-
-    for workflow, rows in runs_by_workflow.items():
-        completed = [
-            row for row in rows
-            if row.get("status") == "completed"
-        ]
-        active = [
-            row for row in rows
-            if row.get("status") in {"queued", "in_progress", "waiting", "requested"}
-        ]
-        if active:
-            pending.append(workflow)
-
+    pending = False
+    missing = []
+    for name, rows in runs.items():
+        completed = [r for r in rows if r.get("status") == "completed"]
         if not completed:
-            if not active:
-                pending.append(workflow)
+            pending = True
+            missing.append(name)
             continue
-
-        latest = max(
-            completed,
-            key=lambda row: (
-                int(row.get("run_attempt") or 0),
-                str(row.get("updated_at") or row.get("created_at") or ""),
-            ),
-        )
-        if latest.get("conclusion") == "success":
-            successful.append(workflow)
-        else:
+        latest = max(completed, key=lambda r: int(r.get("attempt") or 0))
+        if latest.get("conclusion") != "success":
             failures.append({
-                "workflow": workflow,
-                "run_id": latest.get("id"),
-                "attempt": int(latest.get("run_attempt") or 1),
+                "workflow": name,
+                "run_id": latest.get("databaseId"),
+                "attempt": int(latest.get("attempt") or 0),
                 "conclusion": latest.get("conclusion"),
-                "url": latest.get("html_url"),
+                "url": latest.get("url"),
             })
+        elif any(r.get("status") in {"queued", "in_progress", "waiting", "requested"} for r in rows):
+            pending = True
 
     if pending:
-        return {
-            "state": "pending",
-            "pending": sorted(set(pending)),
-            "failures": failures,
-            "successful": sorted(successful),
-            "runs": runs_by_workflow,
-        }
+        return {"state": "pending", "failures": failures, "missing": missing, "runs": runs}
     if failures:
-        retryable = [
-            failure for failure in failures
-            if int(failure.get("attempt") or 1) < 2
-            and isinstance(failure.get("run_id"), int)
-        ]
-        return {
-            "state": "retryable_failure" if retryable else "repeated_failure",
-            "pending": [],
-            "failures": failures,
-            "retryable": retryable,
-            "successful": sorted(successful),
-            "runs": runs_by_workflow,
-        }
-    return {
-        "state": "success",
-        "pending": [],
-        "failures": [],
-        "retryable": [],
-        "successful": sorted(successful),
-        "runs": runs_by_workflow,
-    }
+        retryable = [f for f in failures if int(f["attempt"]) < 2 and isinstance(f.get("run_id"), int)]
+        if retryable:
+            return {"state": "retryable_failure", "failures": failures, "retryable": retryable, "runs": runs}
+        return {"state": "repeated_failure", "failures": failures, "runs": runs}
+    return {"state": "success", "failures": [], "runs": runs}
 
 
-def rerun_failed_workflows(
-    repository: str,
-    failures: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Request retries only for failed workflow runs identified by exact SHA."""
+def rerun_failed_workflows(repository: str, failures: list[dict[str, Any]]) -> dict[str, Any]:
     requested: list[int] = []
     errors: list[str] = []
     for failure in failures:
         run_id = failure.get("run_id")
         if not isinstance(run_id, int):
             continue
-        result = _run([
-            "gh", "run", "rerun", str(run_id),
-            "--repo", repository,
-            "--failed",
-        ])
+        result = _run(["gh", "run", "rerun", str(run_id), "--repo", repository, "--failed"])
         if result.returncode == 0:
             requested.append(run_id)
         else:
-            errors.append(
-                result.stderr.strip()
-                or result.stdout.strip()
-                or f"rerun failed for workflow run {run_id}"
-            )
+            errors.append(result.stderr.strip() or result.stdout.strip() or f"rerun failed for {run_id}")
     return {"requested": requested, "errors": errors}
 
 
-def next_recovery_attempt(branch: str | None) -> int:
-    """Return the next repair generation from a canonical worker branch name."""
-    name = str(branch or "").strip()
-    match = __import__("re").search(r"-repair(\d+)$", name)
-    if match:
-        return max(2, int(match.group(1)) + 1)
-    return 2
-
-
-def find_quarantined_worker_handoff(
-    repository: str,
-    *,
-    capability_id: str,
-) -> dict[str, Any] | None:
-    """Recover a durable capability repair hold from a closed, unmerged worker PR."""
-    result = _run([
-        "gh", "pr", "list",
-        "--repo", repository,
-        "--state", "closed",
-        "--base", "main",
-        "--limit", "100",
-        "--json", "number,headRefName,headRefOid,body,mergedAt,closedAt,url",
-    ])
-    if result.returncode != 0:
-        raise RecoveryError(result.stderr.strip() or "GitHub closed-PR query failed")
-    try:
-        rows = json.loads(result.stdout or "[]")
-    except json.JSONDecodeError as exc:
-        raise RecoveryError("GitHub closed-PR query returned invalid JSON") from exc
-    if not isinstance(rows, list):
-        raise RecoveryError("GitHub closed-PR query returned a non-list payload")
-
-    candidates: list[dict[str, Any]] = []
-    for row in rows:
-        if not isinstance(row, dict) or row.get("mergedAt"):
-            continue
-        body = str(row.get("body") or "")
-        if REPAIR_MARKER not in body:
-            continue
-        capability = __import__("re").search(
-            r"(?m)^- capability:\s*([a-z0-9][a-z0-9_.-]*)\s*$",
-            body,
-        )
-        if not capability or capability.group(1) != capability_id:
-            continue
-        candidates.append({
-            "pr_number": row.get("number"),
-            "branch": row.get("headRefName"),
-            "head_sha": row.get("headRefOid"),
-            "closed_at": row.get("closedAt"),
-            "url": row.get("url"),
-            "state": "REPAIR_HOLD",
-            "source": "quarantined_worker_pr",
-        })
-
-    if not candidates:
-        return None
-    candidates.sort(key=lambda item: str(item.get("closed_at") or ""), reverse=True)
-    return candidates[0]
-
-
-def build_repair_hold(
-    *,
-    capability_id: str,
-    source_sha: str,
-    recovery_attempt: int,
-    reason: str,
-    repair_dispatch: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Build a machine-readable hold while automatic rectification is in progress."""
-    return {
-        "schema_version": "automate.repair_hold.v1",
-        "state": "REPAIR_HOLD",
-        "scope": "capability",
-        "capability_id": capability_id,
-        "source_revision": source_sha,
-        "recovery_attempt": recovery_attempt,
-        "automatic_correction_required": True,
-        "automatic_rectification_required": True,
-        "reason": reason,
-        "repair_dispatch": repair_dispatch,
-        "resume_conditions": [
-            "a repair worker handoff exists for the same capability",
-            "the repair head passes exact-head CI and Security Audit",
-            "required verification evidence passes on the exact repair head",
-            "promotion and post-merge exact-main gates pass",
-        ],
-        "dispatch_blocked": True,
-    }
-
-
-def quarantine_worker_pr(
-    repository: str,
-    pr_number: int,
-    failures: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Close a repeatedly failing worker PR with machine-readable evidence."""
+def quarantine_worker_pr(repository: str, pr_number: int, failures: list[dict[str, Any]]) -> dict[str, Any]:
+    evidence = json.dumps(failures, sort_keys=True)
     body = (
-        "AUTONOMOUS RECOVERY: this worker proposal failed exact-head verification "
-        "repeatedly and has been quarantined. It is not certified or promoted.\n\n"
-        "Failure evidence:\n"
-        + json.dumps(failures, sort_keys=True)
+        "AUTONOMOUS RECOVERY: this worker proposal failed exact-head verification twice. "
+        "The proposal is quarantined and will not be promoted. A fresh repair attempt must "
+        "be generated from authoritative main with this failure evidence.\n\n"
+        "Failure evidence:\n" + evidence
     )
     result = _run([
-        "gh", "pr", "close", str(pr_number),
-        "--repo", repository,
+        "gh", "pr", "close", str(pr_number), "--repo", repository,
         "--comment", body,
     ])
     if result.returncode != 0:
-        return {
-            "state": "quarantine_failed",
-            "pr_number": pr_number,
-            "error": result.stderr.strip() or result.stdout.strip(),
-        }
-    return {
-        "state": "quarantined",
-        "pr_number": pr_number,
-        "failures": failures,
-    }
+        return {"status": "quarantine_failed", "error": result.stderr.strip() or result.stdout.strip()}
+    return {"status": "quarantined", "pr_number": pr_number, "failures": failures}
 
 
-def diagnose_worker_failure(
-    repository: str,
-    pr_number: int,
-    failures: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Create a bounded diagnosis record from failed runs and PR diff metadata."""
-    diff = _run(["gh", "pr", "diff", str(pr_number), "--repo", repository])
-    changed_paths: list[str] = []
-    if diff.returncode == 0:
-        for line in diff.stdout.splitlines():
-            if line.startswith("diff --git a/"):
-                parts = line.split()
-                if len(parts) >= 4:
-                    changed_paths.append(parts[3][2:])
-
-    classes: set[str] = set()
-    notes: list[str] = [
-        "Do not reproduce the failed proposal unchanged.",
-        "Inspect changed paths and exact failed workflow evidence before repair.",
+def failure_notes(failures: list[dict[str, Any]]) -> list[str]:
+    notes = [
+        "AUTONOMOUS_RECOVERY: prior worker proposal failed exact-head verification.",
+        "AUTONOMOUS_RECOVERY: previous proposal is quarantined; do not reproduce its unchanged implementation.",
     ]
-    for failure in failures[:4]:
-        run_id = failure.get("run_id")
-        if not isinstance(run_id, int):
-            continue
-        result = _run([
-            "gh", "run", "view", str(run_id),
-            "--repo", repository,
-            "--log-failed",
-        ])
-        log = result.stdout[-5000:] if result.returncode == 0 else ""
-        lowered = log.lower()
-        if "syntaxerror" in lowered or "indentationerror" in lowered:
-            classes.add("syntax")
-        elif "modulenotfounderror" in lowered or "importerror" in lowered:
-            classes.add("import")
-        elif "typeerror" in lowered:
-            classes.add("type")
-        elif "assertionerror" in lowered or "failed" in lowered:
-            classes.add("test_or_assertion")
-        elif "timeout" in lowered or "timed out" in lowered:
-            classes.add("timeout")
-        elif log:
-            classes.add("unknown")
-        if log:
-            notes.append(
-                f"workflow={failure.get('workflow')} "
-                f"run_id={run_id} classes={','.join(sorted(classes))}\n{log}"
-            )
-
-    return {
-        "state": "diagnosed" if classes else "evidence_limited",
-        "changed_paths": changed_paths[:50],
-        "failure_classes": sorted(classes or {"unknown"}),
-        "notes": notes,
-    }
+    for failure in failures:
+        notes.append(
+            "AUTONOMOUS_FAILURE_EVIDENCE: workflow="
+            + str(failure.get("workflow"))
+            + " attempt="
+            + str(failure.get("attempt"))
+            + " conclusion="
+            + str(failure.get("conclusion"))
+            + " run_id="
+            + str(failure.get("run_id"))
+        )
+    return notes
