@@ -1,0 +1,47 @@
+name: Triad Integration CI
+
+on:
+  pull_request:
+    paths:
+      - "integrations/**"
+      - ".github/workflows/triad-integration-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "integrations/**"
+      - ".github/workflows/triad-integration-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  chanfana:
+    name: Chanfana integrated worker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integrations/chanfana
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: integrations/chanfana/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  mirror:
+    name: Mirror integrated laboratory
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integrations/mirror
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q
