@@ -26,6 +26,27 @@ def _schema() -> dict[str, Any]:
     return json.loads(WORKER_SCHEMA_PATH.read_text(encoding="utf-8"))
 
 
+def build_worker_request_id(
+    capability_id: str,
+    *,
+    repository: str,
+    base_sha_claim: str | None,
+    development_branch: str,
+    recovery_attempt: int | None = None,
+) -> str:
+    """Build a deterministic identity for one worker proposal attempt."""
+    payload = {
+        "repository": repository,
+        "base_sha": base_sha_claim,
+        "capability_id": capability_id,
+        "development_branch": development_branch,
+        "recovery_attempt": recovery_attempt,
+    }
+    return "wrk_" + hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()[:32]
+
+
 def _under_prefix(path: str, prefixes: list[str]) -> bool:
     normalized = str(PurePosixPath(path))
     for prefix in prefixes:
@@ -45,6 +66,7 @@ def build_worker_packet(
     development_branch: str = "main",
     context_files: list[dict[str, str]] | None = None,
     context_notes: list[str] | None = None,
+    recovery_attempt: int | None = None,
 ) -> dict[str, Any]:
     data = load_inventory()
     item = get_capability(capability_id)
@@ -104,6 +126,10 @@ def build_worker_packet(
 
     generated_context_files: list[dict[str, str]] = []
     context_notes = list(context_notes or [])
+    if recovery_attempt is not None:
+        if recovery_attempt < 2:
+            raise InventoryError("recovery attempt must be >= 2")
+        context_notes.append(f"AUTONOMOUS_RECOVERY_ATTEMPT: {recovery_attempt}")
     for relative_path in context_paths:
         context_path = ROOT / relative_path
         if not context_path.is_file():
@@ -151,18 +177,13 @@ def build_worker_packet(
         "schema_version": "automate.worker.v1",
         "packet": {
             "kind": "capability_implementation",
-            "request_id": "wrk_" + hashlib.sha256(
-                json.dumps(
-                    {
-                        "repository": repository,
-                        "base_sha": base_sha_claim,
-                        "capability_id": capability_id,
-                        "development_branch": development_branch,
-                    },
-                    sort_keys=True,
-                    separators=(",", ":"),
-                ).encode("utf-8")
-            ).hexdigest()[:32],
+            "request_id": build_worker_request_id(
+                capability_id,
+                repository=repository,
+                base_sha_claim=base_sha_claim,
+                development_branch=development_branch,
+                recovery_attempt=recovery_attempt,
+            ),
             "repository": {
                 "full_name": repository,
                 "base_branch": development_branch,
