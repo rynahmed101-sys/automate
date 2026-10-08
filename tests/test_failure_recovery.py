@@ -145,6 +145,7 @@ def test_control_cycle_requests_retry_for_one_failed_exact_head(monkeypatch):
 
     monkeypatch.setenv("GH_TOKEN", "secret")
     monkeypatch.setattr(cycle, "resolve_operating_mode", lambda: _backlog_control())
+    monkeypatch.setattr(cycle, "find_quarantined_worker_handoff", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         cycle,
         "_gh_json",
