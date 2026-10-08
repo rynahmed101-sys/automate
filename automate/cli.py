@@ -22,22 +22,12 @@ from automate.backend.electrostatics_backend import ElectrostaticsChecker
 from automate.visualization.html_graph import generate_interactive_html
 from automate.visualization.terminal import print_graph_summary, print_assumption_report, console
 from automate.demo import run_harmonic_oscillator_demo
-from automate.ai.schemas import AIContext
-from automate.ir.tensors import TensorEquation
-from automate.ai import (
-    build_ai_context,
-    validate_ai_proposal,
-    apply_and_verify_proposal,
-    get_provider,
-    discover_available_providers,
-    DerivationProposal
-)
 from automate.theory.rules import RuleRegistry
 
 @click.group()
 @click.version_option(version="0.2.0", prog_name="automate")
 def main():
-    """Automate: Local-first machine-checkable formal physics derivation engine."""
+    """Automate: local-first mathematics and physics calculator."""
     pass
 
 
@@ -53,7 +43,6 @@ def demo(output_dir: str):
 def capabilities(as_json: bool):
     """Discover available verification backends, IR capabilities, and AI providers."""
     lean_checker = LeanChecker()
-    providers = discover_available_providers()
     caps = {
         "schema_version": "0.2.0",
         "ir": True,
@@ -68,31 +57,81 @@ def capabilities(as_json: bool):
         "vector_calculus": True,
         "lean4": lean_checker.is_available(),
         "lean4_version": lean_checker.version,
-        "ai": True,
-        "providers": providers,
         "rule_registry": {
             "count": len(RuleRegistry().list_rule_ids()),
             "rule_ids": RuleRegistry().list_rule_ids(),
-        },
-        "agent_contract": {
-            "schema_version": "automate.agent.v1",
-            "schema_command": "automate schema --name agent",
         },
     }
     if as_json:
         click.echo(json.dumps(caps, indent=2))
     else:
-        console.print("[bold cyan]Automate Capabilities Manifest (v0.2.0):[/bold cyan]")
-        console.print(f"  * Core Typed IR & Tensors: [green]Active[/green]")
-        console.print(f"  * Differential Geometry:   [green]Active[/green]")
-        console.print(f"  * SymPy (Symbolic):        [green]Active[/green]")
-        console.print(f"  * DimensionChecker:        [green]Active[/green]")
-        console.print(f"  * Numerical (SciPy RK45):  [green]Active[/green]")
-        console.print(f"  * Statistical (Inference): [green]Active[/green]")
-        lean_status = "[green]Active[/green]" if caps["lean4"] else "[yellow]Inactive (Not Installed)[/yellow]"
-        console.print(f"  * Lean 4 (Theorem Prover): {lean_status} ({caps['lean4_version']})")
-        console.print(f"  * Universal AI Providers:  mock: [green]{providers['mock']}[/green], openai: [{ 'green' if providers['openai'] else 'dim'}]{providers['openai']}[/], local: [{ 'green' if providers['local'] else 'dim'}]{providers['local']}[/]")
-        console.print(f"  * Agent Contract:           automate.agent.v1 (automate schema --name agent)")
+        console.print("[bold cyan]Automate Capabilities:[/bold cyan]")
+        for key, value in caps.items():
+            if key != "rule_registry":
+                console.print(f"  * {key}: {value}")
+        console.print("  * Operations registered: " + str(caps["rule_registry"]["count"]))
+
+
+@main.command()
+@click.option("--operation", type=click.Choice(["simplify", "expand", "factor", "differentiate", "integrate", "limit", "series", "solve"]), required=True)
+@click.option("--expression", required=True, help="Mathematical expression or equation")
+@click.option("--variable", default=None, help="Variable for operations that require one")
+@click.option("--point", default=None, help="Limit point")
+@click.option("--order", type=int, default=6, show_default=True, help="Series order")
+@click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
+def calculate(operation: str, expression: str, variable: str, point: str, order: int, as_json: bool):
+    """Calculate a mathematical operation and return the result."""
+    import sympy as sp
+    from automate.ir.safe_parser import SafeParser, SafeParseError
+
+    parser = SafeParser()
+    try:
+        if "=" in expression and operation == "solve":
+            expr = parser.parse_equation_isolated(expression)
+        else:
+            expr = parser.parse_isolated(expression)
+
+        symbol = sp.Symbol(variable) if variable else None
+
+        if operation in {"differentiate", "integrate", "limit", "series", "solve"} and symbol is None:
+            if operation != "solve":
+                raise SafeParseError(f"--variable is required for {operation}.")
+            free = sorted(expr.free_symbols, key=lambda s: s.name)
+            if len(free) != 1:
+                raise SafeParseError("Provide --variable when the expression has zero or multiple variables.")
+            symbol = free[0]
+
+        if operation == "simplify":
+            result = sp.simplify(expr)
+        elif operation == "expand":
+            result = sp.expand(expr)
+        elif operation == "factor":
+            result = sp.factor(expr)
+        elif operation == "differentiate":
+            result = sp.diff(expr, symbol)
+        elif operation == "integrate":
+            result = sp.integrate(expr, symbol)
+        elif operation == "limit":
+            if point is None:
+                raise SafeParseError("--point is required for limit.")
+            result = sp.limit(expr, symbol, parser.parse_isolated(point))
+        elif operation == "series":
+            result = sp.series(expr, symbol, 0, order)
+        elif operation == "solve":
+            result = sp.solve(expr, symbol)
+        else:
+            raise SafeParseError(f"Unsupported operation: {operation}")
+
+        payload = {"operation": operation, "input": expression, "result": sp.sstr(result)}
+    except Exception as exc:
+        payload = {"operation": operation, "input": expression, "error": f"{type(exc).__name__}: {exc}"}
+
+    if as_json:
+        click.echo(json.dumps(payload, indent=2))
+    elif "error" in payload:
+        raise click.ClickException(payload["error"])
+    else:
+        console.print(payload["result"])
 
 
 @main.command()
@@ -161,110 +200,6 @@ def validate(proposal_file: str, theory: str, as_json: bool):
             console.print(f"[bold red][FAIL] Proposal validation failed with {len(res.errors)} error(s):[/bold red]")
             for err in res.errors:
                 console.print(f"  * [red]{err}[/red]")
-
-
-@main.command()
-@click.argument("theory_file", type=click.Path(exists=True))
-@click.option("--proposal", "-p", default=None, type=click.Path(exists=True), help="Existing proposal JSON file")
-@click.option("--request", "-r", default=None, help="Natural language derivation goal")
-@click.option("--provider", default="mock", help="AI provider: mock, openai, local")
-@click.option("--dry-run", is_flag=True, help="Test proposal without modifying canonical graph")
-@click.option("--output", "-o", default=None, help="Output file for candidate/updated graph")
-@click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
-def propose(
-    theory_file: str,
-    proposal: Optional[str],
-    request: Optional[str],
-    provider: str,
-    dry_run: bool,
-    output: Optional[str],
-    as_json: bool
-):
-    """Propose and verify the next derivation step using an AI provider or proposal file."""
-    p_theory = Path(theory_file)
-    graph = parse_theory_file(p_theory) if p_theory.suffix in (".yaml", ".yml") else DerivationGraph.from_json(p_theory.read_text(encoding="utf-8"))
-
-    # Load or generate proposal
-    if proposal:
-        raw_prop = json.loads(Path(proposal).read_text(encoding="utf-8"))
-    else:
-        prov = get_provider(provider)
-        if not prov.is_available():
-            console.print(f"[bold red]Provider '{provider}' is not available or configured.[/bold red]")
-            return
-        ctx = build_ai_context(graph)
-        req_text = request or "Propose the next derivation transformation step"
-        raw_prop = prov.propose(ctx.to_dict(), req_text)
-
-    prop_obj = DerivationProposal(**raw_prop)
-    result = apply_and_verify_proposal(prop_obj, graph, dry_run=dry_run)
-
-    if output and not dry_run:
-        Path(output).write_text(graph.to_json(), encoding="utf-8")
-
-    if as_json:
-        click.echo(json.dumps(result.to_dict(), indent=2))
-    else:
-        status_color = "green" if result.success else "red"
-        mode_str = "[yellow](DRY RUN)[/yellow]" if dry_run else ""
-        console.print(f"[{status_color}]Proposal '{result.proposal_id}' Evaluation: {result.status.value}[/{status_color}] {mode_str}")
-        if result.success:
-            console.print(f"  Candidate Edge: [bold]{result.edge_id}[/bold] verified via {result.report.get('checker')}")
-        else:
-            for err in result.errors:
-                console.print(f"  [red]* Error: {err}[/red]")
-
-
-@main.command()
-@click.argument("theory_file", type=click.Path(exists=True))
-@click.option("--max-steps", "-n", default=3, help="Maximum number of research iterations")
-@click.option("--provider", default="mock", help="AI provider: mock, openai, local")
-@click.option("--output-dir", "-o", default="research_output", help="Output directory for research trace")
-@click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
-def research(theory_file: str, max_steps: int, provider: str, output_dir: str, as_json: bool):
-    """Run a bounded research loop proposing, validating, and verifying steps."""
-    out_path = Path(output_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
-
-    p_theory = Path(theory_file)
-    graph = parse_theory_file(p_theory) if p_theory.suffix in (".yaml", ".yml") else DerivationGraph.from_json(p_theory.read_text(encoding="utf-8"))
-
-    prov = get_provider(provider)
-    if not prov.is_available():
-        console.print(f"[bold red]Provider '{provider}' is not available.[/bold red]")
-        return
-
-    step_results = []
-    for step in range(1, max_steps + 1):
-        ctx = build_ai_context(graph)
-        raw_prop = prov.propose(ctx.to_dict(), f"Research step {step}: extend derivation with next logical step")
-        prop_obj = DerivationProposal(**raw_prop)
-        res = apply_and_verify_proposal(prop_obj, graph, dry_run=False)
-        step_results.append({
-            "step": step,
-            "proposal_id": prop_obj.proposal_id,
-            "rule": prop_obj.rule,
-            "status": res.status.value,
-            "success": res.success
-        })
-        if not res.success:
-            break
-
-    # Save final research graph
-    graph_file = out_path / "research_graph.json"
-    graph_file.write_text(graph.to_json(), encoding="utf-8")
-
-    trace_file = out_path / "research_trace.json"
-    trace_file.write_text(json.dumps(step_results, indent=2), encoding="utf-8")
-
-    if as_json:
-        click.echo(json.dumps({
-            "total_steps": len(step_results),
-            "trace": step_results,
-            "graph_file": str(graph_file)
-        }, indent=2))
-    else:
-        console.print(f"[green][OK] Bounded research loop completed {len(step_results)} step(s). Trace saved to '{out_path}'.[/green]")
 
 
 @main.command()
