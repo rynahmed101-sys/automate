@@ -1,21 +1,14 @@
-# Automate Mathematics & Physics Roadmap
+# OBSOLETE — Mathematics & Physics Roadmap
 
-The mathematical/physics roadmap has been consolidated into the single authoritative development ledger:
+> **Obsolete document.** This file is retained only as a compatibility pointer so existing links do not break. It is not an authority for roadmap order, stage status, capability status, or machinery integration.
 
-**[`docs/PROJECT_PHASE_LEDGER.md`](PROJECT_PHASE_LEDGER.md)**
+Use these documents instead:
 
-That ledger now contains:
+1. **Roadmap/order authority:** [docs/PROJECT_PHASE_LEDGER.md](PROJECT_PHASE_LEDGER.md)
+2. **Ten-stage machinery integration map:** [docs/MATH_PHYSICS_10_STAGE_MACHINERY_MAP.md](MATH_PHYSICS_10_STAGE_MACHINERY_MAP.md)
+3. **Capability-level implementation/evidence companion:** [docs/CAPABILITY_INVENTORY.json](CAPABILITY_INVENTORY.json)
+4. **System/autonomy architecture:** [docs/AUTONOMOUS_SYSTEM_MASTER_PLAN.md](AUTONOMOUS_SYSTEM_MASTER_PLAN.md)
 
-- dependency-ordered development stages;
-- the capability-development ladder applied to every stage;
-- capability maturity states;
-- breadth/depth generalization requirements;
-- existing capability dependencies;
-- external research/reuse policy;
-- capability-batch definition of done;
-- the current verified/unverified state;
-- the single next mathematical/physics direction for future agents.
+The old split between roadmap and development-intelligence documents has already been retired. The corrected machinery map exists because a roadmap checkbox alone cannot distinguish integrated machinery from preserved out-of-order implementation, partial implementation, broken authoritative machinery, or complete absence.
 
-This file is intentionally retained as a compatibility pointer for existing links and agents. It is not a second roadmap and must not be used to choose the next capability.
-
-Engineering and verification mechanics remain defined by `docs/PROJECT_OPERATIONS.md`, `AUTOMATE_AI.md`, `docs/VERIFICATION_MODEL.md`, and the authoritative GitHub workflows.
+**Do not use this file to select work or to claim that a stage is complete.**
