@@ -585,7 +585,10 @@ def engine(as_json: bool):
         console.print("  Role: first-class AI-compatible reasoning and verification engine")
         console.print("  Authority: verification-first")
         console.print("  Canonical mutation authority: none")
-        console.print("  External repositories required: no")main.add_command(capability)
+        console.print("  External repositories required: no")
+
+
+main.add_command(capability)
 
 if __name__ == "__main__":
     main()
