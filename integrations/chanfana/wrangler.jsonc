@@ -1,5 +1,5 @@
 {
-  "compatibility_date":"2025-10-08","main":"src/index.ts","name":"chanfana-openapi-template","upload_source_maps":true,
+  "compatibility_date":"2025-10-08","main":"index.ts","name":"chanfana-openapi-template","upload_source_maps":true,
   "observability":{"enabled":true},"ai":{"binding":"AI"},
   "d1_databases":[{"binding":"DB","database_name":"openapi-template-db","database_id":"87926603-d882-4e4c-b74d-45427c83a657"}],
   "queues":{"producers":[{"binding":"AUTOMATE_JOB_QUEUE","queue":"automate-worker-jobs"}],"consumers":[{"queue":"automate-worker-jobs","max_batch_size":1,"max_batch_timeout":5,"max_retries":5,"dead_letter_queue":"automate-worker-jobs-dlq","max_concurrency":4,"retry_delay":30}]},
