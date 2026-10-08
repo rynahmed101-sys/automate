@@ -254,12 +254,6 @@ def run_autonomous_cycle(
 
     packet = decision["worker_packet"]
     capability = packet["packet"]["capability"]
-    capability_item = {
-        "id": capability["id"],
-        "name": capability["name"],
-        "task": packet["packet"].get("task", {}),
-    }
-
     # Mirror is a non-deployed laboratory. Its evidence is never a required
     # network dependency for the autonomous implementation loop. When a future
     # local/in-process Mirror adapter exists, it may be commissioned through the
@@ -271,7 +265,7 @@ def run_autonomous_cycle(
             packet,
             url=worker_url,
             token=worker_token,
-            execute=True,
+            execute=execute_worker,
         )
     except WorkerTransportError as exc:
         raise AutonomousCycleError(str(exc)) from exc
