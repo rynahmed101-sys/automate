@@ -30,6 +30,7 @@ from automate.dev.promotion import (
     find_bookkeeping_pr,
     inspect_bookkeeping_pr,
 )
+from automate.dev.bookkeeping_pr import execute_bookkeeping_promotion
 
 class VerificationError(RuntimeError):
     """Raised when required scientific verification cannot be completed."""
