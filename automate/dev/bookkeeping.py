@@ -172,9 +172,9 @@ def build_bookkeeping_plan(
             planned_inventory["capabilities"][index] = item
             break
 
-    planned_ledger = ledger.replace(unchecked, "- [!] " + name, 1)
+    planned_ledger = ledger.replace(unchecked, "- [x] " + name, 1)
     if planned_ledger == ledger:
-        planned_ledger = ledger.replace(pending, "- [!] " + name, 1)
+        planned_ledger = ledger.replace(pending, "- [x] " + name, 1)
 
     changes = [
         {
