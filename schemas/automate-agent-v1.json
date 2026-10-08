@@ -219,7 +219,9 @@
       "convergence-aware improper integrals with explicit infinite bounds and singularity semantics",
       "represented repeated and nested indefinite integration",
       "Fundamental Theorem of Calculus in explicit accumulation and evaluation forms",
-      "improper-integral convergence and divergence verification"
+      "improper-integral convergence and divergence verification",
+      "partial derivatives of represented multivariable scalar expressions",
+      "total differentials with explicit variable and differential lists"
     ],
     "classical_mechanics": [
       "Lagrangian representation",
