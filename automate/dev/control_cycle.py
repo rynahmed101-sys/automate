@@ -373,6 +373,29 @@ def run_control_cycle(
             "dispatch_allowed": False,
         }
 
+    if handoff is None:
+        try:
+            from automate.dev.failure_recovery import find_quarantined_worker_handoff
+            repair_hold = find_quarantined_worker_handoff(
+                repository,
+                capability_id=capability_id,
+            )
+        except Exception as exc:
+            return {
+                **control,
+                "status": "repair_hold_inspection_blocked",
+                "dispatch_allowed": False,
+                "error": str(exc),
+            }
+        if repair_hold is not None:
+            return {
+                **control,
+                "status": "repair_hold",
+                "dispatch_allowed": False,
+                "repair_hold": repair_hold,
+                "next_step": "wait for or dispatch the next automatic repair worker handoff; do not start a duplicate original worker task",
+            }
+
     if handoff is not None:
         head_sha = str(
             handoff.get("head_sha")
@@ -443,9 +466,14 @@ def run_control_cycle(
                     "diagnosis": diagnosis,
                     "quarantine": quarantine,
                 }
-            recovery_attempt = max(
-                [int(failure.get("attempt") or 1) for failure in failures] or [1]
-            ) + 1
+            from automate.dev.failure_recovery import next_recovery_attempt, build_repair_hold
+            previous_branch = str(
+                handoff.get("branch")
+                or handoff.get("pr", {}).get("head", {}).get("ref")
+                or handoff.get("pr", {}).get("branch")
+                or ""
+            )
+            recovery_attempt = next_recovery_attempt(previous_branch)
             context_notes = [
                 "AUTONOMOUS_RECOVERY: prior worker proposal was quarantined after repeated exact-head failures.",
                 *diagnosis["notes"],
@@ -453,13 +481,19 @@ def run_control_cycle(
             if not worker_url or not worker_token:
                 return {
                     **control,
-                    "status": "worker_quarantined_repair_ready",
+                    "status": "repair_hold",
                     "dispatch_allowed": False,
                     "lifecycle": handoff,
                     "recovery": recovery,
                     "diagnosis": diagnosis,
                     "quarantine": quarantine,
                     "repair_context": context_notes,
+                    "repair_hold": build_repair_hold(
+                        capability_id=capability_id,
+                        source_sha=current_main_sha,
+                        recovery_attempt=recovery_attempt,
+                        reason="worker transport credentials are unavailable; automatic rectification must remain on hold instead of re-dispatching the original task",
+                    ),
                 }
             try:
                 repair_packet = build_worker_packet(
@@ -490,13 +524,20 @@ def run_control_cycle(
                 }
             return {
                 **control,
-                "status": "worker_repair_dispatched" if execute_worker else "worker_repair_queued",
+                "status": "repair_hold",
                 "dispatch_allowed": False,
                 "lifecycle": handoff,
                 "recovery": recovery,
                 "diagnosis": diagnosis,
                 "quarantine": quarantine,
                 "repair_context": context_notes,
+                "repair_hold": build_repair_hold(
+                    capability_id=capability_id,
+                    source_sha=current_main_sha,
+                    recovery_attempt=recovery_attempt,
+                    reason="repeated exact-head verification failure; automatic rectification dispatched as a distinct repair generation",
+                    repair_dispatch=dispatch,
+                ),
                 "dispatch": dispatch,
             }
 
