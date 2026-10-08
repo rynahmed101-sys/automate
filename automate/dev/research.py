@@ -84,6 +84,7 @@ def build_mirror_mission_job(
         "capability_id": str(capability.get("id") or ""),
         "automate_revision": source_revision,
         "task": task,
+        "authorization_granted": True,
         "arguments": {
             "research_world": {
                 "query": (objective + (": " + str(task.get("summary") or "") if task.get("summary") else ""))[:500],
@@ -111,5 +112,6 @@ def build_mirror_mission_job(
             "capability_id": str(capability.get("id") or ""),
             "correlation_id": correlation_id,
             "requested_by": "automate",
+            "authorization_scope": "bounded_branch_and_pr_only",
         },
     }
