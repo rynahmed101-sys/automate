@@ -39,7 +39,7 @@ from typing import Any, Callable, Dict, Optional
 
 import sympy as sp
 from sympy import (
-    Symbol, Integer, Rational, Float,
+    Symbol, Integer, Rational, Float, Matrix, eye, zeros, ones, diag,
     pi, E, I, oo, nan, zoo,
     sin, cos, tan, asin, acos, atan, atan2,
     sinh, cosh, tanh, asinh, acosh, atanh,
@@ -111,7 +111,7 @@ _ALLOWED_FUNCTIONS: Dict[str, Any] = {
     "re": sp_re, "im": sp_im, "conjugate": conjugate,
     "diff": diff, "Derivative": Derivative, "Integral": Integral,
     "pi": pi, "E": E, "I": I, "oo": oo, "nan": nan, "zoo": zoo,
-    "Symbol": Symbol, "Integer": Integer, "Rational": Rational, "Float": Float,
+    "Symbol": Symbol, "Integer": Integer, "Rational": Rational, "Float": Float,\n    "Matrix": Matrix, "eye": eye, "zeros": zeros, "ones": ones, "diag": diag,
 }
 
 _MAX_ATOM_COUNT = 2000
