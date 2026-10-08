@@ -16,9 +16,9 @@ import subprocess
 from automate.dev.bookkeeping import create_bookkeeping_pr
 from automate.dev.failure_recovery import failure_notes, quarantine_worker_pr, rerun_failed_workflows
 from automate.dev.inventory import InventoryError
+from automate.dev.research import build_mirror_mission_job
 from automate.dev.prmgr import create_worker_pr
 from automate.dev.publisher import build_worker_commit, push_worker_branch
-from automate.dev.research import build_mirror_research_job
 from automate.dev.supervisor import observed_main_sha, supervisor_snapshot
 from automate.dev.worker import validate_worker_result
 from automate.dev.worker_client import WorkerTransportError, dispatch_worker, wait_worker_job
@@ -64,7 +64,7 @@ def _exact_pr_evidence(repository: str, head_sha: str) -> bool:
         payload = json.loads(result.stdout or "{}")
     except json.JSONDecodeError:
         return False
-    required = {"Automate CI", "Security Audit"}
+    required = {"Automate Engine CI", "Security Audit"}
     successful = {
         str(run.get("name"))
         for run in payload.get("workflow_runs", [])
@@ -255,37 +255,19 @@ def run_autonomous_cycle(
 
     packet = decision["worker_packet"]
     capability = packet["packet"]["capability"]
-    capability_item = {
-        "id": capability["id"],
-        "name": capability["name"],
-        "task": packet["packet"].get("task", {}),
-    }
-
     mirror_enabled = os.getenv(
         "AUTOMATE_MIRROR_DISCOVERY_ENABLED",
-        os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", ""),
+        os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "1"),
     ).strip().lower() in {"1", "true", "yes"}
-    mirror_endpoint = os.getenv(
-        "MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT",
-        os.getenv("MIRROR_RESEARCH_ENDPOINT", ""),
-    ).strip()
 
     research_dispatch: dict[str, Any] = {"status": "disabled_by_governance"}
     if mirror_enabled:
-        if not mirror_endpoint:
-            raise AutonomousCycleError(
-                "MIRROR_AUTONOMOUS_DISCOVERY_ENDPOINT is required when Mirror discovery is enabled"
-            )
-        research_job = build_mirror_research_job(
-            capability=capability_item,
-            mirror_endpoint=mirror_endpoint,
-            request_id="res_" + hashlib.sha256(
-                (
-                    capability_item["id"]
-                    + "|"
-                    + str(packet["packet"]["repository"].get("base_sha_claim"))
-                    + "|mirror-discovery"
-                ).encode()
+        source_revision = str(packet["packet"]["repository"].get("base_sha_claim") or "")
+        research_job = build_mirror_mission_job(
+            capability=capability,
+            source_revision=source_revision,
+            request_id="mis_" + hashlib.sha256(
+                (capability["id"] + "|" + source_revision + "|mirror-mission").encode()
             ).hexdigest()[:32],
             correlation_id=packet["packet"]["request_id"],
         )
@@ -297,14 +279,14 @@ def run_autonomous_cycle(
                 execute=execute_worker,
             )
         except WorkerTransportError as exc:
-            raise AutonomousCycleError("Mirror research commission failed: " + str(exc)) from exc
+            raise AutonomousCycleError("Mirror mission commission failed: " + str(exc)) from exc
 
         if not execute_worker:
             return {
-                "status": "research_dispatched",
+                "status": "mirror_mission_dispatched",
                 "decision": decision,
                 "research": research_dispatch,
-                "next_step": "the next bounded cycle will consume the durable research job before implementation dispatch",
+                "next_step": "the durable Mirror mission remains queued for Chanfana execution",
             }
 
         research_execution = research_dispatch.get("execution", {})
@@ -316,34 +298,33 @@ def run_autonomous_cycle(
                     research_job_id,
                     url=worker_url,
                     token=worker_token,
-                    timeout=300.0,
+                    timeout=600.0,
                 )
             except WorkerTransportError as exc:
                 return {
-                    "status": "research_queued",
+                    "status": "mirror_mission_queued",
                     "decision": decision,
                     "research": research_dispatch,
-                    "next_step": "poll the durable Mirror research job again",
+                    "next_step": "poll the durable Mirror mission again",
                     "error": str(exc),
                 }
             research_result = completed.get("job", {}).get("result")
             research_dispatch["execution"] = {**research_execution, "polled": completed}
 
         if not isinstance(research_result, dict):
-            raise AutonomousCycleError("Mirror research execution returned no persisted result")
+            raise AutonomousCycleError("Mirror mission execution returned no persisted result")
 
         packet["packet"].setdefault("context", {"files": [], "notes": []})
         packet["packet"]["context"].setdefault("notes", []).append(
-            "UNTRUSTED_EXTERNAL_EVIDENCE: durable Mirror research receipt "
+            "UNTRUSTED_MIRROR_MISSION_RESULT: durable Chanfana receipt "
             + str(research_job_id or "unknown")
         )
-
     try:
         dispatch = dispatch_worker(
             packet,
             url=worker_url,
             token=worker_token,
-            execute=True,
+            execute=execute_worker,
         )
     except WorkerTransportError as exc:
         raise AutonomousCycleError(str(exc)) from exc

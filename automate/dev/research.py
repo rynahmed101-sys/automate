@@ -63,57 +63,55 @@ def source_digest(source: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(source, sort_keys=True, separators=(",",":")).encode()).hexdigest()
 
 
-def build_mirror_research_job(
+def build_mirror_mission_job(
     *,
     capability: dict[str, Any],
-    mirror_endpoint: str,
+    source_revision: str,
     request_id: str,
     correlation_id: str,
-    max_results_per_provider: int = 5,
-    deadline_ms: int = 120_000,
-    max_response_bytes: int = 1_000_000,
+    deadline_ms: int = 300_000,
+    max_response_bytes: int = 1_500_000,
 ) -> dict[str, Any]:
-    """Build the bounded Chanfana envelope that commissions Mirror to research a capability.
-
-    Research is evidence acquisition, not implementation authority. The resulting packet
-    deliberately names the capability frontier so the researcher can investigate mature
-    implementations, counterexamples, mathematical prerequisites, and unusual alternatives.
-    """
-    if not mirror_endpoint:
-        raise ValueError("mirror_endpoint is required")
+    """Commission the non-deployed Mirror lab through Chanfana durable transport."""
+    if not source_revision or len(source_revision) != 40:
+        raise ValueError("source_revision must be an exact Git SHA")
     objective = str(capability.get("name") or capability.get("id") or "").strip()
-    task = capability.get("task") or {}
-    summary = str(task.get("summary") or "").strip()
-    requirements = [str(x) for x in task.get("requirements", []) if str(x).strip()]
-    query = objective + (": " + summary if summary else "")
-    query = query[:500]
-    job = {
-        "schema_version": "mirror.research_job.v1",
+    task = dict(capability.get("task") or {})
+    if not objective:
+        raise ValueError("capability objective is required")
+    mission = {
+        "objective": objective,
+        "capability_id": str(capability.get("id") or ""),
+        "automate_revision": source_revision,
+        "task": task,
+        "authorization_granted": True,
+        "arguments": {
+            "research_world": {
+                "query": (objective + (": " + str(task.get("summary") or "") if task.get("summary") else ""))[:500],
+                "providers": ["crossref", "openalex", "arxiv", "github", "huggingface"],
+                "limit": 5,
+            }
+        },
+    }
+    return {
+        "schema_version": "mirror.mission_job.v1",
         "request_id": request_id,
-        "execution_kind": "external_research",
-        "target": {"mirror_endpoint": mirror_endpoint},
-        "query": query,
-        "providers": ["crossref", "openalex", "arxiv", "github", "huggingface"],
+        "execution_kind": "mirror_autonomous_mission",
+        "target": {
+            "repository": "rynahmed101-sys/the-mirror",
+            "workflow": "autonomous-mission.yml",
+            "ref": "main",
+        },
+        "mission": mission,
+        "source_revision": source_revision,
         "limits": {
-            "max_results_per_provider": max_results_per_provider,
             "deadline_ms": deadline_ms,
             "max_response_bytes": max_response_bytes,
         },
         "provenance": {
             "capability_id": str(capability.get("id") or ""),
-            "experiment_id": None,
             "correlation_id": correlation_id,
-        },
-        "research_intent": {
-            "objective": objective,
-            "summary": summary,
-            "requirements": requirements,
-            "instructions": [
-                "Find mature scientific and open-source approaches before recommending reinvention.",
-                "Look for counterexamples, edge cases, known failure modes, and contradictory evidence.",
-                "Include unusual or frontier approaches when evidence warrants them; established theory is a baseline, not a veto.",
-                "Return evidence and uncertainty, not certification.",
-            ],
+            "requested_by": "automate",
+            "authorization_scope": "bounded_branch_and_pr_only",
         },
     }
-    return job

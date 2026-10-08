@@ -69,6 +69,10 @@ def reconcile_engine(
     if not re.fullmatch(r"[^/\s]+/[^/\s]+", repository):
         raise EngineReconcileError("repository must be owner/name")
 
+    # Scheduled runners do not guarantee a Git identity. Configure an explicit
+    # machine identity before any merge commit can be created.
+    _run(checkout, ["git", "config", "user.name", "automate-control-plane[bot]"], check=True)
+    _run(checkout, ["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     _run(checkout, ["git", "fetch", "origin", "main", "engine"], check=True)
     main_sha = _run(checkout, ["git", "rev-parse", "refs/remotes/origin/main"], check=True).stdout.strip()
     engine_sha = _run(checkout, ["git", "rev-parse", "refs/remotes/origin/engine"], check=True).stdout.strip()
