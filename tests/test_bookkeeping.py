@@ -159,6 +159,6 @@ def test_bookkeeping_plan_is_non_mutating_and_updates_only_target():
     )
     assert plan["canonical_mutation_performed"] is False
     assert len(plan["changes"]) == 2
-    assert "- [!] Target capability" in plan["changes"][1]["content"]
+    assert "- [x] Target capability" in plan["changes"][1]["content"]
     assert "- [ ] Other capability" in plan["changes"][1]["content"]
     assert '"implementation_state": "merged_main"' in plan["changes"][0]["content"]
