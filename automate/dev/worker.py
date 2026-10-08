@@ -26,6 +26,27 @@ def _schema() -> dict[str, Any]:
     return json.loads(WORKER_SCHEMA_PATH.read_text(encoding="utf-8"))
 
 
+def build_worker_request_id(
+    capability_id: str,
+    *,
+    repository: str,
+    base_sha_claim: str | None,
+    development_branch: str,
+    recovery_attempt: int | None = None,
+) -> str:
+    """Build a deterministic identity for one worker proposal attempt."""
+    payload = {
+        "repository": repository,
+        "base_sha": base_sha_claim,
+        "capability_id": capability_id,
+        "development_branch": development_branch,
+        "recovery_attempt": recovery_attempt,
+    }
+    return "wrk_" + hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()[:32]
+
+
 def _under_prefix(path: str, prefixes: list[str]) -> bool:
     normalized = str(PurePosixPath(path))
     for prefix in prefixes:
@@ -156,19 +177,13 @@ def build_worker_packet(
         "schema_version": "automate.worker.v1",
         "packet": {
             "kind": "capability_implementation",
-            "request_id": "wrk_" + hashlib.sha256(
-                json.dumps(
-                    {
-                        "repository": repository,
-                        "base_sha": base_sha_claim,
-                        "capability_id": capability_id,
-                        "development_branch": development_branch,
-                        "recovery_attempt": recovery_attempt,
-                    },
-                    sort_keys=True,
-                    separators=(",", ":"),
-                ).encode("utf-8")
-            ).hexdigest()[:32],
+            "request_id": build_worker_request_id(
+                capability_id,
+                repository=repository,
+                base_sha_claim=base_sha_claim,
+                development_branch=development_branch,
+                recovery_attempt=recovery_attempt,
+            ),
             "repository": {
                 "full_name": repository,
                 "base_branch": development_branch,
