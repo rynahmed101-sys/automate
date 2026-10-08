@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from automate.dev.executor import WorkerExecutionError, git_commit, run_approved_tests
-from automate.dev.guard import validate_branch_scope
 from automate.dev.publisher import isolated_worker_worktree, worker_branch_name
+from automate.dev.worker import _under_prefix
 
 
 class FrontierProposalError(RuntimeError):
@@ -147,9 +147,23 @@ def build_frontier_commit(
                     "base_sha": base_sha,
                 }
 
-            scope_errors = validate_branch_scope(branch_name, changed)
-            if scope_errors:
-                raise FrontierProposalError("; ".join(scope_errors))
+            constraints = packet.get("constraints") or {}
+            allowed = list(constraints.get("allowed_path_prefixes") or [])
+            forbidden = set(constraints.get("forbidden_paths") or [])
+            if len(changed) > int(constraints.get("max_files") or 20):
+                raise FrontierProposalError("frontier proposal exceeds the packet max_files limit")
+            out_of_scope = [path for path in changed if not _under_prefix(path, allowed)]
+            if out_of_scope:
+                raise FrontierProposalError(
+                    "frontier proposal contains files outside the capability boundary: "
+                    + ", ".join(sorted(out_of_scope))
+                )
+            forbidden_touched = [path for path in changed if path in forbidden]
+            if forbidden_touched:
+                raise FrontierProposalError(
+                    "frontier proposal touches forbidden control-plane files: "
+                    + ", ".join(sorted(forbidden_touched))
+                )
 
             try:
                 tests = run_approved_tests(packet, root=worktree)
