@@ -159,6 +159,10 @@ class SymPyChecker(BaseChecker):
                     passed, details, certificates, error_msg = self._verify_improper_integral(
                         in_nodes[0], out_nodes[0], edge.parameters
                     )
+                elif rule == "series_expansion":
+                    passed, details, certificates, error_msg = self._verify_series_expansion(
+                        in_nodes[0], out_nodes[0], edge.parameters
+                    )
                 elif rule == "fundamental_theorem_calculus":
                     passed, details, certificates, error_msg = self._verify_fundamental_theorem(
                         in_nodes, out_nodes, edge.parameters
@@ -1715,6 +1719,131 @@ class SymPyChecker(BaseChecker):
         except Exception:
             return None
         return result if result in (True, False) else None
+
+    @classmethod
+    def _verify_series_expansion(
+        cls, in_node: Any, out_node: Any, params: Dict[str, Any]
+    ) -> tuple[bool, Dict[str, Any], List[Dict[str, Any]], Optional[str]]:
+        """Verify a finite Taylor/Maclaurin polynomial through the requested order."""
+        from automate.ir.safe_parser import SafeParser, SafeParseError
+
+        params = dict(params or {})
+        variable_name = params.get("variable", params.get("wrt", ""))
+        if not isinstance(variable_name, str) or not variable_name.strip() or not variable_name.strip().isidentifier():
+            return False, {"rule": "series_expansion"}, [], "Malformed series variable: parameters['variable'] must be a valid identifier."
+
+        order = params.get("order")
+        if isinstance(order, bool) or not isinstance(order, int) or order < 0:
+            return False, {"rule": "series_expansion", "order": order}, [], "Malformed series order: parameters['order'] must be a non-negative integer."
+
+        raw_assumptions = params.get("assumptions") or {}
+        if not isinstance(raw_assumptions, dict):
+            return False, {"rule": "series_expansion", "order": order}, [], "Malformed assumptions: parameters['assumptions'] must be an object."
+
+        allowed = {"real", "positive", "negative", "nonzero", "integer"}
+        symbols: Dict[str, sp.Symbol] = {}
+        try:
+            for name, assumption in raw_assumptions.items():
+                if not isinstance(name, str) or not name.isidentifier():
+                    raise ValueError("Assumption symbol names must be valid identifiers.")
+                items = assumption if isinstance(assumption, list) else [assumption]
+                props = {}
+                for item in items:
+                    if item not in allowed:
+                        raise ValueError(f"Unsupported symbolic assumption '{item}'.")
+                    props[item] = True
+                symbols[name] = sp.Symbol(name, **props)
+        except (TypeError, ValueError) as exc:
+            return False, {"rule": "series_expansion", "order": order}, [], f"Malformed assumptions: {exc}"
+
+        parser = SafeParser(extra_symbols=symbols)
+        try:
+            variable = symbols.get(variable_name, parser.make_symbol(variable_name.strip()))
+            parser = SafeParser(extra_symbols=symbols | {variable_name: variable})
+            in_expr = parser.parse(in_node.expression.raw_str)
+            actual = parser.parse(out_node.expression.raw_str)
+            center = parser.parse(str(params.get("center", "0")))
+        except SafeParseError as exc:
+            return False, {"rule": "series_expansion", "order": order}, [], f"SafeParser rejected series input: {exc}"
+
+        try:
+            generated = sp.series(in_expr, variable, center, order + 1)
+            generated_poly = sp.expand(generated.removeO())
+            if generated_poly.has(sp.Order, sp.Limit, sp.Integral):
+                return False, {
+                    "rule": "series_expansion",
+                    "order": order,
+                    "center": str(center),
+                    "_status_override": VerificationStatus.UNVERIFIED.value,
+                }, [], "UNVERIFIED: generated series retained an unevaluated mathematical object."
+
+            derivative_terms = []
+            for n in range(order + 1):
+                derivative = sp.diff(in_expr, variable, n)
+                coefficient = sp.simplify(derivative.subs(variable, center) / sp.factorial(n))
+                if coefficient.has(sp.Limit, sp.Integral) or coefficient in {sp.nan, sp.zoo, sp.oo, -sp.oo}:
+                    return False, {
+                        "rule": "series_expansion",
+                        "order": order,
+                        "center": str(center),
+                        "_status_override": VerificationStatus.UNVERIFIED.value,
+                    }, [], "UNVERIFIED: a Taylor coefficient could not be established."
+                derivative_terms.append(coefficient)
+
+            derivative_poly = sp.expand(sum(
+                coefficient * (variable - center) ** n
+                for n, coefficient in enumerate(derivative_terms)
+            ))
+
+            generated_residual = sp.simplify(generated_poly - derivative_poly)
+            if generated_residual != 0 and getattr(generated_residual, "is_zero", None) is not True:
+                if getattr(generated_residual, "is_zero", None) is None:
+                    return False, {
+                        "rule": "series_expansion",
+                        "order": order,
+                        "center": str(center),
+                        "_status_override": VerificationStatus.UNVERIFIED.value,
+                    }, [], "UNVERIFIED: independent series constructions disagree symbolically."
+
+            residual = sp.simplify(actual - derivative_poly)
+            if residual == 0 or getattr(residual, "is_zero", None) is True:
+                passed, status_override, error = True, None, None
+            elif getattr(residual, "is_zero", None) is False:
+                passed, status_override = False, None
+                error = f"Series mismatch: expected {derivative_poly}, got {actual}."
+            else:
+                passed, status_override = False, VerificationStatus.UNVERIFIED.value
+                error = "UNVERIFIED: claimed series comparison could not establish equality."
+
+            details = {
+                "rule": "series_expansion",
+                "variable": str(variable),
+                "center": str(center),
+                "order": order,
+                "claimed_series": str(actual),
+                "computed_series": str(derivative_poly),
+                "sympy_series": str(generated_poly),
+                "coefficients": [str(c) for c in derivative_terms],
+                "residual": str(residual),
+                "construction_cross_check": str(generated_residual),
+            }
+            if status_override:
+                details["_status_override"] = status_override
+
+            steps = [
+                {"step": 1, "operation": "compute Taylor coefficients", "variable": str(variable), "center": str(center), "order": order},
+                {"step": 2, "operation": "construct polynomial from derivatives", "result": str(derivative_poly)},
+                {"step": 3, "operation": "independent SymPy series cross-check", "result": str(generated_poly), "residual": str(generated_residual)},
+                {"step": 4, "operation": "compare claimed expansion", "residual": str(residual)},
+            ]
+            return passed, details, steps, error
+        except (NotImplementedError, ValueError, TypeError, ZeroDivisionError) as exc:
+            return False, {
+                "rule": "series_expansion",
+                "order": order,
+                "center": str(center),
+                "_status_override": VerificationStatus.UNVERIFIED.value,
+            }, [], f"UNVERIFIED: series expansion could not be established: {type(exc).__name__}: {exc}"
 
     @classmethod
     def _verify_fundamental_theorem(
