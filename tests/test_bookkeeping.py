@@ -142,3 +142,23 @@ def test_bookkeeping_does_not_promote_preserved_out_of_order_work_to_frontier():
         ]
     }
     assert next_action(inventory)["capability_id"] == "stage1b.series_expansions"
+
+
+def test_bookkeeping_plan_is_non_mutating_and_updates_only_target():
+    from automate.dev.bookkeeping import build_bookkeeping_plan
+    inventory = {
+        "capabilities": [
+            {"id":"stage1b.target","order":1,"stage":"1B","name":"Target capability","implementation_state":"planned","authority":{}, "references":[],"verification":{}},
+            {"id":"stage1b.other","order":2,"stage":"1B","name":"Other capability","implementation_state":"planned","authority":{}, "references":[],"verification":{}},
+        ]
+    }
+    ledger = "- [ ] Target capability\n- [ ] Other capability\n"
+    plan = build_bookkeeping_plan(
+        inventory, ledger, capability_id="stage1b.target", merge_sha="a"*40,
+        exact_head_ci_run=10, security_run=11, merged_pr_number=12
+    )
+    assert plan["canonical_mutation_performed"] is False
+    assert len(plan["changes"]) == 2
+    assert "- [x] Target capability" in plan["changes"][1]["content"]
+    assert "- [ ] Other capability" in plan["changes"][1]["content"]
+    assert '"implementation_state": "merged_main"' in plan["changes"][0]["content"]

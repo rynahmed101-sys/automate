@@ -88,6 +88,7 @@ def quarantine_worker_pr(repository: str, pr_number: int, failures: list[dict[st
         "AUTONOMOUS RECOVERY: this worker proposal failed exact-head verification twice. "
         "The proposal is quarantined and will not be promoted. A fresh repair attempt must "
         "be generated from authoritative main with this failure evidence.\n\n"
+        "AUTONOMOUS_REPAIR_HOLD: attempt=2\n"
         "Failure evidence:\n" + evidence
     )
     result = _run([
@@ -116,3 +117,126 @@ def failure_notes(failures: list[dict[str, Any]]) -> list[str]:
             + str(failure.get("run_id"))
         )
     return notes
+
+
+def diagnose_worker_failure(
+    repository: str,
+    pr_number: int,
+    failures: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Classify exact-head worker failures without treating diagnosis as certification."""
+    notes: list[str] = []
+    classes: set[str] = set()
+    for failure in failures:
+        workflow = str(failure.get("workflow") or "")
+        conclusion = str(failure.get("conclusion") or "").lower()
+        if conclusion in {"failure", "timed_out"}:
+            classes.add("verification_failure")
+            notes.append(f"EXACT_HEAD_FAILURE: {workflow} concluded {conclusion}.")
+        elif conclusion in {"cancelled", "skipped"}:
+            classes.add("workflow_state_failure")
+            notes.append(f"WORKFLOW_STATE: {workflow} concluded {conclusion}.")
+        else:
+            classes.add("unknown_failure")
+            notes.append(f"UNCLASSIFIED_FAILURE: {workflow} conclusion={conclusion or 'missing'}.")
+    if not notes:
+        classes.add("unknown_failure")
+        notes.append("No actionable failure evidence was supplied.")
+    return {
+        "schema_version": "automate.worker_failure_diagnosis.v1",
+        "repository": repository,
+        "pr_number": pr_number,
+        "classes": sorted(classes),
+        "retryable": False,
+        "notes": notes,
+        "authority": "EVIDENCE_ONLY",
+    }
+
+
+def next_recovery_attempt(previous_branch: str) -> int:
+    """Return the next bounded repair attempt number, starting at 2."""
+    import re
+
+    match = re.search(r"-repair(\d+)$", previous_branch.strip())
+    if not match:
+        return 2
+    return max(2, int(match.group(1)) + 1)
+
+
+def build_repair_hold(
+    *,
+    capability_id: str,
+    source_sha: str,
+    recovery_attempt: int,
+    reason: str,
+    repair_dispatch: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create the fail-closed durable hold used to prevent duplicate recovery."""
+    if not isinstance(capability_id, str) or not capability_id.strip():
+        raise ValueError("capability_id is required")
+    if not isinstance(source_sha, str) or not __import__("re").fullmatch(r"[0-9a-f]{40}", source_sha):
+        raise ValueError("source_sha must be an exact lowercase 40-character SHA")
+    if not isinstance(recovery_attempt, int) or recovery_attempt < 2:
+        raise ValueError("recovery_attempt must be >= 2")
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError("reason is required")
+    return {
+        "schema_version": "automate.repair_hold.v1",
+        "state": "REPAIR_HOLD",
+        "scope": "capability",
+        "capability_id": capability_id,
+        "source_revision": source_sha,
+        "recovery_attempt": recovery_attempt,
+        "automatic_correction_required": True,
+        "automatic_rectification_required": True,
+        "reason": reason,
+        "repair_dispatch": repair_dispatch,
+        "resume_conditions": [
+            "authoritative main remains at or advances from source_revision",
+            "the failed proposal is quarantined",
+            "a bounded recovery worker is dispatched from authoritative main",
+            "new exact-head verification evidence is available",
+        ],
+        "dispatch_blocked": True,
+    }
+
+
+def find_quarantined_worker_handoff(
+    repository: str,
+    *,
+    capability_id: str,
+) -> dict[str, Any] | None:
+    """Find a quarantined worker PR/repair hold for one capability."""
+    result = _run([
+        "gh", "pr", "list", "--repo", repository,
+        "--state", "closed", "--base", "main", "--limit", "100",
+        "--json", "number,headRefName,headRefOid,baseRefOid,body,title,mergedAt,url",
+    ])
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "unable to inspect quarantined worker handoffs")
+    try:
+        rows = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("GitHub returned invalid closed-PR JSON") from exc
+    marker = "AUTONOMOUS_REPAIR_HOLD:"
+    branch_prefix = "feat/" + capability_id + "-"
+    for row in rows:
+        if not isinstance(row, dict) or row.get("mergedAt"):
+            continue
+        body = str(row.get("body") or "")
+        branch = str(row.get("headRefName") or "")
+        if marker not in body or not branch.startswith(branch_prefix):
+            continue
+        source_sha = str(row.get("baseRefOid") or "")
+        if not __import__("re").fullmatch(r"[0-9a-f]{40}", source_sha):
+            source_sha = str(row.get("headRefOid") or "")
+        match = __import__("re").search(r"AUTONOMOUS_REPAIR_HOLD:\s*attempt=(\d+)", body)
+        attempt = max(2, int(match.group(1))) if match else 2
+        return build_repair_hold(
+            capability_id=capability_id,
+            source_sha=source_sha,
+            recovery_attempt=attempt,
+            reason="A previous worker proposal was quarantined after repeated exact-head verification failure.",
+            repair_dispatch=None,
+        )
+    return None
