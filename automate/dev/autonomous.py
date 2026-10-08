@@ -257,7 +257,7 @@ def run_autonomous_cycle(
     capability = packet["packet"]["capability"]
     mirror_enabled = os.getenv(
         "AUTOMATE_MIRROR_DISCOVERY_ENABLED",
-        os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", ""),
+        os.getenv("AUTOMATE_EXTERNAL_RESEARCH_ENABLED", "1"),
     ).strip().lower() in {"1", "true", "yes"}
 
     research_dispatch: dict[str, Any] = {"status": "disabled_by_governance"}
