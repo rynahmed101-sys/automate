@@ -268,45 +268,6 @@ def check(graph_file: str, as_json: bool):
 @main.command()
 @click.argument("graph_file", type=click.Path(exists=True))
 @click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
-def prove(graph_file: str, as_json: bool):
-    """Execute Lean 4 formal interactive theorem prover on formal proof obligations."""
-    content = Path(graph_file).read_text(encoding="utf-8")
-    graph = DerivationGraph.from_json(content)
-
-    lean_checker = LeanChecker()
-    if not lean_checker.is_available():
-        if as_json:
-            click.echo(json.dumps({"error": "Lean 4 compiler not detected in system PATH"}, indent=2))
-        else:
-            console.print("[bold red]Lean 4 compiler not found in toolchain paths.[/bold red]")
-        return
-
-    results = {}
-    if not as_json:
-        console.print(f"[bold cyan]Running Lean 4 theorem prover ({lean_checker.version}) on '{graph_file}'...[/bold cyan]")
-
-    for eid, edge in graph.edges.items():
-        if edge.checker == "lean4":
-            report = lean_checker.verify_edge(edge, graph)
-            results[eid] = {
-                "status": report.status.value,
-                "passed": report.passed,
-                "theorem": report.details.get("theorem_name"),
-                "runtime_ms": report.execution_time_ms
-            }
-            if not as_json:
-                status_color = "green" if report.passed else "red"
-                console.print(f"  Edge '{eid}': [{status_color}]{report.status.value}[/{status_color}]")
-
-    if as_json:
-        click.echo(json.dumps(results, indent=2))
-    else:
-        print_graph_summary(graph)
-
-
-@main.command()
-@click.argument("graph_file", type=click.Path(exists=True))
-@click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
 def simulate(graph_file: str, as_json: bool):
     """Execute numerical differential equation solver (SciPy RK45) on equations of motion."""
     content = Path(graph_file).read_text(encoding="utf-8")
@@ -403,23 +364,6 @@ def query_assumptions(graph_file: str, drop: str, as_json: bool):
 
 @main.command()
 @click.argument("graph_file", type=click.Path(exists=True))
-@click.option("--edge", "-e", required=True, help="Edge ID to expand")
-def expand(graph_file: str, edge: str):
-    """Expand a high-level macro transformation step into verifiable micro-steps."""
-    content = Path(graph_file).read_text(encoding="utf-8")
-    graph = DerivationGraph.from_json(content)
-
-    subgraph = graph.expand_edge_certificate(edge)
-    if subgraph:
-        console.print(f"[green][OK] Expanded '{edge}' into {len(subgraph.nodes)} sub-nodes and {len(subgraph.edges)} sub-steps:[/green]")
-        for seid, se in subgraph.edges.items():
-            console.print(f"  - [{seid}] {se.transformation_rule}: {se.justification}")
-    else:
-        console.print(f"[yellow]No expandable certificate steps found for edge '{edge}'.[/yellow]")
-
-
-@main.command()
-@click.argument("graph_file", type=click.Path(exists=True))
 @click.option("--output", "-o", default=None, help="Output HTML file path")
 def visualize(graph_file: str, output: str):
     """Generate standalone interactive HTML visualization of the derivation graph."""
@@ -431,60 +375,18 @@ def visualize(graph_file: str, output: str):
 
 
 @main.command()
-@click.argument("graph_file", type=click.Path(exists=True))
-@click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
-def report(graph_file: str, as_json: bool):
-    """Display comprehensive verification report and status matrix."""
-    content = Path(graph_file).read_text(encoding="utf-8")
-    graph = DerivationGraph.from_json(content)
-    if as_json:
-        click.echo(graph.to_json())
-    else:
-        print_graph_summary(graph)
-
-
-@main.command("export-certificate")
-@click.argument("graph_file", type=click.Path(exists=True))
-@click.option("--output-dir", "-o", default="certificates", help="Directory to save certificate package")
-@click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
-def export_certificate(graph_file: str, output_dir: str, as_json: bool):
-    """Export self-contained, machine-auditable verification certificate package."""
-    content = Path(graph_file).read_text(encoding="utf-8")
-    graph = DerivationGraph.from_json(content)
-    files = graph.export_certificate_package(output_dir)
-    if as_json:
-        click.echo(json.dumps(files, indent=2))
-    else:
-        console.print(f"[green][OK] Exported verification certificate package to '{output_dir}':[/green]")
-        for fname, fpath in files.items():
-            console.print(f"  * {fname} -> {fpath}")
-
-
-@main.command()
-@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor", "proposal", "context", "agent"]), help="Schema name")
+@click.option("--name", "-n", default="ir", type=click.Choice(["ir", "tensor"]), help="Schema name")
 def schema(name: str):
-    """Print an authoritative machine-readable JSON schema for an interchange contract."""
+    """Print a machine-readable calculator interchange schema."""
     if name == "ir":
         schema_path = Path(__file__).parent.parent / "schemas" / "automate-ir-v0.1.json"
         if not schema_path.exists():
             raise click.ClickException("Canonical IR schema file is unavailable.")
         click.echo(schema_path.read_text(encoding="utf-8"))
         return
-
-    if name == "agent":
-        schema_path = Path(__file__).parent.parent / "schemas" / "automate-agent-v1.json"
-        if not schema_path.exists():
-            raise click.ClickException("Machine-agent contract file is unavailable.")
-        click.echo(schema_path.read_text(encoding="utf-8"))
-        return
-
-    if name == "tensor":
-        model = TensorEquation
-    else:
-        model = DerivationProposal if name == "proposal" else AIContext
-    document = model.model_json_schema()
-    document["$id"] = f"https://automate.physics/schemas/automate-{name}-v1.json"
-    document["title"] = f"Automate {name.capitalize()} Contract (v1)"
+    document = TensorEquation.model_json_schema()
+    document["$id"] = "https://automate.physics/schemas/automate-tensor-v1.json"
+    document["title"] = "Automate Tensor Contract (v1)"
     click.echo(json.dumps(document, indent=2))
 
 
@@ -492,33 +394,23 @@ def schema(name: str):
 @main.command()
 @click.option("--json", "as_json", is_flag=True, help="Output machine-readable engine manifest")
 def engine(as_json: bool):
-    """Show Automate's standalone mathematics and physics engine contract."""
+    """Show Automate's calculator contract."""
     manifest = {
-        "schema_version": "automate.physics_engine.v1",
-        "role": "first_class_ai_compatible_mathematics_and_physics_reasoning_engine",
-        "authority": "verification_first",
-        "capabilities": [
-            "typed_mathematical_physics_ir",
-            "symbolic_and_dimensional_verification",
-            "linear_algebra",
-            "vector_calculus",
-            "tensor_and_geometry_reasoning",
-            "mechanics_and_electromagnetism",
-            "numerical_and_statistical_computation",
-            "ai_proposal_validation",
-            "machine_auditable_certificates",
-        ],
-        "mutation_authority": False,
-        "external_repositories": "not required for core reasoning and verification",
+        "schema_version": "automate.calculator.v1",
+        "role": "ai_compatible_mathematics_and_physics_calculator",
+        "input": "structured operation plus mathematical data",
+        "output": "calculation result or computational error",
+        "ai_interpretation": "external",
+        "verification": "optional and proportional",
     }
     if as_json:
         click.echo(json.dumps(manifest, indent=2))
     else:
-        console.print("[bold cyan]Automate Physics/Mathematics Engine[/bold cyan]")
-        console.print("  Role: first-class AI-compatible reasoning and verification engine")
-        console.print("  Authority: verification-first")
-        console.print("  Canonical mutation authority: none")
-        console.print("  External repositories required: no")
+        console.print("[bold cyan]Automate Scientific Calculator[/bold cyan]")
+        console.print("  AI interpretation: external")
+        console.print("  Calculation: Automate")
+        console.print("  Verification: optional/proportional")
+
 
 
 if __name__ == "__main__":
