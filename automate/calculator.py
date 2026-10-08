@@ -5,11 +5,11 @@ import sympy as sp
 from automate.ir.safe_parser import SafeParser
 
 CALCULATOR_OPERATIONS = (
-"simplify","expand","factor","cancel","apart","together","collect","substitute",
+"evaluate","simplify","expand","factor","cancel","apart","together","collect","substitute",
 "differentiate","integrate","limit","series","solve","solve_system","summation",
 "product","roots","nsolve","evalf","gradient","jacobian","hessian",
 "matrix_add","matrix_multiply","matrix_transpose","matrix_determinant","matrix_inverse",
-"matrix_rank","matrix_trace","matrix_eigenvalues","matrix_eigenvectors",
+"matrix_rank","matrix_trace","matrix_eigenvalues","matrix_eigenvectors","matrix_singular_values",
 "vector_dot","vector_cross","vector_norm",
 )
 
@@ -33,6 +33,7 @@ def calculate(operation: str, expression: str, *, variable: str | None=None,
         raise CalculatorError(f"Unsupported operation: {operation}")
     p=SafeParser(); expr=_parse(p,expression)
     s=lambda: _symbol(variable,expr)
+    if operation=="evaluate": return expr
     if operation=="simplify": return sp.simplify(expr)
     if operation=="expand": return sp.expand(expr)
     if operation=="factor": return sp.factor(expr)
@@ -49,7 +50,9 @@ def calculate(operation: str, expression: str, *, variable: str | None=None,
         if point is None: raise CalculatorError("limit requires --point.")
         return sp.limit(expr,s(),_parse(p,point))
     if operation=="series": return sp.series(expr,s(),0,order)
-    if operation=="solve": return sp.solve(expr,s())
+    if operation=="solve":
+        target = p.parse_equation_isolated(expression) if "=" in expression else expr
+        return sp.solve(target, s())
     if operation=="solve_system":
         if not second_expression or not variables: raise CalculatorError("solve_system requires --second-expression and --variables x,y.")
         return sp.solve((expr,_parse(p,second_expression)),[sp.Symbol(v.strip()) for v in variables])
@@ -57,11 +60,11 @@ def calculate(operation: str, expression: str, *, variable: str | None=None,
         if point is None or "," not in point: raise CalculatorError(f"{operation} requires --point START,END.")
         a,b=map(str.strip,point.split(",",1)); bounds=(s(),_parse(p,a),_parse(p,b))
         return getattr(sp,operation)(expr,bounds)
-    if operation=="roots": return sp.solve(expr,s())
+    if operation=="roots": return sp.roots(expr, s())
     if operation=="nsolve":
         if value is None: raise CalculatorError("nsolve requires --value INITIAL_GUESS.")
         return sp.nsolve(expr,s(),_parse(p,value))
-    if operation=="evalf": return expr.evalf()
+    if operation=="evalf": return expr.evalf(order)
     if operation in {"gradient","jacobian","hessian"}:
         vs=[sp.Symbol(v.strip()) for v in (variables or [])]
         if not vs: raise CalculatorError(f"{operation} requires --variables x,y,...")
@@ -82,6 +85,7 @@ def calculate(operation: str, expression: str, *, variable: str | None=None,
         if operation=="matrix_trace": return expr.trace()
         if operation=="matrix_eigenvalues": return expr.eigenvals()
         if operation=="matrix_eigenvectors": return expr.eigenvects()
+        if operation=="matrix_singular_values": return expr.singular_values()
         if operation in {"vector_dot","vector_cross"}:
             if not second_expression: raise CalculatorError(f"{operation} requires --second-expression.")
             other=_parse(p,second_expression)
