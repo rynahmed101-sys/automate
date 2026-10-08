@@ -380,24 +380,26 @@ def run_control_cycle(
             or handoff.get("pr", {}).get("head_sha")
             or ""
         )
-        try:
-            from automate.dev.failure_recovery import (
-                exact_head_recovery_state,
-                diagnose_worker_failure,
-                quarantine_worker_pr,
-                rerun_failed_workflows,
-            )
-            recovery = exact_head_recovery_state(repository, head_sha)
-        except Exception as exc:
-            return {
-                **control,
-                "status": "worker_recovery_inspection_blocked",
-                "error": str(exc),
-                "dispatch_allowed": False,
-                "lifecycle": handoff,
-            }
+        recovery = None
+        if head_sha:
+            try:
+                from automate.dev.failure_recovery import (
+                    exact_head_recovery_state,
+                    diagnose_worker_failure,
+                    quarantine_worker_pr,
+                    rerun_failed_workflows,
+                )
+                recovery = exact_head_recovery_state(repository, head_sha)
+            except Exception as exc:
+                return {
+                    **control,
+                    "status": "worker_recovery_inspection_blocked",
+                    "error": str(exc),
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                }
 
-        if recovery["state"] == "retryable_failure":
+        if recovery is not None and recovery["state"] == "retryable_failure":
             retry = rerun_failed_workflows(repository, list(recovery["retryable"]))
             return {
                 **control,
@@ -408,7 +410,7 @@ def run_control_cycle(
                 "retry": retry,
             }
 
-        if recovery["state"] == "pending":
+        if recovery is not None and recovery["state"] == "pending":
             return {
                 **control,
                 "status": "worker_verification_pending",
@@ -417,7 +419,7 @@ def run_control_cycle(
                 "recovery": recovery,
             }
 
-        if recovery["state"] == "repeated_failure":
+        if recovery is not None and recovery["state"] == "repeated_failure":
             pr_number = handoff.get("number") or handoff.get("pr", {}).get("number")
             failures = list(recovery["failures"])
             if not isinstance(pr_number, int):
