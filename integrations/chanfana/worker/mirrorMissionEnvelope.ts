@@ -11,8 +11,8 @@ export const MirrorMissionEnvelope = z.object({
   }),
   mission: z.record(z.string(), z.unknown()),
   authorization: z.object({
-    github_mutation_allowed: z.boolean(),
-    scope: z.enum(["proposal_only", "bounded_branch_and_pr_only"]),
+    github_mutation_allowed: z.literal(false),
+    scope: z.literal("proposal_only"),
   }),
   source_revision: z.string().regex(/^[0-9a-f]{40}$/),
   limits: z.object({
@@ -30,9 +30,6 @@ export type MirrorMissionEnvelopeType = z.infer<typeof MirrorMissionEnvelope>;
 export function validateMirrorMissionEnvelope(input: unknown): MirrorMissionEnvelopeType {
   const parsed = MirrorMissionEnvelope.safeParse(input);
   if (!parsed.success) throw new Error("Invalid Mirror mission envelope: " + parsed.error.message);
-  const allowed = parsed.data.authorization.github_mutation_allowed;
-  const scope = parsed.data.authorization.scope;
-  if (allowed !== (scope === "bounded_branch_and_pr_only")) throw new Error("Mirror mission authorization scope is inconsistent");
-  if (parsed.data.mission.authorization_granted !== allowed) throw new Error("Mirror mission authorization grant does not match Chanfana authorization");
+  if (parsed.data.mission.authorization_granted !== false) throw new Error("Mirror mission cannot carry GitHub mutation authority");
   return parsed.data;
 }
