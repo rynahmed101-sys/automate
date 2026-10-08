@@ -1,11 +1,6 @@
-"""
-Automate: A local-first, machine-checkable formal physics derivation engine.
+"""Automate: a local-first mathematics and physics calculator for AI systems."""
 
-Unifies symbolic calculus, formal proof checking, numerical simulation,
-statistical inference, dimensional validation, and hierarchical derivation graphs.
-"""
-
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 __author__ = "Automate Contributors"
 
 from automate.core.status import VerificationStatus
