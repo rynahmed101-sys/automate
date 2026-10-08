@@ -24,6 +24,7 @@ from automate.visualization.terminal import print_graph_summary, print_assumptio
 from automate.demo import run_harmonic_oscillator_demo
 from automate.ir.tensors import TensorEquation
 from automate.theory.rules import RuleRegistry
+from automate.calculator import CALCULATOR_OPERATIONS, calculate as calculate_operation, result_string
 
 @click.group()
 @click.version_option(version="0.2.0", prog_name="automate")
@@ -58,6 +59,7 @@ def capabilities(as_json: bool):
         "vector_calculus": True,
         "lean4": lean_checker.is_available(),
         "lean4_version": lean_checker.version,
+        "calculator_operations": list(CALCULATOR_OPERATIONS),
         "rule_registry": {
             "count": len(RuleRegistry().list_rule_ids()),
             "rule_ids": RuleRegistry().list_rule_ids(),
@@ -74,59 +76,29 @@ def capabilities(as_json: bool):
 
 
 @main.command()
-@click.option("--operation", type=click.Choice(["simplify", "expand", "factor", "differentiate", "integrate", "limit", "series", "solve"]), required=True)
+@click.option("--operation", type=click.Choice(CALCULATOR_OPERATIONS), required=True)
 @click.option("--expression", required=True, help="Mathematical expression or equation")
-@click.option("--variable", default=None, help="Variable for operations that require one")
-@click.option("--point", default=None, help="Limit point")
+@click.option("--variable", default=None, help="Primary variable")
+@click.option("--variables", default=None, help="Comma-separated variables for multivariable operations")
+@click.option("--point", default=None, help="Limit point or summation/product range START,END")
 @click.option("--order", type=int, default=6, show_default=True, help="Series order")
+@click.option("--value", default=None, help="Substitution NAME=EXPRESSION or numerical initial value")
+@click.option("--second-expression", default=None, help="Second expression for systems, matrix, or vector operations")
 @click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
-def calculate(operation: str, expression: str, variable: str, point: str, order: int, as_json: bool):
+def calculate(operation, expression, variable, variables, point, order, value, second_expression, as_json):
     """Calculate a mathematical operation and return the result."""
-    import sympy as sp
-    from automate.ir.safe_parser import SafeParser, SafeParseError
-
-    parser = SafeParser()
     try:
-        if "=" in expression and operation == "solve":
-            expr = parser.parse_equation_isolated(expression)
-        else:
-            expr = parser.parse_isolated(expression)
-
-        symbol = sp.Symbol(variable) if variable else None
-
-        if operation in {"differentiate", "integrate", "limit", "series", "solve"} and symbol is None:
-            if operation != "solve":
-                raise SafeParseError(f"--variable is required for {operation}.")
-            free = sorted(expr.free_symbols, key=lambda s: s.name)
-            if len(free) != 1:
-                raise SafeParseError("Provide --variable when the expression has zero or multiple variables.")
-            symbol = free[0]
-
-        if operation == "simplify":
-            result = sp.simplify(expr)
-        elif operation == "expand":
-            result = sp.expand(expr)
-        elif operation == "factor":
-            result = sp.factor(expr)
-        elif operation == "differentiate":
-            result = sp.diff(expr, symbol)
-        elif operation == "integrate":
-            result = sp.integrate(expr, symbol)
-        elif operation == "limit":
-            if point is None:
-                raise SafeParseError("--point is required for limit.")
-            result = sp.limit(expr, symbol, parser.parse_isolated(point))
-        elif operation == "series":
-            result = sp.series(expr, symbol, 0, order)
-        elif operation == "solve":
-            result = sp.solve(expr, symbol)
-        else:
-            raise SafeParseError(f"Unsupported operation: {operation}")
-
-        payload = {"operation": operation, "input": expression, "result": sp.sstr(result)}
+        result = calculate_operation(
+            operation, expression,
+            variable=variable,
+            variables=[v.strip() for v in variables.split(",")] if variables else None,
+            point=point, order=order, value=value,
+            second_expression=second_expression,
+        )
+        payload = {"operation": operation, "input": expression, "result": result_string(result)}
     except Exception as exc:
-        payload = {"operation": operation, "input": expression, "error": f"{type(exc).__name__}: {exc}"}
-
+        payload = {"operation": operation, "input": expression,
+                   "error": f"{type(exc).__name__}: {exc}"}
     if as_json:
         click.echo(json.dumps(payload, indent=2))
     elif "error" in payload:
