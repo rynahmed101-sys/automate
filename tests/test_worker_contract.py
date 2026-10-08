@@ -11,7 +11,7 @@ def test_worker_packet_for_current_frontier_is_bounded():
     packet = build_worker_packet("stage1b.partial_derivatives")
     body = packet["packet"]
     assert packet["schema_version"] == "automate.worker.v1"
-    assert body["task"]["source"] == "github_issue"
+    assert body["task"]["source"] == "docs/PROJECT_PHASE_LEDGER.md"
     assert body["task"]["ref"] == "stage1b.partial_derivatives"
     assert "Support first-order partial derivatives and total differentials." in body["task"]["requirements"]
     assert body["capability"]["id"] == "stage1b.partial_derivatives"
