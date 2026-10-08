@@ -250,14 +250,26 @@ _SAFE_UNARY_OPS: Dict[type[ast.unaryop], Callable[[Any], Any]] = {
 }
 
 
-def _expression_depth(expr: sp.Basic, _memo: Optional[Dict[int, int]] = None) -> int:
-    """Recursively compute the depth of a SymPy expression tree."""
+def _expression_depth(expr: Any, _memo: Optional[Dict[int, int]] = None) -> int:
+    """Recursively compute the depth of a SymPy expression or matrix."""
     if _memo is None:
         _memo = {}
     eid = id(expr)
     if eid in _memo:
         return _memo[eid]
-    if not expr.args:
+    if isinstance(expr, sp.MatrixBase):
+        if expr.rows == 0 or expr.cols == 0:
+            _memo[eid] = 1
+            return 1
+        depth = 1 + max(
+            (_expression_depth(expr[i, j], _memo)
+             for i in range(expr.rows)
+             for j in range(expr.cols)),
+            default=0,
+        )
+        _memo[eid] = depth
+        return depth
+    if not getattr(expr, "args", None):
         _memo[eid] = 1
         return 1
     depth = 1 + max(_expression_depth(arg, _memo) for arg in expr.args)
