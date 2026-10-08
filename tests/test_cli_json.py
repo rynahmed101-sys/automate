@@ -84,3 +84,19 @@ def test_cli_calculate_matrix_operations():
     ])
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["result"] == "32"
+
+
+def test_cli_calculate_preserves_expression_and_equation_solving():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "evaluate",
+        "--expression", "Rational(1,2) + x", "--json"
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "x + 1/2"
+
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "solve",
+        "--expression", "x**2 = 4", "--variable", "x", "--json"
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "[-2, 2]"
