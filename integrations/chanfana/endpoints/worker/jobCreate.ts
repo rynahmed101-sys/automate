@@ -54,6 +54,8 @@ export class WorkerJobCreate extends OpenAPIRoute<HandleArgs> {
       ? body.packet.capability.id
       : "execution_kind" in body && body.execution_kind === "autonomous_discovery"
       ? "mirror:discovery"
+      : "execution_kind" in body && body.execution_kind === "mirror_autonomous_mission"
+      ? body.provenance.capability_id
       : "artifact_type" in body
       ? "learning:" + body.artifact_type
       : body.capability_id;
@@ -64,12 +66,15 @@ export class WorkerJobCreate extends OpenAPIRoute<HandleArgs> {
       .first<{ id: string; state: string; request_id: string }>();
 
     if (existing) {
-      return {
-        success: true,
-        jobId: existing.id,
-        state: existing.state,
-        requestId: existing.request_id,
-      };
+      if (existing.state === "queued") {
+        try {
+          await c.env.AUTOMATE_JOB_QUEUE.send({ jobId: existing.id });
+          await c.env.DB.prepare("UPDATE worker_jobs SET dispatch_state = 'sent', updated_at = ?1 WHERE id = ?2 AND state = 'queued'").bind(now, existing.id).run();
+        } catch {
+          return c.json({ success: false, error: "Durable queue publish failed" }, 503);
+        }
+      }
+      return { success: true, jobId: existing.id, state: existing.state, requestId: existing.request_id };
     }
 
     const id = crypto.randomUUID();
@@ -82,6 +87,13 @@ export class WorkerJobCreate extends OpenAPIRoute<HandleArgs> {
       JSON.stringify(body),
       now,
     ).run();
+
+    try {
+      await c.env.AUTOMATE_JOB_QUEUE.send({ jobId: id });
+      await c.env.DB.prepare("UPDATE worker_jobs SET dispatch_state = 'sent', updated_at = ?1 WHERE id = ?2 AND state = 'queued'").bind(new Date().toISOString(), id).run();
+    } catch {
+      return c.json({ success: false, error: "Durable queue publish failed" }, 503);
+    }
 
     return {
       success: true,
