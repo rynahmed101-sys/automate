@@ -52,3 +52,19 @@ export async function runClaimedWorkerJob(env: Env, jobId: string, leaseId: stri
     throw error;
   }
 }
+
+export function validateVerificationResultIdentity(
+  result: unknown,
+  verification: VerificationJobEnvelopeType,
+): void {
+  if (!result || typeof result !== "object") {
+    throw new Error("verification result must be an object");
+  }
+  const candidate = result as Record<string, unknown>;
+  if (candidate.request_id !== verification.request_id) {
+    throw new Error("verification result request_id does not match the verification request");
+  }
+  if (candidate.source_revision !== verification.source_revision) {
+    throw new Error("verification result source_revision does not match the verification request");
+  }
+}
