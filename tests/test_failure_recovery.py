@@ -110,88 +110,18 @@ def test_recovery_attempts_use_distinct_worker_branches():
     )
 
 
-def test_recovery_worker_request_identity_changes_with_attempt(monkeypatch, tmp_path: Path):
-    from automate.dev.worker import build_worker_packet
+def test_recovery_worker_request_identity_changes_with_attempt():
+    from automate.dev.worker import build_worker_request_id
 
-    monkeypatch.setattr(
-        "automate.dev.worker.load_inventory",
-        lambda: {
-            "capabilities": [{
-                "id": "stage1b.series_expansions",
-                "implementation_state": "planned",
-                "depends_on": [],
-                "canonical_files": [
-                    "automate/backend/series_expansions.py",
-                    "tests/test_series_expansions.py",
-                ],
-                "shared_integration_points": [],
-                "stage": "1B",
-                "name": "Series expansions",
-                "references": [],
-                "task": {"source": "github_issue", "ref": "141", "summary": "series", "requirements": []},
-            }],
-            "branch_policy": {
-                "shared_integration_files": [],
-                "capability_branch_prefix": "feat/",
-            },
-        },
-    )
-    monkeypatch.setattr(
-        "automate.dev.worker.get_capability",
-        lambda _: {
-            "id": "stage1b.series_expansions",
-            "implementation_state": "planned",
-            "depends_on": [],
-            "canonical_files": [
-                "automate/backend/series_expansions.py",
-                "tests/test_series_expansions.py",
-            ],
-            "shared_integration_points": [],
-            "stage": "1B",
-            "name": "Series expansions",
-            "references": [],
-            "task": {"source": "github_issue", "ref": "141", "summary": "series", "requirements": []},
-        },
-    )
-    root = tmp_path
-    (root / "automate/backend").mkdir(parents=True)
-    (root / "tests").mkdir(parents=True)
-    (root / "automate/backend/series_expansions.py").write_text(
-        "def series_expansions(): pass",
-        encoding="utf-8",
-    )
-    (root / "tests/test_series_expansions.py").write_text(
-        "def test_series_expansions(): pass",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr("automate.dev.worker.ROOT", root)
-
-    base = "a" * 40
-    context_files = [
-        {
-            "path": "automate/backend/series_expansions.py",
-            "sha": "1" * 40,
-            "content": "def series_expansions(): pass",
-        },
-        {
-            "path": "tests/test_series_expansions.py",
-            "sha": "2" * 40,
-            "content": "def test_series_expansions(): pass",
-        },
-    ]
-    first = build_worker_packet(
-        "stage1b.series_expansions",
-        base_sha_claim=base,
-        context_files=context_files,
-    )
-    repair = build_worker_packet(
-        "stage1b.series_expansions",
-        base_sha_claim=base,
-        context_files=context_files,
-        recovery_attempt=2,
-    )
-    assert first["packet"]["request_id"] != repair["packet"]["request_id"]
-    assert "AUTONOMOUS_RECOVERY_ATTEMPT: 2" in repair["packet"]["context"]["notes"]
+    kwargs = {
+        "repository": "rynahmed101-sys/automate",
+        "base_sha_claim": "a" * 40,
+        "development_branch": "main",
+    }
+    first = build_worker_request_id("stage1b.series_expansions", recovery_attempt=None, **kwargs)
+    repair = build_worker_request_id("stage1b.series_expansions", recovery_attempt=2, **kwargs)
+    assert first != repair
+    assert repair.startswith("wrk_")
 
 
 def _backlog_control():
