@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DiscoveryJobEnvelope } from "../src/worker/discoveryEnvelope";
+import { DiscoveryJobEnvelope } from "../worker/discoveryEnvelope";
 
 const grant = {
   schema_version: "automate.mirror_discovery_grant.v1",
