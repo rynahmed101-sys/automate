@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import os
 import re
 import subprocess
@@ -132,7 +133,6 @@ def build_bookkeeping_plan(
     if len(exact) == 1:
         ledger_anchor = exact[0]
     else:
-        import re
         def tokens(value: str) -> set[str]:
             words = re.findall(r"[a-z0-9]+", value.lower())
             return {word for word in words if word not in {"and", "the", "of", "for", "to"}}
