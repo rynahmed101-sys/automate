@@ -194,3 +194,122 @@ def create_bookkeeping_pr(
             text=True,
             check=False,
         )
+
+
+def execute_bookkeeping_promotion(
+    repository: str,
+    pr_number: int,
+    *,
+    current_main_sha: str,
+    execute: bool = False,
+    verification_result: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Merge a canonical bookkeeping PR only after a fresh race-checked gate."""
+    if not repository or "/" not in repository:
+        raise BookkeepingPrError("repository must be owner/name")
+    if not isinstance(pr_number, int) or pr_number < 1:
+        raise BookkeepingPrError("bookkeeping PR number must be positive")
+    if not __import__("re").fullmatch(r"[0-9a-f]{40}", current_main_sha):
+        raise BookkeepingPrError("current_main_sha must be an exact lowercase 40-character commit")
+
+    import json
+    live_ref = json.loads(
+        _run(
+            Path("."),
+            ["gh", "api", f"repos/{repository}/git/ref/heads/main"],
+        ).stdout or "{}"
+    )
+    live_main_sha = str(live_ref.get("object", {}).get("sha") or "")
+    if live_main_sha != current_main_sha:
+        return {
+            "state": "BLOCKED_BY_RACE",
+            "pr_number": pr_number,
+            "reason": "authoritative main moved before bookkeeping merge",
+            "current_main_sha": current_main_sha,
+            "observed_main_sha": live_main_sha,
+        }
+
+    pr_raw = _run(Path("."), ["gh", "api", f"repos/{repository}/pulls/{pr_number}"])
+    if pr_raw.returncode != 0:
+        raise BookkeepingPrError(pr_raw.stderr.strip() or "unable to inspect bookkeeping PR")
+    pr = json.loads(pr_raw.stdout or "{}")
+
+    gates = {
+        "open": str(pr.get("state") or "").lower() == "open",
+        "targets_main": pr.get("base", {}).get("ref") == "main",
+        "base_current": pr.get("base", {}).get("sha") == current_main_sha,
+        "mergeable": pr.get("mergeable") is True,
+        "head_sha_valid": isinstance(pr.get("head", {}).get("sha"), str) and len(str(pr.get("head", {}).get("sha"))) == 40,
+    }
+    reasons = [name for name, passed in gates.items() if not passed]
+    if reasons:
+        return {
+            "state": "BLOCKED",
+            "pr_number": pr_number,
+            "gates": gates,
+            "reasons": reasons,
+        }
+
+    expected_head_sha = str(pr["head"]["sha"])
+    fresh_ref = json.loads(
+        _run(Path("."), ["gh", "api", f"repos/{repository}/git/ref/heads/main"]).stdout or "{}"
+    )
+    if str(fresh_ref.get("object", {}).get("sha") or "") != current_main_sha:
+        return {
+            "state": "BLOCKED_BY_RACE",
+            "pr_number": pr_number,
+            "reason": "authoritative main moved during bookkeeping gate",
+        }
+
+    if not execute:
+        return {
+            "state": "READY_TO_MERGE",
+            "execution": "dry_run_ready",
+            "pr_number": pr_number,
+            "head_sha": expected_head_sha,
+            "current_main_sha": current_main_sha,
+            "gates": gates,
+        }
+
+    if os.getenv("AUTOMATE_AUTO_BOOKKEEP", "").strip().lower() not in {"1", "true", "yes"}:
+        return {
+            "state": "READY_TO_MERGE",
+            "execution": "blocked_by_governance",
+            "pr_number": pr_number,
+            "head_sha": expected_head_sha,
+            "current_main_sha": current_main_sha,
+            "gates": gates,
+            "reasons": ["AUTOMATE_AUTO_BOOKKEEP is not enabled."],
+        }
+
+    fresh_pr_raw = _run(Path("."), ["gh", "api", f"repos/{repository}/pulls/{pr_number}"])
+    if fresh_pr_raw.returncode != 0:
+        raise BookkeepingPrError(fresh_pr_raw.stderr.strip() or "unable to re-read bookkeeping PR")
+    fresh_pr = json.loads(fresh_pr_raw.stdout or "{}")
+    if fresh_pr.get("head", {}).get("sha") != expected_head_sha or fresh_pr.get("base", {}).get("sha") != current_main_sha:
+        return {
+            "state": "BLOCKED_BY_RACE",
+            "pr_number": pr_number,
+            "reason": "bookkeeping PR changed during merge gate",
+        }
+
+    merged = _run(
+        Path("."),
+        [
+            "gh", "pr", "merge", str(pr_number),
+            "--repo", repository,
+            "--merge",
+            "--delete-branch=false",
+            "--match-head-commit", expected_head_sha,
+        ],
+    )
+    if merged.returncode != 0:
+        raise BookkeepingPrError(merged.stderr.strip() or "GitHub refused bookkeeping promotion")
+    return {
+        "state": "MERGED_PENDING_EXACT_MAIN_VERIFICATION",
+        "execution": "merged",
+        "pr_number": pr_number,
+        "expected_head_sha": expected_head_sha,
+        "merge_output": merged.stdout.strip(),
+        "verification_result_supplied": verification_result is not None,
+    }

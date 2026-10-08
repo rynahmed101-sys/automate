@@ -18,6 +18,7 @@ from automate.dev.autonomous import run_autonomous_cycle
 from automate.dev.inventory import load_inventory, queue_snapshot
 from automate.dev.discovery_grant import build_discovery_grant
 from automate.dev.worker import build_worker_packet
+from automate.dev import failure_recovery
 from automate.dev.promotion import (
     PromotionError,
     _gh_json,
@@ -35,6 +36,11 @@ class VerificationError(RuntimeError):
 
 
 OperatingMode = Literal["BACKLOG", "DISCOVERY_READY", "STOPPED"]
+
+
+def find_quarantined_worker_handoff(*args: Any, **kwargs: Any) -> dict[str, Any] | None:
+    """Dynamic seam for the durable repair-hold inspector."""
+    return failure_recovery.find_quarantined_worker_handoff(*args, **kwargs)
 
 
 def resolve_operating_mode(data: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -359,6 +365,30 @@ def run_control_cycle(
                     "error": str(exc),
                 }
 
+    # Durable repair holds take precedence over any stale/original worker handoff.
+    # A quarantined capability must never be duplicated merely because the original
+    # PR is still discoverable in GitHub while recovery is being performed.
+    try:
+        repair_hold = find_quarantined_worker_handoff(
+            repository,
+            capability_id=capability_id,
+        )
+    except Exception as exc:
+        return {
+            **control,
+            "status": "repair_hold_inspection_blocked",
+            "dispatch_allowed": False,
+            "error": str(exc),
+        }
+    if repair_hold is not None:
+        return {
+            **control,
+            "status": "repair_hold",
+            "dispatch_allowed": False,
+            "repair_hold": repair_hold,
+            "next_step": "wait for or dispatch the next automatic repair worker handoff; do not start a duplicate original worker task",
+        }
+
     try:
         handoff = find_worker_handoff(
             repository,
@@ -374,6 +404,150 @@ def run_control_cycle(
         }
 
     if handoff is not None:
+        head_sha = str(
+            handoff.get("head_sha")
+            or handoff.get("pr", {}).get("head", {}).get("sha")
+            or handoff.get("pr", {}).get("head_sha")
+            or ""
+        )
+        recovery = None
+        if head_sha:
+            try:
+                from automate.dev.failure_recovery import (
+                    exact_head_recovery_state,
+                    diagnose_worker_failure,
+                    quarantine_worker_pr,
+                    rerun_failed_workflows,
+                )
+                recovery = exact_head_recovery_state(repository, head_sha)
+            except Exception as exc:
+                return {
+                    **control,
+                    "status": "worker_recovery_inspection_blocked",
+                    "error": str(exc),
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                }
+
+        if recovery is not None and recovery["state"] == "retryable_failure":
+            retry = rerun_failed_workflows(repository, list(recovery["retryable"]))
+            return {
+                **control,
+                "status": "worker_verification_retry_requested",
+                "dispatch_allowed": False,
+                "lifecycle": handoff,
+                "recovery": recovery,
+                "retry": retry,
+            }
+
+        if recovery is not None and recovery["state"] == "pending":
+            return {
+                **control,
+                "status": "worker_verification_pending",
+                "dispatch_allowed": False,
+                "lifecycle": handoff,
+                "recovery": recovery,
+            }
+
+        if recovery is not None and recovery["state"] == "repeated_failure":
+            pr_number = handoff.get("number") or handoff.get("pr", {}).get("number")
+            failures = list(recovery["failures"])
+            if not isinstance(pr_number, int):
+                return {
+                    **control,
+                    "status": "worker_recovery_blocked",
+                    "error": "repeated failure has no valid worker PR number",
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                    "recovery": recovery,
+                }
+            diagnosis = diagnose_worker_failure(repository, pr_number, failures)
+            quarantine = quarantine_worker_pr(repository, pr_number, failures)
+            if quarantine.get("state") != "quarantined":
+                return {
+                    **control,
+                    "status": "worker_quarantine_failed",
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                    "recovery": recovery,
+                    "diagnosis": diagnosis,
+                    "quarantine": quarantine,
+                }
+            from automate.dev.failure_recovery import next_recovery_attempt, build_repair_hold
+            previous_branch = str(
+                handoff.get("branch")
+                or handoff.get("pr", {}).get("head", {}).get("ref")
+                or handoff.get("pr", {}).get("branch")
+                or ""
+            )
+            recovery_attempt = next_recovery_attempt(previous_branch)
+            context_notes = [
+                "AUTONOMOUS_RECOVERY: prior worker proposal was quarantined after repeated exact-head failures.",
+                *diagnosis["notes"],
+            ]
+            if not worker_url or not worker_token:
+                return {
+                    **control,
+                    "status": "repair_hold",
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                    "recovery": recovery,
+                    "diagnosis": diagnosis,
+                    "quarantine": quarantine,
+                    "repair_context": context_notes,
+                    "repair_hold": build_repair_hold(
+                        capability_id=capability_id,
+                        source_sha=current_main_sha,
+                        recovery_attempt=recovery_attempt,
+                        reason="worker transport credentials are unavailable; automatic rectification must remain on hold instead of re-dispatching the original task",
+                    ),
+                }
+            try:
+                repair_packet = build_worker_packet(
+                    capability_id,
+                    repository=repository,
+                    base_sha_claim=current_main_sha,
+                    development_branch="main",
+                    context_notes=context_notes,
+                    recovery_attempt=recovery_attempt,
+                )
+                dispatch = __import__("automate.dev.worker_client", fromlist=["dispatch_worker"]).dispatch_worker(
+                    repair_packet,
+                    url=worker_url,
+                    token=worker_token,
+                    execute=execute_worker,
+                )
+            except Exception as exc:
+                return {
+                    **control,
+                    "status": "worker_repair_dispatch_blocked",
+                    "dispatch_allowed": False,
+                    "lifecycle": handoff,
+                    "recovery": recovery,
+                    "diagnosis": diagnosis,
+                    "quarantine": quarantine,
+                    "repair_context": context_notes,
+                    "error": str(exc),
+                }
+            return {
+                **control,
+                "status": "repair_hold",
+                "dispatch_allowed": False,
+                "lifecycle": handoff,
+                "recovery": recovery,
+                "diagnosis": diagnosis,
+                "quarantine": quarantine,
+                "repair_context": context_notes,
+                "repair_hold": build_repair_hold(
+                    capability_id=capability_id,
+                    source_sha=current_main_sha,
+                    recovery_attempt=recovery_attempt,
+                    reason="repeated exact-head verification failure; automatic rectification dispatched as a distinct repair generation",
+                    repair_dispatch=dispatch,
+                ),
+                "dispatch": dispatch,
+            }
+
         verification = None
         require_verification = True
         if require_verification:
