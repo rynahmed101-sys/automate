@@ -157,7 +157,7 @@ def next_recovery_attempt(previous_branch: str) -> int:
     """Return the next bounded repair attempt number, starting at 2."""
     import re
 
-    match = re.search(r"-repair(\\d+)$", previous_branch.strip())
+    match = re.search(r"-repair(\d+)$", previous_branch.strip())
     if not match:
         return 2
     return max(2, int(match.group(1)) + 1)
