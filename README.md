@@ -53,6 +53,29 @@ Machine-readable output:
 
 Use `automate capabilities --json` to discover the currently exposed operations. The interface is intentionally thin: mathematical expressions, symbolic objects, and safe constructors remain available instead of being hidden behind a specialized protocol.
 
+## Structured AI requests
+
+The Python API keeps native SymPy objects intact and also accepts a mapping-shaped request. Call `calculator_manifest()` to discover operation names, descriptions, and argument requirements:
+
+```python
+from automate import calculate_request, calculator_manifest
+
+manifest = calculator_manifest()
+result = calculate_request({
+    "operation": "differentiate",
+    "expression": "x**2*y",
+    "variable": "x",
+})
+```
+
+For shell tools and process-based agents, send a JSON request on standard input or use `--request-json`:
+
+```sh
+echo '{"operation":"matrix_determinant","expression":"Matrix((1,2),(3,4))}' | automate request
+```
+
+The response includes the familiar readable `result` plus a typed `result_data` representation for matrices, symbolic expressions, sequences, and mappings. Existing `calculate --json` output retains its readable result and adds the typed representation. Verification remains optional; malformed requests and unsupported operations return clear errors.
+
 ## AI integration
 
 An external AI can call Automate as a tool. Automate does not contain an internal LLM controller, proposal loop, research agent or provider manager.
