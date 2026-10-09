@@ -58,6 +58,7 @@ def calculate(
     variables: list[str] | None = None,
     point: Any = None,
     order: int = 6,
+    derivative_order: int = 1,
     value: Any = None,
     second_expression: Any = None,
     lower: Any = None,
@@ -70,6 +71,8 @@ def calculate(
         raise CalculatorError(f"Unsupported operation: {operation}")
     if not isinstance(order, int) or isinstance(order, bool) or order < 1:
         raise CalculatorError("order must be a positive integer.")
+    if not isinstance(derivative_order, int) or isinstance(derivative_order, bool) or derivative_order < 1:
+        raise CalculatorError("derivative_order must be a positive integer.")
 
     parser = SafeParser()
     expr = (
@@ -103,7 +106,7 @@ def calculate(
             raise CalculatorError("Substitution target must be a valid symbol name.")
         return expr.subs(sp.Symbol(name), _parse(parser, replacement))
     if operation == "differentiate":
-        return sp.diff(expr, symbol(), order)
+        return sp.diff(expr, symbol(), derivative_order)
     if operation == "integrate":
         return sp.integrate(expr, symbol())
     if operation == "integrate_definite":
@@ -204,7 +207,7 @@ _OPERATION_ARGUMENTS = {
     "collect": (("expression",), ("variable",)),
     "evalf": (("expression",), ("order",)),
     "substitute": (("expression", "value"), ()),
-    "differentiate": (("expression",), ("variable", "order")),
+    "differentiate": (("expression",), ("variable", "derivative_order")),
     "integrate": (("expression",), ("variable",)),
     "integrate_definite": (("expression", "lower", "upper"), ("variable",)),
     "limit": (("expression", "point"), ("variable", "direction")),
@@ -242,7 +245,7 @@ _OPERATION_DESCRIPTIONS = {
     "together": "Combine rational terms into a common fraction.",
     "collect": "Collect terms by powers of a variable.",
     "substitute": "Substitute one named symbol using value='name=expression'.",
-    "differentiate": "Compute a symbolic derivative; order selects the derivative order.",
+    "differentiate": "Compute a symbolic derivative; derivative_order selects the derivative order (1 by default).",
     "integrate": "Compute a symbolic indefinite integral.",
     "integrate_definite": "Compute a definite integral between lower and upper bounds.",
     "limit": "Compute a symbolic limit at point; direction may be '+', '-', or '+-'.",
@@ -272,7 +275,7 @@ _OPERATION_DESCRIPTIONS = {
     "vector_norm": "Compute the Euclidean norm from the dot product.",
 }
 _REQUEST_FIELDS = {
-    "operation", "expression", "variable", "variables", "point", "order",
+    "operation", "expression", "variable", "variables", "point", "order", "derivative_order",
     "value", "second_expression", "lower", "upper", "direction", "equations",
 }
 
