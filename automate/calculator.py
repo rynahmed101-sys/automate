@@ -11,7 +11,7 @@ from automate.ir.safe_parser import SafeParser
 CALCULATOR_OPERATIONS = (
     "evaluate", "simplify", "expand", "factor", "cancel", "apart", "together",
     "collect", "substitute", "differentiate", "integrate", "integrate_definite",
-    "limit", "series", "solve", "solve_system", "summation", "product", "roots",
+    "limit", "series", "solve", "solve_system", "ode_solve", "summation", "product", "roots",
     "nsolve", "evalf", "gradient", "jacobian", "hessian", "matrix_add",
     "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_inverse",
     "matrix_rank", "matrix_trace", "matrix_eigenvalues", "matrix_eigenvectors",
@@ -65,6 +65,9 @@ def calculate(
     upper: Any = None,
     direction: str = "+-",
     equations: list[Any] | None = None,
+    dependent_variable: str | None = None,
+    independent_variable: str | None = None,
+    hint: str = "default",
 ) -> Any:
     """Run a reusable symbolic operation, retaining native SymPy inputs."""
     if operation not in CALCULATOR_OPERATIONS:
@@ -77,7 +80,7 @@ def calculate(
     parser = SafeParser()
     expr = (
         _parse_equation(parser, expression)
-        if operation in {"solve", "solve_system"} else _parse(parser, expression)
+        if operation in {"solve", "solve_system", "ode_solve"} else _parse(parser, expression)
     )
     symbol = lambda: _symbol(variable, expr)
 
@@ -139,6 +142,19 @@ def calculate(
                 raise CalculatorError("solve_system requires second_expression or equations.")
             system = [expr, _parse_equation(parser, second_expression)]
         return sp.solve(system, symbols)
+    if operation == "ode_solve":
+        if not isinstance(dependent_variable, str) or not dependent_variable.isidentifier():
+            raise CalculatorError("ode_solve requires dependent_variable as a valid function name, e.g. 'y'.")
+        if not isinstance(independent_variable, str) or not independent_variable.isidentifier():
+            raise CalculatorError("ode_solve requires independent_variable as a valid symbol name, e.g. 'x'.")
+        if not isinstance(hint, str) or not hint.strip():
+            raise CalculatorError("hint must be a non-empty SymPy dsolve hint name.")
+        independent = sp.Symbol(independent_variable)
+        function = sp.Function(dependent_variable)(independent)
+        try:
+            return sp.dsolve(expr, function, hint=hint)
+        except (ValueError, NotImplementedError, TypeError) as exc:
+            raise CalculatorError(f"Could not solve the requested ODE: {type(exc).__name__}: {exc}") from exc
     if operation in {"summation", "product"}:
         if point is None or not isinstance(point, str) or "," not in point:
             raise CalculatorError(f"{operation} requires point='START,END'.")
@@ -214,6 +230,7 @@ _OPERATION_ARGUMENTS = {
     "series": (("expression",), ("variable", "point", "order")),
     "solve": (("expression",), ("variable",)),
     "solve_system": (("expression", "variables"), ("second_expression", "equations")),
+    "ode_solve": (("expression", "dependent_variable", "independent_variable"), ("hint",)),
     "summation": (("expression", "point"), ("variable",)),
     "product": (("expression", "point"), ("variable",)),
     "roots": (("expression",), ("variable",)),
@@ -252,6 +269,7 @@ _OPERATION_DESCRIPTIONS = {
     "series": "Expand around point (zero by default) through the requested order.",
     "solve": "Solve an expression or equation for a variable.",
     "solve_system": "Solve a system using second_expression or an equations list.",
+    "ode_solve": "Solve an ordinary differential equation with SymPy dsolve; name the dependent and independent variables.",
     "summation": "Compute a finite symbolic sum over point='start,end'.",
     "product": "Compute a finite symbolic product over point='start,end'.",
     "roots": "Return polynomial roots and multiplicities.",
@@ -277,6 +295,7 @@ _OPERATION_DESCRIPTIONS = {
 _REQUEST_FIELDS = {
     "operation", "expression", "variable", "variables", "point", "order", "derivative_order",
     "value", "second_expression", "lower", "upper", "direction", "equations",
+    "dependent_variable", "independent_variable", "hint",
 }
 
 
