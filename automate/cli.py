@@ -24,7 +24,10 @@ from automate.visualization.terminal import print_graph_summary, print_assumptio
 from automate.demo import run_harmonic_oscillator_demo
 from automate.ir.tensors import TensorEquation
 from automate.theory.rules import RuleRegistry
-from automate.calculator import CALCULATOR_OPERATIONS, calculate as calculate_operation, result_string
+from automate.calculator import (
+    CALCULATOR_OPERATIONS, calculate as calculate_operation, result_string,
+    calculator_manifest, calculate_request, result_data,
+)
 
 @click.group()
 @click.version_option(version="0.3.0", prog_name="automate")
@@ -60,6 +63,7 @@ def capabilities(as_json: bool):
         "lean4": lean_checker.is_available(),
         "lean4_version": lean_checker.version,
         "calculator_operations": list(CALCULATOR_OPERATIONS),
+        "calculator": calculator_manifest(),
         "rule_registry": {
             "count": len(RuleRegistry().list_rule_ids()),
             "rule_ids": RuleRegistry().list_rule_ids(),
@@ -95,7 +99,12 @@ def calculate(operation, expression, variable, variables, point, order, value, s
             point=point, order=order, value=value,
             second_expression=second_expression,
         )
-        payload = {"operation": operation, "input": expression, "result": result_string(result)}
+        payload = {
+            "operation": operation,
+            "input": expression,
+            "result": result_string(result),
+            "result_data": result_data(result),
+        }
     except Exception as exc:
         payload = {"operation": operation, "input": expression,
                    "error": f"{type(exc).__name__}: {exc}"}
