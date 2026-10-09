@@ -134,3 +134,22 @@ The project should grow by adding useful reusable calculator operations and expo
 ## License
 
 Apache-2.0.
+
+## Use Automate from GitHub Actions
+
+This public repository provides a composite GitHub Action. A workflow can submit a structured calculator request without an Automate API key or other Automate credentials:
+
+```yaml
+steps:
+  - id: calculate
+    uses: rynahmed101-sys/automate@main
+    with:
+      request: |
+        {"operation":"differentiate","expression":"x**2*y","variable":"x"}
+  - name: Use the result
+    env:
+      AUTOMATE_RESULT: ${{ steps.calculate.outputs.result }}
+    run: printf '%s\\n' "$AUTOMATE_RESULT"
+```
+
+The action exposes `response` (full JSON), `result` (readable result), and `result_data` (typed JSON). It runs on the caller-controlled GitHub runner, not on an anonymous hosted Automate API. GitHub workflow permissions and trigger requirements still apply. Pin `uses` to a reviewed commit SHA for production workflows rather than the moving `main` branch.
