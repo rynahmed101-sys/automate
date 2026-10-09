@@ -11,7 +11,7 @@ from automate.ir.safe_parser import SafeParser
 CALCULATOR_OPERATIONS = (
     "evaluate", "simplify", "expand", "factor", "cancel", "apart", "together",
     "collect", "substitute", "differentiate", "integrate", "integrate_definite",
-    "limit", "series", "solve", "solve_system", "ode_solve", "summation", "product", "roots",
+    "limit", "series", "solve", "solve_system", "ode_solve", "transform", "summation", "product", "roots",
     "nsolve", "evalf", "gradient", "jacobian", "hessian", "matrix_add",
     "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_inverse",
     "matrix_rank", "matrix_trace", "matrix_eigenvalues", "matrix_eigenvectors",
@@ -68,6 +68,9 @@ def calculate(
     dependent_variable: str | None = None,
     independent_variable: str | None = None,
     hint: str = "default",
+    transform_type: str | None = None,
+    transform_variable: str | None = None,
+    inverse: bool = False,
 ) -> Any:
     """Run a reusable symbolic operation, retaining native SymPy inputs."""
     if operation not in CALCULATOR_OPERATIONS:
@@ -142,6 +145,24 @@ def calculate(
                 raise CalculatorError("solve_system requires second_expression or equations.")
             system = [expr, _parse_equation(parser, second_expression)]
         return sp.solve(system, symbols)
+    if operation == "transform":
+        if transform_type not in {"laplace", "fourier"}:
+            raise CalculatorError("transform_type must be 'laplace' or 'fourier'.")
+        if not isinstance(transform_variable, str) or not transform_variable.isidentifier():
+            raise CalculatorError("transform requires transform_variable as a valid symbol name.")
+        if not isinstance(inverse, bool):
+            raise CalculatorError("inverse must be a boolean.")
+        source = _symbol(variable, expr)
+        target = sp.Symbol(transform_variable)
+        if transform_type == "laplace":
+            return (
+                sp.inverse_laplace_transform(expr, source, target)
+                if inverse else sp.laplace_transform(expr, source, target, noconds=True)
+            )
+        return (
+            sp.inverse_fourier_transform(expr, source, target)
+            if inverse else sp.fourier_transform(expr, source, target)
+        )
     if operation == "ode_solve":
         if not isinstance(dependent_variable, str) or not dependent_variable.isidentifier():
             raise CalculatorError("ode_solve requires dependent_variable as a valid function name, e.g. 'y'.")
@@ -231,6 +252,7 @@ _OPERATION_ARGUMENTS = {
     "solve": (("expression",), ("variable",)),
     "solve_system": (("expression", "variables"), ("second_expression", "equations")),
     "ode_solve": (("expression", "dependent_variable", "independent_variable"), ("hint",)),
+    "transform": (("expression", "transform_type", "transform_variable"), ("variable", "inverse")),
     "summation": (("expression", "point"), ("variable",)),
     "product": (("expression", "point"), ("variable",)),
     "roots": (("expression",), ("variable",)),
@@ -270,6 +292,7 @@ _OPERATION_DESCRIPTIONS = {
     "solve": "Solve an expression or equation for a variable.",
     "solve_system": "Solve a system using second_expression or an equations list.",
     "ode_solve": "Solve an ordinary differential equation with SymPy dsolve; name the dependent and independent variables.",
+    "transform": "Compute a symbolic Laplace or Fourier transform; set inverse=true for the inverse transform.",
     "summation": "Compute a finite symbolic sum over point='start,end'.",
     "product": "Compute a finite symbolic product over point='start,end'.",
     "roots": "Return polynomial roots and multiplicities.",
@@ -295,7 +318,7 @@ _OPERATION_DESCRIPTIONS = {
 _REQUEST_FIELDS = {
     "operation", "expression", "variable", "variables", "point", "order", "derivative_order",
     "value", "second_expression", "lower", "upper", "direction", "equations",
-    "dependent_variable", "independent_variable", "hint",
+    "dependent_variable", "independent_variable", "hint", "transform_type", "transform_variable", "inverse",
 }
 
 
