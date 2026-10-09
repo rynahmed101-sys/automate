@@ -116,6 +116,28 @@ def calculate(operation, expression, variable, variables, point, order, value, s
         console.print(payload["result"])
 
 
+@main.command("request")
+@click.option("--request-json", default=None, help="JSON object with operation, expression, and optional arguments. Reads stdin when omitted.")
+def request_command(request_json: str | None):
+    """Execute a structured JSON calculator request and return typed JSON output."""
+    raw = request_json if request_json is not None else click.get_text_stream("stdin").read()
+    try:
+        request = json.loads(raw)
+        result = calculate_request(request)
+        click.echo(json.dumps({
+            "ok": True,
+            "operation": request["operation"],
+            "result": result_string(result),
+            "result_data": result_data(result),
+        }, indent=2))
+    except Exception as exc:
+        click.echo(json.dumps({
+            "ok": False,
+            "error": {"type": type(exc).__name__, "message": str(exc)},
+        }, indent=2))
+        raise click.exceptions.Exit(1)
+
+
 @main.command()
 @click.argument("theory_file", type=click.Path(exists=True))
 @click.option("--output", "-o", default=None, help="Output JSON graph path")
