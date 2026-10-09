@@ -19,6 +19,7 @@ Automate provides reusable operations for:
 - equations and solving
 - derivatives and integrals
 - symbolic ordinary differential-equation solving
+- Laplace and Fourier transforms, including inverse transforms
 - limits and series
 - multivariable mathematics
 - linear algebra
@@ -43,6 +44,7 @@ from automate import calculate
 calculate("differentiate", "x**2*y", variable="x")
 calculate("matrix_determinant", "Matrix((1,2),(3,4))")
 calculate("ode_solve", "diff(y(x), x) = y(x)", dependent_variable="y", independent_variable="x")
+calculate("transform", "exp(2*t)", variable="t", transform_type="laplace", transform_variable="s")
 ```
 
 The CLI provides the same calculator surface for shell tools and AI agents:
