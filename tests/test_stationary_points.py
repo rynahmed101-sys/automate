@@ -45,3 +45,20 @@ def test_stationary_points_requires_variables():
             "operation": "stationary_points",
             "expression": "x**2",
         })
+
+def test_stationary_points_rejects_non_finite_stationary_set():
+    with pytest.raises(CalculatorError, match="not a finite list"):
+        calculate_request({
+            "operation": "stationary_points",
+            "expression": "7",
+            "variables": ["x"],
+        })
+
+
+def test_stationary_points_rejects_expression_independent_of_requested_variables():
+    with pytest.raises(CalculatorError, match="not a finite list"):
+        calculate_request({
+            "operation": "stationary_points",
+            "expression": "y**2",
+            "variables": ["x"],
+        })
