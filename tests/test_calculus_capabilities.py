@@ -80,3 +80,16 @@ def test_manifest_documents_new_calculus_arguments():
 def test_definite_integral_rejects_missing_bounds():
     with pytest.raises(CalculatorError, match="lower and upper"):
         calculate("integrate_definite", "x**2", variable="x", lower="0")
+
+
+def test_cli_exposes_nth_derivative_order():
+    from click.testing import CliRunner
+    from automate.cli import main
+    import json
+
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "differentiate", "--expression", "x**4",
+        "--variable", "x", "--derivative-order", "3", "--json",
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "24*x"
