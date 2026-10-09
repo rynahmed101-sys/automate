@@ -5,13 +5,13 @@
   "roadmap_authority": "docs/AUTOMATE_SCIENTIFIC_ENGINE_LEDGER.md",
   "inventory_purpose": "Evidence index for implemented interfaces, source, tests, and verification; this file is not a roadmap.",
   "authoritative_verification": {
-    "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-    "exact_head_workflow_run": 37971635225,
+    "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+    "exact_head_workflow_run": 37980795856,
     "exact_head_conclusion": "success",
-    "security_workflow_run": 37971635286,
+    "security_workflow_run": 37980795994,
     "security_conclusion": "success",
-    "local_test_summary": "847 passed, 1 skipped on the exact main checkout before this working-branch change.",
-    "note": "The exact-head CI includes the repository test suite across the configured Python versions and the Lean check. Security Audit ran CodeQL and pip-audit. These checks do not establish formal proof or independent verification of every mathematical result."
+    "local_test_summary": "867 passed, 1 skipped on PR #222 head before merge; exact-main Automate CI and Security Audit both passed on 9fd87f7f331170fc11a31fec26b5e2a94576450a.",
+    "note": "Exact-head CI includes the configured Python-version test jobs and Lean check. Security Audit ran CodeQL and pip-audit. These checks do not establish formal proof or independent verification of every mathematical result."
   },
   "capabilities": [
     {
@@ -67,7 +67,11 @@
         "matrix_singular_values",
         "vector_dot",
         "vector_cross",
-        "vector_norm"
+        "vector_norm",
+        "total_differential",
+        "divergence",
+        "curl",
+        "laplacian"
       ],
       "canonical_files": [
         "automate/calculator.py",
@@ -125,6 +129,11 @@
           "type": "pr",
           "number": 221,
           "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 222,
+          "state": "merged"
         }
       ],
       "notes": "Manifest and API operations are the current calculator contract. Check runtime dispatch and tests rather than inferring support from old capability labels.",
@@ -139,9 +148,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -182,9 +191,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -228,9 +237,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -280,15 +289,15 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
       "id": "calculator.vector_calculus",
       "name": "Direct total differential and Cartesian vector-calculus operations",
-      "implementation_state": "active_development",
+      "implementation_state": "implemented",
       "interfaces": [
         "python",
         "cli",
@@ -311,20 +320,25 @@
       "references": [
         {
           "type": "pr",
-          "number": 211,
-          "state": "closed_unmerged_superseded"
+          "number": 222,
+          "state": "merged"
         }
       ],
-      "notes": "Working-branch addition, not yet merged or covered by main CI/security. Vector inputs are explicit SymPy matrices; divergence requires one variable per component and curl is three-dimensional Cartesian only. Does not classify extrema or establish domain regularity.",
+      "notes": "Direct calculator exposure for total differentials and Cartesian divergence, curl, and Laplacian is merged in PR #222. Vector inputs are explicit SymPy matrices; divergence requires one variable per component and curl is three-dimensional Cartesian only. This does not classify extrema or establish domain regularity.",
       "verification": {
         "locally_tested": true,
         "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": false,
         "formally_proved": false,
         "certified": false
+      },
+      "verification_evidence": {
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -361,9 +375,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -395,9 +409,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -433,9 +447,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -476,9 +490,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -514,9 +528,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -547,9 +561,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     },
     {
@@ -590,9 +604,9 @@
         "certified": false
       },
       "verification_evidence": {
-        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
-        "exact_head_workflow_run": 37971635225,
-        "security_workflow_run": 37971635286
+        "main_sha": "9fd87f7f331170fc11a31fec26b5e2a94576450a",
+        "exact_head_workflow_run": 37980795856,
+        "security_workflow_run": 37980795994
       }
     }
   ]

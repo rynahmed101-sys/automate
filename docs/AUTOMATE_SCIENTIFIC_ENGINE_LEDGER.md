@@ -247,12 +247,14 @@ of every result.
 
 The current practical queue is:
 
-1. Review and integrate the current calculator contract increment. It wires
-   the remaining manifest arguments into `automate calculate`, makes JSON
-   calculation errors return a failing process status, and adds direct total
-   differential and Cartesian divergence, curl, and Laplacian operations.
-   These changes are on the working branch, not in the exact-main evidence
-   recorded above.
+1. PR #222 is merged as `9fd87f7f331170fc11a31fec26b5e2a94576450a`.
+   It wires the remaining manifest arguments into `automate calculate`,
+   makes JSON calculation errors return a failing process status, adds direct
+   total differential and Cartesian divergence, curl, and Laplacian
+   operations, and hardens improper-integral verification against reversed
+   infinite bounds, malformed endpoint markers, and invalid or unresolved
+   interior split points. Exact-main Automate CI and Security Audit both pass
+   on this commit (runs `37980795856` and `37980795994`).
 2. Expose useful existing lower-level mathematical-physics operations through
    compact calculator requests where doing so preserves their current model
    and domain contracts. Mechanics, electromagnetism, tensor/geometry, and
@@ -269,11 +271,14 @@ The current practical queue is:
    requests.
 
 The requirements recorded in issue #115 (improper integrals) and issue #141
-(Taylor/Maclaurin series) are implemented and covered by focused tests. Issue
-#141 is closed as completed. Issue #115 remains open pending review of the
-improper-integral safeguards on this working branch. This branch rejects
-reversed infinite bounds and out-of-interval or unresolved interior split
-points rather than assigning a convergence classification.
+(Taylor/Maclaurin series) are implemented and covered by focused tests. Both
+issues are closed as completed. Issue #115 was reconciled after PR #222 merged
+the reversed-infinite-bound, malformed-marker, and invalid/unresolved
+interior-split safeguards. The graph verifier's convergence classification
+remains distinct from the direct `integrate_definite` calculator operation.
+The exact-main CI and Security Audit passed on
+`9fd87f7f331170fc11a31fec26b5e2a94576450a`; this is workflow evidence, not
+a claim of formal proof or independent cross-checking of every result.
 
 Keep old operation behavior compatible unless the change is explicitly
 additive. Every exposed operation must be callable, described truthfully in the
