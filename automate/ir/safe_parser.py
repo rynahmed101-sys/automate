@@ -39,7 +39,7 @@ from typing import Any, Callable, Dict, Optional
 
 import sympy as sp
 from sympy import (
-    Symbol, Integer, Rational, Float,
+    Symbol, Integer, Rational, Float, Matrix, eye, zeros, ones, diag,
     pi, E, I, oo, nan, zoo,
     sin, cos, tan, asin, acos, atan, atan2,
     sinh, cosh, tanh, asinh, acosh, atanh,
@@ -47,6 +47,13 @@ from sympy import (
     re as sp_re, im as sp_im, conjugate,
     diff, Derivative, Integral,
 )
+
+
+def _safe_matrix(*args: Any) -> Matrix:
+    """Construct a SymPy Matrix while accepting natural row/column syntax."""
+    if len(args) == 1:
+        return Matrix(args[0])
+    return Matrix(args)
 
 
 class SafeParseError(ValueError):
@@ -112,6 +119,7 @@ _ALLOWED_FUNCTIONS: Dict[str, Any] = {
     "diff": diff, "Derivative": Derivative, "Integral": Integral,
     "pi": pi, "E": E, "I": I, "oo": oo, "nan": nan, "zoo": zoo,
     "Symbol": Symbol, "Integer": Integer, "Rational": Rational, "Float": Float,
+    "Matrix": _safe_matrix, "eye": eye, "zeros": zeros, "ones": ones, "diag": diag,
 }
 
 _MAX_ATOM_COUNT = 2000
@@ -242,14 +250,26 @@ _SAFE_UNARY_OPS: Dict[type[ast.unaryop], Callable[[Any], Any]] = {
 }
 
 
-def _expression_depth(expr: sp.Basic, _memo: Optional[Dict[int, int]] = None) -> int:
-    """Recursively compute the depth of a SymPy expression tree."""
+def _expression_depth(expr: Any, _memo: Optional[Dict[int, int]] = None) -> int:
+    """Recursively compute the depth of a SymPy expression or matrix."""
     if _memo is None:
         _memo = {}
     eid = id(expr)
     if eid in _memo:
         return _memo[eid]
-    if not expr.args:
+    if isinstance(expr, sp.MatrixBase):
+        if expr.rows == 0 or expr.cols == 0:
+            _memo[eid] = 1
+            return 1
+        depth = 1 + max(
+            (_expression_depth(expr[i, j], _memo)
+             for i in range(expr.rows)
+             for j in range(expr.cols)),
+            default=0,
+        )
+        _memo[eid] = depth
+        return depth
+    if not getattr(expr, "args", None):
         _memo[eid] = 1
         return 1
     depth = 1 + max(_expression_depth(arg, _memo) for arg in expr.args)
@@ -278,7 +298,7 @@ def _is_safe_binding(value: Any) -> bool:
     if any(value is allowed for allowed in _ALLOWED_FUNCTIONS.values()):
         return True
     # SymPy expressions/symbols are safe bindings.
-    if isinstance(value, sp.Basic):
+    if isinstance(value, (sp.Basic, sp.MatrixBase)):
         return True
     # A user-defined symbolic function such as sp.Function("x") is a
     # SymPy FunctionClass. It is safe because calls still originate only
@@ -338,7 +358,11 @@ class SafeParser:
                     f"at position {match.start()}: {match.group()!r}"
                 )
 
-    def _check_expr(self, expr: sp.Basic) -> None:
+    def _check_expr(self, expr: Any) -> None:
+        if not isinstance(expr, (sp.Basic, sp.MatrixBase)):
+            raise SafeParseError(
+                f"Parser produced unsupported object type {type(expr).__name__}."
+            )
         atom_count = len(expr.atoms())
         if atom_count > self.max_atoms:
             raise SafeParseError(
@@ -509,11 +533,6 @@ class SafeParser:
                 f"(took {elapsed:.2f}s)."
             )
 
-        if not isinstance(expr, sp.Basic):
-            raise SafeParseError(
-                f"Parser produced unsupported object type {type(expr).__name__}."
-            )
-
         self._check_expr(expr)
         return expr
 
@@ -599,7 +618,7 @@ class SafeParser:
                         raise SafeParseError(
                             f"Could not deserialize isolated parser result: {type(exc).__name__}: {exc}"
                         ) from exc
-                    if not isinstance(result, sp.Basic):
+                    if not isinstance(result, (sp.Basic, sp.MatrixBase)):
                         raise SafeParseError(
                             f"Isolated parser returned unsupported object type "
                             f"{type(result).__name__}."

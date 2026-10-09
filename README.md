@@ -34,7 +34,16 @@ The engine should calculate an unusual equation just as readily as a familiar on
 
 ## Direct use
 
-The CLI exposes a small direct calculator interface:
+The calculator is available both as a Python API and through the CLI. The Python API keeps ordinary mathematical expressions and objects intact:
+
+```python
+from automate import calculate
+
+calculate("differentiate", "x**2*y", variable="x")
+calculate("matrix_determinant", "Matrix((1,2),(3,4))")
+```
+
+The CLI provides the same calculator surface for shell tools and AI agents:
 
 `automate calculate --operation differentiate --expression "x**2*y" --variable x`
 
@@ -42,7 +51,7 @@ Machine-readable output:
 
 `automate calculate --operation integrate --expression "2*x" --variable x --json`
 
-More operations are exposed as the underlying backends support them.
+Use `automate capabilities --json` to discover the currently exposed operations. The interface is intentionally thin: mathematical expressions, symbolic objects, and safe constructors remain available instead of being hidden behind a specialized protocol.
 
 ## AI integration
 

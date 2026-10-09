@@ -399,3 +399,12 @@ class TestIsolatedParsing:
         monkeypatch.setattr(safe_parser_module, "_MAX_RESULT_BYTES", 1)
         with pytest.raises(SafeParseError, match="output-size limit"):
             parser.parse_isolated("x + 1", timeout=3.0)
+
+
+def test_safe_parser_matrix_construction_and_validation():
+    from automate.ir.safe_parser import SafeParser
+    import sympy as sp
+
+    result = SafeParser().parse_isolated("Matrix((1,2),(3,4))")
+    assert isinstance(result, sp.MatrixBase)
+    assert result.det() == -2

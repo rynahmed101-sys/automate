@@ -44,3 +44,68 @@ def test_cli_schema_ir():
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert "$schema" in data or "title" in data or "type" in data
+
+def test_cli_capabilities_publish_calculator_operations():
+    result = CliRunner().invoke(main, ["capabilities", "--json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert "differentiate" in data["calculator_operations"]
+    assert "gradient" in data["calculator_operations"]
+    assert "matrix_eigenvalues" in data["calculator_operations"]
+
+def test_cli_calculate_substitute_and_multivariable():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "substitute",
+        "--expression", "x**2 + y", "--value", "x=3", "--json"
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "y + 9"
+
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "gradient",
+        "--expression", "x**2 + x*y + y**2",
+        "--variables", "x,y", "--json"
+    ])
+    assert result.exit_code == 0, result.output
+    assert "2*x + y" in json.loads(result.output)["result"]
+    assert "x + 2*y" in json.loads(result.output)["result"]
+
+def test_cli_calculate_matrix_operations():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "matrix_determinant",
+        "--expression", "Matrix((1,2),(3,4))", "--json"
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "-2"
+
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "vector_dot",
+        "--expression", "Matrix((1,2,3))",
+        "--second-expression", "Matrix((4,5,6))", "--json"
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "32"
+
+
+def test_cli_calculate_preserves_expression_and_equation_solving():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "evaluate",
+        "--expression", "Rational(1,2) + x", "--json"
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "x + 1/2"
+
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "solve",
+        "--expression", "x**2 = 4", "--variable", "x", "--json"
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "[-2, 2]"
+
+
+def test_calculator_accepts_sympy_matrix_objects():
+    import sympy as sp
+    from automate import calculate
+
+    matrix = sp.Matrix([[1, 2], [3, 4]])
+    assert calculate("matrix_determinant", matrix) == -2
