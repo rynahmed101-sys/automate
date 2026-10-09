@@ -5,14 +5,18 @@ from collections.abc import Mapping
 from typing import Any
 
 import sympy as sp
+import pint
+import numpy as np
 
 from automate.ir.safe_parser import SafeParser
+
+_UNIT_REGISTRY = pint.UnitRegistry()
 
 CALCULATOR_OPERATIONS = (
     "evaluate", "simplify", "expand", "factor", "cancel", "apart", "together",
     "collect", "substitute", "differentiate", "integrate", "integrate_definite",
-    "limit", "series", "solve", "solve_system", "ode_solve", "transform", "summation", "product", "roots",
-    "nsolve", "evalf", "gradient", "jacobian", "hessian", "stationary_points", "matrix_add",
+    "limit", "series", "solve", "solve_system", "ode_solve", "pde_solve", "transform", "summation", "product", "roots",
+    "nsolve", "evalf", "unit_convert", "descriptive_statistics", "distribution", "gradient", "jacobian", "hessian", "stationary_points", "matrix_add",
     "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_inverse",
     "matrix_rank", "matrix_trace", "matrix_eigenvalues", "matrix_eigenvectors",
     "matrix_singular_values", "vector_dot", "vector_cross", "vector_norm",
@@ -71,6 +75,11 @@ def calculate(
     transform_type: str | None = None,
     transform_variable: str | None = None,
     inverse: bool = False,
+    source_unit: str | None = None,
+    target_unit: str | None = None,
+    distribution_name: str | None = None,
+    distribution_function: str | None = None,
+    distribution_parameters: Mapping[str, Any] | None = None,
 ) -> Any:
     """Run a reusable symbolic operation, retaining native SymPy inputs."""
     if operation not in CALCULATOR_OPERATIONS:
@@ -81,14 +90,112 @@ def calculate(
         raise CalculatorError("derivative_order must be a positive integer.")
 
     parser = SafeParser()
-    expr = (
-        _parse_equation(parser, expression)
-        if operation in {"solve", "solve_system", "ode_solve"} else _parse(parser, expression)
-    )
+    if operation == "descriptive_statistics" and isinstance(expression, (list, tuple, np.ndarray)):
+        expr = expression
+    else:
+        expr = (
+            _parse_equation(parser, expression)
+            if operation in {"solve", "solve_system", "ode_solve", "pde_solve"} else _parse(parser, expression)
+        )
     symbol = lambda: _symbol(variable, expr)
 
     if operation == "evaluate":
         return expr
+    if operation == "unit_convert":
+        if not isinstance(source_unit, str) or not source_unit.strip():
+            raise CalculatorError("unit_convert requires a non-empty source_unit.")
+        if not isinstance(target_unit, str) or not target_unit.strip():
+            raise CalculatorError("unit_convert requires a non-empty target_unit.")
+        if not isinstance(expr, sp.Expr) or expr.is_number is not True or expr.is_real is not True:
+            raise CalculatorError("unit_convert requires a real numeric expression without free symbols.")
+        if expr.is_finite is False:
+            raise CalculatorError("unit_convert requires a finite numeric expression.")
+        try:
+            quantity = _UNIT_REGISTRY.Quantity(float(expr.evalf()), source_unit.strip())
+            return quantity.to(target_unit.strip())
+        except (pint.errors.PintError, ValueError, TypeError, OverflowError) as exc:
+            raise CalculatorError(f"Could not convert units: {exc}") from exc
+    if operation == "descriptive_statistics":
+        if isinstance(expr, sp.MatrixBase):
+            if expr.rows != 1 and expr.cols != 1:
+                raise CalculatorError("descriptive_statistics requires a one-dimensional data sequence.")
+            values = list(expr)
+        elif isinstance(expr, (list, tuple, np.ndarray)):
+            values = list(expr)
+        else:
+            raise CalculatorError("descriptive_statistics requires a numeric sequence or vector Matrix.")
+        if not values:
+            raise CalculatorError("descriptive_statistics requires at least one data value.")
+        if any(
+            isinstance(item, bool)
+            or not isinstance(item, (int, float, np.number, sp.Number))
+            or (isinstance(item, sp.Number) and item.is_real is not True)
+            for item in values
+        ):
+            raise CalculatorError("descriptive_statistics accepts only real numeric data values.")
+        try:
+            samples = np.asarray([float(item) for item in values], dtype=float)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise CalculatorError(f"Could not convert data to finite numbers: {exc}") from exc
+        if not np.isfinite(samples).all():
+            raise CalculatorError("descriptive_statistics requires finite data values.")
+        return {
+            "count": int(samples.size),
+            "mean": float(np.mean(samples)),
+            "median": float(np.median(samples)),
+            "minimum": float(np.min(samples)),
+            "maximum": float(np.max(samples)),
+            "population_variance": float(np.var(samples, ddof=0)),
+            "sample_variance": float(np.var(samples, ddof=1)) if samples.size > 1 else None,
+        }
+    if operation == "distribution":
+        supported_distributions = {"normal", "norm", "uniform", "exponential", "expon", "poisson", "binomial", "binom"}
+        if not isinstance(distribution_name, str) or distribution_name not in supported_distributions:
+            raise CalculatorError("distribution_name must be normal, uniform, exponential, poisson, or binomial.")
+        if not isinstance(distribution_function, str) or distribution_function not in {"pdf", "pmf", "cdf", "sf", "ppf"}:
+            raise CalculatorError("distribution_function must be pdf, pmf, cdf, sf, or ppf.")
+        if not isinstance(expr, sp.Expr) or expr.is_number is not True or expr.is_real is not True or expr.is_finite is False:
+            raise CalculatorError("distribution requires a finite real numeric expression as its evaluation point.")
+        if distribution_parameters is not None and not isinstance(distribution_parameters, Mapping):
+            raise CalculatorError("distribution_parameters must be a mapping of numeric parameters.")
+        parameters = dict(distribution_parameters or {})
+        for name, value in parameters.items():
+            if not isinstance(name, str) or isinstance(value, bool) or not isinstance(value, (int, float, np.number)):
+                raise CalculatorError("Distribution parameters must be finite real numeric values.")
+            try:
+                finite_value = float(value)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise CalculatorError("Distribution parameters must be finite real numeric values.") from exc
+            if not np.isfinite(finite_value):
+                raise CalculatorError("Distribution parameters must be finite real numeric values.")
+        point = float(expr.evalf())
+        if distribution_function == "ppf" and not 0 <= point <= 1:
+            raise CalculatorError("ppf requires an evaluation point in the probability interval [0, 1].")
+        from scipy import stats as scipy_stats
+
+        distributions = {
+            "normal": scipy_stats.norm,
+            "norm": scipy_stats.norm,
+            "uniform": scipy_stats.uniform,
+            "exponential": scipy_stats.expon,
+            "expon": scipy_stats.expon,
+            "poisson": scipy_stats.poisson,
+            "binomial": scipy_stats.binom,
+            "binom": scipy_stats.binom,
+        }
+        distribution = distributions[distribution_name]
+        method = getattr(distribution, distribution_function, None)
+        if method is None:
+            raise CalculatorError(
+                f"Distribution '{distribution_name}' does not support {distribution_function}."
+            )
+        try:
+            result = float(method(point, **parameters))
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise CalculatorError(f"Could not evaluate distribution: {exc}") from exc
+        if not np.isfinite(result):
+            raise CalculatorError("Distribution evaluation returned a non-finite result; check its parameters and domain.")
+        return result
     if operation == "simplify":
         return sp.simplify(expr)
     if operation == "expand":
@@ -163,6 +270,11 @@ def calculate(
             sp.inverse_fourier_transform(expr, source, target)
             if inverse else sp.fourier_transform(expr, source, target)
         )
+    if operation == "pde_solve":
+        try:
+            return sp.pdsolve(expr)
+        except (ValueError, NotImplementedError, TypeError) as exc:
+            raise CalculatorError(f"Could not solve the requested PDE: {type(exc).__name__}: {exc}") from exc
     if operation == "ode_solve":
         if not isinstance(dependent_variable, str) or not dependent_variable.isidentifier():
             raise CalculatorError("ode_solve requires dependent_variable as a valid function name, e.g. 'y'.")
@@ -202,7 +314,12 @@ def calculate(
                 "The expression is independent of all requested variables; "
                 "the stationary set is not a finite list of points."
             )
-        return sp.solve(gradient, symbols, dict=True)
+        points = sp.solve(gradient, symbols, dict=True)
+        if any(any(name not in point for name in symbols) for point in points):
+            raise CalculatorError(
+                "The stationary set has free requested variables and is not a finite list of points."
+            )
+        return points
     if operation in {"gradient", "jacobian", "hessian"}:
         vs = [sp.Symbol(v.strip()) for v in (variables or []) if isinstance(v, str) and v.strip()]
         if not vs:
@@ -251,6 +368,8 @@ def calculate(
 
 
 def result_string(result: Any) -> str:
+    if isinstance(result, pint.Quantity):
+        return f"{sp.sstr(result.magnitude)} {result.units}"
     return sp.sstr(result)
 
 
@@ -266,6 +385,10 @@ _OPERATION_ARGUMENTS = {
     "solve": (("expression",), ("variable",)),
     "solve_system": (("expression", "variables"), ("second_expression", "equations")),
     "ode_solve": (("expression", "dependent_variable", "independent_variable"), ("hint",)),
+    "pde_solve": (("expression",), ()),
+    "unit_convert": (("expression", "source_unit", "target_unit"), ()),
+    "descriptive_statistics": (("expression",), ()),
+    "distribution": (("expression", "distribution_name", "distribution_function"), ("distribution_parameters",)),
     "transform": (("expression", "transform_type", "transform_variable"), ("variable", "inverse")),
     "summation": (("expression", "point"), ("variable",)),
     "product": (("expression", "point"), ("variable",)),
@@ -307,6 +430,10 @@ _OPERATION_DESCRIPTIONS = {
     "solve": "Solve an expression or equation for a variable.",
     "solve_system": "Solve a system using second_expression or an equations list.",
     "ode_solve": "Solve an ordinary differential equation with SymPy dsolve; name the dependent and independent variables.",
+    "pde_solve": "Attempt symbolic partial differential equation solving through SymPy pdsolve.",
+    "unit_convert": "Convert a finite real numeric magnitude between compatible units using Pint; the magnitude is returned as an approximate float quantity.",
+    "descriptive_statistics": "Compute count, mean, median, extrema, population variance, and sample variance for a finite real numeric sequence.",
+    "distribution": "Numerically evaluate the pdf, pmf, cdf, survival function, or quantile of an allowlisted common SciPy distribution.",
     "transform": "Compute a symbolic Laplace or Fourier transform; set inverse=true for the inverse transform.",
     "summation": "Compute a finite symbolic sum over point='start,end'.",
     "product": "Compute a finite symbolic product over point='start,end'.",
@@ -335,6 +462,8 @@ _REQUEST_FIELDS = {
     "operation", "expression", "variable", "variables", "point", "order", "derivative_order",
     "value", "second_expression", "lower", "upper", "direction", "equations",
     "dependent_variable", "independent_variable", "hint", "transform_type", "transform_variable", "inverse",
+    "source_unit", "target_unit",
+    "distribution_name", "distribution_function", "distribution_parameters",
 }
 
 
@@ -343,13 +472,55 @@ def calculator_manifest() -> dict[str, Any]:
     operations = []
     for name in CALCULATOR_OPERATIONS:
         required, optional = _OPERATION_ARGUMENTS.get(name, (("expression",), ()))
-        operations.append({
+        operation = {
             "name": name,
             "description": _OPERATION_DESCRIPTIONS.get(name, f"Apply the {name} operation."),
             "required": list(required),
             "optional": list(optional),
             "input_forms": ["expression_string", "SymPy_object"],
-        })
+        }
+        if name == "unit_convert":
+            operation.update({
+                "input_forms": ["numeric_expression_string", "SymPy_number"],
+                "arguments": {
+                    "expression": {"type": "finite_real_number"},
+                    "source_unit": {"type": "unit_string"},
+                    "target_unit": {"type": "compatible_unit_string"},
+                },
+                "result": {"type": "quantity", "magnitude": "approximate_float", "units": "converted_target_unit"},
+            })
+        elif name == "descriptive_statistics":
+            operation.update({
+                "input_forms": ["numeric_sequence", "NumPy_vector", "SymPy_vector", "SafeParser_Matrix_expression"],
+                "arguments": {"expression": {"type": "one_dimensional_finite_real_numeric_data"}},
+                "result": {
+                    "type": "mapping",
+                    "keys": ["count", "mean", "median", "minimum", "maximum", "population_variance", "sample_variance"],
+                    "sample_variance": "null when fewer than two values are provided",
+                },
+            })
+        elif name == "distribution":
+            operation.update({
+                "input_forms": ["numeric_expression_string", "SymPy_number"],
+                "arguments": {
+                    "expression": {"type": "finite_real_evaluation_point"},
+                    "distribution_name": {"type": "string", "choices": ["normal", "norm", "uniform", "exponential", "expon", "poisson", "binomial", "binom"]},
+                    "distribution_function": {"type": "string", "choices": ["pdf", "pmf", "cdf", "sf", "ppf"]},
+                    "functions_by_distribution": {
+                        "normal": ["pdf", "cdf", "sf", "ppf"],
+                        "norm": ["pdf", "cdf", "sf", "ppf"],
+                        "uniform": ["pdf", "cdf", "sf", "ppf"],
+                        "exponential": ["pdf", "cdf", "sf", "ppf"],
+                        "expon": ["pdf", "cdf", "sf", "ppf"],
+                        "poisson": ["pmf", "cdf", "sf", "ppf"],
+                        "binomial": ["pmf", "cdf", "sf", "ppf"],
+                        "binom": ["pmf", "cdf", "sf", "ppf"],
+                    },
+                    "distribution_parameters": {"type": "mapping_of_finite_real_numbers"},
+                },
+                "result": {"type": "float", "approximate": True},
+            })
+        operations.append(operation)
     return {
         "schema_version": "automate.calculator.v1",
         "role": "mathematics_and_physics_calculator",
@@ -383,6 +554,13 @@ def calculate_request(request: Any) -> Any:
 
 def result_data(result: Any) -> dict[str, Any]:
     """Serialize common calculator results into JSON-safe, type-aware data."""
+    if isinstance(result, pint.Quantity):
+        return {
+            "type": "quantity",
+            "magnitude": result_data(result.magnitude),
+            "units": str(result.units),
+            "approximate": True,
+        }
     if isinstance(result, sp.MatrixBase):
         return {
             "type": "matrix",
@@ -397,7 +575,7 @@ def result_data(result: Any) -> dict[str, Any]:
             "srepr": sp.srepr(result),
             "is_number": bool(result.is_number),
         }
-    if isinstance(result, dict):
+    if isinstance(result, Mapping):
         return {
             "type": "mapping",
             "items": [

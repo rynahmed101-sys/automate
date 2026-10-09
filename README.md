@@ -23,6 +23,8 @@ Automate provides reusable operations for:
 - limits and series
 - multivariable mathematics
 - symbolic stationary-point candidates for optimization workflows
+- symbolic PDE solving for equation classes supported by SymPy
+- numeric unit conversion, descriptive statistics, and allowlisted SciPy distributions
 - linear algebra
 - vectors, tensors and geometry
 - numerical mathematics
@@ -47,6 +49,10 @@ calculate("matrix_determinant", "Matrix((1,2),(3,4))")
 calculate("ode_solve", "diff(y(x), x) = y(x)", dependent_variable="y", independent_variable="x")
 calculate("transform", "exp(2*t)", variable="t", transform_type="laplace", transform_variable="s")
 calculate("stationary_points", "(x-2)**2 + 3", variables=["x"])
+calculate("unit_convert", "1", source_unit="km", target_unit="m")
+calculate("descriptive_statistics", [1, 2, 3, 4])
+calculate("distribution", "0", distribution_name="normal", distribution_function="pdf")
+calculate("pde_solve", "diff(u(x,y), x) + diff(u(x,y), y) = 0")
 ```
 
 The CLI provides the same calculator surface for shell tools and AI agents:

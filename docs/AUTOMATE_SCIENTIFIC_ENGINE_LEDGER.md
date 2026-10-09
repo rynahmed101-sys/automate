@@ -293,3 +293,10 @@ The AI remains the interpreter.
 Automate remains the calculator.
 
 That is the product.
+
+
+## Recovered calculator capability increment (pending review and exact-head CI)
+
+The recovered branch adds a callable unit-conversion operation, descriptive statistics for finite real numeric sequences, allowlisted SciPy distribution evaluation, and symbolic PDE solving through SymPy where supported. It also tightens stationary-point behavior so partially free solution sets are not misreported as a finite list, preserves generic mapping serialization, exposes the new CLI arguments, and raises the parser worker memory ceiling to 1 GiB to address previously reported real CLI failures.
+
+These capabilities are implemented on the recovery branch only. They are not certified as merged-main capabilities until the branch is reviewed, exact-head CI and security checks pass, and the resulting integration commit is verified.
