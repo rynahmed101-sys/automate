@@ -294,7 +294,8 @@ _OPERATION_DESCRIPTIONS = {
 }
 _REQUEST_FIELDS = {
     "operation", "expression", "variable", "variables", "point", "order", "derivative_order",
-    "value", "second_expression", "lower", "upper", "direction", "equations",\n    "dependent_variable", "independent_variable", "hint",
+    "value", "second_expression", "lower", "upper", "direction", "equations",
+    "dependent_variable", "independent_variable", "hint",
 }
 
 
