@@ -83,7 +83,7 @@ jobs:
         uses: ./
         with:
           request: |
-            {"operation":"matrix_determinant","expression":"Matrix([[1,2],[3,4]])"}
+            {"operation":"matrix_determinant","expression":"Matrix((1,2),(3,4))"}
 
       - name: Validate direct action results and structured outputs
         env:
