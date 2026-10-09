@@ -97,6 +97,36 @@ echo '{"operation":"matrix_determinant","expression":"Matrix((1,2),(3,4))}' | au
 
 The response includes the familiar readable `result` plus a typed `result_data` representation for matrices, symbolic expressions, sequences, mappings, and physical quantities. Existing `calculate --json` output retains its readable result and adds the typed representation. Invalid JSON-mode calculations return a nonzero process status as well as a machine-readable error. Verification remains optional; malformed requests and unsupported operations return clear errors.
 
+## Use Automate from GitHub Actions
+
+This public repository also provides a composite GitHub Action. An AI agent or
+workflow can call it directly without an Automate API key or other Automate
+credentials:
+
+```yaml
+steps:
+  - id: calculate
+    uses: rynahmed101-sys/automate@main
+    with:
+      request: |
+        {"operation":"differentiate","expression":"x**2*y","variable":"x"}
+  - name: Use the result
+    env:
+      AUTOMATE_RESULT: ${{ steps.calculate.outputs.result }}
+    run: printf '%s\n' "$AUTOMATE_RESULT"
+```
+
+The action exposes `response` (full JSON), `result` (readable result), and
+`result_data` (typed JSON) outputs. It installs Automate from the checked-out
+public action source and runs the same `automate request` interface shown above;
+an invalid request fails the action. For production workflows, pin `uses` to a
+reviewed commit SHA instead of the moving `main` branch.
+
+This is an execution action, not an anonymously hosted API: GitHub runs it in a
+workflow/runner controlled by the caller, and the caller's normal GitHub
+workflow permissions and trigger requirements still apply. Automate itself
+requires no credentials.
+
 ## AI integration
 
 An external AI can call Automate as a tool. Automate does not contain an internal LLM controller, proposal loop, research agent or provider manager.
