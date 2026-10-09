@@ -1,6 +1,9 @@
 name: GitHub Action Smoke Test
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     paths:
       - ".github/workflows/action-smoke-test.yml"
