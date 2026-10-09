@@ -246,6 +246,7 @@ The next capability increment is broader reusable calculus, not more governance:
 - series expansion around a configurable point
 - equation systems with more than two equations
 - symbolic ODE solving through SymPy dsolve
+- symbolic Laplace and Fourier transforms, including inverse transforms
 
 Keep old operation behavior compatible unless the change is explicitly additive. Every exposed operation must be callable, described truthfully in the manifest, and covered by focused tests. Verify the exact commit on `main` before describing it as certified.
 
