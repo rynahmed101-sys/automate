@@ -6,7 +6,7 @@ from automate.calculator import CalculatorError
 
 
 def test_nth_derivative():
-    assert calculate("differentiate", "x**4", variable="x", order=3) == 24 * sp.Symbol("x")
+    assert calculate("differentiate", "x**4", variable="x", derivative_order=3) == 24 * sp.Symbol("x")
 
 
 def test_definite_integral_uses_both_bounds():
@@ -56,7 +56,7 @@ def test_solve_system_accepts_more_than_two_equations():
         "equations": ["x - 1", "y - 2", "z - 3"],
         "variables": ["x", "y", "z"],
     })
-    assert result == [(1, 2, 3)]
+    assert result == {sp.Symbol("x"): 1, sp.Symbol("y"): 2, sp.Symbol("z"): 3}
 
 
 def test_solve_system_keeps_two_equation_compatibility():
@@ -65,7 +65,7 @@ def test_solve_system_keeps_two_equation_compatibility():
         second_expression="x - y - 1",
         variables=["x", "y"],
     )
-    assert result == [(2, 1)]
+    assert result == {sp.Symbol("x"): 2, sp.Symbol("y"): 1}
 
 
 def test_manifest_documents_new_calculus_arguments():
