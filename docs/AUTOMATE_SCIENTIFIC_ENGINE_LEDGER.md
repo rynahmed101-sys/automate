@@ -230,20 +230,23 @@ Do not block useful physics work simply because an arbitrary mathematics stage i
 
 ## 11. Current immediate work
 
-PR #211 contains partial derivatives and total differentials.
+The calculator surface has been integrated into `main` through PRs #214, #215, and #216:
 
-The correct goal is not to build a large verification bureaucracy around them.
+- a unified calculator API and CLI operation surface
+- native SymPy object handling and aligned package/CLI version metadata
+- a discoverable machine-readable calculator manifest
+- structured Python requests and a JSON CLI request command
+- typed JSON results while retaining the readable result field
 
-Instead:
+The next capability increment is broader reusable calculus, not more governance:
 
-- make the operations easy to call
-- ensure variable handling is correct
-- ensure results are correct
-- test ordinary and obvious failure cases
-- merge
-- move on
+- nth derivatives
+- definite integrals with explicit lower and upper bounds
+- directional limits
+- series expansion around a configurable point
+- equation systems with more than two equations
 
-Next useful mathematical capabilities should be selected by coverage and usefulness, not by completion of a rigid ten-stage curriculum.
+Keep old operation behavior compatible unless the change is explicitly additive. Every exposed operation must be callable, described truthfully in the manifest, and covered by focused tests. Verify the exact commit on `main` before describing it as certified.
 
 ## 12. Existing documentation
 

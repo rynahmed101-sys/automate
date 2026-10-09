@@ -85,18 +85,19 @@ def capabilities(as_json: bool):
 @click.option("--variable", default=None, help="Primary variable")
 @click.option("--variables", default=None, help="Comma-separated variables for multivariable operations")
 @click.option("--point", default=None, help="Limit point or summation/product range START,END")
-@click.option("--order", type=int, default=6, show_default=True, help="Series order")
+@click.option("--order", type=int, default=6, show_default=True, help="Series order or numeric precision")
+@click.option("--derivative-order", type=int, default=1, show_default=True, help="Derivative order for differentiate")
 @click.option("--value", default=None, help="Substitution NAME=EXPRESSION or numerical initial value")
 @click.option("--second-expression", default=None, help="Second expression for systems, matrix, or vector operations")
 @click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
-def calculate(operation, expression, variable, variables, point, order, value, second_expression, as_json):
+def calculate(operation, expression, variable, variables, point, order, derivative_order, value, second_expression, as_json):
     """Calculate a mathematical operation and return the result."""
     try:
         result = calculate_operation(
             operation, expression,
             variable=variable,
             variables=[v.strip() for v in variables.split(",")] if variables else None,
-            point=point, order=order, value=value,
+            point=point, order=order, derivative_order=derivative_order, value=value,
             second_expression=second_expression,
         )
         payload = {
