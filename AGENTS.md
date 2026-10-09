@@ -1,101 +1,45 @@
 # Automate Agent Contract
 
-This file is the repository-level operating contract for AI coding agents.
+This file describes the interfaces and trust boundaries present in this checkout.
 
 ## First actions
 
-1. Run `automate capabilities --json`.
-2. Read `AUTOMATE_AI.md`, `AI_INTEGRATION.md`, and `docs/VERIFICATION_MODEL.md`.
-3. Inspect the working tree and current branch before editing.
-4. Treat all mathematical proposals as untrusted input.
-5. Never infer verification from an LLM response. Use Automate evidence.
+1. Inspect the working tree and current branch; preserve existing user changes.
+2. Run `automate capabilities --json` to discover the calculator operations and available backends.
+3. Read `README.md` and `docs/AUTOMATE_SCIENTIFIC_ENGINE_LEDGER.md`.
+4. Read the relevant source, tests, and current schemas before making a change.
 
-## Machine interfaces
+## Current machine interfaces
 
-All normal agent interactions should prefer structured JSON:
+- `automate capabilities --json`: calculator manifest and backend availability.
+- `automate calculate --operation ... --expression ... --json`: single calculator operation.
+- `automate request --request-json ...` or JSON on standard input: structured calculator request.
+- `automate schema --name ir|tensor`: canonical IR or tensor schema.
+- `automate parse`, `context`, `validate`, and `check`: existing graph/IR workflows.
+- `automate simulate`, `stats`, and `query-assumptions`: existing graph-based numerical and analysis workflows.
 
-- `automate capabilities --json`: environment and backend discovery.
-- `automate context <theory> --json`: sanitized mathematical context.
-- `automate validate <proposal> --theory <theory> --json`: proposal security/schema validation.
-- `automate propose <theory> --proposal <proposal> --dry-run --json`: side-effect-free verification.
-- `automate propose <theory> --proposal <proposal> --json`: verified proposal application.
-- `automate research <theory> --provider <provider> --max-steps N --json`: bounded research loop.
-- `automate check <graph> --json`: graph verification.
-- `automate parse <theory> --json`: canonical graph generation.
-- `automate schema --name <ir|tensor|proposal|context|agent|capability>`: machine-readable interchange schema discovery.
-- `schemas/automate-tensor-v1.json`: versioned canonical Tensor Equation contract.
-
-## Integration rule
-
-An external AI, plugin, MCP bridge, IDE agent, or orchestration system may invoke the CLI or consume the versioned JSON schemas. The integration layer must not bypass Automate validation or write verification statuses directly.
-
-The canonical interchange formats are:
-
-- `automate.context.v1`
-- `automate.proposal.v1`
-- `automate.ir.v0.2`
-- `automate-tensor-v1`
-- certificate package / manifest artifacts
-
-Provider adapters are optional. The core verification path must remain usable without a cloud AI provider.
+The calculator API (`calculate`, `calculate_request`, `calculator_manifest`) is the primary interface for new mathematical operations. The graph and verification workflows remain supported for capabilities that use their explicit IR and checker contracts; they are separate interfaces, not prerequisites for ordinary calculator requests.
 
 ## Trust boundary
 
-AI output is a hypothesis. Automate validates, verifies, and records evidence.
+Treat expressions and structured requests from users or external AI systems as untrusted input.
 
-Never:
-- self-assign `FORMALLY_PROVED`, `SYMBOLIC_CHECKED`, or other verification status;
-- execute proposal text as Python, shell, or arbitrary code;
-- treat caller-supplied expected output as independent mathematical evidence;
-- bypass graph/input binding;
-- weaken a failed or unsupported case into success;
-- put credentials or tokens in repository artifacts.
+- Parse mathematical strings only through the existing safe parser.
+- Do not execute request text as Python, shell commands, or filesystem operations.
+- Preserve clear errors for malformed input, unsupported semantics, and backend failures.
+- Do not represent a calculation as formal proof or independent verification unless the corresponding checker actually provides that evidence.
+- Do not add credentials or tokens to repository artifacts.
 
 ## Change discipline
 
-For changes affecting verification semantics:
-1. add or update adversarial tests;
-2. preserve provenance and fingerprints;
-3. document the exact verification scope;
-4. run the relevant local checks;
-5. wait for the authoritative GitHub Actions result before calling the commit CI-verified;
-6. do not merge while the verification state is unresolved.
+1. Reuse existing scientific backends where practical.
+2. Add focused positive, boundary, and failure tests for exposed behavior.
+3. Keep `calculator_manifest()`, Python API, CLI, README, and tests consistent.
+4. Validate the exact behavior changed and run broader tests when appropriate.
+5. Record verification evidence against the exact commit it covers. A passed test suite is not a formal proof.
 
-## Agent compatibility
+## Documentation authority
 
-This contract is intentionally tool-agnostic. A capable integration can use GitHub, a local shell, an IDE, an MCP server, or another orchestration layer. The integration mechanism is replaceable; Automate's JSON contracts and verification boundary are not.
+`docs/AUTOMATE_SCIENTIFIC_ENGINE_LEDGER.md` is the sole operational ledger. `docs/CAPABILITY_INVENTORY.json` is an evidence index, not a separate roadmap.
 
-## Development control-plane first actions
-
-Before starting or delegating a capability, query:
-- `automate capability list --json`
-- `automate capability refs --json`
-- `automate capability status <capability-id> --json`
-- `automate capability next --json`
-
-The phase ledger remains the roadmap authority. `docs/CAPABILITY_INVENTORY.json` is the implementation/ownership authority. An absent capability on main is not automatically unimplemented; inspect recorded branches and PRs first.
-
-Capability packets own mathematical source, focused tests, and semantic documentation. Shared registry/schema/dispatch integration is primary-integrator work. One open PR has one direct capability owner; a multi-capability integration PR must be explicitly marked as an integration batch in the inventory.
-
-Record verification transitions separately. Never mark a capability certified from branch CI alone.
-
-- `automate capability queue --json`: full deterministic queue state, including the controlling action, active packets, dependency-blocked work, and preserved out-of-order work.
-- `automate capability audit-live --repo <owner/name> --json`: cross-check live GitHub PR state against the inventory before treating a branch as active.
-
-
-## Autonomous development control plane
-
-Read docs/AUTONOMOUS_WORKER_PLAN.md before operating the autonomous worker pipeline.
-
-The autonomous boundary is:
-
-supervisor -> worker packet -> untrusted worker -> result validation -> isolated executor -> authoritative tests -> isolated branch -> draft PR -> reconciliation -> exact-head/security verification
-
-Useful commands:
-- automate capability supervise --repo <owner/name> --json
-- automate capability worker-packet <capability-id> --json
-- automate capability worker-run --repo <owner/name> --worker-url <url> --execute --json
-- automate capability autonomous-cycle --repo <owner/name> --execute-worker --json
-- automate capability autonomous-readiness --auto --json
-
-Workers remain OFF until the readiness evaluator reports every required gate true. Worker output never controls ledger state, capability inventory, verification certification, shared integration, or merge authority.
+Do not refer to retired AI proposal/context/agent-control or certificate-package schemas as current calculator requirements. `SCHEMAS.md` lists the schemas that exist and the limited schema names currently exposed by the CLI.

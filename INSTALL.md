@@ -1,13 +1,16 @@
 # Installation & Environment Guide: Automate
 
-This document details how to install and configure **Automate** in a local, self-reliant environment without external cloud APIs.
+Install **Automate** locally without an external cloud AI provider. Package
+metadata in `pyproject.toml` is authoritative for dependencies and the
+`automate` command entry point.
 
 ## Prerequisites
 
 1. **Operating System**: Windows 10/11, Linux (Ubuntu 22.04+), or macOS (12+).
 2. **Python**: Python 3.10, 3.11, 3.12, or 3.13.
 3. **Git**: Git 2.30+.
-4. **Lean 4** (Recommended for formal proofs): Installed via `elan`.
+4. **Lean 4** (optional): Required only for the local Lean proof-checking
+   backend; it is not a dependency of the calculator API.
 
 ---
 
@@ -30,20 +33,22 @@ pip install -e .
 ```
 
 ### Dependencies
-Automate relies strictly on mature open-source components:
-* `sympy>=1.12`: Symbolic computer algebra and calculus.
-* `numpy>=1.24`: Fast numerical array and matrix computation.
-* `scipy>=1.10`: Differential equation integration (`solve_ivp`), optimization, and statistical testing.
-* `mpmath>=1.3`: Arbitrary precision floating-point arithmetic.
-* `pydantic>=2.0`: Strongly-typed schema validation and JSON serialization.
-* `pyyaml>=6.0`: Declarative YAML theory parsing.
-* `click>=8.1`: Command line interface.
-* `rich>=13.0`: Terminal formatting and tables.
-* `matplotlib>=3.7`: Plotting and trajectory inspection.
+
+The runtime dependencies declared in `pyproject.toml` include SymPy, NumPy,
+SciPy, mpmath, Pydantic, PyYAML, Click, Rich, Matplotlib, jsonschema,
+EinsteinPy, Pint, and lmfit. Install from the project metadata rather than
+maintaining a separate dependency list here:
+
+```sh
+python -m pip install .
+```
+
+For local tests, install the development extra with
+`python -m pip install -e ".[dev]"`.
 
 ---
 
-## 2. Lean 4 Formal Verification Backend Setup
+## 2. Optional Lean 4 Backend Setup
 
 Lean 4 is used to check formal proof obligations.
 
@@ -73,11 +78,16 @@ lean --version
 ## 3. Verification of Installation
 
 Run the complete test suite:
-```powershell
-& ".\.venv\Scripts\python.exe" -m pytest tests/ -v
+
+```sh
+pytest -q
 ```
 
-Run the end-to-end physics demo:
-```powershell
-& ".\.venv\Scripts\automate.exe" demo
+Check the calculator installation:
+
+```sh
+automate capabilities --json
+automate calculate --operation differentiate --expression "x**2" --variable x --json
 ```
+
+The graph-based end-to-end demo remains available through `automate demo`.

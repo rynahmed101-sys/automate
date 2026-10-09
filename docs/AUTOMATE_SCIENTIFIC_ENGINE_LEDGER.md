@@ -228,28 +228,56 @@ The order is flexible when an existing backend makes a capability cheap and usef
 
 Do not block useful physics work simply because an arbitrary mathematics stage is incomplete.
 
-## 11. Current immediate work
+## 11. Current implementation and immediate work
 
-The calculator surface has been integrated into `main` through PRs #214, #215, and #216:
+The direct calculator interface has advanced through PRs #214-#221. Current
+main includes the discoverable Python/CLI API and structured request route;
+native SymPy inputs; typed result data; nth derivatives, definite integrals,
+directional limits, configurable series, multi-equation systems, ODE/PDE
+solving, transforms, multivariable Jacobians/Hessians, and stationary-point
+candidates; plus Pint conversion, descriptive statistics, and allowlisted
+SciPy distribution evaluation.
 
-- a unified calculator API and CLI operation surface
-- native SymPy object handling and aligned package/CLI version metadata
-- a discoverable machine-readable calculator manifest
-- structured Python requests and a JSON CLI request command
-- typed JSON results while retaining the readable result field
+PR #221 was merged as
+`347a5290f65498eafbfccc912f7d4a19ff1f3291`. On that exact main SHA, Automate
+CI run `37971635225` and Security Audit run `37971635286` both completed
+successfully. These establish repository test/security workflow status for
+that commit; they do not establish formal proof or independent verification
+of every result.
 
-The next capability increment is broader reusable calculus, not more governance:
+The current practical queue is:
 
-- nth derivatives
-- definite integrals with explicit lower and upper bounds
-- directional limits
-- series expansion around a configurable point
-- equation systems with more than two equations
-- symbolic ODE solving through SymPy dsolve
-- symbolic Laplace and Fourier transforms, including inverse transforms
-- symbolic stationary-point candidates for optimization workflows
+1. Review and integrate the current calculator contract increment. It wires
+   the remaining manifest arguments into `automate calculate`, makes JSON
+   calculation errors return a failing process status, and adds direct total
+   differential and Cartesian divergence, curl, and Laplacian operations.
+   These changes are on the working branch, not in the exact-main evidence
+   recorded above.
+2. Expose useful existing lower-level mathematical-physics operations through
+   compact calculator requests where doing so preserves their current model
+   and domain contracts. Mechanics, electromagnetism, tensor/geometry, and
+   vector-calculus graph verifiers remain distinct from ordinary calculator
+   expressions unless an operation is deliberately added.
+3. Address bounded constrained optimization and explicit domain/assumption
+   semantics only with contracts that distinguish candidate results from
+   classification or proof.
+4. Reconcile remaining issue tracking without equating CI success with formal
+   proof or certification.
+5. If Automate is used as a concurrent service, add an explicit aggregate
+   parser-worker policy. Existing AST, output, CPU, wall-clock, and per-worker
+   address-space limits do not cap the number of workers across concurrent
+   requests.
 
-Keep old operation behavior compatible unless the change is explicitly additive. Every exposed operation must be callable, described truthfully in the manifest, and covered by focused tests. Verify the exact commit on `main` before describing it as certified.
+The requirements recorded in issue #115 (improper integrals) and issue #141
+(Taylor/Maclaurin series) are implemented and covered by focused tests. Issue
+#141 is closed as completed. Issue #115 remains open pending review of the
+improper-integral safeguards on this working branch. This branch rejects
+reversed infinite bounds and out-of-interval or unresolved interior split
+points rather than assigning a convergence classification.
+
+Keep old operation behavior compatible unless the change is explicitly
+additive. Every exposed operation must be callable, described truthfully in the
+manifest, and covered by focused tests.
 
 ## 12. Existing documentation
 
@@ -295,8 +323,16 @@ Automate remains the calculator.
 That is the product.
 
 
-## Recovered calculator capability increment (pending review and exact-head CI)
+## Recovered calculator capability increment (merged)
 
-The recovered branch adds a callable unit-conversion operation, descriptive statistics for finite real numeric sequences, allowlisted SciPy distribution evaluation, and symbolic PDE solving through SymPy where supported. It also tightens stationary-point behavior so partially free solution sets are not misreported as a finite list, preserves generic mapping serialization, exposes the new CLI arguments, and raises the parser worker memory ceiling to 1 GiB to address previously reported real CLI failures.
+PR #221 integrated Pint-based unit conversion, descriptive statistics for
+finite real numeric sequences and vectors, allowlisted SciPy distribution
+evaluation, supported symbolic PDE solving, safer stationary-point handling,
+mapping and quantity serialization, and the corresponding CLI/manifest
+entries. Its merge commit is
+`347a5290f65498eafbfccc912f7d4a19ff1f3291`.
 
-These capabilities are implemented on the recovery branch only. They are not certified as merged-main capabilities until the branch is reviewed, exact-head CI and security checks pass, and the resulting integration commit is verified.
+On that exact main SHA, Automate CI run `37971635225` and Security Audit run
+`37971635286` both completed successfully. This establishes the repository
+workflow results for that commit, not formal proof or independent verification
+of every mathematical result.

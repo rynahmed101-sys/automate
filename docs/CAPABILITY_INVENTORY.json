@@ -3,469 +3,161 @@
   "schema_version": "automate.capability_inventory.v1",
   "authoritative_branch": "main",
   "roadmap_authority": "docs/AUTOMATE_SCIENTIFIC_ENGINE_LEDGER.md",
-  "registry_authority": "automate/theory/rules.py",
-  "inventory_purpose": "Track scientific capability implementation and verification evidence separately from the authoritative scientific-engine ledger.",
-  "lifecycle_states": [
-    "planned",
-    "active_development",
-    "delegated",
-    "awaiting_reconciliation",
-    "reconciled",
-    "merged_main",
-    "superseded",
-    "preserved_out_of_order",
-    "abandoned"
-  ],
-  "verification_axes": [
-    "locally_tested",
-    "development_ci_verified",
-    "merged_main",
-    "exact_head_verified",
-    "security_audit_verified",
-    "independently_cross_checked",
-    "formally_proved",
-    "certified"
-  ],
-  "branch_policy": {
-    "capability_branch_prefix": "feat/",
-    "reconciliation_branch_prefix": "integrate/",
-    "reconciliation_owner": "primary-scientific-integrator",
-    "feature_base": "main",
-    "reconciliation_bases": [
-      "main"
-    ],
-    "shared_integration_files": [
-      "automate/theory/rules.py",
-      "schemas/automate-agent-v1.json",
-      "tests/test_cli_schema_contracts.py",
-      "automate/cli.py"
-    ],
-    "rule": "Capability packets may own isolated scientific implementation and focused tests. Shared semantic registry/schema/dispatch integration is reconciled by the primary scientific integrator. No autonomous control-plane branch is part of Automate.",
-    "allowed_maintenance_branch_prefixes": [
-      "fix/",
-      "hotfix/",
-      "docs/",
-      "chore/",
-      "refactor/",
-      "repair/"
-    ]
+  "inventory_purpose": "Evidence index for implemented interfaces, source, tests, and verification; this file is not a roadmap.",
+  "authoritative_verification": {
+    "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+    "exact_head_workflow_run": 37971635225,
+    "exact_head_conclusion": "success",
+    "security_workflow_run": 37971635286,
+    "security_conclusion": "success",
+    "local_test_summary": "847 passed, 1 skipped on the exact main checkout before this working-branch change.",
+    "note": "The exact-head CI includes the repository test suite across the configured Python versions and the Lean check. Security Audit ran CodeQL and pip-audit. These checks do not establish formal proof or independent verification of every mathematical result."
   },
   "capabilities": [
     {
-      "id": "stage1a.linear_algebra",
-      "order": 10,
-      "stage": "1A",
-      "name": "Linear algebra core and spectral extensions",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main",
-        "ref": "a90e91d8926a763297c6681e6ba325eed9722fbb"
-      },
+      "id": "calculator.api",
+      "name": "Discoverable symbolic calculator API, CLI, and typed results",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "python",
+        "cli",
+        "structured_request"
+      ],
+      "operations": [
+        "evaluate",
+        "simplify",
+        "expand",
+        "factor",
+        "cancel",
+        "apart",
+        "together",
+        "collect",
+        "substitute",
+        "differentiate",
+        "integrate",
+        "integrate_definite",
+        "limit",
+        "series",
+        "solve",
+        "solve_system",
+        "ode_solve",
+        "pde_solve",
+        "transform",
+        "summation",
+        "product",
+        "roots",
+        "nsolve",
+        "evalf",
+        "unit_convert",
+        "descriptive_statistics",
+        "distribution",
+        "gradient",
+        "jacobian",
+        "hessian",
+        "stationary_points",
+        "matrix_add",
+        "matrix_multiply",
+        "matrix_transpose",
+        "matrix_determinant",
+        "matrix_inverse",
+        "matrix_rank",
+        "matrix_trace",
+        "matrix_eigenvalues",
+        "matrix_eigenvectors",
+        "matrix_singular_values",
+        "vector_dot",
+        "vector_cross",
+        "vector_norm"
+      ],
+      "canonical_files": [
+        "automate/calculator.py",
+        "automate/cli.py",
+        "automate/__init__.py",
+        "automate/ir/safe_parser.py"
+      ],
+      "tests": [
+        "tests/test_calculator_contract.py",
+        "tests/test_calculus_capabilities.py",
+        "tests/test_calculator_object_api.py",
+        "tests/test_ode_calculator.py",
+        "tests/test_symbolic_transforms.py",
+        "tests/test_stationary_points.py",
+        "tests/test_recovered_calculator_capabilities.py",
+        "tests/test_recovered_cli_capabilities.py"
+      ],
       "references": [
         {
           "type": "pr",
-          "number": 52,
+          "number": 214,
           "state": "merged"
         },
         {
           "type": "pr",
-          "number": 56,
+          "number": 215,
           "state": "merged"
         },
         {
           "type": "pr",
-          "number": 63,
+          "number": 216,
           "state": "merged"
         },
         {
           "type": "pr",
-          "number": 84,
+          "number": 217,
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 218,
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 219,
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 220,
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 221,
           "state": "merged"
         }
       ],
-      "depends_on": [],
-      "canonical_files": [
-        "automate/backend/linear_algebra_backend.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": true,
-        "merged_main": true,
-        "exact_head_verified": true,
-        "security_audit_verified": true,
-        "independently_cross_checked": true,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
-      }
-    },
-    {
-      "id": "stage1a.change_of_basis",
-      "order": 20,
-      "stage": "1A",
-      "name": "Change of basis",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "fcee67d780bb9c430a523d90bf79ca48e3307536"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 93,
-          "branch": "feat/stage1a-isolated-change-of-basis",
-          "head_sha": "e50324516a19a6a6323a12ef60cfc88966e7e0e0",
-          "state": "closed_duplicate"
-        },
-        {
-          "type": "pr",
-          "number": 62,
-          "state": "merged",
-          "role": "historical"
-        }
-      ],
-      "depends_on": [
-        "stage1a.linear_algebra"
-      ],
-      "canonical_files": [
-        "automate/change_of_basis.py",
-        "tests/test_change_of_basis.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
+      "notes": "Manifest and API operations are the current calculator contract. Check runtime dispatch and tests rather than inferring support from old capability labels.",
       "verification": {
         "locally_tested": true,
         "development_ci_verified": false,
         "merged_main": true,
         "exact_head_verified": true,
         "security_audit_verified": true,
-        "independently_cross_checked": true,
+        "independently_cross_checked": false,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": true,
-      "notes": "PR93 was an isolated duplicate/hardening packet. Canonical change-of-basis verification already exists in main via PR62/backend acceptance tests.",
-      "preserved_in": "main",
       "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
       }
     },
     {
-      "id": "stage1a.pseudoinverse",
-      "order": 30,
-      "stage": "1A",
-      "name": "Pseudoinverse and least squares",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "d3c52c4a8427beed72c5c27984b61d76d8105b65"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 92,
-          "branch": "integrate/stage1-controlled-1c-1a",
-          "state": "closed_superseded_by_pr96",
-          "role": "historical_integration_batch"
-        },
-        {
-          "type": "pr",
-          "number": 87,
-          "state": "closed_duplicate"
-        },
-        {
-          "type": "pr",
-          "number": 60,
-          "state": "closed_duplicate"
-        }
-      ],
-      "depends_on": [
-        "stage1a.linear_algebra"
+      "id": "calculus.improper_integrals",
+      "name": "Convergence-aware improper integral verification",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "graph_ir"
       ],
       "canonical_files": [
-        "automate/backend/linear_algebra_backend.py",
-        "tests/test_linear_algebra_pseudoinverse.py"
+        "automate/backend/sympy_backend.py",
+        "automate/theory/rules.py"
       ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
+      "tests": [
+        "tests/test_improper_integrals.py"
       ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": true,
-        "merged_main": true,
-        "exact_head_verified": true,
-        "security_audit_verified": true,
-        "independently_cross_checked": true,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
-      }
-    },
-    {
-      "id": "stage1a.complex_semantics",
-      "order": 40,
-      "stage": "1A",
-      "name": "Complex scalar, vector and matrix semantics",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "25101f7c2686e0fc7bd39d35ce48342c3a9a0762"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 65,
-          "branch": "reconcile/phase1a-complex-semantics",
-          "state": "closed_superseded_by_pr100",
-          "role": "historical_source"
-        },
-        {
-          "type": "pr",
-          "number": 59,
-          "state": "closed_duplicate"
-        }
-      ],
-      "depends_on": [
-        "stage1a.linear_algebra"
-      ],
-      "canonical_files": [
-        "automate/backend/linear_algebra_backend.py",
-        "tests/test_complex_linear_algebra.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": false,
-        "merged_main": true,
-        "exact_head_verified": true,
-        "security_audit_verified": true,
-        "independently_cross_checked": true,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "notes": "PR65 is the current reconciliation packet; PR59 is preserved only as historical context.",
-      "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
-      }
-    },
-    {
-      "id": "stage1a.orthogonal_unitary",
-      "order": 70,
-      "stage": "1A",
-      "name": "Orthogonal and unitary matrix semantics",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "7ea5570a69c0c41e61666b0d29007eabbc19c790"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 101,
-          "branch": "integrate/stage1a-orthogonal-v2",
-          "state": "merged"
-        },
-        {
-          "type": "pr",
-          "number": 91,
-          "state": "closed_superseded",
-          "role": "historical_source"
-        }
-      ],
-      "depends_on": [
-        "stage1a.complex_semantics"
-      ],
-      "canonical_files": [
-        "automate/backend/linear_algebra_backend.py",
-        "tests/test_linear_algebra_orthogonal.py"
-      ],
-      "shared_integration_points": [
-        "schemas/automate-agent-v1.json",
-        "tests/test_cli_schema_contracts.py"
-      ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": true,
-        "merged_main": true,
-        "exact_head_verified": true,
-        "security_audit_verified": true,
-        "independently_cross_checked": true,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
-      },
-      "notes": "The useful orthogonal-matrix semantics from PR91 were integrated as central rule matrix_orthogonal in PR101. The duplicate unitary helper from PR91 was intentionally not carried forward."
-    },
-    {
-      "id": "stage1b.calculus",
-      "order": 100,
-      "stage": "1B",
-      "name": "Limits, continuity, differentiation and integration stack",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "b92da859fcc43b30cf919b15529e8d7e379dc6c6"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 75,
-          "branch": "reconcile/stage1b-current-main",
-          "state": "merged",
-          "role": "authoritative_merge"
-        },
-        {
-          "type": "pr",
-          "number": 61,
-          "state": "closed_superseded_by_pr75"
-        },
-        {
-          "type": "pr",
-          "number": 66,
-          "state": "closed_superseded_by_pr75"
-        },
-        {
-          "type": "pr",
-          "number": 68,
-          "state": "closed_superseded_by_pr75"
-        },
-        {
-          "type": "pr",
-          "number": 69,
-          "state": "closed_superseded_by_pr75"
-        },
-        {
-          "type": "pr",
-          "number": 70,
-          "state": "closed_superseded_by_pr75"
-        },
-        {
-          "type": "pr",
-          "number": 71,
-          "state": "closed_superseded_by_pr75"
-        }
-      ],
-      "depends_on": [
-        "stage1a.linear_algebra"
-      ],
-      "canonical_files": [
-        "automate/backend/sympy_backend.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json",
-        "tests/test_cli_schema_contracts.py"
-      ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": true,
-        "merged_main": true,
-        "exact_head_verified": true,
-        "security_audit_verified": true,
-        "independently_cross_checked": true,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "notes": "PR75 is the authoritative current-main reconciliation of the implemented Stage 1B calculus stack. The remaining Stage 1B ladder is tracked separately.",
-      "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
-      }
-    },
-    {
-      "id": "stage1b.fundamental_theorem",
-      "order": 140,
-      "stage": "1B",
-      "name": "Fundamental theorem of calculus",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "2838c33df8f33fcdea6e27d93b204b193cc9b939"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 108,
-          "branch": "integrate/stage1b-ftc",
-          "head_sha": "46489cf43ecdb57f7879c84fb9e7f77eb6d5d043",
-          "state": "merged",
-          "role": "authoritative_merge"
-        },
-        {
-          "type": "pr",
-          "number": 111,
-          "state": "merged",
-          "role": "post_merge_defect_repair"
-        }
-      ],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": true,
-        "merged_main": true,
-        "exact_head_verified": true,
-        "security_audit_verified": true,
-        "independently_cross_checked": true,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "notes": "Current implementation packet for the next incomplete Stage 1B capability. Do not treat it as merged or certified until reconciled on main and exact-head/security verified.",
-      "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
-      }
-    },
-    {
-      "id": "stage1b.improper_integrals",
-      "order": 150,
-      "stage": "1B",
-      "name": "Improper integrals and convergence-aware handling",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "6a324afac605719b7ff8644624bf21098f960eb8"
-      },
       "references": [
         {
           "type": "pr",
@@ -475,77 +167,192 @@
         {
           "type": "issue",
           "number": 115,
-          "state": "open",
-          "role": "tracking"
-        },
-        {
-          "type": "branch",
-          "branch": "engine",
-          "state": "historical_engine_work",
-          "role": "current_engine_implementation"
+          "state": "open"
         }
       ],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [
-        "automate/backend/sympy_backend.py",
-        "tests/test_improper_integrals.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
+      "notes": "Tests cover infinite tails, endpoint singularities, explicit interior singular points, one-sided limits, divergence, incorrect values, unresolved comparisons, malformed markers/bounds, and invalid/unresolved split ordering. Requirements in issue #115 are implemented and tested, but GitHub still reports the issue open. `integrate_definite` calculates an integral but does not itself return this graph verifier's convergence classification.",
       "verification": {
-        "locally_tested": false,
-        "development_ci_verified": true,
+        "locally_tested": true,
+        "development_ci_verified": false,
         "merged_main": true,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": false,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false,
-      "notes": "Merged into authoritative main and verified on exact main SHA. Independent cross-check and formal proof remain absent, so certification is not claimed.",
       "verification_evidence": {
-        "main_sha": "a191f1100578189e97f3603178dc7027dbfd0ec7",
-        "exact_head_workflow_run": 37544252524,
-        "security_workflow_run": 37544252443
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
       }
     },
     {
-      "id": "stage1b.series_expansions",
-      "order": 160,
-      "stage": "1B",
-      "name": "Taylor, Maclaurin, and higher-order series expansions",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "fe6c3d3af7258f4c81a0d65266274fdafb257e15"
-      },
+      "id": "calculus.series_expansions",
+      "name": "Taylor/Maclaurin series and configurable expansion point",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "python",
+        "structured_request",
+        "graph_ir"
+      ],
+      "canonical_files": [
+        "automate/calculator.py",
+        "automate/backend/sympy_backend.py"
+      ],
+      "tests": [
+        "tests/test_series_expansions.py",
+        "tests/test_calculus_capabilities.py"
+      ],
       "references": [
         {
           "type": "pr",
           "number": 195,
-          "state": "merged",
-          "role": "authoritative_merge"
+          "state": "merged"
+        },
+        {
+          "type": "issue",
+          "number": 141,
+          "state": "closed_completed"
         }
       ],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [
-        "automate/backend/sympy_backend.py",
-        "tests/test_series_expansions.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
+      "notes": "The direct `series` operation uses SymPy's series order convention and returns the Order term. Graph verification separately checks the requested polynomial degree, expansion center, and unresolved coefficients. Issue #141 is closed as completed.",
       "verification": {
         "locally_tested": true,
-        "development_ci_verified": true,
+        "development_ci_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "verification_evidence": {
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
+      }
+    },
+    {
+      "id": "calculus.multivariable",
+      "name": "Partial derivatives, Jacobians, Hessians, and stationary candidates",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "python",
+        "cli",
+        "structured_request"
+      ],
+      "operations": [
+        "differentiate",
+        "gradient",
+        "jacobian",
+        "hessian",
+        "stationary_points"
+      ],
+      "canonical_files": [
+        "automate/calculator.py"
+      ],
+      "tests": [
+        "tests/test_calculus_capabilities.py",
+        "tests/test_stationary_points.py"
+      ],
+      "references": [
+        {
+          "type": "pr",
+          "number": 220,
+          "state": "merged"
+        },
+        {
+          "type": "pr",
+          "number": 211,
+          "state": "closed_unmerged_superseded"
+        }
+      ],
+      "notes": "Repeated partials can be composed through `differentiate`; `gradient`, `jacobian`, and `hessian` are direct operations. Stationary points are candidates only. Total differentials and constrained optimization are not part of merged main.",
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "verification_evidence": {
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
+      }
+    },
+    {
+      "id": "calculator.vector_calculus",
+      "name": "Direct total differential and Cartesian vector-calculus operations",
+      "implementation_state": "active_development",
+      "interfaces": [
+        "python",
+        "cli",
+        "structured_request"
+      ],
+      "operations": [
+        "total_differential",
+        "divergence",
+        "curl",
+        "laplacian"
+      ],
+      "canonical_files": [
+        "automate/calculator.py",
+        "automate/cli.py"
+      ],
+      "tests": [
+        "tests/test_calculator_contract.py",
+        "tests/test_recovered_cli_capabilities.py"
+      ],
+      "references": [
+        {
+          "type": "pr",
+          "number": 211,
+          "state": "closed_unmerged_superseded"
+        }
+      ],
+      "notes": "Working-branch addition, not yet merged or covered by main CI/security. Vector inputs are explicit SymPy matrices; divergence requires one variable per component and curl is three-dimensional Cartesian only. Does not classify extrema or establish domain regularity.",
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": false,
+        "exact_head_verified": false,
+        "security_audit_verified": false,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      }
+    },
+    {
+      "id": "linear_algebra.core",
+      "name": "Exact linear algebra, spectra, subspaces, and basis transformations",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "python",
+        "graph_ir"
+      ],
+      "canonical_files": [
+        "automate/backend/linear_algebra_backend.py",
+        "automate/ir/linear_algebra.py"
+      ],
+      "tests": [
+        "tests/test_linear_algebra_acceptance.py",
+        "tests/test_linear_algebra_eigen_acceptance.py",
+        "tests/test_linear_algebra_change_of_basis.py",
+        "tests/test_linear_algebra_complex_semantics.py",
+        "tests/test_linear_algebra_orthogonal.py",
+        "tests/test_linear_algebra_pseudoinverse.py",
+        "tests/test_linear_algebra_subspaces_acceptance.py",
+        "tests/test_linear_algebra_svd.py"
+      ],
+      "notes": "Broad graph-verifier support is present and tested. The thin calculator exposes common matrix and vector operations but does not expose every graph-level linear-algebra rule.",
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
         "merged_main": true,
         "exact_head_verified": true,
         "security_audit_verified": true,
@@ -553,445 +360,33 @@
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false,
-      "notes": "Machine-generated Stage 1B capability promoted by PR #195. Taylor/Maclaurin implementation and focused tests are authoritative on main. Formal proof is not claimed.",
       "verification_evidence": {
-        "main_sha": "fe6c3d3af7258f4c81a0d65266274fdafb257e15",
-        "exact_head_workflow_run": 37723137376,
-        "security_workflow_run": 37723137529
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
       }
     },
     {
-      "id": "stage1b.partial_derivatives",
-      "order": 170,
-      "stage": "1B",
-      "name": "Partial derivatives and total differentials",
-      "implementation_state": "planned",
-      "authority": {
-        "kind": "roadmap",
-        "ref": "docs/PROJECT_PHASE_LEDGER.md"
-      },
-      "references": [],
-      "depends_on": [
-        "stage1b.calculus"
+      "id": "vector_calculus.graph",
+      "name": "Graph-based Cartesian vector calculus and integral theorems",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "graph_ir"
       ],
       "canonical_files": [
-        "automate/backend/sympy_backend.py",
-        "tests/test_partial_derivatives.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": false,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "task": {
-        "source": "docs/PROJECT_PHASE_LEDGER.md",
-        "ref": "stage1b.partial_derivatives",
-        "summary": "Partial derivatives and total differentials",
-        "requirements": [
-          "Support first-order partial derivatives and total differentials for represented multivariable expressions.",
-          "Preserve variable ordering and explicit assumptions/domains.",
-          "Fail closed when variables, domains, or represented semantics are unresolved.",
-          "Test positive, negative, boundary, malformed, and symbolic unresolved cases."
-        ]
-      }
-    },
-    {
-      "id": "stage1b.higher_order_partials",
-      "order": 180,
-      "stage": "1B",
-      "name": "Higher-order partial derivatives",
-      "implementation_state": "planned",
-      "authority": {
-        "kind": "roadmap",
-        "ref": "docs/PROJECT_PHASE_LEDGER.md"
-      },
-      "references": [],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": false,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false
-    },
-    {
-      "id": "stage1b.jacobians_hessians",
-      "order": 190,
-      "stage": "1B",
-      "name": "Jacobians and Hessians",
-      "implementation_state": "planned",
-      "authority": {
-        "kind": "roadmap",
-        "ref": "docs/PROJECT_PHASE_LEDGER.md"
-      },
-      "references": [],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": false,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false
-    },
-    {
-      "id": "stage1c.ode",
-      "order": 250,
-      "stage": "1C",
-      "name": "Reusable ODE foundation",
-      "implementation_state": "preserved_out_of_order",
-      "authority": {
-        "kind": "branch",
-        "ref": "PR114"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 114,
-          "branch": "integrate/stage1c-ode-current-main",
-          "state": "closed_future_work",
-          "role": "preserved_out_of_order"
-        },
-        {
-          "type": "pr",
-          "number": 105,
-          "branch": "integrate/stage1c-ode-foundation",
-          "state": "closed_future_work",
-          "role": "historical_source"
-        },
-        {
-          "type": "pr",
-          "number": 92,
-          "branch": "integrate/stage1-controlled-1c-1a",
-          "state": "closed_superseded_by_pr105",
-          "role": "historical_integration_batch"
-        },
-        {
-          "type": "pr",
-          "number": 90,
-          "state": "closed_duplicate"
-        },
-        {
-          "type": "pr",
-          "number": 73,
-          "state": "closed_historical"
-        }
-      ],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [
-        "automate/ode.py",
-        "tests/test_ode_stage1c.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "notes": "A current-main reconciliation packet exists in PR114, but it is intentionally preserved out of order until the remaining Stage 1B ladder reaches a terminal state."
-    },
-    {
-      "id": "stage1b.multivariable_chain_rule",
-      "order": 200,
-      "stage": "1B",
-      "name": "Multivariable chain rule",
-      "implementation_state": "planned",
-      "authority": {
-        "kind": "roadmap",
-        "ref": "docs/PROJECT_PHASE_LEDGER.md"
-      },
-      "references": [],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": false,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false
-    },
-    {
-      "id": "stage1b.stationary_constrained_optimization",
-      "order": 210,
-      "stage": "1B",
-      "name": "Stationary points and constrained optimization",
-      "implementation_state": "planned",
-      "authority": {
-        "kind": "roadmap",
-        "ref": "docs/PROJECT_PHASE_LEDGER.md"
-      },
-      "references": [],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": false,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false
-    },
-    {
-      "id": "stage1b.domain_singularity_assumptions",
-      "order": 220,
-      "stage": "1B",
-      "name": "Domain, singularity, and assumption-aware calculus",
-      "implementation_state": "planned",
-      "authority": {
-        "kind": "roadmap",
-        "ref": "docs/PROJECT_PHASE_LEDGER.md"
-      },
-      "references": [],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json"
-      ],
-      "verification": {
-        "locally_tested": false,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false
-    },
-    {
-      "id": "stage2a.vector_calculus",
-      "order": 300,
-      "stage": "2A",
-      "name": "Vector calculus core",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main",
-        "ref": "a90e91d8926a763297c6681e6ba325eed9722fbb"
-      },
-      "references": [],
-      "depends_on": [
-        "stage1b.calculus"
-      ],
-      "canonical_files": [
-        "automate/backend/vector_calculus_backend.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py"
-      ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": true,
-        "merged_main": true,
-        "exact_head_verified": true,
-        "security_audit_verified": true,
-        "independently_cross_checked": true,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
-      }
-    },
-    {
-      "id": "stage2b.coordinate_and_pde",
-      "order": 320,
-      "stage": "2B",
-      "name": "Coordinate-aware vector calculus and generic PDE residual verification",
-      "implementation_state": "preserved_out_of_order",
-      "authority": {
-        "kind": "branch",
-        "ref": "PR76"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 76,
-          "branch": "feat/stage2-vector-pde-foundation",
-          "head_sha": "67dad73d5e2112d8156238b2e1fcf4361a18b033",
-          "state": "closed_future_work",
-          "role": "primary"
-        }
-      ],
-      "depends_on": [
-        "stage2a.vector_calculus",
-        "stage1b.calculus"
-      ],
-      "canonical_files": [
-        "automate/backend/coordinate_vector_calculus_backend.py",
-        "automate/backend/pde_backend.py",
-        "tests/test_stage2a_coordinate_calculus.py",
-        "tests/test_pde_backend.py"
-      ],
-      "shared_integration_points": [
         "automate/backend/vector_calculus_backend.py",
-        "automate/backend/__init__.py",
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json",
-        "automate/cli.py"
-      ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "notes": "PR76 is a cumulative packet. Its useful coordinate/PDE work must be transplanted onto current main; its stale shared-file edits are not authoritative. Preserved as later-stage work; it is not part of the active implementation queue while the Stage 1B ladder has unresolved items."
-    },
-    {
-      "id": "stage2b.transforms",
-      "order": 330,
-      "stage": "2B",
-      "name": "Fourier/Laplace transform and convolution foundation",
-      "implementation_state": "preserved_out_of_order",
-      "authority": {
-        "kind": "branch",
-        "ref": "PR79"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 79,
-          "branch": "feat/stage2b-transform-foundation",
-          "head_sha": "b1c0039fbb7853ede536ba87f562a62698e373a8",
-          "state": "closed_future_work",
-          "role": "primary"
-        }
-      ],
-      "depends_on": [
-        "stage2b.coordinate_and_pde"
-      ],
-      "canonical_files": [
-        "automate/backend/transform_backend.py",
-        "automate/ir/ast.py",
-        "tests/test_stage2c_transforms.py",
-        "docs/STAGE2C_TRANSFORMS.md"
-      ],
-      "shared_integration_points": [
-        "automate/backend/__init__.py",
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json",
-        "automate/cli.py"
-      ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "notes": "PR79 contains some registered placeholder rules without backend implementations. Only implemented semantics should be transplanted; placeholders must not be certified. Preserved as later-stage work; it is not part of the active implementation queue while the Stage 1B ladder has unresolved items."
-    },
-    {
-      "id": "stage2c.mechanics",
-      "order": 400,
-      "stage": "2C",
-      "name": "Classical mechanics foundation and verification",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "7879dfd36d06b894d9c836c259bb3d147caa80c0"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 82,
-          "state": "merged"
-        }
-      ],
-      "depends_on": [
-        "stage1c.ode"
-      ],
-      "canonical_files": [
-        "automate/mechanics"
-      ],
-      "shared_integration_points": [
         "automate/theory/rules.py"
       ],
+      "tests": [
+        "tests/test_vector_calculus_phase2a.py",
+        "tests/test_vector_calculus_identities.py",
+        "tests/test_vector_calculus_integrals.py",
+        "tests/test_vector_calculus_integral_theorems.py"
+      ],
+      "notes": "Graph rules cover gradient, directional derivative, divergence, curl, Laplacian, line/surface/volume integrals, and bounded integral theorems. Direct calculator exposure is tracked separately.",
       "verification": {
         "locally_tested": true,
-        "development_ci_verified": true,
+        "development_ci_verified": false,
         "merged_main": true,
         "exact_head_verified": true,
         "security_audit_verified": true,
@@ -999,42 +394,80 @@
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
       }
     },
     {
-      "id": "stage2d.electromagnetism",
-      "order": 500,
-      "stage": "2D",
-      "name": "Electrostatics/electromagnetism foundation",
-      "implementation_state": "merged_main",
-      "authority": {
-        "kind": "main_merge",
-        "ref": "87a129054d74443e0cc15ac5a75939a4fcb6b498"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 83,
-          "state": "merged"
-        }
-      ],
-      "depends_on": [
-        "stage2a.vector_calculus"
+      "id": "physics.mechanics_electromagnetism",
+      "name": "Mechanics and electromagnetic calculation/verification modules",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "graph_ir"
       ],
       "canonical_files": [
-        "automate/electromagnetism"
+        "automate/mechanics",
+        "automate/electromagnetism",
+        "automate/backend/electrostatics_backend.py"
       ],
-      "shared_integration_points": [
-        "automate/theory/rules.py"
+      "tests": [
+        "tests/test_mechanics_advanced.py",
+        "tests/test_mechanics_general.py",
+        "tests/test_mechanics_representation.py",
+        "tests/test_electromagnetism_maxwell.py",
+        "tests/test_electromagnetism_representation.py",
+        "tests/test_electrostatics_core.py",
+        "tests/test_electrostatics_distributions.py"
       ],
+      "notes": "These are useful lower-level representations and graph/checker workflows. They are not all callable through the thin calculator API. Broad waves/optics and thermodynamics modules are not present in the tracked source tree.",
       "verification": {
         "locally_tested": true,
-        "development_ci_verified": true,
+        "development_ci_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "verification_evidence": {
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
+      }
+    },
+    {
+      "id": "physics.tensors_geometry",
+      "name": "Tensor algebra, semantic comparison, and EinsteinPy/Cadabra adapters",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "python",
+        "graph_ir",
+        "schema"
+      ],
+      "canonical_files": [
+        "automate/tensors",
+        "automate/ir/tensors.py",
+        "automate/backend/tensor_backend.py",
+        "schemas/automate-tensor-v1.json"
+      ],
+      "tests": [
+        "tests/test_tensor_algebra.py",
+        "tests/test_tensors.py",
+        "tests/test_tensor_index_semantics.py",
+        "tests/test_tensor_claim_binding.py",
+        "tests/test_tensor_schema_contract.py",
+        "tests/test_einsteinpy_adapter.py",
+        "tests/test_cadabra_adapter.py",
+        "tests/test_cadabra_translation.py",
+        "tests/test_cadabra_verification.py"
+      ],
+      "notes": "Tensor and geometry operations are lower-level interfaces; the tensor schema is CLI-discoverable, but these operations are not all calculator-manifest operations.",
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
         "merged_main": true,
         "exact_head_verified": true,
         "security_audit_verified": true,
@@ -1042,209 +475,125 @@
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false,
       "verification_evidence": {
-        "main_sha": "da3e1c12d40cde40b32d3135f94122304d22ff70",
-        "exact_head_workflow_run": 37430727665,
-        "security_workflow_run": 37430727700
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
       }
     },
     {
-      "id": "stage2e.statistical_and_optics",
-      "order": 600,
-      "stage": "2E",
-      "name": "Statistical inference and waves/optics work",
-      "implementation_state": "preserved_out_of_order",
-      "authority": {
-        "kind": "branches",
-        "ref": "PR85/PR88"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 85,
-          "state": "closed_future_work"
-        },
-        {
-          "type": "pr",
-          "number": 88,
-          "state": "closed_future_work"
-        }
-      ],
-      "depends_on": [
-        "stage1c.ode"
+      "id": "physics.numerical_statistics",
+      "name": "Graph-based numerical integration, model fitting, and calculator statistics",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "python",
+        "cli",
+        "structured_request",
+        "graph_ir"
       ],
       "canonical_files": [
+        "automate/backend/numerical_backend.py",
         "automate/backend/statistical_backend.py",
-        "automate/waves_optics/core.py"
+        "automate/calculator.py"
       ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json",
-        "automate/cli.py"
+      "tests": [
+        "tests/test_numerical_backend.py",
+        "tests/test_numerical_evidence.py",
+        "tests/test_statistical_backend.py",
+        "tests/test_recovered_calculator_capabilities.py"
       ],
-      "verification": {
-        "locally_tested": true,
-        "development_ci_verified": true,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
-        "formally_proved": false,
-        "certified": false
-      },
-      "safe_to_delete": false,
-      "notes": "Preserved as later-stage work; it is not part of the active implementation queue while the Stage 1B ladder has unresolved items."
-    },
-    {
-      "id": "stage3a.numerical",
-      "order": 700,
-      "stage": "3A",
-      "name": "Numerical mathematics foundation",
-      "implementation_state": "preserved_out_of_order",
-      "authority": {
-        "kind": "branch",
-        "ref": "PR89"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 89,
-          "state": "closed_future_work"
-        }
-      ],
-      "depends_on": [
-        "stage1a.linear_algebra",
-        "stage1b.calculus",
-        "stage1c.ode"
-      ],
-      "canonical_files": [
-        "automate/numerical/core.py"
-      ],
-      "shared_integration_points": [
-        "automate/theory/rules.py",
-        "schemas/automate-agent-v1.json",
-        "automate/cli.py"
-      ],
+      "notes": "Calculator descriptive statistics and allowlisted distribution evaluation are distinct from graph-based empirical model fitting and ODE simulation.",
       "verification": {
         "locally_tested": true,
         "development_ci_verified": false,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
-        "independently_cross_checked": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": true,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false,
-      "notes": "Preserved as later-stage work; it is not part of the active implementation queue while the Stage 1B ladder has unresolved items."
+      "verification_evidence": {
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
+      }
     },
     {
-      "id": "stage7.scalar_field_variational",
-      "order": 900,
-      "stage": "7",
-      "name": "Scalar-field variational foundation",
-      "implementation_state": "preserved_out_of_order",
-      "authority": {
-        "kind": "branch",
-        "ref": "PR86"
-      },
-      "references": [
-        {
-          "type": "pr",
-          "number": 86,
-          "state": "closed_future_work",
-          "role": "future_work"
-        }
+      "id": "physics.field_theory",
+      "name": "Scalar-field variational machinery",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "python",
+        "graph_ir"
       ],
-      "depends_on": [],
       "canonical_files": [
-        "automate/field_theory"
+        "automate/field_theory",
+        "automate/backend/sympy_backend.py"
       ],
-      "shared_integration_points": [
-        "automate/theory/rules.py"
+      "tests": [
+        "tests/test_field_theory.py",
+        "tests/test_field_theory_general.py"
       ],
+      "notes": "The module provides variational representations and verification; it is not a general quantum-field-theory or fully formal functional-analysis engine.",
       "verification": {
         "locally_tested": true,
-        "development_ci_verified": true,
-        "merged_main": false,
-        "exact_head_verified": false,
-        "security_audit_verified": false,
+        "development_ci_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
         "independently_cross_checked": false,
         "formally_proved": false,
         "certified": false
       },
-      "safe_to_delete": false,
-      "notes": "Preserve, but do not advance it ahead of unfinished Stage 1 work."
-    }
-  ],
-  "authoritative_verification": {
-    "main_sha": "fe6c3d3af7258f4c81a0d65266274fdafb257e15",
-    "exact_head_workflow_run": 37723137376,
-    "security_workflow_run": 37723137529,
-    "note": "Current authoritative main has successful Automate CI and Security Audit evidence. Fresh evidence is required after any subsequent main merge."
-  },
-  "control_plane_references": [],
-  "integration_references": [
-    {
-      "number": 95,
-      "branch": "integrate/verification-bookkeeping",
-      "state": "merged",
-      "purpose": "authoritative verification bookkeeping"
+      "verification_evidence": {
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
+      }
     },
     {
-      "number": 113,
-      "branch": "integrate/control-plane-dependency-aware-queue",
-      "state": "merged",
-      "purpose": "dependency-aware queue hardening"
-    },
-    {
-      "number": 116,
-      "branch": "integrate/control-plane-stage1b-frontier",
-      "state": "merged",
-      "purpose": "Stage 1B frontier inventory and issue bookkeeping"
-    },
-    {
-      "number": 117,
-      "branch": "integrate/control-plane-final-bookkeeping",
-      "state": "merged",
-      "purpose": "final capability-control-plane verification bookkeeping"
-    },
-    {
-      "number": 118,
-      "branch": "integrate/control-plane-live-audit",
-      "state": "open",
-      "purpose": "live GitHub PR consistency and deterministic queue snapshot"
-    },
-    {
-      "number": 120,
-      "branch": "integrate/autonomous-worker-foundation",
-      "state": "open",
-      "purpose": "autonomous worker foundation integration"
-    },
-    {
-      "number": 133,
-      "branch": "integrate/clear-1a-3a",
-      "state": "closed_future_work",
-      "purpose": "Stage 1C current-main reconciliation preserved for later harvest"
-    },
-    {
-      "number": 140,
-      "branch": "integrate/reconcile-main-into-engine",
-      "state": "open",
-      "purpose": "reconcile current authoritative main into long-lived engine trunk"
-    },
-    {
-      "number": 154,
-      "branch": "integrate/reconcile-main-into-engine-v2-20261007",
-      "state": "open",
-      "purpose": "reconcile post-PR-140 authoritative main changes into long-lived engine trunk"
-    },
-    {
-      "number": 159,
-      "branch": "integrate/control-plane-machinery-v2-20261007",
-      "state": "open",
-      "purpose": "consolidated autonomous control-plane machinery (clean verification replacement)"
+      "id": "graph_ir.verification",
+      "name": "Legacy graph/IR parsing, validation, checking, and reporting",
+      "implementation_state": "implemented",
+      "interfaces": [
+        "cli",
+        "graph_ir",
+        "schema"
+      ],
+      "canonical_files": [
+        "automate/core",
+        "automate/ir",
+        "automate/theory",
+        "automate/backend",
+        "schemas/automate-ir-v0.1.json"
+      ],
+      "tests": [
+        "tests/test_graph.py",
+        "tests/test_ir.py",
+        "tests/test_schema.py",
+        "tests/test_serialization_roundtrip.py",
+        "tests/test_end_to_end.py",
+        "tests/test_adversarial.py",
+        "tests/test_execution_sandbox.py",
+        "tests/test_sandbox_limits.py"
+      ],
+      "notes": "Retained and useful, but distinct from the primary calculator request contract. Parser workers have bounded AST/output sizes, CPU time, wall time, and a 1 GiB address-space ceiling; that ceiling is per worker, with no process-wide concurrency cap, so aggregate memory still depends on concurrent request volume. Retired proposal/context/agent schemas are not current interchange requirements.",
+      "verification": {
+        "locally_tested": true,
+        "development_ci_verified": false,
+        "merged_main": true,
+        "exact_head_verified": true,
+        "security_audit_verified": true,
+        "independently_cross_checked": false,
+        "formally_proved": false,
+        "certified": false
+      },
+      "verification_evidence": {
+        "main_sha": "347a5290f65498eafbfccc912f7d4a19ff1f3291",
+        "exact_head_workflow_run": 37971635225,
+        "security_workflow_run": 37971635286
+      }
     }
   ]
 }

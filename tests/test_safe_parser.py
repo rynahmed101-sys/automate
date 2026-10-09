@@ -386,6 +386,19 @@ class TestIsolatedParsing:
         with pytest.raises(SafeParseError, match="greater than zero"):
             parser.parse_isolated("x + 1", timeout=0)
 
+    def test_isolated_parse_timeout_terminates_worker(self, parser):
+        import multiprocessing
+
+        existing = {process.pid for process in multiprocessing.active_children()}
+        with pytest.raises(SafeParseError, match="hard timeout"):
+            parser.parse_isolated("x + 1", timeout=0.05)
+        remaining = {
+            process.pid
+            for process in multiprocessing.active_children()
+            if process.is_alive()
+        }
+        assert remaining <= existing
+
     def test_isolated_parse_preserves_bound_function(self):
         x = sp.Function("x")
         parser = SafeParser(extra_symbols={"x": x})

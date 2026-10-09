@@ -1,14 +1,23 @@
 # Contributing to Automate
 
-We welcome contributions to Automate!
+Contributions should extend the local-first scientific calculator without
+duplicating mature symbolic or numerical backends.
 
-## Guiding Principles
-* **Do not invent new CAS or theorem provers**: Wrap and interoperate with mature open-source tools (Lean 4, Mathlib, Physlib, SymPy, SciPy).
-* **Assumptions are first-class**: Never discard physical assumptions silently.
-* **Lossless macro-expansion**: Support high-level physics steps without losing intermediate verification certificates.
-* **Local-first**: All verification features must function without external or proprietary APIs.
+## Principles
 
-## Pull Request Checklist
-1. All unit tests pass: `pytest tests/ -v`.
-2. End-to-end physics demo succeeds: `automate demo`.
-3. Clear documentation and type annotations provided for all new classes and methods.
+- Keep AI interpretation outside Automate; expose reusable calculation
+  operations with clear inputs and results.
+- Preserve assumptions and domain restrictions where the operation represents
+  them.
+- Keep graph/IR verification behavior distinct from direct calculator results.
+- Keep the core usable without cloud AI providers.
+
+## Pull request checklist
+
+1. Add focused positive and negative tests for changed behavior.
+2. Keep the Python API, manifest, CLI, and README consistent for new calculator
+   operations.
+3. Run the affected tests and, where practical, `pytest -q`.
+4. Run `automate demo` when changing the end-to-end graph workflow.
+5. Document the actual verification scope; do not describe CI success as
+   formal proof.

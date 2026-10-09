@@ -1048,9 +1048,26 @@ class SymPyChecker(BaseChecker):
         try:
             lower = parser.parse(str(lower_raw))
             upper = parser.parse(str(upper_raw))
-            if params.get("endpoint") in ("lower", "upper"):
-                endpoint = params["endpoint"]
+            endpoint_marker = params.get("endpoint")
+            if endpoint_marker is not None and endpoint_marker not in ("lower", "upper"):
+                return False, {"rule": "improper_integral"}, [], (
+                    "Malformed endpoint marker: endpoint must be 'lower' or 'upper'."
+                )
+            if endpoint_marker is not None and singular_raw is not None:
+                return False, {"rule": "improper_integral"}, [], (
+                    "Specify either an endpoint singularity or an interior singular_point, not both."
+                )
+            if lower == sp.oo or upper == -sp.oo:
+                return False, {"rule": "improper_integral"}, [], (
+                    "Malformed infinite bounds: lower and upper must define an ordered interval."
+                )
+            if endpoint_marker in ("lower", "upper"):
+                endpoint = endpoint_marker
                 singular = lower if endpoint == "lower" else upper
+                if singular in (sp.oo, -sp.oo):
+                    return False, {"rule": "improper_integral"}, [], (
+                        "Endpoint singularities require a finite endpoint."
+                    )
                 direction = "right" if endpoint == "lower" else "left"
                 eps = sp.symbols("epsilon", positive=True)
                 cutoff = singular + eps if direction == "right" else singular - eps
@@ -1063,6 +1080,18 @@ class SymPyChecker(BaseChecker):
                 limit_value = sp.limit(truncated, eps, 0, dir="+")
             elif singular_raw is not None:
                 singular = parser.parse(str(singular_raw))
+                left_order = sp.ask(sp.Q.positive(singular - lower))
+                right_order = sp.ask(sp.Q.positive(upper - singular))
+                if left_order is False or right_order is False:
+                    return False, {"rule": "improper_integral", "mode": "interior"}, [], (
+                        "Malformed interior split: singular_point must lie strictly between the bounds."
+                    )
+                if left_order is not True or right_order is not True:
+                    return False, {
+                        "rule": "improper_integral",
+                        "mode": "interior",
+                        "_status_override": VerificationStatus.UNVERIFIED.value,
+                    }, [], "UNVERIFIED: could not establish that singular_point lies strictly inside the bounds."
                 eps = sp.symbols("epsilon", positive=True)
                 left = sp.integrate(integrand, (variable, lower, singular - eps))
                 right = sp.integrate(integrand, (variable, singular + eps, upper))
