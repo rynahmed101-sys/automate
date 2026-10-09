@@ -24,7 +24,10 @@ from automate.visualization.terminal import print_graph_summary, print_assumptio
 from automate.demo import run_harmonic_oscillator_demo
 from automate.ir.tensors import TensorEquation
 from automate.theory.rules import RuleRegistry
-from automate.calculator import CALCULATOR_OPERATIONS, calculate as calculate_operation, result_string
+from automate.calculator import (
+    CALCULATOR_OPERATIONS, calculate as calculate_operation, result_string,
+    calculator_manifest, calculate_request, result_data,
+)
 
 @click.group()
 @click.version_option(version="0.3.0", prog_name="automate")
@@ -60,6 +63,7 @@ def capabilities(as_json: bool):
         "lean4": lean_checker.is_available(),
         "lean4_version": lean_checker.version,
         "calculator_operations": list(CALCULATOR_OPERATIONS),
+        "calculator": calculator_manifest(),
         "rule_registry": {
             "count": len(RuleRegistry().list_rule_ids()),
             "rule_ids": RuleRegistry().list_rule_ids(),
@@ -95,7 +99,12 @@ def calculate(operation, expression, variable, variables, point, order, value, s
             point=point, order=order, value=value,
             second_expression=second_expression,
         )
-        payload = {"operation": operation, "input": expression, "result": result_string(result)}
+        payload = {
+            "operation": operation,
+            "input": expression,
+            "result": result_string(result),
+            "result_data": result_data(result),
+        }
     except Exception as exc:
         payload = {"operation": operation, "input": expression,
                    "error": f"{type(exc).__name__}: {exc}"}
@@ -105,6 +114,28 @@ def calculate(operation, expression, variable, variables, point, order, value, s
         raise click.ClickException(payload["error"])
     else:
         console.print(payload["result"])
+
+
+@main.command("request")
+@click.option("--request-json", default=None, help="JSON object with operation, expression, and optional arguments. Reads stdin when omitted.")
+def request_command(request_json: str | None):
+    """Execute a structured JSON calculator request and return typed JSON output."""
+    raw = request_json if request_json is not None else click.get_text_stream("stdin").read()
+    try:
+        request = json.loads(raw)
+        result = calculate_request(request)
+        click.echo(json.dumps({
+            "ok": True,
+            "operation": request["operation"],
+            "result": result_string(result),
+            "result_data": result_data(result),
+        }, indent=2))
+    except Exception as exc:
+        click.echo(json.dumps({
+            "ok": False,
+            "error": {"type": type(exc).__name__, "message": str(exc)},
+        }, indent=2))
+        raise click.exceptions.Exit(1)
 
 
 @main.command()

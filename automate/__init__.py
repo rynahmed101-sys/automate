@@ -7,7 +7,10 @@ from automate.core.status import VerificationStatus
 from automate.core.node import DerivationNode
 from automate.core.edge import DerivationEdge
 from automate.core.graph import DerivationGraph
-from automate.calculator import CALCULATOR_OPERATIONS, CalculatorError, calculate
+from automate.calculator import (
+    CALCULATOR_OPERATIONS, CalculatorError, calculate, calculate_request,
+    calculator_manifest, result_data,
+)
 
 __all__ = [
     "VerificationStatus",
@@ -17,4 +20,7 @@ __all__ = [
     "CALCULATOR_OPERATIONS",
     "CalculatorError",
     "calculate",
+    "calculate_request",
+    "calculator_manifest",
+    "result_data",
 ]
