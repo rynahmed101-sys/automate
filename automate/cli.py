@@ -27,7 +27,7 @@ from automate.theory.rules import RuleRegistry
 from automate.calculator import CALCULATOR_OPERATIONS, calculate as calculate_operation, result_string
 
 @click.group()
-@click.version_option(version="0.2.0", prog_name="automate")
+@click.version_option(version="0.3.0", prog_name="automate")
 def main():
     """Automate: local-first mathematics and physics calculator."""
     pass
@@ -46,7 +46,7 @@ def capabilities(as_json: bool):
     """Discover available mathematical and physics backends."""
     lean_checker = LeanChecker()
     caps = {
-        "schema_version": "0.2.0",
+        "schema_version": "0.3.0",
         "ir": True,
         "tensors": True,
         "actions": True,
