@@ -18,6 +18,7 @@ Automate provides reusable operations for:
 - symbolic simplification
 - equations and solving
 - derivatives and integrals
+- symbolic ordinary differential-equation solving
 - limits and series
 - multivariable mathematics
 - linear algebra
@@ -41,6 +42,7 @@ from automate import calculate
 
 calculate("differentiate", "x**2*y", variable="x")
 calculate("matrix_determinant", "Matrix((1,2),(3,4))")
+calculate("ode_solve", "diff(y(x), x) = y(x)", dependent_variable="y", independent_variable="x")
 ```
 
 The CLI provides the same calculator surface for shell tools and AI agents:
