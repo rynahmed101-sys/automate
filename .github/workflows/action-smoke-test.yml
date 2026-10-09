@@ -22,31 +22,110 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run a successful calculation through the public action
-        id: calculate
+      - name: Evaluate arithmetic
+        id: arithmetic
+        uses: ./
+        with:
+          request: |
+            {"operation":"evaluate","expression":"2 + 3*4"}
+
+      - name: Simplify an identity
+        id: simplify
+        uses: ./
+        with:
+          request: |
+            {"operation":"simplify","expression":"sin(x)**2 + cos(x)**2"}
+
+      - name: Expand a polynomial
+        id: expand
+        uses: ./
+        with:
+          request: |
+            {"operation":"expand","expression":"(x + 1)**3"}
+
+      - name: Differentiate a multivariable expression
+        id: differentiate
         uses: ./
         with:
           request: |
             {"operation":"differentiate","expression":"x**2*y","variable":"x"}
 
-      - name: Validate the public outputs
+      - name: Integrate symbolically
+        id: integrate
+        uses: ./
+        with:
+          request: |
+            {"operation":"integrate","expression":"x**2","variable":"x"}
+
+      - name: Compute a definite integral
+        id: definite
+        uses: ./
+        with:
+          request: |
+            {"operation":"integrate_definite","expression":"x**2","variable":"x","lower":"0","upper":"3"}
+
+      - name: Compute a limit
+        id: limit
+        uses: ./
+        with:
+          request: |
+            {"operation":"limit","expression":"sin(x)/x","variable":"x","point":"0"}
+
+      - name: Solve an equation
+        id: solve
+        uses: ./
+        with:
+          request: |
+            {"operation":"solve","expression":"x**2 - 4","variable":"x"}
+
+      - name: Compute a matrix determinant
+        id: determinant
+        uses: ./
+        with:
+          request: |
+            {"operation":"matrix_determinant","expression":"Matrix([[1,2],[3,4]])"}
+
+      - name: Validate direct action results and structured outputs
         env:
-          RESPONSE: ${{ steps.calculate.outputs.response }}
-          RESULT: ${{ steps.calculate.outputs.result }}
-          RESULT_DATA: ${{ steps.calculate.outputs.result_data }}
+          ARITHMETIC: ${{ steps.arithmetic.outputs.result }}
+          SIMPLIFY: ${{ steps.simplify.outputs.result }}
+          EXPAND: ${{ steps.expand.outputs.result }}
+          DIFFERENTIATE: ${{ steps.differentiate.outputs.result }}
+          INTEGRATE: ${{ steps.integrate.outputs.result }}
+          DEFINITE: ${{ steps.definite.outputs.result }}
+          LIMIT: ${{ steps.limit.outputs.result }}
+          SOLVE: ${{ steps.solve.outputs.result }}
+          DETERMINANT: ${{ steps.determinant.outputs.result }}
+          RESPONSE: ${{ steps.differentiate.outputs.response }}
+          RESULT_DATA: ${{ steps.differentiate.outputs.result_data }}
         run: |
           python - <<'PY'
           import json
           import os
 
+          expected = {
+              "ARITHMETIC": "14",
+              "SIMPLIFY": "1",
+              "EXPAND": "x**3 + 3*x**2 + 3*x + 1",
+              "DIFFERENTIATE": "2*x*y",
+              "INTEGRATE": "x**3/3",
+              "DEFINITE": "9",
+              "LIMIT": "1",
+              "SOLVE": "[-2, 2]",
+              "DETERMINANT": "-2",
+          }
+          for name, want in expected.items():
+              got = os.environ[name]
+              assert got == want, f"{name}: expected {want!r}, got {got!r}"
+              print(f"PASS {name}: {got}")
+
           response = json.loads(os.environ["RESPONSE"])
           result_data = json.loads(os.environ["RESULT_DATA"])
           assert response["ok"] is True, response
-          assert response["result"] == "2*x*y", response
-          assert os.environ["RESULT"] == "2*x*y", os.environ["RESULT"]
-          assert isinstance(result_data, dict) and result_data.get("type"), result_data
+          assert response["result"] == os.environ["DIFFERENTIATE"], response
+          assert isinstance(result_data, dict) and result_data.get("type") == "sympy", result_data
           assert result_data == response["result_data"]
-          print("PASS: full JSON, readable result, and typed result data")
+          print("PASS structured JSON and typed symbolic result")
           PY
 
       - name: Invalid requests must fail the action
