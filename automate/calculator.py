@@ -38,7 +38,11 @@ def calculate(operation: str, expression: Any, *, variable: str | None=None,
     if operation not in CALCULATOR_OPERATIONS:
         raise CalculatorError(f"Unsupported operation: {operation}")
     p=SafeParser()
-    equation = p.parse_equation_isolated(expression) if operation == "solve" and "=" in expression else None
+    equation = (
+        p.parse_equation_isolated(expression)
+        if operation == "solve" and isinstance(expression, str) and "=" in expression
+        else None
+    )
     expr = equation if equation is not None else _parse(p, expression)
     s=lambda: _symbol(variable,expr)
     if operation=="evaluate": return expr
