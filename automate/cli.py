@@ -89,8 +89,13 @@ def capabilities(as_json: bool):
 @click.option("--derivative-order", type=int, default=1, show_default=True, help="Derivative order for differentiate")
 @click.option("--value", default=None, help="Substitution NAME=EXPRESSION or numerical initial value")
 @click.option("--second-expression", default=None, help="Second expression for systems, matrix, or vector operations")
+@click.option("--source-unit", default=None, help="Source unit for unit_convert")
+@click.option("--target-unit", default=None, help="Target unit for unit_convert")
+@click.option("--distribution-name", default=None, help="Allowlisted probability distribution name")
+@click.option("--distribution-function", default=None, help="pdf, pmf, cdf, sf, or ppf")
+@click.option("--distribution-parameters", default=None, help="JSON object of distribution parameters")
 @click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
-def calculate(operation, expression, variable, variables, point, order, derivative_order, value, second_expression, as_json):
+def calculate(operation, expression, variable, variables, point, order, derivative_order, value, second_expression, source_unit, target_unit, distribution_name, distribution_function, distribution_parameters, as_json):
     """Calculate a mathematical operation and return the result."""
     try:
         result = calculate_operation(
@@ -99,6 +104,10 @@ def calculate(operation, expression, variable, variables, point, order, derivati
             variables=[v.strip() for v in variables.split(",")] if variables else None,
             point=point, order=order, derivative_order=derivative_order, value=value,
             second_expression=second_expression,
+            source_unit=source_unit, target_unit=target_unit,
+            distribution_name=distribution_name,
+            distribution_function=distribution_function,
+            distribution_parameters=json.loads(distribution_parameters) if distribution_parameters else None,
         )
         payload = {
             "operation": operation,
