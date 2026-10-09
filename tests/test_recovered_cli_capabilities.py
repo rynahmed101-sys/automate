@@ -35,3 +35,58 @@ def test_cli_capability_manifest_lists_recovered_operations():
     payload = json.loads(result.output)
     operations = set(payload["calculator_operations"])
     assert {"unit_convert", "descriptive_statistics", "distribution", "pde_solve"} <= operations
+
+
+def test_cli_calculate_exposes_definite_integral_bounds():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "integrate_definite", "--expression", "x**2",
+        "--variable", "x", "--lower", "0", "--upper", "3", "--json",
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "9"
+
+
+def test_cli_calculate_exposes_equation_systems():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "solve_system", "--expression", "x+y+z-6",
+        "--variables", "x,y,z", "--equations", '["x-1", "y-2", "z-3"]', "--json",
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "{x: 1, y: 2, z: 3}"
+
+
+def test_cli_calculate_exposes_transform_arguments():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "transform", "--expression", "exp(2*t)",
+        "--variable", "t", "--transform-type", "laplace",
+        "--transform-variable", "s", "--json",
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "1/(s - 2)"
+
+
+def test_cli_calculate_exposes_vector_calculus_arguments():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "divergence",
+        "--expression", "Matrix((x, y, z))", "--variables", "x,y,z", "--json",
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["result"] == "3"
+
+
+def test_cli_calculate_json_errors_return_nonzero():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "integrate_definite", "--expression", "x**2",
+        "--variable", "x", "--lower", "0", "--json",
+    ])
+    assert result.exit_code == 1, result.output
+    assert "both lower and upper bounds" in json.loads(result.output)["error"]
+
+
+def test_cli_calculate_rejects_malformed_json_arguments():
+    result = CliRunner().invoke(main, [
+        "calculate", "--operation", "solve_system", "--expression", "x+y",
+        "--variables", "x,y", "--equations", "not-json", "--json",
+    ])
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["error"].startswith("JSONDecodeError:")

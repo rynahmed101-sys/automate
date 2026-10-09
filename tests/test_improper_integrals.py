@@ -106,6 +106,60 @@ def test_two_sided_infinite_integral_diverges_if_one_tail_diverges():
     assert "diverg" in error.lower()
 
 
+def test_lower_infinite_endpoint_converges():
+    passed, details, _, error = run(
+        {"variable": "x", "lower": "-oo", "upper": "0"},
+        "exp(x)",
+        "1",
+    )
+    assert passed is True
+    assert details["converges"] is True
+    assert error is None
+
+
+def test_interior_split_outside_bounds_is_rejected():
+    passed, details, _, error = run(
+        {"variable": "x", "lower": "0", "upper": "1", "singular_point": "2"},
+        "1/(x-2)**2",
+        "0",
+    )
+    assert passed is False
+    assert details["mode"] == "interior"
+    assert "strictly between the bounds" in error
+
+
+def test_unresolved_interior_split_order_is_unverified():
+    passed, details, evidence, error = run(
+        {"variable": "x", "lower": "0", "upper": "b", "singular_point": "a"},
+        "1/(x-a)**2",
+        "0",
+    )
+    assert passed is False
+    assert details.get("_status_override") == VerificationStatus.UNVERIFIED.value
+    assert evidence == []
+    assert "could not establish" in error
+
+
+def test_reversed_infinite_bounds_are_rejected():
+    passed, _, _, error = run(
+        {"variable": "x", "lower": "1", "upper": "-oo"},
+        "exp(x)",
+        "0",
+    )
+    assert passed is False
+    assert "ordered interval" in error
+
+
+def test_malformed_endpoint_marker_fails_closed():
+    passed, _, _, error = run(
+        {"variable": "x", "lower": "0", "upper": "oo", "endpoint": "middle"},
+        "1/x**2",
+        "1",
+    )
+    assert passed is False
+    assert "endpoint must be" in error
+
+
 def test_upper_endpoint_singularity_converges():
     passed, details, _, error = run(
         {"variable": "x", "lower": "0", "upper": "1", "endpoint": "upper"},

@@ -16,7 +16,9 @@ CALCULATOR_OPERATIONS = (
     "evaluate", "simplify", "expand", "factor", "cancel", "apart", "together",
     "collect", "substitute", "differentiate", "integrate", "integrate_definite",
     "limit", "series", "solve", "solve_system", "ode_solve", "pde_solve", "transform", "summation", "product", "roots",
-    "nsolve", "evalf", "unit_convert", "descriptive_statistics", "distribution", "gradient", "jacobian", "hessian", "stationary_points", "matrix_add",
+    "nsolve", "evalf", "unit_convert", "descriptive_statistics", "distribution",
+    "gradient", "jacobian", "hessian", "total_differential", "divergence", "curl",
+    "laplacian", "stationary_points", "matrix_add",
     "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_inverse",
     "matrix_rank", "matrix_trace", "matrix_eigenvalues", "matrix_eigenvectors",
     "matrix_singular_values", "vector_dot", "vector_cross", "vector_norm",
@@ -47,11 +49,27 @@ def _parse_equation(parser: SafeParser, value: Any) -> Any:
 
 def _symbol(name: str | None, expr: Any) -> sp.Symbol:
     if name:
-        return sp.Symbol(name)
+        normalized = name.strip()
+        if not normalized.isidentifier():
+            raise CalculatorError("variable must be a valid symbol name.")
+        return sp.Symbol(normalized)
     free = sorted(getattr(expr, "free_symbols", set()), key=lambda s: s.name)
     if len(free) == 1:
         return free[0]
     raise CalculatorError("Provide a variable when the operation needs exactly one variable.")
+
+
+def _symbols_from_variables(operation: str, variables: list[str] | None) -> list[sp.Symbol]:
+    if not variables:
+        raise CalculatorError(f"{operation} requires variables, e.g. ['x', 'y'].")
+    names = []
+    for value in variables:
+        if not isinstance(value, str) or not value.strip().isidentifier():
+            raise CalculatorError(f"{operation} variables must be valid symbol names.")
+        names.append(value.strip())
+    if len(set(names)) != len(names):
+        raise CalculatorError(f"{operation} variables must be unique.")
+    return [sp.Symbol(name) for name in names]
 
 
 def calculate(
@@ -240,9 +258,7 @@ def calculate(
     if operation == "solve_system":
         if not variables:
             raise CalculatorError("solve_system requires variables, e.g. ['x', 'y'].")
-        symbols = [sp.Symbol(v.strip()) for v in variables if isinstance(v, str) and v.strip()]
-        if len(symbols) != len(variables):
-            raise CalculatorError("Every solve_system variable must be a non-empty string.")
+        symbols = _symbols_from_variables(operation, variables)
         if equations is not None:
             if not isinstance(equations, (list, tuple)) or not equations:
                 raise CalculatorError("equations must be a non-empty list of equations.")
@@ -302,12 +318,7 @@ def calculate(
     if operation == "evalf":
         return expr.evalf(order)
     if operation == "stationary_points":
-        names = variables or []
-        if not names or any(not isinstance(name, str) or not name.strip().isidentifier() for name in names):
-            raise CalculatorError("stationary_points requires variables, e.g. ['x', 'y'].")
-        symbols = [sp.Symbol(name.strip()) for name in names]
-        if len(set(symbols)) != len(symbols):
-            raise CalculatorError("stationary_points variables must be unique.")
+        symbols = _symbols_from_variables(operation, variables)
         gradient = [sp.diff(expr, name) for name in symbols]
         if all(sp.simplify(component) == 0 for component in gradient):
             raise CalculatorError(
@@ -320,14 +331,51 @@ def calculate(
                 "The stationary set has free requested variables and is not a finite list of points."
             )
         return points
-    if operation in {"gradient", "jacobian", "hessian"}:
-        vs = [sp.Symbol(v.strip()) for v in (variables or []) if isinstance(v, str) and v.strip()]
-        if not vs:
-            raise CalculatorError(f"{operation} requires variables, e.g. ['x', 'y'].")
+    if operation in {
+        "gradient", "jacobian", "hessian", "total_differential",
+        "divergence", "curl", "laplacian",
+    }:
+        vs = _symbols_from_variables(operation, variables)
         if operation == "gradient":
             return sp.Matrix([sp.diff(expr, v) for v in vs])
         if operation == "hessian":
             return sp.hessian(expr, vs)
+        if operation == "total_differential":
+            if not isinstance(expr, sp.Expr):
+                raise CalculatorError("total_differential requires a scalar expression.")
+            differential_names = {f"d_{variable.name}" for variable in vs}
+            expression_names = {symbol.name for symbol in expr.free_symbols}
+            variable_names = {variable.name for variable in vs}
+            if differential_names & (expression_names | variable_names):
+                raise CalculatorError(
+                    "total_differential generated differential symbols must not collide "
+                    "with expression or variable symbols."
+                )
+            return sp.Add(*(
+                sp.diff(expr, variable) * sp.Symbol(f"d_{variable}")
+                for variable in vs
+            ))
+        if operation == "laplacian":
+            if not isinstance(expr, sp.Expr):
+                raise CalculatorError("laplacian requires a scalar expression.")
+            return sp.Add(*(sp.diff(expr, variable, 2) for variable in vs))
+        if operation in {"divergence", "curl"}:
+            if not isinstance(expr, sp.MatrixBase) or (expr.rows != 1 and expr.cols != 1):
+                raise CalculatorError(f"{operation} requires a row or column Matrix vector field.")
+            components = list(expr)
+            if len(components) != len(vs):
+                raise CalculatorError(f"{operation} requires one variable per vector component.")
+            if operation == "divergence":
+                return sp.Add(*(sp.diff(component, variable) for component, variable in zip(components, vs)))
+            if len(vs) != 3:
+                raise CalculatorError("curl is defined here only for three-dimensional vector fields.")
+            x, y, z = vs
+            fx, fy, fz = components
+            return sp.Matrix([
+                sp.diff(fz, y) - sp.diff(fy, z),
+                sp.diff(fx, z) - sp.diff(fz, x),
+                sp.diff(fy, x) - sp.diff(fx, y),
+            ])
         funcs = list(expr) if isinstance(expr, sp.MatrixBase) else [expr]
         return sp.Matrix(funcs).jacobian(vs)
     if operation.startswith("matrix_") or operation.startswith("vector_"):
@@ -397,6 +445,10 @@ _OPERATION_ARGUMENTS = {
     "gradient": (("expression", "variables"), ()),
     "jacobian": (("expression", "variables"), ()),
     "hessian": (("expression", "variables"), ()),
+    "total_differential": (("expression", "variables"), ()),
+    "divergence": (("expression", "variables"), ()),
+    "curl": (("expression", "variables"), ()),
+    "laplacian": (("expression", "variables"), ()),
     "stationary_points": (("expression", "variables"), ()),
     "matrix_add": (("expression", "second_expression"), ()),
     "matrix_multiply": (("expression", "second_expression"), ()),
@@ -426,7 +478,10 @@ _OPERATION_DESCRIPTIONS = {
     "integrate": "Compute a symbolic indefinite integral.",
     "integrate_definite": "Compute a definite integral between lower and upper bounds.",
     "limit": "Compute a symbolic limit at point; direction may be '+', '-', or '+-'.",
-    "series": "Expand around point (zero by default) through the requested order.",
+    "series": (
+        "Expand around point (zero by default) using SymPy's order convention: "
+        "include powers below order and retain the Order term."
+    ),
     "solve": "Solve an expression or equation for a variable.",
     "solve_system": "Solve a system using second_expression or an equations list.",
     "ode_solve": "Solve an ordinary differential equation with SymPy dsolve; name the dependent and independent variables.",
@@ -443,6 +498,10 @@ _OPERATION_DESCRIPTIONS = {
     "gradient": "Compute the vector of first partial derivatives.",
     "jacobian": "Compute a Jacobian matrix.",
     "hessian": "Compute a Hessian matrix.",
+    "total_differential": "Compute the total differential as a linear form in d_<variable> symbols.",
+    "divergence": "Compute the Cartesian divergence of a vector field with one component per variable.",
+    "curl": "Compute the three-dimensional Cartesian curl of a vector field.",
+    "laplacian": "Compute the scalar Cartesian Laplacian across the requested variables.",
     "stationary_points": "Find symbolic candidates where every requested first partial derivative is zero; this does not classify minima or maxima.",
     "matrix_add": "Add two matrices.",
     "matrix_multiply": "Multiply two matrices.",

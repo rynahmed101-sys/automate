@@ -89,13 +89,29 @@ def capabilities(as_json: bool):
 @click.option("--derivative-order", type=int, default=1, show_default=True, help="Derivative order for differentiate")
 @click.option("--value", default=None, help="Substitution NAME=EXPRESSION or numerical initial value")
 @click.option("--second-expression", default=None, help="Second expression for systems, matrix, or vector operations")
+@click.option("--lower", default=None, help="Lower bound for definite integration")
+@click.option("--upper", default=None, help="Upper bound for definite integration")
+@click.option("--direction", type=click.Choice(["+", "-", "+-"]), default="+-", show_default=True, help="Direction for a limit")
+@click.option("--equations", default=None, help="JSON array of equation expressions for solve_system")
+@click.option("--dependent-variable", default=None, help="Dependent function name for ode_solve")
+@click.option("--independent-variable", default=None, help="Independent variable name for ode_solve")
+@click.option("--hint", default="default", show_default=True, help="SymPy dsolve hint for ode_solve")
+@click.option("--transform-type", type=click.Choice(["laplace", "fourier"]), default=None, help="Transform family")
+@click.option("--transform-variable", default=None, help="Target variable for transform")
+@click.option("--inverse", is_flag=True, help="Compute the inverse transform")
 @click.option("--source-unit", default=None, help="Source unit for unit_convert")
 @click.option("--target-unit", default=None, help="Target unit for unit_convert")
 @click.option("--distribution-name", default=None, help="Allowlisted probability distribution name")
 @click.option("--distribution-function", default=None, help="pdf, pmf, cdf, sf, or ppf")
 @click.option("--distribution-parameters", default=None, help="JSON object of distribution parameters")
 @click.option("--json", "as_json", is_flag=True, help="Output machine-readable JSON")
-def calculate(operation, expression, variable, variables, point, order, derivative_order, value, second_expression, source_unit, target_unit, distribution_name, distribution_function, distribution_parameters, as_json):
+def calculate(
+    operation, expression, variable, variables, point, order, derivative_order,
+    value, second_expression, lower, upper, direction, equations,
+    dependent_variable, independent_variable, hint, transform_type,
+    transform_variable, inverse, source_unit, target_unit, distribution_name,
+    distribution_function, distribution_parameters, as_json,
+):
     """Calculate a mathematical operation and return the result."""
     try:
         result = calculate_operation(
@@ -104,6 +120,12 @@ def calculate(operation, expression, variable, variables, point, order, derivati
             variables=[v.strip() for v in variables.split(",")] if variables else None,
             point=point, order=order, derivative_order=derivative_order, value=value,
             second_expression=second_expression,
+            lower=lower, upper=upper, direction=direction,
+            equations=json.loads(equations) if equations else None,
+            dependent_variable=dependent_variable,
+            independent_variable=independent_variable,
+            hint=hint, transform_type=transform_type,
+            transform_variable=transform_variable, inverse=inverse,
             source_unit=source_unit, target_unit=target_unit,
             distribution_name=distribution_name,
             distribution_function=distribution_function,
@@ -120,6 +142,8 @@ def calculate(operation, expression, variable, variables, point, order, derivati
                    "error": f"{type(exc).__name__}: {exc}"}
     if as_json:
         click.echo(json.dumps(payload, indent=2))
+        if "error" in payload:
+            raise click.exceptions.Exit(1)
     elif "error" in payload:
         raise click.ClickException(payload["error"])
     else:

@@ -1,8 +1,19 @@
 # Automate Architecture Audit (v0.1 Prototype)
 
-**Date**: 2026-10-03  
-**Status**: Comprehensive Baseline Review  
+**Date**: 2026-10-03
+**Status**: Historical baseline; superseded for current implementation status
 **Objective**: Identify implemented capabilities, partial implementations, design debts, and stubs to prepare for the engineering integration phase.
+
+> Historical snapshot only. Its component statuses, remediation plan, CLI
+> command list, and schema recommendations describe the repository as reviewed
+> on 2026-10-03; they are not current backlog items. The current product
+> boundary and calculator interface are documented in [README.md](../README.md)
+> and [ARCHITECTURE.md](../ARCHITECTURE.md). The sole operational queue is
+> [AUTOMATE_SCIENTIFIC_ENGINE_LEDGER.md](./AUTOMATE_SCIENTIFIC_ENGINE_LEDGER.md).
+> In particular, the IR schema, symbolic calculator, broad rule registry, and
+> schema/serialization tests mentioned as future work below now exist. Do not
+> recreate retired AI proposal, context, agent-control, or certificate schemas
+> to satisfy this historical audit.
 
 ---
 

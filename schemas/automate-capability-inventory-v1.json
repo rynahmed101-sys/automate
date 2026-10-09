@@ -1,19 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://automate.physics/schemas/automate-capability-inventory-v1.json",
-  "title": "Automate Capability Inventory (v1)",
+  "title": "Automate Capability Evidence Inventory (v1)",
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "$schema",
     "schema_version",
     "authoritative_branch",
     "roadmap_authority",
-    "registry_authority",
-    "lifecycle_states",
-    "verification_axes",
-    "branch_policy",
-    "capabilities",
-    "integration_references"
+    "inventory_purpose",
+    "authoritative_verification",
+    "capabilities"
   ],
   "properties": {
     "$schema": {
@@ -23,286 +21,28 @@
       "const": "automate.capability_inventory.v1"
     },
     "authoritative_branch": {
-      "type": "string",
-      "minLength": 1
+      "const": "main"
     },
     "roadmap_authority": {
       "type": "string",
       "minLength": 1
     },
-    "registry_authority": {
+    "inventory_purpose": {
       "type": "string",
       "minLength": 1
-    },
-    "inventory_purpose": {
-      "type": "string"
-    },
-    "lifecycle_states": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "uniqueItems": true
-    },
-    "verification_axes": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "uniqueItems": true
-    },
-    "branch_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "capability_branch_prefix",
-        "reconciliation_branch_prefix",
-        "reconciliation_owner",
-        "feature_base",
-        "control_plane_base",
-        "reconciliation_bases",
-        "shared_integration_files",
-        "rule"
-      ],
-      "properties": {
-        "capability_branch_prefix": {
-          "type": "string"
-        },
-        "reconciliation_branch_prefix": {
-          "type": "string"
-        },
-        "reconciliation_owner": {
-          "type": "string"
-        },
-        "feature_base": {
-          "type": "string"
-        },
-        "control_plane_base": {
-          "type": "string"
-        },
-        "reconciliation_bases": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-        "shared_integration_files": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "rule": {
-          "type": "string"
-        },
-        "allowed_maintenance_branch_prefixes": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        }
-      }
-    },
-    "capabilities": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "order",
-          "stage",
-          "name",
-          "implementation_state",
-          "authority",
-          "references",
-          "depends_on",
-          "canonical_files",
-          "shared_integration_points",
-          "verification",
-          "safe_to_delete"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9_.-]*$"
-          },
-          "order": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "stage": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "implementation_state": {
-            "type": "string"
-          },
-          "authority": {
-            "type": "object",
-            "required": [
-              "kind",
-              "ref"
-            ],
-            "additionalProperties": true,
-            "properties": {
-              "kind": {
-                "type": "string"
-              },
-              "ref": {
-                "type": "string"
-              }
-            }
-          },
-          "references": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "type"
-              ],
-              "additionalProperties": true
-            }
-          },
-          "depends_on": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "uniqueItems": true
-          },
-          "canonical_files": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "uniqueItems": true
-          },
-          "shared_integration_points": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "uniqueItems": true
-          },
-          "verification": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "boolean"
-            }
-          },
-          "safe_to_delete": {
-            "type": "boolean"
-          },
-          "preserved_in": {
-            "type": "string"
-          },
-          "notes": {
-            "type": "string"
-          },
-          "verification_evidence": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "main_sha",
-              "exact_head_workflow_run",
-              "security_workflow_run"
-            ],
-            "properties": {
-              "main_sha": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{40}$"
-              },
-              "exact_head_workflow_run": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "security_workflow_run": {
-                "type": "integer",
-                "minimum": 1
-              }
-            }
-          },
-          "task": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "source",
-              "ref",
-              "summary",
-              "requirements"
-            ],
-            "properties": {
-              "source": {
-                "type": "string",
-                "minLength": 1
-              },
-              "ref": {
-                "type": "string",
-                "minLength": 1
-              },
-              "summary": {
-                "type": "string",
-                "minLength": 1
-              },
-              "requirements": {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "control_plane_references": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "number",
-          "branch",
-          "state",
-          "purpose"
-        ],
-        "properties": {
-          "number": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "branch": {
-            "type": "string",
-            "minLength": 1
-          },
-          "state": {
-            "type": "string",
-            "minLength": 1
-          },
-          "purpose": {
-            "type": "string",
-            "minLength": 1
-          },
-          "head_sha": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{40}$"
-          }
-        }
-      }
     },
     "authoritative_verification": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "main_sha",
+        "exact_head_workflow_run",
+        "exact_head_conclusion",
+        "security_workflow_run",
+        "security_conclusion",
+        "local_test_summary",
+        "note"
+      ],
       "properties": {
         "main_sha": {
           "type": "string",
@@ -322,77 +62,178 @@
         "security_conclusion": {
           "type": "string"
         },
+        "local_test_summary": {
+          "type": "string"
+        },
         "note": {
           "type": "string"
         }
       }
     },
-    "integration_references": {
+    "capabilities": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "number",
-          "branch",
-          "state",
-          "purpose"
+          "id",
+          "name",
+          "implementation_state",
+          "interfaces",
+          "canonical_files",
+          "tests",
+          "verification"
         ],
         "properties": {
-          "number": {
-            "type": "integer",
-            "minimum": 1
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_.-]*$"
           },
-          "branch": {
+          "name": {
             "type": "string",
             "minLength": 1
           },
-          "state": {
-            "type": "string",
-            "minLength": 1
+          "implementation_state": {
+            "enum": [
+              "implemented",
+              "partially_implemented",
+              "active_development",
+              "not_directly_exposed",
+              "historical"
+            ]
           },
-          "purpose": {
-            "type": "string",
-            "minLength": 1
+          "interfaces": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "python",
+                "cli",
+                "structured_request",
+                "graph_ir",
+                "schema"
+              ]
+            }
           },
-          "head_sha": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{40}$"
-          }
-        }
-      }
-    },
-    "control_plane_references": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "number",
-          "branch",
-          "state",
-          "purpose"
-        ],
-        "properties": {
-          "number": {
-            "type": "integer",
-            "minimum": 1
+          "operations": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
           },
-          "branch": {
-            "type": "string",
-            "minLength": 1
+          "canonical_files": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
           },
-          "state": {
-            "type": "string",
-            "minLength": 1
+          "tests": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
           },
-          "purpose": {
-            "type": "string",
-            "minLength": 1
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "number",
+                "state"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "pr",
+                    "issue"
+                  ]
+                },
+                "number": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "state": {
+                  "type": "string"
+                }
+              }
+            }
           },
-          "head_sha": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{40}$"
+          "depends_on": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "notes": {
+            "type": "string"
+          },
+          "verification": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "locally_tested",
+              "development_ci_verified",
+              "merged_main",
+              "exact_head_verified",
+              "security_audit_verified",
+              "independently_cross_checked",
+              "formally_proved",
+              "certified"
+            ],
+            "properties": {
+              "locally_tested": {
+                "type": "boolean"
+              },
+              "development_ci_verified": {
+                "type": "boolean"
+              },
+              "merged_main": {
+                "type": "boolean"
+              },
+              "exact_head_verified": {
+                "type": "boolean"
+              },
+              "security_audit_verified": {
+                "type": "boolean"
+              },
+              "independently_cross_checked": {
+                "type": "boolean"
+              },
+              "formally_proved": {
+                "type": "boolean"
+              },
+              "certified": {
+                "type": "boolean"
+              }
+            }
+          },
+          "verification_evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "main_sha"
+            ],
+            "properties": {
+              "main_sha": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              "exact_head_workflow_run": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "security_workflow_run": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
           }
         }
       }

@@ -37,6 +37,37 @@ def test_taylor_sine_at_nonzero_center():
     assert error is None
 
 
+def test_series_uses_declared_positive_parameter_assumption():
+    passed, details, _, error = run(
+        {
+            "variable": "x",
+            "center": "0",
+            "order": 2,
+            "assumptions": {"a": "positive"},
+        },
+        "sqrt(a+x)",
+        "sqrt(a) + x/(2*sqrt(a)) - x**2/(8*a**(3/2))",
+    )
+    assert passed is True
+    assert details["order"] == 2
+    assert error is None
+
+
+def test_series_rejects_unsupported_assumption():
+    passed, _, _, error = run(
+        {
+            "variable": "x",
+            "center": "0",
+            "order": 2,
+            "assumptions": {"a": "nonnegative"},
+        },
+        "sqrt(a+x)",
+        "sqrt(a) + x/(2*sqrt(a))",
+    )
+    assert passed is False
+    assert "Unsupported symbolic assumption" in error
+
+
 def test_higher_order_expansion_is_general():
     passed, details, _, error = run(
         {"variable": "x", "center": "1", "order": 6},

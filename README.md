@@ -20,8 +20,10 @@ Automate provides reusable operations for:
 - derivatives and integrals
 - symbolic ordinary differential-equation solving
 - Laplace and Fourier transforms, including inverse transforms
-- limits and series
-- multivariable mathematics
+- limits and Taylor/series expansions, with configurable center and SymPy order
+  semantics (terms below the requested order plus an Order term)
+- multivariable derivatives, total differentials, Jacobians, Hessians, and stationary-point candidates
+- Cartesian divergence, curl, and Laplacian
 - symbolic stationary-point candidates for optimization workflows
 - symbolic PDE solving for equation classes supported by SymPy
 - numeric unit conversion, descriptive statistics, and allowlisted SciPy distributions
@@ -29,11 +31,10 @@ Automate provides reusable operations for:
 - vectors, tensors and geometry
 - numerical mathematics
 - ordinary and partial differential equations
-- mechanics
-- electromagnetism
-- thermodynamics and statistics
-- quantum and relativistic mathematics
-- broader mathematical physics
+- lower-level mechanics and electromagnetism representations
+- tensor and geometric calculations through the graph/IR and Python backends
+- general symbolic and numerical calculations for user-supplied physics
+  expressions; this is not a claim of complete domain-specific workflows
 
 The engine should calculate an unusual equation just as readily as a familiar one. It does not decide whether an idea is fashionable, established or physically true.
 
@@ -53,11 +54,19 @@ calculate("unit_convert", "1", source_unit="km", target_unit="m")
 calculate("descriptive_statistics", [1, 2, 3, 4])
 calculate("distribution", "0", distribution_name="normal", distribution_function="pdf")
 calculate("pde_solve", "diff(u(x,y), x) + diff(u(x,y), y) = 0")
+calculate("total_differential", "x**2*y", variables=["x", "y"])
+calculate("curl", "Matrix((y, z, x))", variables=["x", "y", "z"])
 ```
 
-The CLI provides the same calculator surface for shell tools and AI agents:
+The `calculate` CLI exposes the same operation arguments, including definite
+integral bounds, equation arrays, transform options, and the recovered unit and
+distribution arguments:
 
 `automate calculate --operation differentiate --expression "x**2*y" --variable x`
+
+`automate calculate --operation integrate_definite --expression "x**2" --variable x --lower 0 --upper 3 --json`
+
+`automate calculate --operation series --expression "exp(x)" --variable x --point 1 --order 4 --json`
 
 Machine-readable output:
 
@@ -86,7 +95,7 @@ For shell tools and process-based agents, send a JSON request on standard input 
 echo '{"operation":"matrix_determinant","expression":"Matrix((1,2),(3,4))}' | automate request
 ```
 
-The response includes the familiar readable `result` plus a typed `result_data` representation for matrices, symbolic expressions, sequences, and mappings. Existing `calculate --json` output retains its readable result and adds the typed representation. Verification remains optional; malformed requests and unsupported operations return clear errors.
+The response includes the familiar readable `result` plus a typed `result_data` representation for matrices, symbolic expressions, sequences, mappings, and physical quantities. Existing `calculate --json` output retains its readable result and adds the typed representation. Invalid JSON-mode calculations return a nonzero process status as well as a machine-readable error. Verification remains optional; malformed requests and unsupported operations return clear errors.
 
 ## AI integration
 
