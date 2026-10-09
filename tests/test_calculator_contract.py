@@ -5,13 +5,14 @@ from click.testing import CliRunner
 
 from automate import calculate_request, calculator_manifest, result_data
 from automate.cli import main
+from automate import CALCULATOR_OPERATIONS
 from automate.calculator import CalculatorError
 
 
 def test_manifest_lists_every_callable_operation():
     manifest = calculator_manifest()
     assert manifest["schema_version"] == "automate.calculator.v1"
-    assert {item["name"] for item in manifest["operations"]} == set(manifest["request_fields"] and __import__("automate").CALCULATOR_OPERATIONS)
+    assert {item["name"] for item in manifest["operations"]} == set(CALCULATOR_OPERATIONS)
     assert all(item["description"] and "expression" in item["required"] for item in manifest["operations"])
 
 
@@ -26,7 +27,7 @@ def test_structured_request_parses_variable_lists_and_rejects_unknown_fields():
         "expression": "x**2 + y**2",
         "variables": "x, y",
     })
-    assert result == sp.Matrix([2*x, 2*y]) if False else result == sp.Matrix([2*sp.Symbol("x"), 2*sp.Symbol("y")])
+    assert result == sp.Matrix([2 * sp.Symbol("x"), 2 * sp.Symbol("y")])
     try:
         calculate_request({"operation": "simplify", "expression": "x", "surprise": True})
     except CalculatorError as exc:
