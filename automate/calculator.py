@@ -135,7 +135,7 @@ def calculate(
             if second_expression is None:
                 raise CalculatorError("solve_system requires second_expression or equations.")
             system = [expr, _parse_equation(parser, second_expression)]
-        return sp.solve(system, symbols, dict=True)
+        return sp.solve(system, symbols)
     if operation in {"summation", "product"}:
         if point is None or not isinstance(point, str) or "," not in point:
             raise CalculatorError(f"{operation} requires point='START,END'.")
