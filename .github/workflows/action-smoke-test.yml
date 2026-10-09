@@ -1,0 +1,65 @@
+name: GitHub Action Smoke Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".github/workflows/action-smoke-test.yml"
+      - "action.yml"
+      - "pyproject.toml"
+      - "automate/**"
+      - "src/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  action-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run a successful calculation through the public action
+        id: calculate
+        uses: ./
+        with:
+          request: |
+            {"operation":"differentiate","expression":"x**2*y","variable":"x"}
+
+      - name: Validate the public outputs
+        env:
+          RESPONSE: ${{ steps.calculate.outputs.response }}
+          RESULT: ${{ steps.calculate.outputs.result }}
+          RESULT_DATA: ${{ steps.calculate.outputs.result_data }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          response = json.loads(os.environ["RESPONSE"])
+          result_data = json.loads(os.environ["RESULT_DATA"])
+          assert response["ok"] is True, response
+          assert response["result"] == "2*x*y", response
+          assert os.environ["RESULT"] == "2*x*y", os.environ["RESULT"]
+          assert isinstance(result_data, dict) and result_data.get("type"), result_data
+          assert result_data == response["result_data"]
+          print("PASS: full JSON, readable result, and typed result data")
+          PY
+
+      - name: Invalid requests must fail the action
+        id: invalid
+        uses: ./
+        continue-on-error: true
+        with:
+          request: |
+            {"operation":"not_an_operation","expression":"x"}
+
+      - name: Confirm invalid request failed
+        env:
+          OUTCOME: ${{ steps.invalid.outcome }}
+        run: |
+          test "$OUTCOME" = "failure"
+          echo "PASS: invalid request failed as expected"
