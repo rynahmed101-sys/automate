@@ -197,6 +197,11 @@ def calculate(
         if len(set(symbols)) != len(symbols):
             raise CalculatorError("stationary_points variables must be unique.")
         gradient = [sp.diff(expr, name) for name in symbols]
+        if all(sp.simplify(component) == 0 for component in gradient):
+            raise CalculatorError(
+                "The expression is independent of all requested variables; "
+                "the stationary set is not a finite list of points."
+            )
         return sp.solve(gradient, symbols, dict=True)
     if operation in {"gradient", "jacobian", "hessian"}:
         vs = [sp.Symbol(v.strip()) for v in (variables or []) if isinstance(v, str) and v.strip()]
