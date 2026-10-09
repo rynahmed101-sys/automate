@@ -111,6 +111,7 @@ def result_string(result: Any) -> str:
 # structured results available without replacing the familiar SymPy API.
 _OPERATION_ARGUMENTS = {
     "collect": (("expression",), ("variable",)),
+    "evalf": (("expression",), ("order",)),
     "substitute": (("expression", "value"), ()),
     "differentiate": (("expression",), ("variable",)),
     "integrate": (("expression",), ("variable",)),
