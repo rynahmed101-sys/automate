@@ -1,0 +1,54 @@
+name: Automate calculator
+description: Run a structured mathematical or physics calculation with Automate
+inputs:
+  request:
+    description: JSON object containing an Automate calculator request
+    required: true
+outputs:
+  response:
+    description: Complete JSON response from Automate
+    value: ${{ steps.calculate.outputs.response }}
+  result:
+    description: Human-readable calculation result
+    value: ${{ steps.calculate.outputs.result }}
+  result_data:
+    description: Typed JSON representation of the calculation result
+    value: ${{ steps.calculate.outputs.result_data }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v7
+      with:
+        python-version: "3.12"
+    - name: Install Automate
+      shell: bash
+      run: python -m pip install --disable-pip-version-check --no-input "$GITHUB_ACTION_PATH"
+    - name: Run calculator request
+      id: calculate
+      shell: bash
+      env:
+        AUTOMATE_REQUEST_JSON: ${{ inputs.request }}
+      run: |
+        response="$(printf '%s' "$AUTOMATE_REQUEST_JSON" | automate request)"
+        export AUTOMATE_RESPONSE_JSON="$response"
+        python - <<'PY'
+        import json
+        import os
+        import uuid
+
+        response = json.loads(os.environ["AUTOMATE_RESPONSE_JSON"])
+        if response.get("ok") is not True:
+            raise SystemExit("Automate returned an unsuccessful response")
+
+        outputs = {
+            "response": json.dumps(response, separators=(",", ":")),
+            "result": response["result"],
+            "result_data": json.dumps(response["result_data"], separators=(",", ":")),
+        }
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            for name, value in outputs.items():
+                delimiter = f"automate_{uuid.uuid4().hex}"
+                while delimiter in value:
+                    delimiter = f"automate_{uuid.uuid4().hex}"
+                output.write(f"{name}<<{delimiter}\n{value}\n{delimiter}\n")
+        PY
