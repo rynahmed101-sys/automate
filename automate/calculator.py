@@ -12,7 +12,7 @@ CALCULATOR_OPERATIONS = (
     "evaluate", "simplify", "expand", "factor", "cancel", "apart", "together",
     "collect", "substitute", "differentiate", "integrate", "integrate_definite",
     "limit", "series", "solve", "solve_system", "ode_solve", "transform", "summation", "product", "roots",
-    "nsolve", "evalf", "gradient", "jacobian", "hessian", "matrix_add",
+    "nsolve", "evalf", "gradient", "jacobian", "hessian", "stationary_points", "matrix_add",
     "matrix_multiply", "matrix_transpose", "matrix_determinant", "matrix_inverse",
     "matrix_rank", "matrix_trace", "matrix_eigenvalues", "matrix_eigenvectors",
     "matrix_singular_values", "vector_dot", "vector_cross", "vector_norm",
@@ -189,6 +189,20 @@ def calculate(
         return sp.nsolve(expr, symbol(), _parse(parser, value))
     if operation == "evalf":
         return expr.evalf(order)
+    if operation == "stationary_points":
+        names = variables or []
+        if not names or any(not isinstance(name, str) or not name.strip().isidentifier() for name in names):
+            raise CalculatorError("stationary_points requires variables, e.g. ['x', 'y'].")
+        symbols = [sp.Symbol(name.strip()) for name in names]
+        if len(set(symbols)) != len(symbols):
+            raise CalculatorError("stationary_points variables must be unique.")
+        gradient = [sp.diff(expr, name) for name in symbols]
+        if all(sp.simplify(component) == 0 for component in gradient):
+            raise CalculatorError(
+                "The expression is independent of all requested variables; "
+                "the stationary set is not a finite list of points."
+            )
+        return sp.solve(gradient, symbols, dict=True)
     if operation in {"gradient", "jacobian", "hessian"}:
         vs = [sp.Symbol(v.strip()) for v in (variables or []) if isinstance(v, str) and v.strip()]
         if not vs:
@@ -260,6 +274,7 @@ _OPERATION_ARGUMENTS = {
     "gradient": (("expression", "variables"), ()),
     "jacobian": (("expression", "variables"), ()),
     "hessian": (("expression", "variables"), ()),
+    "stationary_points": (("expression", "variables"), ()),
     "matrix_add": (("expression", "second_expression"), ()),
     "matrix_multiply": (("expression", "second_expression"), ()),
     "vector_dot": (("expression", "second_expression"), ()),
@@ -301,6 +316,7 @@ _OPERATION_DESCRIPTIONS = {
     "gradient": "Compute the vector of first partial derivatives.",
     "jacobian": "Compute a Jacobian matrix.",
     "hessian": "Compute a Hessian matrix.",
+    "stationary_points": "Find symbolic candidates where every requested first partial derivative is zero; this does not classify minima or maxima.",
     "matrix_add": "Add two matrices.",
     "matrix_multiply": "Multiply two matrices.",
     "matrix_transpose": "Transpose a matrix.",
